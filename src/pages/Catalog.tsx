@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, SlidersHorizontal, Package } from 'lucide-react';
+import { Search, SlidersHorizontal, Package, Globe, CircleCheck } from 'lucide-react';
 import productHeroImg from '@/assets/product-hero.png';
 
 const Catalog = () => {
@@ -103,7 +103,7 @@ const Catalog = () => {
           </Link>
           <nav className="flex items-center gap-4 text-sm">
             <Link to="/catalogo" className="text-foreground font-medium">Catálogo</Link>
-            <span className="text-muted-foreground">🌐 BR</span>
+            <span className="text-muted-foreground flex items-center gap-1"><Globe className="w-4 h-4" /> BR</span>
           </nav>
         </div>
       </header>
@@ -255,7 +255,7 @@ const Catalog = () => {
                           <p className="text-muted-foreground text-sm">Consultar</p>
                         )}
                         {inStock && (
-                          <span className="text-[10px] text-success font-medium">● Em estoque</span>
+                          <span className="text-[10px] text-success font-medium flex items-center gap-0.5"><CircleCheck className="w-3 h-3" /> Em estoque</span>
                         )}
                       </div>
                     </div>

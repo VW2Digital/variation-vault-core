@@ -81,7 +81,6 @@ const ProductList = () => {
                     {product.product_variations?.map((v: any) => (
                       <Badge key={v.id} variant={v.in_stock ? 'default' : 'destructive'} className="text-xs">
                         {v.dosage} — R$ {Number(v.price).toLocaleString('pt-BR')}
-                        {v.is_offer && ' 🏷️'}
                       </Badge>
                     ))}
                   </div>

@@ -26,6 +26,8 @@ import {
   MessageCircle,
   ChevronLeft,
   ChevronRight,
+  CreditCard,
+  CircleDollarSign,
 } from 'lucide-react';
 
 const VideoTestimonialCard = ({ thumbnail, name, videoUrl }: { thumbnail: string; name: string; videoUrl?: string }) => {
@@ -304,8 +306,8 @@ const ProductCheckout = () => {
                 R$ {(Number(variation?.price || 0) * quantity).toLocaleString('pt-BR')}
               </p>
               <div className="text-xs text-muted-foreground space-y-1">
-                <p>💳 Até 6x sem juros no cartão</p>
-                <p className="text-success font-medium">◉ PIX disponível</p>
+                <p className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5" /> Até 6x sem juros no cartão</p>
+                <p className="text-success font-medium flex items-center gap-1"><CircleDollarSign className="w-3.5 h-3.5" /> PIX disponível</p>
               </div>
             </div>
 
