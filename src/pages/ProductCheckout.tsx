@@ -3,7 +3,8 @@ import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
 import { fetchProduct, fetchTestimonials, fetchBanners, fetchSetting } from '@/lib/api';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
-
+import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { useLanguage } from '@/contexts/LanguageContext';
 import productHeroImg from '@/assets/product-hero.png';
 import logoImg from '@/assets/liberty-pharma-logo.png';
 import testimonial1 from '@/assets/testimonial-1.jpg';
@@ -89,6 +90,7 @@ const VideoTestimonialCard = ({ thumbnail, name, videoUrl }: { thumbnail: string
 const ProductCheckout = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const [product, setProduct] = useState<any>(null);
   const [dynamicTestimonials, setDynamicTestimonials] = useState<any[]>([]);
@@ -143,18 +145,18 @@ const ProductCheckout = () => {
   const images = variationImages.length > 0 ? variationImages : [productHeroImg];
 
   const trustBadges = [
-    { icon: ShieldCheck, title: 'Produto Certificado', desc: 'Aprovado por agências regulatórias' },
-    { icon: Truck, title: 'Entrega Rápida', desc: 'Frete grátis para todo Brasil' },
-    { icon: Award, title: 'Qualidade Premium', desc: 'Padrão internacional de qualidade' },
-    { icon: CalendarClock, title: 'Uso Semanal', desc: 'Aplicação uma vez por semana' },
+    { icon: ShieldCheck, title: t('certifiedProduct'), desc: t('certifiedDesc') },
+    { icon: Truck, title: t('fastDelivery'), desc: t('fastDeliveryDesc') },
+    { icon: Award, title: t('premiumQuality'), desc: t('premiumQualityDesc') },
+    { icon: CalendarClock, title: t('weeklyUse'), desc: t('weeklyUseDesc') },
   ];
 
   const details = [
-    { label: 'Princípio Ativo', value: product.active_ingredient },
-    { label: 'Dosagem', value: variation?.dosage },
-    { label: 'Forma Farmacêutica', value: product.pharma_form },
-    { label: 'Via de Administração', value: product.administration_route },
-    { label: 'Frequência de Uso', value: product.frequency },
+    { label: t('activeIngredientLabel'), value: product.active_ingredient },
+    { label: t('dosageLabel'), value: variation?.dosage },
+    { label: t('pharmaForm'), value: product.pharma_form },
+    { label: t('adminRoute'), value: product.administration_route },
+    { label: t('frequency'), value: product.frequency },
   ];
 
   return (
@@ -179,7 +181,10 @@ const ProductCheckout = () => {
           <Link to="/catalogo" className="flex items-center gap-2">
             <img src={logoImg} alt="Liberty Pharma" className="h-10 object-contain" />
           </Link>
-          <Link to="/catalogo" className="text-sm text-muted-foreground hover:text-foreground transition-colors">← Catálogo</Link>
+          <div className="flex items-center gap-4">
+            <Link to="/catalogo" className="text-sm text-muted-foreground hover:text-foreground transition-colors">← {t('catalog')}</Link>
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 
@@ -239,7 +244,7 @@ const ProductCheckout = () => {
             {/* Dosage Selector */}
             {variations.length > 1 && (
               <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">Selecione a Dosagem</p>
+                <p className="text-sm font-medium text-foreground">{t('selectDosage')}</p>
                 <div className="flex gap-3">
                   {variations.map((v: any, i: number) => (
                     <button
@@ -253,7 +258,7 @@ const ProductCheckout = () => {
                     >
                       {v.is_offer && (
                         <span className="absolute -top-2 right-2 bg-destructive text-destructive-foreground text-[10px] font-bold px-2 py-0.5 rounded">
-                          OFERTA
+                          {t('offer')}
                         </span>
                       )}
                       {i === selectedVariation && (
@@ -277,7 +282,7 @@ const ProductCheckout = () => {
 
             {/* Quantity */}
             <div className="space-y-2">
-              <p className="text-sm font-medium text-primary">Quantidade</p>
+              <p className="text-sm font-medium text-primary">{t('quantity')}</p>
               <div className="flex items-center gap-0">
                 <button
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
@@ -300,19 +305,19 @@ const ProductCheckout = () => {
             {/* Price Box */}
             <div className="border border-border/50 rounded-xl p-5 space-y-3 bg-card">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">Preço</p>
+                <p className="text-sm text-muted-foreground">{t('price')}</p>
                 {variation?.in_stock ? (
-                  <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/10">Em estoque</Badge>
+                  <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/10">{t('inStock')}</Badge>
                 ) : (
-                  <Badge variant="destructive">Indisponível</Badge>
+                  <Badge variant="destructive">{t('unavailable')}</Badge>
                 )}
               </div>
               <p className="text-3xl font-bold text-primary">
                 R$ {(Number(variation?.price || 0) * quantity).toLocaleString('pt-BR')}
               </p>
               <div className="text-xs text-muted-foreground space-y-1">
-                <p className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5" /> Até 6x sem juros no cartão</p>
-                <p className="text-success font-medium flex items-center gap-1"><CircleDollarSign className="w-3.5 h-3.5" /> PIX disponível</p>
+                <p className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5" /> {t('upTo6x')}</p>
+                <p className="text-success font-medium flex items-center gap-1"><CircleDollarSign className="w-3.5 h-3.5" /> {t('pixAvailable')}</p>
               </div>
             </div>
 
@@ -327,11 +332,11 @@ const ProductCheckout = () => {
                   navigate(`/checkout/${id}?${params.toString()}`);
                 }}
               >
-                Comprar Agora
+                {t('buyNow')}
               </Button>
             ) : (
               <Button className="w-full h-14 text-lg font-semibold rounded-xl" disabled>
-                Produto Esgotado
+                {t('soldOut')}
               </Button>
             )}
 
@@ -358,7 +363,7 @@ const ProductCheckout = () => {
         {/* Product Details Table - Full width */}
         <AnimatedSection variant="fadeUp" className="mt-6">
           <div className="border border-border/50 rounded-xl p-5 bg-card space-y-4">
-            <h3 className="font-bold text-foreground">Detalhes do Produto</h3>
+            <h3 className="font-bold text-foreground">{t('productDetails')}</h3>
             <div className="divide-y divide-border/50">
               {details.map((d) => (
                 <div key={d.label} className="flex justify-between py-2.5 text-sm">
@@ -371,7 +376,7 @@ const ProductCheckout = () => {
               {product.description}
             </p>
             <p className="text-xs text-muted-foreground italic">
-              * Este medicamento requer prescrição médica. Consulte um profissional de saúde antes do uso.
+              {t('prescriptionNote')}
             </p>
           </div>
         </AnimatedSection>
@@ -382,7 +387,7 @@ const ProductCheckout = () => {
         <Accordion type="single" collapsible>
           <AccordionItem value="bula" className="border border-border/50 rounded-xl px-5 bg-card">
             <AccordionTrigger className="text-lg font-bold text-foreground hover:no-underline">
-              Bula do Medicamento
+              {t('drugBulletin')}
             </AccordionTrigger>
             <AccordionContent className="text-sm text-muted-foreground space-y-3 pb-5">
               <p><strong>Indicação:</strong> Este medicamento é indicado para o tratamento de diabetes mellitus tipo 2 em adultos como adjuvante à dieta e exercícios para melhorar o controle glicêmico.</p>
@@ -396,9 +401,9 @@ const ProductCheckout = () => {
 
       {/* Video Testimonials */}
       <AnimatedSection className="max-w-6xl mx-auto px-4 pb-8 text-center">
-        <h2 className="text-2xl font-bold text-foreground mb-2">Depoimentos de Clientes</h2>
+        <h2 className="text-2xl font-bold text-foreground mb-2">{t('customerTestimonials')}</h2>
         <p className="text-muted-foreground mb-8">
-          Veja o que nossos clientes estão dizendo sobre o Liberty Pharma
+          {t('testimonialSubtitle')}
         </p>
         <StaggerContainer className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {dynamicTestimonials.map((t) => (

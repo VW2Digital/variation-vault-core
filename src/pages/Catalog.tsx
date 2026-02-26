@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import logoImg from '@/assets/liberty-pharma-logo.png';
 import { fetchProducts } from '@/lib/api';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
 import { Input } from '@/components/ui/input';
@@ -13,10 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, SlidersHorizontal, Package, Globe, CircleCheck } from 'lucide-react';
+import { Search, SlidersHorizontal, Package, CircleCheck } from 'lucide-react';
 import productHeroImg from '@/assets/product-hero.png';
+import logoImg from '@/assets/liberty-pharma-logo.png';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const Catalog = () => {
+  const { t } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -54,46 +57,33 @@ const Catalog = () => {
       );
     }
 
-    if (pharmaFilter !== 'all') {
-      result = result.filter((p) => p.pharma_form === pharmaFilter);
-    }
+    if (pharmaFilter !== 'all') result = result.filter((p) => p.pharma_form === pharmaFilter);
+    if (routeFilter !== 'all') result = result.filter((p) => p.administration_route === routeFilter);
 
-    if (routeFilter !== 'all') {
-      result = result.filter((p) => p.administration_route === routeFilter);
-    }
-
-    if (stockFilter !== 'all') {
-      result = result.filter((p) => {
-        const hasStock = p.product_variations?.some((v: any) => v.in_stock);
-        return stockFilter === 'in_stock' ? hasStock : !hasStock;
-      });
-    }
-
-    if (sortBy === 'newest') {
-      result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    } else if (sortBy === 'name_asc') {
-      result.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sortBy === 'price_asc') {
-      const minPrice = (p: any) => Math.min(...(p.product_variations?.map((v: any) => Number(v.price)) || [Infinity]));
-      result.sort((a, b) => minPrice(a) - minPrice(b));
-    } else if (sortBy === 'price_desc') {
-      const minPrice = (p: any) => Math.min(...(p.product_variations?.map((v: any) => Number(v.price)) || [0]));
-      result.sort((a, b) => minPrice(b) - minPrice(a));
+    if (stockFilter === 'in_stock') {
+      result = result.filter((p) => p.product_variations?.some((v: any) => v.in_stock));
+    } else if (stockFilter === 'out_of_stock') {
+      result = result.filter((p) => !p.product_variations?.some((v: any) => v.in_stock));
     }
 
     return result;
-  }, [products, search, pharmaFilter, routeFilter, stockFilter, sortBy]);
+  }, [products, search, pharmaFilter, routeFilter, stockFilter]);
 
-  // Flatten products into one entry per variation
   const flatItems = useMemo(() => {
-    return filtered.flatMap((product) => {
-      const variations = product.product_variations || [];
-      if (variations.length === 0) {
-        return [{ product, variation: null }];
-      }
-      return variations.map((v: any) => ({ product, variation: v }));
+    let items = filtered.flatMap((product) => {
+      const vars = product.product_variations || [];
+      if (vars.length === 0) return [{ product, variation: null }];
+      return vars.map((variation: any) => ({ product, variation }));
     });
-  }, [filtered]);
+
+    if (sortBy === 'name_asc') items.sort((a, b) => a.product.name.localeCompare(b.product.name));
+    else if (sortBy === 'price_asc') items.sort((a, b) => (a.variation?.price ?? 0) - (b.variation?.price ?? 0));
+    else if (sortBy === 'price_desc') items.sort((a, b) => (b.variation?.price ?? 0) - (a.variation?.price ?? 0));
+    else items.sort((a, b) => new Date(b.product.created_at).getTime() - new Date(a.product.created_at).getTime());
+
+    return items;
+  }, [filtered, sortBy]);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -103,8 +93,8 @@ const Catalog = () => {
             <img src={logoImg} alt="Liberty Pharma" className="h-10 object-contain" />
           </Link>
           <nav className="flex items-center gap-4 text-sm">
-            <Link to="/catalogo" className="text-foreground font-medium">Catálogo</Link>
-            <span className="text-muted-foreground flex items-center gap-1"><Globe className="w-4 h-4" /> BR</span>
+            <Link to="/catalogo" className="text-foreground font-medium">{t('catalog')}</Link>
+            <LanguageSwitcher />
           </nav>
         </div>
       </header>
@@ -112,10 +102,8 @@ const Catalog = () => {
       {/* Hero */}
       <AnimatedSection variant="fadeUp" className="bg-gradient-to-b from-primary/5 to-transparent py-12 text-center">
         <div className="max-w-3xl mx-auto px-4">
-          <h1 className="text-4xl font-bold text-foreground mb-3">Catálogo de Produtos</h1>
-          <p className="text-muted-foreground text-lg">
-            Explore nossa linha completa de medicamentos com qualidade premium e certificação internacional.
-          </p>
+          <h1 className="text-4xl font-bold text-foreground mb-3">{t('catalogTitle')}</h1>
+          <p className="text-muted-foreground text-lg">{t('catalogSubtitle')}</p>
         </div>
       </AnimatedSection>
 
@@ -126,7 +114,7 @@ const Catalog = () => {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por nome, princípio ativo..."
+                placeholder={t('searchPlaceholder')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
@@ -136,10 +124,10 @@ const Catalog = () => {
             <div className="flex gap-2 flex-wrap">
               <Select value={pharmaFilter} onValueChange={setPharmaFilter}>
                 <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Forma" />
+                  <SelectValue placeholder={t('allForms')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas as formas</SelectItem>
+                  <SelectItem value="all">{t('allForms')}</SelectItem>
                   {pharmaForms.map((f) => (
                     <SelectItem key={f} value={f}>{f}</SelectItem>
                   ))}
@@ -148,10 +136,10 @@ const Catalog = () => {
 
               <Select value={routeFilter} onValueChange={setRouteFilter}>
                 <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Via" />
+                  <SelectValue placeholder={t('allRoutes')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas as vias</SelectItem>
+                  <SelectItem value="all">{t('allRoutes')}</SelectItem>
                   {adminRoutes.map((r) => (
                     <SelectItem key={r} value={r}>{r}</SelectItem>
                   ))}
@@ -160,44 +148,44 @@ const Catalog = () => {
 
               <Select value={stockFilter} onValueChange={setStockFilter}>
                 <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Estoque" />
+                  <SelectValue placeholder={t('all')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="in_stock">Em estoque</SelectItem>
-                  <SelectItem value="out_of_stock">Esgotado</SelectItem>
+                  <SelectItem value="all">{t('all')}</SelectItem>
+                  <SelectItem value="in_stock">{t('inStock')}</SelectItem>
+                  <SelectItem value="out_of_stock">{t('outOfStock')}</SelectItem>
                 </SelectContent>
               </Select>
 
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="w-[160px]">
                   <SlidersHorizontal className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Ordenar" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="newest">Mais recentes</SelectItem>
-                  <SelectItem value="name_asc">Nome A-Z</SelectItem>
-                  <SelectItem value="price_asc">Menor preço</SelectItem>
-                  <SelectItem value="price_desc">Maior preço</SelectItem>
+                  <SelectItem value="newest">{t('newest')}</SelectItem>
+                  <SelectItem value="name_asc">{t('nameAZ')}</SelectItem>
+                  <SelectItem value="price_asc">{t('priceLow')}</SelectItem>
+                  <SelectItem value="price_desc">{t('priceHigh')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <p className="text-sm text-muted-foreground mt-3">
-            {flatItems.length} {flatItems.length === 1 ? 'produto encontrado' : 'produtos encontrados'}
+            {flatItems.length} {flatItems.length === 1 ? t('productFound') : t('productsFound')}
           </p>
         </AnimatedSection>
 
         {/* Product Grid */}
         {loading ? (
-          <div className="text-center py-20 text-muted-foreground">Carregando produtos...</div>
+          <div className="text-center py-20 text-muted-foreground">{t('loadingProducts')}</div>
         ) : flatItems.length === 0 ? (
           <div className="text-center py-20 space-y-3">
             <Package className="w-12 h-12 text-muted-foreground mx-auto" />
-            <p className="text-muted-foreground">Nenhum produto encontrado com os filtros selecionados.</p>
+            <p className="text-muted-foreground">{t('noProducts')}</p>
             <Button variant="outline" onClick={() => { setSearch(''); setPharmaFilter('all'); setRouteFilter('all'); setStockFilter('all'); }}>
-              Limpar filtros
+              {t('clearFilters')}
             </Button>
           </div>
         ) : (
@@ -226,11 +214,11 @@ const Catalog = () => {
                       <div className="absolute top-3 left-3 flex flex-col gap-1.5">
                         {offer && (
                           <Badge className="bg-destructive text-destructive-foreground text-[10px] font-bold">
-                            OFERTA
+                            {t('offer')}
                           </Badge>
                         )}
                         {!inStock && (
-                          <Badge variant="secondary" className="text-[10px]">Esgotado</Badge>
+                          <Badge variant="secondary" className="text-[10px]">{t('outOfStock')}</Badge>
                         )}
                       </div>
                     </div>
@@ -244,7 +232,7 @@ const Catalog = () => {
                       )}
                       {product.active_ingredient && (
                         <p className="text-[11px] text-muted-foreground">
-                          Princípio ativo: <span className="font-medium">{product.active_ingredient}</span>
+                          {t('activeIngredient')}: <span className="font-medium">{product.active_ingredient}</span>
                         </p>
                       )}
                       <div className="flex items-center justify-between pt-1">
@@ -253,10 +241,10 @@ const Catalog = () => {
                             R$ {price.toLocaleString('pt-BR')}
                           </p>
                         ) : (
-                          <p className="text-muted-foreground text-sm">Consultar</p>
+                          <p className="text-muted-foreground text-sm">{t('consult')}</p>
                         )}
                         {inStock && (
-                          <span className="text-[10px] text-success font-medium flex items-center gap-0.5"><CircleCheck className="w-3 h-3" /> Em estoque</span>
+                          <span className="text-[10px] text-success font-medium flex items-center gap-0.5"><CircleCheck className="w-3 h-3" /> {t('inStock')}</span>
                         )}
                       </div>
                     </div>
@@ -271,7 +259,7 @@ const Catalog = () => {
       {/* Footer */}
       <footer className="border-t border-border/50 bg-card mt-12">
         <div className="max-w-7xl mx-auto px-4 py-8 text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} Liberty Pharma — Todos os direitos reservados</p>
+          <p>© {new Date().getFullYear()} Liberty Pharma — {t('allRights')}</p>
         </div>
       </footer>
     </div>
