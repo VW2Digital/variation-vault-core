@@ -6,10 +6,13 @@ import CheckoutForm from '@/components/CheckoutForm';
 import logoImg from '@/assets/liberty-pharma-logo.png';
 import productHeroImg from '@/assets/product-hero.png';
 import { ChevronLeft } from 'lucide-react';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const Checkout = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
+  const { t } = useLanguage();
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedVariation, setSelectedVariation] = useState(0);
@@ -30,7 +33,7 @@ const Checkout = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Carregando...</p>
+        <p className="text-muted-foreground">{t('loading')}</p>
       </div>
     );
   }
@@ -38,7 +41,7 @@ const Checkout = () => {
   if (!product) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Produto não encontrado.</p>
+        <p className="text-muted-foreground">{t('productNotFound')}</p>
       </div>
     );
   }
@@ -63,12 +66,15 @@ const Checkout = () => {
           <Link to="/catalogo" className="flex items-center gap-2">
             <img src={logoImg} alt="Liberty Pharma" className="h-10 object-contain" />
           </Link>
-          <Link
-            to={`/produto/${id}?v=${variation?.id || ''}`}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-          >
-            <ChevronLeft className="w-4 h-4" /> Voltar ao produto
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              to={`/produto/${id}?v=${variation?.id || ''}`}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+            >
+              <ChevronLeft className="w-4 h-4" /> {t('backToProduct')}
+            </Link>
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 
@@ -76,7 +82,7 @@ const Checkout = () => {
         <AnimatedSection variant="fadeUp">
           {/* Order Summary */}
           <div className="border border-border/50 rounded-xl p-5 bg-card mb-6">
-            <h2 className="text-lg font-bold text-foreground mb-4">Resumo do Pedido</h2>
+            <h2 className="text-lg font-bold text-foreground mb-4">{t('orderSummary')}</h2>
             <div className="flex items-center gap-4">
               <img
                 src={mainImage}
@@ -86,7 +92,7 @@ const Checkout = () => {
               <div className="flex-1">
                 <p className="font-semibold text-foreground">{product.name}</p>
                 <p className="text-sm text-muted-foreground">{variation?.dosage}</p>
-                <p className="text-sm text-muted-foreground">Qtd: {quantity}</p>
+                <p className="text-sm text-muted-foreground">{t('qty')}: {quantity}</p>
               </div>
               <p className="text-xl font-bold text-primary">
                 R$ {totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}

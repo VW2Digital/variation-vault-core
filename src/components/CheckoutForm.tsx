@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface CheckoutFormProps {
   productName: string;
@@ -65,6 +66,7 @@ const ErrorText = ({ msg }: { msg?: string }) =>
 
 const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutFormProps) => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const totalValue = unitPrice * quantity;
 
   const [step, setStep] = useState<CheckoutStep>('customer');
@@ -122,17 +124,17 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
 
   const validateCustomer = (): boolean => {
     const errors: FieldError = {};
-    if (!name.trim()) errors.name = 'Nome é obrigatório';
-    else if (name.trim().length < 3) errors.name = 'Nome deve ter pelo menos 3 caracteres';
+    if (!name.trim()) errors.name = t('nameRequired');
+    else if (name.trim().length < 3) errors.name = t('nameMin');
 
-    if (!email.trim()) errors.email = 'E-mail é obrigatório';
-    else if (!isValidEmail(email)) errors.email = 'E-mail inválido';
+    if (!email.trim()) errors.email = t('emailRequired');
+    else if (!isValidEmail(email)) errors.email = t('emailInvalid');
 
-    if (!cpf.trim()) errors.cpf = 'CPF é obrigatório';
-    else if (!isValidCpf(cpf)) errors.cpf = 'CPF inválido';
+    if (!cpf.trim()) errors.cpf = t('cpfRequired');
+    else if (!isValidCpf(cpf)) errors.cpf = t('cpfInvalid');
 
-    if (!phone.trim()) errors.phone = 'Telefone é obrigatório';
-    else if (!isValidPhone(phone)) errors.phone = 'Telefone inválido';
+    if (!phone.trim()) errors.phone = t('phoneRequired');
+    else if (!isValidPhone(phone)) errors.phone = t('phoneInvalid');
 
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -142,13 +144,13 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
     if (paymentMethod === 'pix') return true;
     const errors: CardError = {};
     const num = cardNumber.replace(/\s/g, '');
-    if (num.length < 13) errors.cardNumber = 'Número do cartão inválido';
-    if (!cardName.trim()) errors.cardName = 'Nome no cartão é obrigatório';
-    if (!cardExpMonth || parseInt(cardExpMonth) < 1 || parseInt(cardExpMonth) > 12) errors.cardExpMonth = 'Mês inválido';
-    if (!cardExpYear || cardExpYear.length !== 4) errors.cardExpYear = 'Ano inválido';
-    if (!cardCcv || cardCcv.length < 3) errors.cardCcv = 'CVV inválido';
-    if (!holderPostalCode.replace(/\D/g, '') || holderPostalCode.replace(/\D/g, '').length < 8) errors.holderPostalCode = 'CEP inválido';
-    if (!holderAddressNumber.trim()) errors.holderAddressNumber = 'Número obrigatório';
+    if (num.length < 13) errors.cardNumber = t('cardNumberInvalid');
+    if (!cardName.trim()) errors.cardName = t('cardNameRequired');
+    if (!cardExpMonth || parseInt(cardExpMonth) < 1 || parseInt(cardExpMonth) > 12) errors.cardExpMonth = t('monthInvalid');
+    if (!cardExpYear || cardExpYear.length !== 4) errors.cardExpYear = t('yearInvalid');
+    if (!cardCcv || cardCcv.length < 3) errors.cardCcv = t('cvvInvalid');
+    if (!holderPostalCode.replace(/\D/g, '') || holderPostalCode.replace(/\D/g, '').length < 8) errors.holderPostalCode = t('cepInvalid');
+    if (!holderAddressNumber.trim()) errors.holderAddressNumber = t('numberRequired');
     setCardErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -169,7 +171,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
       setHolderPhone(phone);
       setStep('payment');
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+      toast({ title: t('error'), description: err.message, variant: 'destructive' });
     } finally {
       setProcessing(false);
     }
@@ -214,7 +216,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
       }
       setStep('success');
     } catch (err: any) {
-      toast({ title: 'Erro no pagamento', description: err.message, variant: 'destructive' });
+      toast({ title: t('paymentError'), description: err.message, variant: 'destructive' });
     } finally {
       setProcessing(false);
     }
@@ -228,7 +230,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: 'Copiado!' });
+    toast({ title: t('copied') });
   };
 
   if (step === 'success') {
@@ -238,8 +240,8 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
           <CheckCircle2 className="w-12 h-12 text-primary mx-auto" />
           {paymentMethod === 'pix' && paymentResult?.pixQrCode ? (
             <>
-              <h3 className="text-lg font-bold text-foreground">Pagamento PIX gerado!</h3>
-              <p className="text-sm text-muted-foreground">Escaneie o QR Code ou copie o código abaixo</p>
+              <h3 className="text-lg font-bold text-foreground">{t('pixGenerated')}</h3>
+              <p className="text-sm text-muted-foreground">{t('scanQR')}</p>
               {paymentResult.pixQrCode.encodedImage && (
                 <img
                   src={`data:image/png;base64,${paymentResult.pixQrCode.encodedImage}`}
@@ -255,15 +257,15 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
                   </Button>
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">Valor: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              <p className="text-xs text-muted-foreground">{t('value')}: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             </>
           ) : (
             <>
-              <h3 className="text-lg font-bold text-foreground">Pagamento processado!</h3>
+              <h3 className="text-lg font-bold text-foreground">{t('paymentProcessed')}</h3>
               <p className="text-sm text-muted-foreground">
-                Status: <span className="font-medium text-primary">{paymentResult?.status === 'CONFIRMED' ? 'Confirmado' : paymentResult?.status === 'PENDING' ? 'Pendente' : paymentResult?.status}</span>
+                {t('status')}: <span className="font-medium text-primary">{paymentResult?.status === 'CONFIRMED' ? t('confirmed') : paymentResult?.status === 'PENDING' ? t('pending') : paymentResult?.status}</span>
               </p>
-              <p className="text-xs text-muted-foreground">Valor: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              <p className="text-xs text-muted-foreground">{t('value')}: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             </>
           )}
         </CardContent>
@@ -275,11 +277,11 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
     return (
       <Card className="border-border/50">
         <CardHeader>
-          <CardTitle className="text-base">Dados do Comprador</CardTitle>
+          <CardTitle className="text-base">{t('buyerData')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
-            <Label className="text-xs">Nome completo *</Label>
+            <Label className="text-xs">{t('fullName')} *</Label>
             <Input
               value={name}
               onChange={(e) => { setName(e.target.value); setFieldErrors(p => ({ ...p, name: undefined })); }}
@@ -289,7 +291,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
             <ErrorText msg={fieldErrors.name} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">E-mail *</Label>
+            <Label className="text-xs">{t('email')} *</Label>
             <Input
               type="email"
               value={email}
@@ -301,7 +303,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs">CPF *</Label>
+              <Label className="text-xs">{t('cpf')} *</Label>
               <Input
                 value={cpf}
                 onChange={(e) => { setCpf(formatCpf(e.target.value)); setFieldErrors(p => ({ ...p, cpf: undefined })); }}
@@ -311,7 +313,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
               <ErrorText msg={fieldErrors.cpf} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Telefone *</Label>
+              <Label className="text-xs">{t('phoneLabel')} *</Label>
               <Input
                 value={phone}
                 onChange={(e) => { setPhone(formatPhone(e.target.value)); setFieldErrors(p => ({ ...p, phone: undefined })); }}
@@ -323,7 +325,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
           </div>
           <Button onClick={handleCreateCustomer} disabled={processing} className="w-full">
             {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            Continuar para pagamento
+            {t('continueToPayment')}
           </Button>
         </CardContent>
       </Card>
@@ -333,13 +335,13 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
   return (
     <Card className="border-border/50">
       <CardHeader>
-        <CardTitle className="text-base">Forma de Pagamento</CardTitle>
+        <CardTitle className="text-base">{t('paymentMethod')}</CardTitle>
         <div className="flex gap-2 mt-2">
           <Button type="button" variant={paymentMethod === 'pix' ? 'default' : 'outline'} size="sm" onClick={() => setPaymentMethod('pix')} className="flex items-center gap-1.5">
             <QrCode className="w-4 h-4" /> PIX
           </Button>
           <Button type="button" variant={paymentMethod === 'credit_card' ? 'default' : 'outline'} size="sm" onClick={() => setPaymentMethod('credit_card')} className="flex items-center gap-1.5">
-            <CreditCard className="w-4 h-4" /> Cartão de Crédito
+            <CreditCard className="w-4 h-4" /> {t('creditCard')}
           </Button>
         </div>
       </CardHeader>
@@ -347,7 +349,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
         {paymentMethod === 'credit_card' && (
           <>
             <div className="space-y-1.5">
-              <Label className="text-xs">Número do cartão *</Label>
+              <Label className="text-xs">{t('cardNumber')} *</Label>
               <Input
                 value={cardNumber}
                 onChange={(e) => { setCardNumber(formatCardNumber(e.target.value)); setCardErrors(p => ({ ...p, cardNumber: undefined })); }}
@@ -357,7 +359,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
               <ErrorText msg={cardErrors.cardNumber} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Nome no cartão *</Label>
+              <Label className="text-xs">{t('cardName')} *</Label>
               <Input
                 value={cardName}
                 onChange={(e) => { setCardName(e.target.value); setCardErrors(p => ({ ...p, cardName: undefined })); }}
@@ -368,7 +370,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div className="space-y-1.5">
-                <Label className="text-xs">Mês *</Label>
+                <Label className="text-xs">{t('month')} *</Label>
                 <Input
                   value={cardExpMonth}
                   onChange={(e) => { setCardExpMonth(e.target.value.replace(/\D/g, '').slice(0, 2)); setCardErrors(p => ({ ...p, cardExpMonth: undefined })); }}
@@ -378,7 +380,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
                 <ErrorText msg={cardErrors.cardExpMonth} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Ano *</Label>
+                <Label className="text-xs">{t('year')} *</Label>
                 <Input
                   value={cardExpYear}
                   onChange={(e) => { setCardExpYear(e.target.value.replace(/\D/g, '').slice(0, 4)); setCardErrors(p => ({ ...p, cardExpYear: undefined })); }}
@@ -399,7 +401,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Parcelas</Label>
+              <Label className="text-xs">{t('installments')}</Label>
               <select
                 value={installments}
                 onChange={(e) => setInstallments(Number(e.target.value))}
@@ -407,16 +409,16 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
               >
                 {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((n) => (
                   <option key={n} value={n}>
-                    {n}x de R$ {(totalValue / n).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} {n === 1 ? 'à vista' : 'sem juros'}
+                    {n}x de R$ {(totalValue / n).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} {n === 1 ? t('cashPayment') : t('noInterest')}
                   </option>
                 ))}
               </select>
             </div>
             <div className="border-t border-border/50 pt-3 space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Dados do titular</p>
+              <p className="text-xs font-medium text-muted-foreground">{t('holderData')}</p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">CEP *</Label>
+                  <Label className="text-xs">{t('cep')} *</Label>
                   <Input
                     value={holderPostalCode}
                     onChange={(e) => { setHolderPostalCode(e.target.value); setCardErrors(p => ({ ...p, holderPostalCode: undefined })); }}
@@ -426,7 +428,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
                   <ErrorText msg={cardErrors.holderPostalCode} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Nº endereço *</Label>
+                  <Label className="text-xs">{t('addressNumber')} *</Label>
                   <Input
                     value={holderAddressNumber}
                     onChange={(e) => { setHolderAddressNumber(e.target.value); setCardErrors(p => ({ ...p, holderAddressNumber: undefined })); }}
@@ -456,7 +458,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
           </div>
           <Button onClick={handlePayment} disabled={processing} className="w-full">
             {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            {paymentMethod === 'pix' ? 'Gerar PIX' : 'Pagar com Cartão'}
+            {paymentMethod === 'pix' ? t('generatePix') : `${t('pay')} ${t('creditCard')}`}
           </Button>
         </div>
 
