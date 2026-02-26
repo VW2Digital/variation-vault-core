@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { signIn, signUp } from '@/lib/api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import logoImg from '@/assets/liberty-pharma-logo.png';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -39,7 +40,15 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex flex-col bg-background">
+      <header className="border-b border-border/50 bg-card">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <Link to="/" className="flex items-center gap-2">
+            <img src={logoImg} alt="Liberty Pharma" className="h-10 object-contain" />
+          </Link>
+        </div>
+      </header>
+      <div className="flex-1 flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-lg border-border/50">
         <CardHeader className="text-center space-y-4 pb-2">
           <div className="mx-auto w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
@@ -89,6 +98,7 @@ const Login = () => {
           </form>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 };
