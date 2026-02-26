@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import logoImg from '@/assets/liberty-pharma-logo.png';
 import { fetchProducts } from '@/lib/api';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
 import { Input } from '@/components/ui/input';
@@ -98,8 +99,8 @@ const Catalog = () => {
       {/* Header */}
       <header className="border-b border-border/50 bg-card sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="text-lg font-bold text-primary tracking-tight">
-            LIBERTY PHARMA
+          <Link to="/" className="flex items-center gap-2">
+            <img src={logoImg} alt="Liberty Pharma" className="h-10 object-contain" />
           </Link>
           <nav className="flex items-center gap-4 text-sm">
             <Link to="/catalogo" className="text-foreground font-medium">Catálogo</Link>

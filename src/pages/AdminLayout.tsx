@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Outlet, Navigate, useNavigate } from 'react-router-dom';
+import { Outlet, Navigate, useNavigate, Link } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AdminSidebar } from '@/components/AdminSidebar';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
+import logoImg from '@/assets/liberty-pharma-logo.png';
 
 const AdminLayout = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -42,7 +43,9 @@ const AdminLayout = () => {
         <div className="flex-1 flex flex-col">
           <header className="h-14 flex items-center border-b border-border/50 bg-card px-4">
             <SidebarTrigger />
-            <span className="ml-4 font-semibold text-foreground">Pharma Admin</span>
+            <Link to="/admin" className="ml-4 flex items-center gap-2">
+              <img src={logoImg} alt="Liberty Pharma" className="h-8 object-contain" />
+            </Link>
           </header>
           <main className="flex-1 p-6 overflow-auto">
             <Outlet />
