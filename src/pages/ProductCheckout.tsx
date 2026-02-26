@@ -122,18 +122,13 @@ const ProductCheckout = () => {
   const variations = product.product_variations || [];
   const variation = variations[selectedVariation];
   
-  // Build images: variation images first, then product images
+  // Build images: only from the selected variation
   const variationImages = variation?.images?.length > 0
     ? variation.images
     : variation?.image_url
       ? [variation.image_url]
       : [];
-  const productImages = product.images?.length > 0 ? product.images : [];
-  const images = variationImages.length > 0
-    ? [...variationImages, ...productImages]
-    : productImages.length > 0
-      ? productImages
-      : [productHeroImg];
+  const images = variationImages.length > 0 ? variationImages : [productHeroImg];
 
   const trustBadges = [
     { icon: ShieldCheck, title: 'Produto Certificado', desc: 'Aprovado por agências regulatórias' },
