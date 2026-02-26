@@ -8,6 +8,7 @@ import AdminLayout from "./pages/AdminLayout";
 import Dashboard from "./pages/Dashboard";
 import ProductList from "./pages/ProductList";
 import ProductForm from "./pages/ProductForm";
+import ProductCheckout from "./pages/ProductCheckout";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -19,7 +20,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<ProductCheckout />} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Dashboard />} />
