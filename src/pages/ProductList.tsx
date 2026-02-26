@@ -1,24 +1,47 @@
-import { useProducts } from '@/store';
+import { useEffect, useState } from 'react';
+import { fetchProducts, deleteProduct as apiDeleteProduct } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Trash2, Package } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
 const ProductList = () => {
-  const { products, deleteProduct } = useProducts();
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchProducts();
+      setProducts(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleDelete = async (id: string) => {
+    try {
+      await apiDeleteProduct(id);
+      toast({ title: 'Produto excluído!' });
+      load();
+    } catch (err: any) {
+      toast({ title: 'Erro ao excluir', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  if (loading) return <p className="text-muted-foreground">Carregando...</p>;
 
   return (
     <div className="space-y-6">
@@ -44,9 +67,9 @@ const ProductList = () => {
           {products.map((product) => (
             <Card key={product.id} className="border-border/50 hover:shadow-md transition-shadow">
               <CardContent className="p-5 flex items-center gap-5">
-                <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                  {product.images[0] ? (
-                    <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover rounded-lg" />
+                <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+                  {product.images?.[0] ? (
+                    <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
                   ) : (
                     <Package className="w-8 h-8 text-muted-foreground/40" />
                   )}
@@ -55,20 +78,16 @@ const ProductList = () => {
                   <h3 className="font-semibold text-foreground truncate">{product.name}</h3>
                   <p className="text-sm text-muted-foreground truncate">{product.subtitle}</p>
                   <div className="flex gap-2 mt-2 flex-wrap">
-                    {product.variations.map((v) => (
-                      <Badge key={v.id} variant={v.inStock ? 'default' : 'destructive'} className="text-xs">
-                        {v.dosage} — R$ {v.price.toLocaleString('pt-BR')}
-                        {v.isOffer && ' 🏷️'}
+                    {product.product_variations?.map((v: any) => (
+                      <Badge key={v.id} variant={v.in_stock ? 'default' : 'destructive'} className="text-xs">
+                        {v.dosage} — R$ {Number(v.price).toLocaleString('pt-BR')}
+                        {v.is_offer && ' 🏷️'}
                       </Badge>
                     ))}
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => navigate(`/admin/produtos/${product.id}`)}
-                  >
+                  <Button variant="outline" size="icon" onClick={() => navigate(`/admin/produtos/${product.id}`)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
                   <AlertDialog>
@@ -81,14 +100,12 @@ const ProductList = () => {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Excluir produto?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Esta ação não pode ser desfeita. O produto "{product.name}" será removido permanentemente.
+                          O produto "{product.name}" será removido permanentemente.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => deleteProduct(product.id)}>
-                          Excluir
-                        </AlertDialogAction>
+                        <AlertDialogAction onClick={() => handleDelete(product.id)}>Excluir</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>

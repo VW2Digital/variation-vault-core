@@ -1,7 +1,7 @@
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { Package, LogOut, LayoutDashboard, Video } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
-import { useAuth } from '@/store';
-import { useNavigate } from 'react-router-dom';
 import {
   Sidebar,
   SidebarContent,
@@ -25,11 +25,10 @@ const items = [
 export function AdminSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
-  const { logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     navigate('/login');
   };
 
