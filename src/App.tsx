@@ -13,6 +13,7 @@ import Catalog from "./pages/Catalog";
 import TestimonialList from "./pages/TestimonialList";
 import BannerList from "./pages/BannerList";
 import SettingsPage from "./pages/SettingsPage";
+import OrdersPage from "./pages/OrdersPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="produtos/:id" element={<ProductForm />} />
             <Route path="depoimentos" element={<TestimonialList />} />
             <Route path="banners" element={<BannerList />} />
+            <Route path="pedidos" element={<OrdersPage />} />
             <Route path="configuracoes" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
