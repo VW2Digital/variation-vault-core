@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import ProductList from "./pages/ProductList";
 import ProductForm from "./pages/ProductForm";
 import ProductCheckout from "./pages/ProductCheckout";
+import Catalog from "./pages/Catalog";
 import TestimonialList from "./pages/TestimonialList";
 import NotFound from "./pages/NotFound";
 
@@ -21,7 +22,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<ProductCheckout />} />
+          <Route path="/" element={<Navigate to="/catalogo" replace />} />
+          <Route path="/catalogo" element={<Catalog />} />
+          <Route path="/produto/:id" element={<ProductCheckout />} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Dashboard />} />

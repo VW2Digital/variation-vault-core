@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
-import { fetchProducts, fetchTestimonials } from '@/lib/api';
+import { fetchProduct, fetchTestimonials } from '@/lib/api';
 import productHeroImg from '@/assets/product-hero.png';
 import testimonial1 from '@/assets/testimonial-1.jpg';
 import testimonial2 from '@/assets/testimonial-2.jpg';
@@ -81,18 +82,19 @@ const VideoTestimonialCard = ({ thumbnail, name, videoUrl }: { thumbnail: string
 };
 
 const ProductCheckout = () => {
-  const [products, setProducts] = useState<any[]>([]);
+  const { id } = useParams<{ id: string }>();
+  const [product, setProduct] = useState<any>(null);
   const [dynamicTestimonials, setDynamicTestimonials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([fetchProducts(), fetchTestimonials()]).then(([prods, tests]) => {
-      setProducts(prods);
+    if (!id) return;
+    Promise.all([fetchProduct(id), fetchTestimonials()]).then(([prod, tests]) => {
+      setProduct(prod);
       setDynamicTestimonials(tests);
     }).finally(() => setLoading(false));
-  }, []);
+  }, [id]);
 
-  const product = products[0];
 
   const [selectedVariation, setSelectedVariation] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -147,8 +149,8 @@ const ProductCheckout = () => {
       {/* Header */}
       <header className="border-b border-border/50 bg-card">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-primary tracking-tight">LIBERTY PHARMA</h2>
-          <span className="text-sm text-muted-foreground">🌐 BR</span>
+          <Link to="/catalogo" className="text-lg font-bold text-primary tracking-tight">LIBERTY PHARMA</Link>
+          <Link to="/catalogo" className="text-sm text-muted-foreground hover:text-foreground transition-colors">← Catálogo</Link>
         </div>
       </header>
 
