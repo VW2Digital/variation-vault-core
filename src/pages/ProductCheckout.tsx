@@ -304,41 +304,46 @@ const ProductCheckout = () => {
               Pagamento seguro via Mercado Pago • Parcelamento em até 12x
             </p>
 
-            {/* Trust Badges */}
-            <StaggerContainer className="grid grid-cols-2 gap-3 pt-4">
-              {trustBadges.map((badge) => (
-                <StaggerItem key={badge.title}>
-                  <div className="flex items-start gap-3 p-3 rounded-lg border border-border/50 bg-card">
-                    <badge.icon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{badge.title}</p>
-                      <p className="text-xs text-muted-foreground">{badge.desc}</p>
-                    </div>
-                  </div>
-                </StaggerItem>
-              ))}
-            </StaggerContainer>
-
-            {/* Product Details Table */}
-            <div className="border border-border/50 rounded-xl p-5 bg-card space-y-4">
-              <h3 className="font-bold text-foreground">Detalhes do Produto</h3>
-              <div className="divide-y divide-border/50">
-                {details.map((d) => (
-                  <div key={d.label} className="flex justify-between py-2.5 text-sm">
-                    <span className="text-muted-foreground">{d.label}</span>
-                    <span className="font-medium text-foreground">{d.value || '—'}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground pt-2">
-                {product.description}
-              </p>
-              <p className="text-xs text-muted-foreground italic">
-                * Este medicamento requer prescrição médica. Consulte um profissional de saúde antes do uso.
-              </p>
-            </div>
           </AnimatedSection>
         </div>
+
+        {/* Trust Badges - Full width */}
+        <AnimatedSection variant="fadeUp" className="mt-8">
+          <StaggerContainer className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {trustBadges.map((badge) => (
+              <StaggerItem key={badge.title}>
+                <div className="flex items-start gap-3 p-3 rounded-lg border border-border/50 bg-card">
+                  <badge.icon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{badge.title}</p>
+                    <p className="text-xs text-muted-foreground">{badge.desc}</p>
+                  </div>
+                </div>
+              </StaggerItem>
+            ))}
+          </StaggerContainer>
+        </AnimatedSection>
+
+        {/* Product Details Table - Full width */}
+        <AnimatedSection variant="fadeUp" className="mt-6">
+          <div className="border border-border/50 rounded-xl p-5 bg-card space-y-4">
+            <h3 className="font-bold text-foreground">Detalhes do Produto</h3>
+            <div className="divide-y divide-border/50">
+              {details.map((d) => (
+                <div key={d.label} className="flex justify-between py-2.5 text-sm">
+                  <span className="text-muted-foreground">{d.label}</span>
+                  <span className="font-medium text-foreground">{d.value || '—'}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground pt-2">
+              {product.description}
+            </p>
+            <p className="text-xs text-muted-foreground italic">
+              * Este medicamento requer prescrição médica. Consulte um profissional de saúde antes do uso.
+            </p>
+          </div>
+        </AnimatedSection>
       </section>
 
       {/* Bula Accordion */}
