@@ -126,7 +126,7 @@ const ProductForm = () => {
   if (loadingProduct) return <p className="text-muted-foreground">Carregando...</p>;
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 w-full">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate('/admin/produtos')}>
           <ArrowLeft className="h-5 w-5" />
