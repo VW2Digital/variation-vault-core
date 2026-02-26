@@ -17,6 +17,7 @@ interface Variation {
   in_stock: boolean;
   is_offer: boolean;
   image_url: string;
+  images: string[];
 }
 
 const emptyVariation = (): Variation => ({
@@ -25,6 +26,7 @@ const emptyVariation = (): Variation => ({
   in_stock: true,
   is_offer: false,
   image_url: '',
+  images: [],
 });
 
 const ProductForm = () => {
@@ -66,6 +68,7 @@ const ProductForm = () => {
                 in_stock: v.in_stock,
                 is_offer: v.is_offer,
                 image_url: v.image_url || '',
+                images: v.images || [],
               }))
             : [emptyVariation()]
         );
@@ -213,42 +216,6 @@ const ProductForm = () => {
             {variations.map((v, i) => (
               <div key={i} className="p-4 rounded-lg bg-muted/50 border border-border/30 space-y-3">
                 <div className="flex items-end gap-3">
-                  {/* Variation image */}
-                  <div className="flex flex-col items-center gap-1">
-                    <Label className="text-xs">Foto</Label>
-                    {v.image_url ? (
-                      <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-border group">
-                        <img src={v.image_url} alt="" className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => updateVariation(i, 'image_url', '')}
-                          className="absolute inset-0 bg-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                        >
-                          <Trash2 className="w-4 h-4 text-card" />
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="w-16 h-16 rounded-lg border-2 border-dashed border-border hover:border-primary/50 flex items-center justify-center cursor-pointer transition-colors">
-                        <ImagePlus className="w-4 h-4 text-muted-foreground" />
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            try {
-                              const path = `variations/${crypto.randomUUID()}-${file.name}`;
-                              const url = await uploadFile('product-images', path, file);
-                              updateVariation(i, 'image_url', url);
-                            } catch (err: any) {
-                              toast({ title: 'Erro no upload', description: err.message, variant: 'destructive' });
-                            }
-                          }}
-                        />
-                      </label>
-                    )}
-                  </div>
                   <div className="flex-1 space-y-2">
                     <Label>Dosagem</Label>
                     <Input value={v.dosage} onChange={(e) => updateVariation(i, 'dosage', e.target.value)} placeholder="5mg" />
@@ -270,6 +237,54 @@ const ProductForm = () => {
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   )}
+                </div>
+                {/* Variation images */}
+                <div className="space-y-2">
+                  <Label className="text-xs">Imagens da Variação</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {v.images.map((img, imgIdx) => (
+                      <div key={imgIdx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-border group">
+                        <img src={img} alt="" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newImages = v.images.filter((_, j) => j !== imgIdx);
+                            updateVariation(i, 'images', newImages);
+                            if (v.image_url === img) updateVariation(i, 'image_url', newImages[0] || '');
+                          }}
+                          className="absolute inset-0 bg-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                        >
+                          <Trash2 className="w-4 h-4 text-card" />
+                        </button>
+                      </div>
+                    ))}
+                    <label className="w-16 h-16 rounded-lg border-2 border-dashed border-border hover:border-primary/50 flex items-center justify-center cursor-pointer transition-colors">
+                      <ImagePlus className="w-4 h-4 text-muted-foreground" />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={async (e) => {
+                          const files = e.target.files;
+                          if (!files) return;
+                          for (const file of Array.from(files)) {
+                            try {
+                              const path = `variations/${crypto.randomUUID()}-${file.name}`;
+                              const url = await uploadFile('product-images', path, file);
+                              setVariations((prev) => prev.map((vr, vi) => {
+                                if (vi !== i) return vr;
+                                const newImgs = [...vr.images, url];
+                                return { ...vr, images: newImgs, image_url: vr.image_url || url };
+                              }));
+                            } catch (err: any) {
+                              toast({ title: 'Erro no upload', description: err.message, variant: 'destructive' });
+                            }
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
               </div>
             ))}

@@ -1,0 +1,1 @@
+ALTER TABLE public.product_variations ADD COLUMN images text[] DEFAULT '{}'::text[];
