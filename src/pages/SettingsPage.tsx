@@ -5,24 +5,44 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Phone } from 'lucide-react';
+import { Phone, CreditCard, Eye, EyeOff } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const SettingsPage = () => {
   const { toast } = useToast();
   const [whatsapp, setWhatsapp] = useState('');
+  const [asaasApiKey, setAsaasApiKey] = useState('');
+  const [asaasEnv, setAsaasEnv] = useState('sandbox');
+  const [showApiKey, setShowApiKey] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchSetting('whatsapp_number')
-      .then(setWhatsapp)
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetchSetting('whatsapp_number'),
+      fetchSetting('asaas_api_key'),
+      fetchSetting('asaas_environment'),
+    ]).then(([wp, apiKey, env]) => {
+      setWhatsapp(wp);
+      setAsaasApiKey(apiKey);
+      setAsaasEnv(env || 'sandbox');
+    }).finally(() => setLoading(false));
   }, []);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await upsertSetting('whatsapp_number', whatsapp);
+      await Promise.all([
+        upsertSetting('whatsapp_number', whatsapp),
+        upsertSetting('asaas_api_key', asaasApiKey),
+        upsertSetting('asaas_environment', asaasEnv),
+      ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
@@ -55,11 +75,56 @@ const SettingsPage = () => {
               Formato: código do país + DDD + número. Ex: 5511999999999
             </p>
           </div>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? 'Salvando...' : 'Salvar'}
-          </Button>
         </CardContent>
       </Card>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <CreditCard className="w-5 h-5" /> Asaas - Checkout Transparente
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Ambiente</Label>
+            <Select value={asaasEnv} onValueChange={setAsaasEnv}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sandbox">Sandbox (Testes)</SelectItem>
+                <SelectItem value="production">Produção</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>API Key</Label>
+            <div className="relative">
+              <Input
+                type={showApiKey ? 'text' : 'password'}
+                value={asaasApiKey}
+                onChange={(e) => setAsaasApiKey(e.target.value)}
+                placeholder="$aact_..."
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowApiKey(!showApiKey)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Encontre sua API Key no painel do Asaas em Configurações → Integrações → API
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Button onClick={handleSave} disabled={saving} className="px-8">
+        {saving ? 'Salvando...' : 'Salvar Configurações'}
+      </Button>
     </div>
   );
 };
