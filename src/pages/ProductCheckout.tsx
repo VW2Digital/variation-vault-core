@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
-import { fetchProduct, fetchTestimonials } from '@/lib/api';
+import { fetchProduct, fetchTestimonials, fetchBanners } from '@/lib/api';
 import productHeroImg from '@/assets/product-hero.png';
 import testimonial1 from '@/assets/testimonial-1.jpg';
 import testimonial2 from '@/assets/testimonial-2.jpg';
@@ -85,13 +85,15 @@ const ProductCheckout = () => {
   const { id } = useParams<{ id: string }>();
   const [product, setProduct] = useState<any>(null);
   const [dynamicTestimonials, setDynamicTestimonials] = useState<any[]>([]);
+  const [banners, setBanners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
-    Promise.all([fetchProduct(id), fetchTestimonials()]).then(([prod, tests]) => {
+    Promise.all([fetchProduct(id), fetchTestimonials(), fetchBanners()]).then(([prod, tests, bans]) => {
       setProduct(prod);
       setDynamicTestimonials(tests);
+      setBanners(bans);
     }).finally(() => setLoading(false));
   }, [id]);
 
@@ -146,13 +148,18 @@ const ProductCheckout = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Top Banner */}
-      <div className="bg-sidebar-background text-sidebar-foreground overflow-hidden">
-        <div className="animate-marquee whitespace-nowrap py-2 text-xs font-medium tracking-wide">
-          <span className="mx-8">🔥 PREÇO ESPECIAL PARA REVENDA — FALE COM A GENTE E SAIBA COMO TER ACESSO!</span>
-          <span className="mx-8">🔥 PREÇO ESPECIAL PARA REVENDA — FALE COM A GENTE E SAIBA COMO TER ACESSO!</span>
-          <span className="mx-8">🔥 PREÇO ESPECIAL PARA REVENDA — FALE COM A GENTE E SAIBA COMO TER ACESSO!</span>
+      {banners.length > 0 && (
+        <div className="bg-black text-white overflow-hidden">
+          <div className="animate-marquee whitespace-nowrap py-2 text-xs font-medium tracking-wide">
+            {banners.map((b) => (
+              <span key={b.id} className="mx-8">{b.text}</span>
+            ))}
+            {banners.map((b) => (
+              <span key={`dup-${b.id}`} className="mx-8">{b.text}</span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Header */}
       <header className="border-b border-border/50 bg-card">

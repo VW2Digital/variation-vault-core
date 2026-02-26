@@ -112,6 +112,48 @@ export const deleteProduct = async (id: string) => {
   if (error) throw error;
 };
 
+// Banners
+export const fetchBanners = async () => {
+  const { data, error } = await supabase
+    .from('banners')
+    .select('*')
+    .eq('active', true)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+};
+
+export const fetchAllBanners = async () => {
+  const { data, error } = await supabase
+    .from('banners')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+};
+
+export const createBanner = async (text: string) => {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Not authenticated');
+  const { data, error } = await supabase
+    .from('banners')
+    .insert({ text, user_id: user.id })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const updateBanner = async (id: string, updates: { text?: string; active?: boolean }) => {
+  const { error } = await supabase.from('banners').update(updates).eq('id', id);
+  if (error) throw error;
+};
+
+export const deleteBanner = async (id: string) => {
+  const { error } = await supabase.from('banners').delete().eq('id', id);
+  if (error) throw error;
+};
+
 // Testimonials
 export const fetchTestimonials = async () => {
   const { data, error } = await supabase
