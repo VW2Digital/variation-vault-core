@@ -83,14 +83,16 @@ const Catalog = () => {
     return result;
   }, [products, search, pharmaFilter, routeFilter, stockFilter, sortBy]);
 
-  const getLowestPrice = (product: any) => {
-    const prices = product.product_variations?.map((v: any) => Number(v.price)) || [];
-    return prices.length > 0 ? Math.min(...prices) : null;
-  };
-
-  const hasOffer = (product: any) => product.product_variations?.some((v: any) => v.is_offer);
-  const hasStock = (product: any) => product.product_variations?.some((v: any) => v.in_stock);
-
+  // Flatten products into one entry per variation
+  const flatItems = useMemo(() => {
+    return filtered.flatMap((product) => {
+      const variations = product.product_variations || [];
+      if (variations.length === 0) {
+        return [{ product, variation: null }];
+      }
+      return variations.map((v: any) => ({ product, variation: v }));
+    });
+  }, [filtered]);
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -182,14 +184,14 @@ const Catalog = () => {
           </div>
 
           <p className="text-sm text-muted-foreground mt-3">
-            {filtered.length} {filtered.length === 1 ? 'produto encontrado' : 'produtos encontrados'}
+            {flatItems.length} {flatItems.length === 1 ? 'produto encontrado' : 'produtos encontrados'}
           </p>
         </AnimatedSection>
 
         {/* Product Grid */}
         {loading ? (
           <div className="text-center py-20 text-muted-foreground">Carregando produtos...</div>
-        ) : filtered.length === 0 ? (
+        ) : flatItems.length === 0 ? (
           <div className="text-center py-20 space-y-3">
             <Package className="w-12 h-12 text-muted-foreground mx-auto" />
             <p className="text-muted-foreground">Nenhum produto encontrado com os filtros selecionados.</p>
@@ -199,14 +201,17 @@ const Catalog = () => {
           </div>
         ) : (
           <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {filtered.map((product) => {
-              const price = getLowestPrice(product);
-              const inStock = hasStock(product);
-              const offer = hasOffer(product);
-              const img = product.images?.[0] || productHeroImg;
+            {flatItems.map(({ product, variation }, idx) => {
+              const price = variation ? Number(variation.price) : null;
+              const inStock = variation ? variation.in_stock : false;
+              const offer = variation ? variation.is_offer : false;
+              const img = variation?.image_url || product.images?.[0] || productHeroImg;
+              const displayName = variation
+                ? `${product.name} ${variation.dosage}`
+                : product.name;
 
               return (
-                <StaggerItem key={product.id}>
+                <StaggerItem key={variation?.id || `${product.id}-${idx}`}>
                   <Link
                     to={`/produto/${product.id}`}
                     className="group block rounded-xl border border-border/50 bg-card overflow-hidden hover:shadow-lg hover:border-primary/30 transition-all duration-300"
@@ -214,7 +219,7 @@ const Catalog = () => {
                     <div className="relative aspect-square bg-muted/30 flex items-center justify-center p-6 overflow-hidden">
                       <img
                         src={img}
-                        alt={product.name}
+                        alt={displayName}
                         className="max-w-[75%] max-h-[75%] object-contain group-hover:scale-105 transition-transform duration-500"
                       />
                       <div className="absolute top-3 left-3 flex flex-col gap-1.5">
@@ -231,7 +236,7 @@ const Catalog = () => {
 
                     <div className="p-4 space-y-2">
                       <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
-                        {product.name}
+                        {displayName}
                       </h3>
                       {product.subtitle && (
                         <p className="text-xs text-muted-foreground line-clamp-1">{product.subtitle}</p>
