@@ -122,11 +122,15 @@ const ProductCheckout = () => {
   const variations = product.product_variations || [];
   const variation = variations[selectedVariation];
   
-  // Build images: if selected variation has an image, show it first, then product images
-  const variationImage = variation?.image_url;
+  // Build images: variation images first, then product images
+  const variationImages = variation?.images?.length > 0
+    ? variation.images
+    : variation?.image_url
+      ? [variation.image_url]
+      : [];
   const productImages = product.images?.length > 0 ? product.images : [];
-  const images = variationImage
-    ? [variationImage, ...productImages]
+  const images = variationImages.length > 0
+    ? [...variationImages, ...productImages]
     : productImages.length > 0
       ? productImages
       : [productHeroImg];

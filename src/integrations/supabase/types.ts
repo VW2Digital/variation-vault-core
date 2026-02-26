@@ -44,6 +44,7 @@ export type Database = {
           dosage: string
           id: string
           image_url: string | null
+          images: string[] | null
           in_stock: boolean
           is_offer: boolean
           price: number
@@ -54,6 +55,7 @@ export type Database = {
           dosage: string
           id?: string
           image_url?: string | null
+          images?: string[] | null
           in_stock?: boolean
           is_offer?: boolean
           price?: number
@@ -64,6 +66,7 @@ export type Database = {
           dosage?: string
           id?: string
           image_url?: string | null
+          images?: string[] | null
           in_stock?: boolean
           is_offer?: boolean
           price?: number
