@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
 import { fetchProduct, fetchTestimonials, fetchBanners, fetchSetting } from '@/lib/api';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
@@ -88,6 +88,7 @@ const VideoTestimonialCard = ({ thumbnail, name, videoUrl }: { thumbnail: string
 
 const ProductCheckout = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [product, setProduct] = useState<any>(null);
   const [dynamicTestimonials, setDynamicTestimonials] = useState<any[]>([]);
@@ -323,7 +324,7 @@ const ProductCheckout = () => {
                   const params = new URLSearchParams();
                   if (variation?.id) params.set('v', variation.id);
                   params.set('qty', String(quantity));
-                  window.location.href = `/checkout/${id}?${params.toString()}`;
+                  navigate(`/checkout/${id}?${params.toString()}`);
                 }}
               >
                 Comprar Agora
