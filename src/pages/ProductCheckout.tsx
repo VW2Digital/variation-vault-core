@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
 import { fetchProducts, fetchTestimonials } from '@/lib/api';
 import productHeroImg from '@/assets/product-hero.png';
 import testimonial1 from '@/assets/testimonial-1.jpg';
@@ -155,7 +156,7 @@ const ProductCheckout = () => {
       <section className="max-w-6xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {/* Image Gallery */}
-          <div>
+          <AnimatedSection variant="fadeUp">
             <div className="relative bg-card rounded-xl border border-border/50 overflow-hidden aspect-square flex items-center justify-center">
               <img
                 src={images[currentImage]}
@@ -195,10 +196,10 @@ const ProductCheckout = () => {
                 ))}
               </div>
             )}
-          </div>
+          </AnimatedSection>
 
           {/* Product Info */}
-          <div className="space-y-6">
+          <AnimatedSection variant="fadeUp" delay={0.2} className="space-y-6">
             <div>
               <h1 className="text-3xl font-bold text-foreground">{product.name}</h1>
               <p className="text-muted-foreground mt-1">{product.subtitle}</p>
@@ -291,17 +292,19 @@ const ProductCheckout = () => {
             </p>
 
             {/* Trust Badges */}
-            <div className="grid grid-cols-2 gap-3 pt-4">
+            <StaggerContainer className="grid grid-cols-2 gap-3 pt-4">
               {trustBadges.map((badge) => (
-                <div key={badge.title} className="flex items-start gap-3 p-3 rounded-lg border border-border/50 bg-card">
-                  <badge.icon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{badge.title}</p>
-                    <p className="text-xs text-muted-foreground">{badge.desc}</p>
+                <StaggerItem key={badge.title}>
+                  <div className="flex items-start gap-3 p-3 rounded-lg border border-border/50 bg-card">
+                    <badge.icon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{badge.title}</p>
+                      <p className="text-xs text-muted-foreground">{badge.desc}</p>
+                    </div>
                   </div>
-                </div>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerContainer>
 
             {/* Product Details Table */}
             <div className="border border-border/50 rounded-xl p-5 bg-card space-y-4">
@@ -321,82 +324,73 @@ const ProductCheckout = () => {
                 * Este medicamento requer prescrição médica. Consulte um profissional de saúde antes do uso.
               </p>
             </div>
-          </div>
+          </AnimatedSection>
         </div>
       </section>
 
       {/* Bula Accordion */}
-      <section className="max-w-6xl mx-auto px-4 pb-8">
+      <AnimatedSection className="max-w-6xl mx-auto px-4 pb-8">
         <Accordion type="single" collapsible>
           <AccordionItem value="bula" className="border border-border/50 rounded-xl px-5 bg-card">
             <AccordionTrigger className="text-lg font-bold text-foreground hover:no-underline">
               Bula do Medicamento
             </AccordionTrigger>
             <AccordionContent className="text-sm text-muted-foreground space-y-3 pb-5">
-              <p>
-                <strong>Indicação:</strong> Este medicamento é indicado para o tratamento de diabetes mellitus tipo 2 em adultos como adjuvante à dieta e exercícios para melhorar o controle glicêmico.
-              </p>
-              <p>
-                <strong>Posologia:</strong> A dose inicial recomendada é de 2,5 mg uma vez por semana. Após 4 semanas, a dose deve ser aumentada para 5 mg uma vez por semana.
-              </p>
-              <p>
-                <strong>Contraindicações:</strong> Hipersensibilidade ao princípio ativo ou a qualquer componente da formulação. Histórico pessoal ou familiar de carcinoma medular de tireoide.
-              </p>
-              <p>
-                <strong>Precauções:</strong> Não utilizar em pacientes com diabetes tipo 1. Monitorar sinais de pancreatite. Pode causar hipoglicemia quando usado em combinação com insulina ou secretagogos de insulina.
-              </p>
+              <p><strong>Indicação:</strong> Este medicamento é indicado para o tratamento de diabetes mellitus tipo 2 em adultos como adjuvante à dieta e exercícios para melhorar o controle glicêmico.</p>
+              <p><strong>Posologia:</strong> A dose inicial recomendada é de 2,5 mg uma vez por semana. Após 4 semanas, a dose deve ser aumentada para 5 mg uma vez por semana.</p>
+              <p><strong>Contraindicações:</strong> Hipersensibilidade ao princípio ativo ou a qualquer componente da formulação. Histórico pessoal ou familiar de carcinoma medular de tireoide.</p>
+              <p><strong>Precauções:</strong> Não utilizar em pacientes com diabetes tipo 1. Monitorar sinais de pancreatite. Pode causar hipoglicemia quando usado em combinação com insulina ou secretagogos de insulina.</p>
             </AccordionContent>
           </AccordionItem>
         </Accordion>
-      </section>
+      </AnimatedSection>
 
       {/* Video Testimonials */}
-      <section className="max-w-6xl mx-auto px-4 pb-8 text-center">
+      <AnimatedSection className="max-w-6xl mx-auto px-4 pb-8 text-center">
         <h2 className="text-2xl font-bold text-foreground mb-2">Depoimentos de Clientes</h2>
         <p className="text-muted-foreground mb-8">
           Veja o que nossos clientes estão dizendo sobre o Liberty Pharma
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Dynamic testimonials from admin */}
+        <StaggerContainer className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {dynamicTestimonials.map((t) => (
-            <VideoTestimonialCard
-              key={t.id}
-               thumbnail={t.thumbnail_url}
-               name={t.name}
-               videoUrl={t.video_url}
-            />
+            <StaggerItem key={t.id}>
+              <VideoTestimonialCard thumbnail={t.thumbnail_url} name={t.name} videoUrl={t.video_url} />
+            </StaggerItem>
           ))}
-          {/* Fallback static thumbnails if no dynamic ones */}
           {dynamicTestimonials.length === 0 && [
             { img: testimonial1, name: 'Maria S.' },
             { img: testimonial2, name: 'Carlos A.' },
             { img: testimonial3, name: 'Juliana R.' },
           ].map((t, idx) => (
-            <VideoTestimonialCard key={idx} thumbnail={t.img} name={t.name} />
+            <StaggerItem key={idx}>
+              <VideoTestimonialCard thumbnail={t.img} name={t.name} />
+            </StaggerItem>
           ))}
-        </div>
-      </section>
+        </StaggerContainer>
+      </AnimatedSection>
 
       {/* Text Testimonials */}
-      <section className="max-w-6xl mx-auto px-4 pb-16">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <AnimatedSection className="max-w-6xl mx-auto px-4 pb-16">
+        <StaggerContainer className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             { name: 'Maria S.', text: 'Produto excelente! Resultado visível já na segunda semana de uso.' },
             { name: 'Carlos A.', text: 'Entrega rápida e produto de qualidade. Recomendo a todos.' },
             { name: 'Juliana R.', text: 'Melhor custo-benefício do mercado. Atendimento impecável.' },
           ].map((t) => (
-            <div key={t.name} className="p-5 rounded-xl border border-border/50 bg-card text-left space-y-3">
-              <div className="flex gap-1 text-primary">
-                {'★★★★★'.split('').map((s, i) => (
-                  <span key={i}>{s}</span>
-                ))}
+            <StaggerItem key={t.name}>
+              <div className="p-5 rounded-xl border border-border/50 bg-card text-left space-y-3">
+                <div className="flex gap-1 text-primary">
+                  {'★★★★★'.split('').map((s, i) => (
+                    <span key={i}>{s}</span>
+                  ))}
+                </div>
+                <p className="text-sm text-foreground">"{t.text}"</p>
+                <p className="text-xs font-medium text-muted-foreground">— {t.name}</p>
               </div>
-              <p className="text-sm text-foreground">"{t.text}"</p>
-              <p className="text-xs font-medium text-muted-foreground">— {t.name}</p>
-            </div>
+            </StaggerItem>
           ))}
-        </div>
-      </section>
+        </StaggerContainer>
+      </AnimatedSection>
 
       {/* WhatsApp FAB */}
       <a
