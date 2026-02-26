@@ -11,6 +11,7 @@ import ProductForm from "./pages/ProductForm";
 import ProductCheckout from "./pages/ProductCheckout";
 import Catalog from "./pages/Catalog";
 import TestimonialList from "./pages/TestimonialList";
+import BannerList from "./pages/BannerList";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="produtos/novo" element={<ProductForm />} />
             <Route path="produtos/:id" element={<ProductForm />} />
             <Route path="depoimentos" element={<TestimonialList />} />
+            <Route path="banners" element={<BannerList />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

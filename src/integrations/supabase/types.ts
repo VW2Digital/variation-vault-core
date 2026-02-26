@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      banners: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          text: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          text: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          text?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       product_variations: {
         Row: {
           created_at: string
