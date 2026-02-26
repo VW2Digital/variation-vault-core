@@ -118,7 +118,15 @@ const ProductCheckout = () => {
 
   const variations = product.product_variations || [];
   const variation = variations[selectedVariation];
-  const images = product.images?.length > 0 ? product.images : [productHeroImg];
+  
+  // Build images: if selected variation has an image, show it first, then product images
+  const variationImage = variation?.image_url;
+  const productImages = product.images?.length > 0 ? product.images : [];
+  const images = variationImage
+    ? [variationImage, ...productImages]
+    : productImages.length > 0
+      ? productImages
+      : [productHeroImg];
 
   const trustBadges = [
     { icon: ShieldCheck, title: 'Produto Certificado', desc: 'Aprovado por agências regulatórias' },
@@ -215,7 +223,7 @@ const ProductCheckout = () => {
                   {variations.map((v: any, i: number) => (
                     <button
                       key={v.id}
-                      onClick={() => setSelectedVariation(i)}
+                      onClick={() => { setSelectedVariation(i); setCurrentImage(0); }}
                       className={`relative flex-1 p-4 rounded-lg border-2 transition-all text-left ${
                         i === selectedVariation
                           ? 'border-primary bg-primary/5'
@@ -229,6 +237,9 @@ const ProductCheckout = () => {
                       )}
                       {i === selectedVariation && (
                         <CheckCircle2 className="absolute top-2 right-2 w-5 h-5 text-primary" />
+                      )}
+                      {v.image_url && (
+                        <img src={v.image_url} alt={v.dosage} className="w-10 h-10 object-contain rounded mb-1" />
                       )}
                       <p className="font-semibold text-foreground">{v.dosage}</p>
                       <p className="text-primary font-bold">R$ {Number(v.price).toLocaleString('pt-BR')}</p>
