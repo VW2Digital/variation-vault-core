@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useProducts } from '@/store';
+import { useProducts, useTestimonials } from '@/store';
 import productHeroImg from '@/assets/product-hero.png';
 import testimonial1 from '@/assets/testimonial-1.jpg';
 import testimonial2 from '@/assets/testimonial-2.jpg';
@@ -25,47 +25,64 @@ import {
   ChevronRight,
 } from 'lucide-react';
 
-const VideoTestimonialCard = ({ thumbnail, name }: { thumbnail: string; name: string }) => {
+const VideoTestimonialCard = ({ thumbnail, name, videoUrl }: { thumbnail: string; name: string; videoUrl?: string }) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const handlePlay = () => {
+    if (videoUrl) {
+      setIsPlaying(true);
+      setTimeout(() => videoRef.current?.play(), 100);
+    }
+  };
 
   return (
     <div className="relative rounded-xl overflow-hidden border border-border/50 bg-foreground/5 aspect-[9/16] max-h-[420px]">
-      <img
-        src={thumbnail}
-        alt={`Depoimento de ${name}`}
-        className="w-full h-full object-cover"
-      />
-      {/* Play overlay */}
-      {!isPlaying && (
-        <button
-          onClick={() => setIsPlaying(true)}
-          className="absolute inset-0 flex items-center justify-center bg-foreground/20 hover:bg-foreground/30 transition-colors"
-        >
-          <div className="w-14 h-14 rounded-full bg-card/90 flex items-center justify-center shadow-lg">
-            <div className="w-0 h-0 border-t-[10px] border-t-transparent border-l-[16px] border-l-foreground border-b-[10px] border-b-transparent ml-1" />
+      {isPlaying && videoUrl ? (
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          className="w-full h-full object-cover"
+          controls
+          onEnded={() => setIsPlaying(false)}
+        />
+      ) : (
+        <>
+          <img
+            src={thumbnail}
+            alt={`Depoimento de ${name}`}
+            className="w-full h-full object-cover"
+          />
+          <button
+            onClick={handlePlay}
+            className="absolute inset-0 flex items-center justify-center bg-foreground/20 hover:bg-foreground/30 transition-colors"
+          >
+            <div className="w-14 h-14 rounded-full bg-card/90 flex items-center justify-center shadow-lg">
+              <div className="w-0 h-0 border-t-[10px] border-t-transparent border-l-[16px] border-l-foreground border-b-[10px] border-b-transparent ml-1" />
+            </div>
+          </button>
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-foreground/80 to-transparent p-3">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-card text-xs">
+                <span>▶</span>
+                <span>0:00</span>
+              </div>
+              <div className="flex-1 h-1 bg-card/30 rounded-full overflow-hidden">
+                <div className="h-full w-0 bg-destructive rounded-full" />
+              </div>
+              <span className="text-card text-xs">{name}</span>
+            </div>
           </div>
-        </button>
+        </>
       )}
-      {/* Bottom bar */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-foreground/80 to-transparent p-3">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-card text-xs">
-            <span>▶</span>
-            <span>0:00</span>
-          </div>
-          <div className="flex-1 h-1 bg-card/30 rounded-full overflow-hidden">
-            <div className="h-full w-0 bg-destructive rounded-full" />
-          </div>
-          <span className="text-card text-xs">{name}</span>
-        </div>
-      </div>
     </div>
   );
 };
 
 const ProductCheckout = () => {
   const { products } = useProducts();
-  const product = products[0]; // Show first product
+  const { testimonials: dynamicTestimonials } = useTestimonials();
+  const product = products[0];
 
   const [selectedVariation, setSelectedVariation] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -322,7 +339,17 @@ const ProductCheckout = () => {
           Veja o que nossos clientes estão dizendo sobre o Liberty Pharma
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
+          {/* Dynamic testimonials from admin */}
+          {dynamicTestimonials.map((t) => (
+            <VideoTestimonialCard
+              key={t.id}
+              thumbnail={t.thumbnailUrl}
+              name={t.name}
+              videoUrl={t.videoUrl}
+            />
+          ))}
+          {/* Fallback static thumbnails if no dynamic ones */}
+          {dynamicTestimonials.length === 0 && [
             { img: testimonial1, name: 'Maria S.' },
             { img: testimonial2, name: 'Carlos A.' },
             { img: testimonial3, name: 'Juliana R.' },

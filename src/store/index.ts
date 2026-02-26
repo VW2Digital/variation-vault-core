@@ -24,6 +24,14 @@ export interface Product {
   updatedAt: string;
 }
 
+export interface VideoTestimonial {
+  id: string;
+  name: string;
+  videoUrl: string; // data URL or blob URL
+  thumbnailUrl: string;
+  createdAt: string;
+}
+
 interface AuthState {
   isAuthenticated: boolean;
   login: (email: string, password: string) => boolean;
@@ -35,6 +43,13 @@ interface ProductState {
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateProduct: (id: string, product: Partial<Product>) => void;
   deleteProduct: (id: string) => void;
+}
+
+interface TestimonialState {
+  testimonials: VideoTestimonial[];
+  addTestimonial: (t: Omit<VideoTestimonial, 'id' | 'createdAt'>) => void;
+  updateTestimonial: (id: string, t: Partial<VideoTestimonial>) => void;
+  deleteTestimonial: (id: string) => void;
 }
 
 const MOCK_PRODUCTS: Product[] = [
@@ -91,4 +106,23 @@ export const useProducts = create<ProductState>((set) => ({
     })),
   deleteProduct: (id) =>
     set((state) => ({ products: state.products.filter((p) => p.id !== id) })),
+}));
+
+export const useTestimonials = create<TestimonialState>((set) => ({
+  testimonials: [],
+  addTestimonial: (t) =>
+    set((state) => ({
+      testimonials: [
+        ...state.testimonials,
+        { ...t, id: crypto.randomUUID(), createdAt: new Date().toISOString() },
+      ],
+    })),
+  updateTestimonial: (id, updates) =>
+    set((state) => ({
+      testimonials: state.testimonials.map((t) =>
+        t.id === id ? { ...t, ...updates } : t
+      ),
+    })),
+  deleteTestimonial: (id) =>
+    set((state) => ({ testimonials: state.testimonials.filter((t) => t.id !== id) })),
 }));
