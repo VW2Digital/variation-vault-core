@@ -3,7 +3,7 @@ import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
 import { fetchProduct, fetchTestimonials, fetchBanners, fetchSetting } from '@/lib/api';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
-import CheckoutForm from '@/components/CheckoutForm';
+
 import productHeroImg from '@/assets/product-hero.png';
 import logoImg from '@/assets/liberty-pharma-logo.png';
 import testimonial1 from '@/assets/testimonial-1.jpg';
@@ -315,14 +315,19 @@ const ProductCheckout = () => {
               </div>
             </div>
 
-            {/* Checkout Form */}
+            {/* Buy Button */}
             {variation?.in_stock ? (
-              <CheckoutForm
-                productName={product.name}
-                dosage={variation?.dosage || ''}
-                quantity={quantity}
-                unitPrice={Number(variation?.price || 0)}
-              />
+              <Button
+                className="w-full h-14 text-lg font-semibold rounded-xl"
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (variation?.id) params.set('v', variation.id);
+                  params.set('qty', String(quantity));
+                  window.location.href = `/checkout/${id}?${params.toString()}`;
+                }}
+              >
+                Comprar Agora
+              </Button>
             ) : (
               <Button className="w-full h-14 text-lg font-semibold rounded-xl" disabled>
                 Produto Esgotado
