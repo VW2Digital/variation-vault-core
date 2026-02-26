@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { useProducts, useTestimonials } from '@/store';
+import { useState, useRef, useEffect } from 'react';
+import { fetchProducts, fetchTestimonials } from '@/lib/api';
 import productHeroImg from '@/assets/product-hero.png';
 import testimonial1 from '@/assets/testimonial-1.jpg';
 import testimonial2 from '@/assets/testimonial-2.jpg';
@@ -80,13 +80,30 @@ const VideoTestimonialCard = ({ thumbnail, name, videoUrl }: { thumbnail: string
 };
 
 const ProductCheckout = () => {
-  const { products } = useProducts();
-  const { testimonials: dynamicTestimonials } = useTestimonials();
+  const [products, setProducts] = useState<any[]>([]);
+  const [dynamicTestimonials, setDynamicTestimonials] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([fetchProducts(), fetchTestimonials()]).then(([prods, tests]) => {
+      setProducts(prods);
+      setDynamicTestimonials(tests);
+    }).finally(() => setLoading(false));
+  }, []);
+
   const product = products[0];
 
   const [selectedVariation, setSelectedVariation] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [currentImage, setCurrentImage] = useState(0);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground">Carregando...</p>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -96,8 +113,9 @@ const ProductCheckout = () => {
     );
   }
 
-  const variation = product.variations[selectedVariation];
-  const images = product.images.length > 0 ? product.images : [productHeroImg];
+  const variations = product.product_variations || [];
+  const variation = variations[selectedVariation];
+  const images = product.images?.length > 0 ? product.images : [productHeroImg];
 
   const trustBadges = [
     { icon: ShieldCheck, title: 'Produto Certificado', desc: 'Aprovado por agências regulatórias' },
@@ -107,10 +125,10 @@ const ProductCheckout = () => {
   ];
 
   const details = [
-    { label: 'Princípio Ativo', value: product.activeIngredient },
+    { label: 'Princípio Ativo', value: product.active_ingredient },
     { label: 'Dosagem', value: variation?.dosage },
-    { label: 'Forma Farmacêutica', value: product.pharmaForm },
-    { label: 'Via de Administração', value: product.administrationRoute },
+    { label: 'Forma Farmacêutica', value: product.pharma_form },
+    { label: 'Via de Administração', value: product.administration_route },
     { label: 'Frequência de Uso', value: product.frequency },
   ];
 
@@ -187,11 +205,11 @@ const ProductCheckout = () => {
             </div>
 
             {/* Dosage Selector */}
-            {product.variations.length > 1 && (
+            {variations.length > 1 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium text-foreground">Selecione a Dosagem</p>
                 <div className="flex gap-3">
-                  {product.variations.map((v, i) => (
+                  {variations.map((v: any, i: number) => (
                     <button
                       key={v.id}
                       onClick={() => setSelectedVariation(i)}
@@ -201,7 +219,7 @@ const ProductCheckout = () => {
                           : 'border-border hover:border-primary/30'
                       }`}
                     >
-                      {v.isOffer && (
+                      {v.is_offer && (
                         <span className="absolute -top-2 right-2 bg-destructive text-destructive-foreground text-[10px] font-bold px-2 py-0.5 rounded">
                           OFERTA
                         </span>
@@ -210,7 +228,7 @@ const ProductCheckout = () => {
                         <CheckCircle2 className="absolute top-2 right-2 w-5 h-5 text-primary" />
                       )}
                       <p className="font-semibold text-foreground">{v.dosage}</p>
-                      <p className="text-primary font-bold">R$ {v.price.toLocaleString('pt-BR')}</p>
+                      <p className="text-primary font-bold">R$ {Number(v.price).toLocaleString('pt-BR')}</p>
                     </button>
                   ))}
                 </div>
@@ -248,14 +266,14 @@ const ProductCheckout = () => {
             <div className="border border-border/50 rounded-xl p-5 space-y-3 bg-card">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">Preço</p>
-                {variation?.inStock ? (
+                {variation?.in_stock ? (
                   <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/10">Em estoque</Badge>
                 ) : (
                   <Badge variant="destructive">Indisponível</Badge>
                 )}
               </div>
               <p className="text-3xl font-bold text-primary">
-                R$ {((variation?.price || 0) * quantity).toLocaleString('pt-BR')}
+                R$ {(Number(variation?.price || 0) * quantity).toLocaleString('pt-BR')}
               </p>
               <div className="text-xs text-muted-foreground space-y-1">
                 <p>💳 Até 6x sem juros no cartão</p>
@@ -264,7 +282,7 @@ const ProductCheckout = () => {
             </div>
 
             {/* CTA */}
-            <Button className="w-full h-14 text-lg font-semibold rounded-xl" disabled={!variation?.inStock}>
+            <Button className="w-full h-14 text-lg font-semibold rounded-xl" disabled={!variation?.in_stock}>
               Comprar Agora
             </Button>
 
@@ -343,9 +361,9 @@ const ProductCheckout = () => {
           {dynamicTestimonials.map((t) => (
             <VideoTestimonialCard
               key={t.id}
-              thumbnail={t.thumbnailUrl}
-              name={t.name}
-              videoUrl={t.videoUrl}
+               thumbnail={t.thumbnail_url}
+               name={t.name}
+               videoUrl={t.video_url}
             />
           ))}
           {/* Fallback static thumbnails if no dynamic ones */}

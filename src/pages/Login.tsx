@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from '@/store';
+import { signIn, signUp } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,20 +11,30 @@ import { useToast } from '@/hooks/use-toast';
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login } = useAuth();
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (login(email, password)) {
+    setLoading(true);
+    try {
+      if (isSignUp) {
+        await signUp(email, password);
+        toast({ title: 'Conta criada com sucesso!', description: 'Você já está logado.' });
+      } else {
+        await signIn(email, password);
+      }
       navigate('/admin');
-    } else {
+    } catch (err: any) {
       toast({
-        title: 'Erro de autenticação',
-        description: 'Email ou senha incorretos.',
+        title: 'Erro',
+        description: err.message || 'Email ou senha incorretos.',
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -37,7 +47,9 @@ const Login = () => {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-foreground">Painel Administrativo</h1>
-            <p className="text-muted-foreground text-sm mt-1">Faça login para gerenciar seus produtos</p>
+            <p className="text-muted-foreground text-sm mt-1">
+              {isSignUp ? 'Crie sua conta para gerenciar produtos' : 'Faça login para gerenciar seus produtos'}
+            </p>
           </div>
         </CardHeader>
         <CardContent>
@@ -47,7 +59,7 @@ const Login = () => {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@pharma.com"
+                placeholder="seu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -62,13 +74,17 @@ const Login = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={6}
               />
             </div>
-            <Button type="submit" className="w-full">
-              Entrar
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Carregando...' : isSignUp ? 'Criar Conta' : 'Entrar'}
             </Button>
-            <p className="text-xs text-center text-muted-foreground">
-              Demo: admin@pharma.com / admin123
+            <p className="text-sm text-center text-muted-foreground">
+              {isSignUp ? 'Já tem conta?' : 'Não tem conta?'}{' '}
+              <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-primary font-medium hover:underline">
+                {isSignUp ? 'Fazer login' : 'Criar conta'}
+              </button>
             </p>
           </form>
         </CardContent>
