@@ -181,29 +181,6 @@ const ProductForm = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-border/50">
-          <CardHeader><CardTitle className="text-lg">Imagens</CardTitle></CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-3">
-              {images.map((img, i) => (
-                <div key={i} className="relative w-24 h-24 rounded-lg overflow-hidden border border-border group">
-                  <img src={img} alt="" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(i)}
-                    className="absolute inset-0 bg-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                  >
-                    <Trash2 className="w-5 h-5 text-card" />
-                  </button>
-                </div>
-              ))}
-              <label className="w-24 h-24 rounded-lg border-2 border-dashed border-border hover:border-primary/50 flex items-center justify-center cursor-pointer transition-colors">
-                <ImagePlus className="w-6 h-6 text-muted-foreground" />
-                <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
-              </label>
-            </div>
-          </CardContent>
-        </Card>
 
         <Card className="border-border/50">
           <CardHeader className="flex flex-row items-center justify-between">
