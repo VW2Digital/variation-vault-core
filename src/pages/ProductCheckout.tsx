@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
 import { fetchProduct, fetchTestimonials, fetchBanners } from '@/lib/api';
 import productHeroImg from '@/assets/product-hero.png';
@@ -84,10 +84,14 @@ const VideoTestimonialCard = ({ thumbnail, name, videoUrl }: { thumbnail: string
 
 const ProductCheckout = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const [product, setProduct] = useState<any>(null);
   const [dynamicTestimonials, setDynamicTestimonials] = useState<any[]>([]);
   const [banners, setBanners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedVariation, setSelectedVariation] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [currentImage, setCurrentImage] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -95,13 +99,14 @@ const ProductCheckout = () => {
       setProduct(prod);
       setDynamicTestimonials(tests);
       setBanners(bans);
+      // Pre-select variation from query param
+      const vId = searchParams.get('v');
+      if (vId && prod.product_variations) {
+        const idx = prod.product_variations.findIndex((v: any) => v.id === vId);
+        if (idx >= 0) setSelectedVariation(idx);
+      }
     }).finally(() => setLoading(false));
-  }, [id]);
-
-
-  const [selectedVariation, setSelectedVariation] = useState(0);
-  const [quantity, setQuantity] = useState(1);
-  const [currentImage, setCurrentImage] = useState(0);
+  }, [id, searchParams]);
 
   if (loading) {
     return (

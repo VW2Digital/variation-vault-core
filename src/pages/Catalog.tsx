@@ -205,7 +205,7 @@ const Catalog = () => {
               const price = variation ? Number(variation.price) : null;
               const inStock = variation ? variation.in_stock : false;
               const offer = variation ? variation.is_offer : false;
-              const img = variation?.image_url || product.images?.[0] || productHeroImg;
+              const img = variation?.images?.[0] || variation?.image_url || product.images?.[0] || productHeroImg;
               const displayName = variation
                 ? `${product.name} ${variation.dosage}`
                 : product.name;
@@ -213,7 +213,7 @@ const Catalog = () => {
               return (
                 <StaggerItem key={variation?.id || `${product.id}-${idx}`}>
                   <Link
-                    to={`/produto/${product.id}`}
+                    to={`/produto/${product.id}${variation ? `?v=${variation.id}` : ''}`}
                     className="group block rounded-xl border border-border/50 bg-card overflow-hidden hover:shadow-lg hover:border-primary/30 transition-all duration-300"
                   >
                     <div className="relative aspect-square bg-muted/30 flex items-center justify-center p-6 overflow-hidden">
