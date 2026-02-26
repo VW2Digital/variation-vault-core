@@ -14,7 +14,116 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      product_variations: {
+        Row: {
+          created_at: string
+          dosage: string
+          id: string
+          in_stock: boolean
+          is_offer: boolean
+          price: number
+          product_id: string
+        }
+        Insert: {
+          created_at?: string
+          dosage: string
+          id?: string
+          in_stock?: boolean
+          is_offer?: boolean
+          price?: number
+          product_id: string
+        }
+        Update: {
+          created_at?: string
+          dosage?: string
+          id?: string
+          in_stock?: boolean
+          is_offer?: boolean
+          price?: number
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          active_ingredient: string | null
+          administration_route: string | null
+          created_at: string
+          description: string | null
+          frequency: string | null
+          id: string
+          images: string[] | null
+          name: string
+          pharma_form: string | null
+          subtitle: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active_ingredient?: string | null
+          administration_route?: string | null
+          created_at?: string
+          description?: string | null
+          frequency?: string | null
+          id?: string
+          images?: string[] | null
+          name: string
+          pharma_form?: string | null
+          subtitle?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active_ingredient?: string | null
+          administration_route?: string | null
+          created_at?: string
+          description?: string | null
+          frequency?: string | null
+          id?: string
+          images?: string[] | null
+          name?: string
+          pharma_form?: string | null
+          subtitle?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      video_testimonials: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          thumbnail_url: string | null
+          user_id: string
+          video_url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          thumbnail_url?: string | null
+          user_id: string
+          video_url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          thumbnail_url?: string | null
+          user_id?: string
+          video_url?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
