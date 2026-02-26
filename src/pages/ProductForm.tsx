@@ -42,7 +42,6 @@ const ProductForm = () => {
   const [pharmaForm, setPharmaForm] = useState('');
   const [administrationRoute, setAdministrationRoute] = useState('');
   const [frequency, setFrequency] = useState('');
-  const [images, setImages] = useState<string[]>([]);
   const [variations, setVariations] = useState<Variation[]>([emptyVariation()]);
   const [saving, setSaving] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
@@ -58,7 +57,6 @@ const ProductForm = () => {
         setPharmaForm(p.pharma_form || '');
         setAdministrationRoute(p.administration_route || '');
         setFrequency(p.frequency || '');
-        setImages(p.images || []);
         setVariations(
           p.product_variations?.length > 0
             ? p.product_variations.map((v: any) => ({
@@ -76,24 +74,6 @@ const ProductForm = () => {
     }
   }, [id]);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    for (const file of Array.from(files)) {
-      try {
-        const path = `${crypto.randomUUID()}-${file.name}`;
-        const url = await uploadFile('product-images', path, file);
-        setImages((prev) => [...prev, url]);
-      } catch (err: any) {
-        toast({ title: 'Erro no upload', description: err.message, variant: 'destructive' });
-      }
-    }
-  };
-
-  const removeImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-  };
-
   const updateVariation = (index: number, field: keyof Variation, value: any) => {
     setVariations((prev) => prev.map((v, i) => (i === index ? { ...v, [field]: value } : v)));
   };
@@ -110,7 +90,6 @@ const ProductForm = () => {
         pharma_form: pharmaForm,
         administration_route: administrationRoute,
         frequency,
-        images,
         variations: variations.filter((v) => v.dosage.trim() !== ''),
       };
 
