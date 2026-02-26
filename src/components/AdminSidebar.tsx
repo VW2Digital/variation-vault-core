@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, LogOut, LayoutDashboard, Video, Megaphone } from 'lucide-react';
+import { Package, LogOut, LayoutDashboard, Video, Megaphone, Settings } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
   Sidebar,
@@ -21,6 +21,7 @@ const items = [
   { title: 'Produtos', url: '/admin/produtos', icon: Package },
   { title: 'Depoimentos', url: '/admin/depoimentos', icon: Video },
   { title: 'Banners', url: '/admin/banners', icon: Megaphone },
+  { title: 'Configurações', url: '/admin/configuracoes', icon: Settings },
 ];
 
 export function AdminSidebar() {

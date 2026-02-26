@@ -186,6 +186,41 @@ export const deleteTestimonial = async (id: string) => {
   if (error) throw error;
 };
 
+// Site Settings
+export const fetchSetting = async (key: string) => {
+  const { data, error } = await supabase
+    .from('site_settings' as any)
+    .select('value')
+    .eq('key', key)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as any)?.value || '';
+};
+
+export const upsertSetting = async (key: string, value: string) => {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Not authenticated');
+  
+  const { data: existing } = await supabase
+    .from('site_settings' as any)
+    .select('id')
+    .eq('key', key)
+    .maybeSingle();
+  
+  if ((existing as any)?.id) {
+    const { error } = await supabase
+      .from('site_settings' as any)
+      .update({ value, user_id: user.id } as any)
+      .eq('id', (existing as any).id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from('site_settings' as any)
+      .insert({ key, value, user_id: user.id } as any);
+    if (error) throw error;
+  }
+};
+
 // Storage helpers
 export const uploadFile = async (bucket: string, path: string, file: File) => {
   const { data, error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true });

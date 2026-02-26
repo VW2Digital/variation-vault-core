@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
-import { fetchProduct, fetchTestimonials, fetchBanners } from '@/lib/api';
+import { fetchProduct, fetchTestimonials, fetchBanners, fetchSetting } from '@/lib/api';
+import WhatsAppIcon from '@/components/WhatsAppIcon';
 import productHeroImg from '@/assets/product-hero.png';
 import logoImg from '@/assets/liberty-pharma-logo.png';
 import testimonial1 from '@/assets/testimonial-1.jpg';
@@ -91,16 +92,18 @@ const ProductCheckout = () => {
   const [dynamicTestimonials, setDynamicTestimonials] = useState<any[]>([]);
   const [banners, setBanners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [whatsappNumber, setWhatsappNumber] = useState('');
   const [selectedVariation, setSelectedVariation] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [currentImage, setCurrentImage] = useState(0);
 
   useEffect(() => {
     if (!id) return;
-    Promise.all([fetchProduct(id), fetchTestimonials(), fetchBanners()]).then(([prod, tests, bans]) => {
+    Promise.all([fetchProduct(id), fetchTestimonials(), fetchBanners(), fetchSetting('whatsapp_number')]).then(([prod, tests, bans, wp]) => {
       setProduct(prod);
       setDynamicTestimonials(tests);
       setBanners(bans);
+      setWhatsappNumber(wp);
       // Pre-select variation from query param
       const vId = searchParams.get('v');
       if (vId && prod.product_variations) {
@@ -427,14 +430,16 @@ const ProductCheckout = () => {
       </AnimatedSection>
 
       {/* WhatsApp FAB */}
-      <a
-        href="https://wa.me/5500000000000"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 w-14 h-14 bg-success rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-50"
-      >
-        <MessageCircle className="w-7 h-7 text-success-foreground" />
-      </a>
+      {whatsappNumber && (
+        <a
+          href={`https://wa.me/${whatsappNumber}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-6 right-6 w-14 h-14 bg-[#25D366] rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-50"
+        >
+          <WhatsAppIcon className="w-7 h-7 text-white" />
+        </a>
+      )}
     </div>
   );
 };
