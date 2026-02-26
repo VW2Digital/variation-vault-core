@@ -1,4 +1,4 @@
-import { Package, LogOut, LayoutDashboard } from 'lucide-react';
+import { Package, LogOut, LayoutDashboard, Video } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/store';
 import { useNavigate } from 'react-router-dom';
@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 const items = [
   { title: 'Dashboard', url: '/admin', icon: LayoutDashboard },
   { title: 'Produtos', url: '/admin/produtos', icon: Package },
+  { title: 'Depoimentos', url: '/admin/depoimentos', icon: Video },
 ];
 
 export function AdminSidebar() {
