@@ -19,6 +19,7 @@ export type Database = {
           created_at: string
           dosage: string
           id: string
+          image_url: string | null
           in_stock: boolean
           is_offer: boolean
           price: number
@@ -28,6 +29,7 @@ export type Database = {
           created_at?: string
           dosage: string
           id?: string
+          image_url?: string | null
           in_stock?: boolean
           is_offer?: boolean
           price?: number
@@ -37,6 +39,7 @@ export type Database = {
           created_at?: string
           dosage?: string
           id?: string
+          image_url?: string | null
           in_stock?: boolean
           is_offer?: boolean
           price?: number

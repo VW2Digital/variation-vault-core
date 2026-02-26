@@ -16,6 +16,7 @@ interface Variation {
   price: number;
   in_stock: boolean;
   is_offer: boolean;
+  image_url: string;
 }
 
 const emptyVariation = (): Variation => ({
@@ -23,6 +24,7 @@ const emptyVariation = (): Variation => ({
   price: 0,
   in_stock: true,
   is_offer: false,
+  image_url: '',
 });
 
 const ProductForm = () => {
@@ -63,6 +65,7 @@ const ProductForm = () => {
                 price: Number(v.price),
                 in_stock: v.in_stock,
                 is_offer: v.is_offer,
+                image_url: v.image_url || '',
               }))
             : [emptyVariation()]
         );
@@ -208,28 +211,66 @@ const ProductForm = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {variations.map((v, i) => (
-              <div key={i} className="flex items-end gap-3 p-4 rounded-lg bg-muted/50 border border-border/30">
-                <div className="flex-1 space-y-2">
-                  <Label>Dosagem</Label>
-                  <Input value={v.dosage} onChange={(e) => updateVariation(i, 'dosage', e.target.value)} placeholder="5mg" />
+              <div key={i} className="p-4 rounded-lg bg-muted/50 border border-border/30 space-y-3">
+                <div className="flex items-end gap-3">
+                  {/* Variation image */}
+                  <div className="flex flex-col items-center gap-1">
+                    <Label className="text-xs">Foto</Label>
+                    {v.image_url ? (
+                      <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-border group">
+                        <img src={v.image_url} alt="" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => updateVariation(i, 'image_url', '')}
+                          className="absolute inset-0 bg-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                        >
+                          <Trash2 className="w-4 h-4 text-card" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="w-16 h-16 rounded-lg border-2 border-dashed border-border hover:border-primary/50 flex items-center justify-center cursor-pointer transition-colors">
+                        <ImagePlus className="w-4 h-4 text-muted-foreground" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              const path = `variations/${crypto.randomUUID()}-${file.name}`;
+                              const url = await uploadFile('product-images', path, file);
+                              updateVariation(i, 'image_url', url);
+                            } catch (err: any) {
+                              toast({ title: 'Erro no upload', description: err.message, variant: 'destructive' });
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <Label>Dosagem</Label>
+                    <Input value={v.dosage} onChange={(e) => updateVariation(i, 'dosage', e.target.value)} placeholder="5mg" />
+                  </div>
+                  <div className="w-32 space-y-2">
+                    <Label>Preço (R$)</Label>
+                    <Input type="number" value={v.price || ''} onChange={(e) => updateVariation(i, 'price', Number(e.target.value))} />
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <Label className="text-xs">Estoque</Label>
+                    <Switch checked={v.in_stock} onCheckedChange={(val) => updateVariation(i, 'in_stock', val)} />
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <Label className="text-xs">Oferta</Label>
+                    <Switch checked={v.is_offer} onCheckedChange={(val) => updateVariation(i, 'is_offer', val)} />
+                  </div>
+                  {variations.length > 1 && (
+                    <Button type="button" variant="ghost" size="icon" onClick={() => setVariations((p) => p.filter((_, j) => j !== i))} className="text-destructive">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
-                <div className="w-32 space-y-2">
-                  <Label>Preço (R$)</Label>
-                  <Input type="number" value={v.price || ''} onChange={(e) => updateVariation(i, 'price', Number(e.target.value))} />
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <Label className="text-xs">Estoque</Label>
-                  <Switch checked={v.in_stock} onCheckedChange={(val) => updateVariation(i, 'in_stock', val)} />
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <Label className="text-xs">Oferta</Label>
-                  <Switch checked={v.is_offer} onCheckedChange={(val) => updateVariation(i, 'is_offer', val)} />
-                </div>
-                {variations.length > 1 && (
-                  <Button type="button" variant="ghost" size="icon" onClick={() => setVariations((p) => p.filter((_, j) => j !== i))} className="text-destructive">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
               </div>
             ))}
           </CardContent>

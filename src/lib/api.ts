@@ -52,7 +52,7 @@ export const createProduct = async (product: {
   administration_route?: string;
   frequency?: string;
   images?: string[];
-  variations?: { dosage: string; price: number; in_stock: boolean; is_offer: boolean }[];
+  variations?: { dosage: string; price: number; in_stock: boolean; is_offer: boolean; image_url?: string }[];
 }) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Not authenticated');
@@ -87,7 +87,7 @@ export const updateProduct = async (
     administration_route?: string;
     frequency?: string;
     images?: string[];
-    variations?: { id?: string; dosage: string; price: number; in_stock: boolean; is_offer: boolean }[];
+    variations?: { id?: string; dosage: string; price: number; in_stock: boolean; is_offer: boolean; image_url?: string }[];
   }
 ) => {
   const { variations, ...productData } = product;
@@ -101,7 +101,7 @@ export const updateProduct = async (
     if (variations.length > 0) {
       const { error: vError } = await supabase
         .from('product_variations')
-        .insert(variations.map((v) => ({ dosage: v.dosage, price: v.price, in_stock: v.in_stock, is_offer: v.is_offer, product_id: id })));
+        .insert(variations.map((v) => ({ dosage: v.dosage, price: v.price, in_stock: v.in_stock, is_offer: v.is_offer, image_url: v.image_url || '', product_id: id })));
       if (vError) throw vError;
     }
   }
