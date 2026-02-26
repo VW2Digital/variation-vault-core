@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useProducts } from '@/store';
 import productHeroImg from '@/assets/product-hero.png';
+import testimonial1 from '@/assets/testimonial-1.jpg';
+import testimonial2 from '@/assets/testimonial-2.jpg';
+import testimonial3 from '@/assets/testimonial-3.jpg';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +24,44 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+
+const VideoTestimonialCard = ({ thumbnail, name }: { thumbnail: string; name: string }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  return (
+    <div className="relative rounded-xl overflow-hidden border border-border/50 bg-foreground/5 aspect-[9/16] max-h-[420px]">
+      <img
+        src={thumbnail}
+        alt={`Depoimento de ${name}`}
+        className="w-full h-full object-cover"
+      />
+      {/* Play overlay */}
+      {!isPlaying && (
+        <button
+          onClick={() => setIsPlaying(true)}
+          className="absolute inset-0 flex items-center justify-center bg-foreground/20 hover:bg-foreground/30 transition-colors"
+        >
+          <div className="w-14 h-14 rounded-full bg-card/90 flex items-center justify-center shadow-lg">
+            <div className="w-0 h-0 border-t-[10px] border-t-transparent border-l-[16px] border-l-foreground border-b-[10px] border-b-transparent ml-1" />
+          </div>
+        </button>
+      )}
+      {/* Bottom bar */}
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-foreground/80 to-transparent p-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-card text-xs">
+            <span>▶</span>
+            <span>0:00</span>
+          </div>
+          <div className="flex-1 h-1 bg-card/30 rounded-full overflow-hidden">
+            <div className="h-full w-0 bg-destructive rounded-full" />
+          </div>
+          <span className="text-card text-xs">{name}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ProductCheckout = () => {
   const { products } = useProducts();
@@ -274,12 +315,25 @@ const ProductCheckout = () => {
         </Accordion>
       </section>
 
-      {/* Testimonials */}
-      <section className="max-w-6xl mx-auto px-4 pb-16 text-center">
+      {/* Video Testimonials */}
+      <section className="max-w-6xl mx-auto px-4 pb-8 text-center">
         <h2 className="text-2xl font-bold text-foreground mb-2">Depoimentos de Clientes</h2>
         <p className="text-muted-foreground mb-8">
           Veja o que nossos clientes estão dizendo sobre o Liberty Pharma
         </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { img: testimonial1, name: 'Maria S.' },
+            { img: testimonial2, name: 'Carlos A.' },
+            { img: testimonial3, name: 'Juliana R.' },
+          ].map((t, idx) => (
+            <VideoTestimonialCard key={idx} thumbnail={t.img} name={t.name} />
+          ))}
+        </div>
+      </section>
+
+      {/* Text Testimonials */}
+      <section className="max-w-6xl mx-auto px-4 pb-16">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             { name: 'Maria S.', text: 'Produto excelente! Resultado visível já na segunda semana de uso.' },
