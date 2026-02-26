@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { CreditCard, QrCode, Loader2, CheckCircle2, Copy } from 'lucide-react';
+import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle } from 'lucide-react';
 
 interface CheckoutFormProps {
   productName: string;
@@ -16,6 +16,52 @@ interface CheckoutFormProps {
 
 type PaymentMethod = 'credit_card' | 'pix';
 type CheckoutStep = 'customer' | 'payment' | 'success';
+
+// Validation helpers
+const isValidCpf = (cpf: string): boolean => {
+  const digits = cpf.replace(/\D/g, '');
+  if (digits.length !== 11) return false;
+  if (/^(\d)\1+$/.test(digits)) return false;
+  
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(digits[i]) * (10 - i);
+  let remainder = (sum * 10) % 11;
+  if (remainder === 10) remainder = 0;
+  if (remainder !== parseInt(digits[9])) return false;
+  
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(digits[i]) * (11 - i);
+  remainder = (sum * 10) % 11;
+  if (remainder === 10) remainder = 0;
+  return remainder === parseInt(digits[10]);
+};
+
+const isValidEmail = (email: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const isValidPhone = (phone: string): boolean => phone.replace(/\D/g, '').length >= 10;
+
+interface FieldError {
+  name?: string;
+  email?: string;
+  cpf?: string;
+  phone?: string;
+}
+
+interface CardError {
+  cardNumber?: string;
+  cardName?: string;
+  cardExpMonth?: string;
+  cardExpYear?: string;
+  cardCcv?: string;
+  holderPostalCode?: string;
+  holderAddressNumber?: string;
+}
+
+const ErrorText = ({ msg }: { msg?: string }) =>
+  msg ? (
+    <p className="text-[11px] text-destructive flex items-center gap-1 mt-0.5">
+      <AlertCircle className="w-3 h-3" /> {msg}
+    </p>
+  ) : null;
 
 const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutFormProps) => {
   const { toast } = useToast();
@@ -32,6 +78,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
   const [email, setEmail] = useState('');
   const [cpf, setCpf] = useState('');
   const [phone, setPhone] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldError>({});
 
   // Card fields
   const [cardNumber, setCardNumber] = useState('');
@@ -40,6 +87,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
   const [cardExpYear, setCardExpYear] = useState('');
   const [cardCcv, setCardCcv] = useState('');
   const [installments, setInstallments] = useState(1);
+  const [cardErrors, setCardErrors] = useState<CardError>({});
 
   // Card holder info
   const [holderEmail, setHolderEmail] = useState('');
@@ -72,16 +120,46 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
   };
 
+  const validateCustomer = (): boolean => {
+    const errors: FieldError = {};
+    if (!name.trim()) errors.name = 'Nome é obrigatório';
+    else if (name.trim().length < 3) errors.name = 'Nome deve ter pelo menos 3 caracteres';
+
+    if (!email.trim()) errors.email = 'E-mail é obrigatório';
+    else if (!isValidEmail(email)) errors.email = 'E-mail inválido';
+
+    if (!cpf.trim()) errors.cpf = 'CPF é obrigatório';
+    else if (!isValidCpf(cpf)) errors.cpf = 'CPF inválido';
+
+    if (!phone.trim()) errors.phone = 'Telefone é obrigatório';
+    else if (!isValidPhone(phone)) errors.phone = 'Telefone inválido';
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateCard = (): boolean => {
+    if (paymentMethod === 'pix') return true;
+    const errors: CardError = {};
+    const num = cardNumber.replace(/\s/g, '');
+    if (num.length < 13) errors.cardNumber = 'Número do cartão inválido';
+    if (!cardName.trim()) errors.cardName = 'Nome no cartão é obrigatório';
+    if (!cardExpMonth || parseInt(cardExpMonth) < 1 || parseInt(cardExpMonth) > 12) errors.cardExpMonth = 'Mês inválido';
+    if (!cardExpYear || cardExpYear.length !== 4) errors.cardExpYear = 'Ano inválido';
+    if (!cardCcv || cardCcv.length < 3) errors.cardCcv = 'CVV inválido';
+    if (!holderPostalCode.replace(/\D/g, '') || holderPostalCode.replace(/\D/g, '').length < 8) errors.holderPostalCode = 'CEP inválido';
+    if (!holderAddressNumber.trim()) errors.holderAddressNumber = 'Número obrigatório';
+    setCardErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleCreateCustomer = async () => {
-    if (!name || !email || !cpf || !phone) {
-      toast({ title: 'Preencha todos os campos', variant: 'destructive' });
-      return;
-    }
+    if (!validateCustomer()) return;
     setProcessing(true);
     try {
       const customer = await invokeAsaas('create_customer', {
-        name,
-        email,
+        name: name.trim(),
+        email: email.trim(),
         cpfCnpj: cpf.replace(/\D/g, ''),
         phone: phone.replace(/\D/g, ''),
       });
@@ -98,6 +176,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
   };
 
   const handlePayment = async () => {
+    if (!validateCard()) return;
     setProcessing(true);
     try {
       const description = `${productName} ${dosage} x${quantity}`;
@@ -116,18 +195,18 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
           description,
           installmentCount: installments,
           creditCard: {
-            holderName: cardName,
+            holderName: cardName.trim(),
             number: cardNumber.replace(/\s/g, ''),
             expiryMonth: cardExpMonth,
             expiryYear: cardExpYear,
             ccv: cardCcv,
           },
           creditCardHolderInfo: {
-            name,
-            email: holderEmail,
+            name: name.trim(),
+            email: holderEmail.trim(),
             cpfCnpj: holderCpf.replace(/\D/g, ''),
             postalCode: holderPostalCode.replace(/\D/g, ''),
-            addressNumber: holderAddressNumber,
+            addressNumber: holderAddressNumber.trim(),
             phone: holderPhone.replace(/\D/g, ''),
           },
         });
@@ -170,11 +249,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
               )}
               {paymentResult.pixQrCode.payload && (
                 <div className="flex items-center gap-2">
-                  <Input
-                    value={paymentResult.pixQrCode.payload}
-                    readOnly
-                    className="text-xs"
-                  />
+                  <Input value={paymentResult.pixQrCode.payload} readOnly className="text-xs" />
                   <Button size="icon" variant="outline" onClick={() => copyToClipboard(paymentResult.pixQrCode.payload)}>
                     <Copy className="w-4 h-4" />
                   </Button>
@@ -204,21 +279,46 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
-            <Label className="text-xs">Nome completo</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="João da Silva" />
+            <Label className="text-xs">Nome completo *</Label>
+            <Input
+              value={name}
+              onChange={(e) => { setName(e.target.value); setFieldErrors(p => ({ ...p, name: undefined })); }}
+              placeholder="João da Silva"
+              className={fieldErrors.name ? 'border-destructive' : ''}
+            />
+            <ErrorText msg={fieldErrors.name} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">E-mail</Label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="joao@email.com" />
+            <Label className="text-xs">E-mail *</Label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setFieldErrors(p => ({ ...p, email: undefined })); }}
+              placeholder="joao@email.com"
+              className={fieldErrors.email ? 'border-destructive' : ''}
+            />
+            <ErrorText msg={fieldErrors.email} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs">CPF</Label>
-              <Input value={cpf} onChange={(e) => setCpf(formatCpf(e.target.value))} placeholder="000.000.000-00" />
+              <Label className="text-xs">CPF *</Label>
+              <Input
+                value={cpf}
+                onChange={(e) => { setCpf(formatCpf(e.target.value)); setFieldErrors(p => ({ ...p, cpf: undefined })); }}
+                placeholder="000.000.000-00"
+                className={fieldErrors.cpf ? 'border-destructive' : ''}
+              />
+              <ErrorText msg={fieldErrors.cpf} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Telefone</Label>
-              <Input value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} placeholder="(11) 99999-9999" />
+              <Label className="text-xs">Telefone *</Label>
+              <Input
+                value={phone}
+                onChange={(e) => { setPhone(formatPhone(e.target.value)); setFieldErrors(p => ({ ...p, phone: undefined })); }}
+                placeholder="(11) 99999-9999"
+                className={fieldErrors.phone ? 'border-destructive' : ''}
+              />
+              <ErrorText msg={fieldErrors.phone} />
             </div>
           </div>
           <Button onClick={handleCreateCustomer} disabled={processing} className="w-full">
@@ -235,22 +335,10 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
       <CardHeader>
         <CardTitle className="text-base">Forma de Pagamento</CardTitle>
         <div className="flex gap-2 mt-2">
-          <Button
-            type="button"
-            variant={paymentMethod === 'pix' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setPaymentMethod('pix')}
-            className="flex items-center gap-1.5"
-          >
+          <Button type="button" variant={paymentMethod === 'pix' ? 'default' : 'outline'} size="sm" onClick={() => setPaymentMethod('pix')} className="flex items-center gap-1.5">
             <QrCode className="w-4 h-4" /> PIX
           </Button>
-          <Button
-            type="button"
-            variant={paymentMethod === 'credit_card' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setPaymentMethod('credit_card')}
-            className="flex items-center gap-1.5"
-          >
+          <Button type="button" variant={paymentMethod === 'credit_card' ? 'default' : 'outline'} size="sm" onClick={() => setPaymentMethod('credit_card')} className="flex items-center gap-1.5">
             <CreditCard className="w-4 h-4" /> Cartão de Crédito
           </Button>
         </div>
@@ -259,25 +347,55 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
         {paymentMethod === 'credit_card' && (
           <>
             <div className="space-y-1.5">
-              <Label className="text-xs">Número do cartão</Label>
-              <Input value={cardNumber} onChange={(e) => setCardNumber(formatCardNumber(e.target.value))} placeholder="0000 0000 0000 0000" />
+              <Label className="text-xs">Número do cartão *</Label>
+              <Input
+                value={cardNumber}
+                onChange={(e) => { setCardNumber(formatCardNumber(e.target.value)); setCardErrors(p => ({ ...p, cardNumber: undefined })); }}
+                placeholder="0000 0000 0000 0000"
+                className={cardErrors.cardNumber ? 'border-destructive' : ''}
+              />
+              <ErrorText msg={cardErrors.cardNumber} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Nome no cartão</Label>
-              <Input value={cardName} onChange={(e) => setCardName(e.target.value)} placeholder="JOAO DA SILVA" />
+              <Label className="text-xs">Nome no cartão *</Label>
+              <Input
+                value={cardName}
+                onChange={(e) => { setCardName(e.target.value); setCardErrors(p => ({ ...p, cardName: undefined })); }}
+                placeholder="JOAO DA SILVA"
+                className={cardErrors.cardName ? 'border-destructive' : ''}
+              />
+              <ErrorText msg={cardErrors.cardName} />
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div className="space-y-1.5">
-                <Label className="text-xs">Mês</Label>
-                <Input value={cardExpMonth} onChange={(e) => setCardExpMonth(e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="MM" />
+                <Label className="text-xs">Mês *</Label>
+                <Input
+                  value={cardExpMonth}
+                  onChange={(e) => { setCardExpMonth(e.target.value.replace(/\D/g, '').slice(0, 2)); setCardErrors(p => ({ ...p, cardExpMonth: undefined })); }}
+                  placeholder="MM"
+                  className={cardErrors.cardExpMonth ? 'border-destructive' : ''}
+                />
+                <ErrorText msg={cardErrors.cardExpMonth} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Ano</Label>
-                <Input value={cardExpYear} onChange={(e) => setCardExpYear(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="AAAA" />
+                <Label className="text-xs">Ano *</Label>
+                <Input
+                  value={cardExpYear}
+                  onChange={(e) => { setCardExpYear(e.target.value.replace(/\D/g, '').slice(0, 4)); setCardErrors(p => ({ ...p, cardExpYear: undefined })); }}
+                  placeholder="AAAA"
+                  className={cardErrors.cardExpYear ? 'border-destructive' : ''}
+                />
+                <ErrorText msg={cardErrors.cardExpYear} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">CVV</Label>
-                <Input value={cardCcv} onChange={(e) => setCardCcv(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="123" />
+                <Label className="text-xs">CVV *</Label>
+                <Input
+                  value={cardCcv}
+                  onChange={(e) => { setCardCcv(e.target.value.replace(/\D/g, '').slice(0, 4)); setCardErrors(p => ({ ...p, cardCcv: undefined })); }}
+                  placeholder="123"
+                  className={cardErrors.cardCcv ? 'border-destructive' : ''}
+                />
+                <ErrorText msg={cardErrors.cardCcv} />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -298,12 +416,24 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
               <p className="text-xs font-medium text-muted-foreground">Dados do titular</p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">CEP</Label>
-                  <Input value={holderPostalCode} onChange={(e) => setHolderPostalCode(e.target.value)} placeholder="00000-000" />
+                  <Label className="text-xs">CEP *</Label>
+                  <Input
+                    value={holderPostalCode}
+                    onChange={(e) => { setHolderPostalCode(e.target.value); setCardErrors(p => ({ ...p, holderPostalCode: undefined })); }}
+                    placeholder="00000-000"
+                    className={cardErrors.holderPostalCode ? 'border-destructive' : ''}
+                  />
+                  <ErrorText msg={cardErrors.holderPostalCode} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Número do endereço</Label>
-                  <Input value={holderAddressNumber} onChange={(e) => setHolderAddressNumber(e.target.value)} placeholder="123" />
+                  <Label className="text-xs">Nº endereço *</Label>
+                  <Input
+                    value={holderAddressNumber}
+                    onChange={(e) => { setHolderAddressNumber(e.target.value); setCardErrors(p => ({ ...p, holderAddressNumber: undefined })); }}
+                    placeholder="123"
+                    className={cardErrors.holderAddressNumber ? 'border-destructive' : ''}
+                  />
+                  <ErrorText msg={cardErrors.holderAddressNumber} />
                 </div>
               </div>
             </div>
@@ -330,11 +460,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
           </Button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setStep('customer')}
-          className="text-xs text-muted-foreground hover:text-foreground w-full text-center"
-        >
+        <button type="button" onClick={() => setStep('customer')} className="text-xs text-muted-foreground hover:text-foreground w-full text-center">
           ← Voltar aos dados pessoais
         </button>
       </CardContent>

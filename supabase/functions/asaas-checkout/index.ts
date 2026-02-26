@@ -117,6 +117,13 @@ serve(async (req) => {
         break;
       }
 
+      case 'list_payments': {
+        const limit = payload.limit || 50;
+        const offset = payload.offset || 0;
+        result = await asaasFetch(baseUrl, apiKey, `/payments?limit=${limit}&offset=${offset}`, 'GET');
+        break;
+      }
+
       default:
         throw new Error(`Ação desconhecida: ${action}`);
     }
