@@ -95,9 +95,23 @@ serve(async (req) => {
         break;
       }
 
+      case 'tokenize_credit_card': {
+        const { customer, creditCard, creditCardHolderInfo } = payload;
+        const remoteIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() 
+          || req.headers.get('x-real-ip') 
+          || '0.0.0.0';
+        result = await asaasFetch(baseUrl, apiKey, '/creditCard/tokenizeCreditCard', 'POST', {
+          customer,
+          creditCard,
+          creditCardHolderInfo,
+          remoteIp,
+        });
+        break;
+      }
+
       case 'create_card_payment': {
-        const { customer, value, description, creditCard, creditCardHolderInfo, installmentCount } = payload;
-        result = await asaasFetch(baseUrl, apiKey, '/payments', 'POST', {
+        const { customer, value, description, creditCardToken, creditCardHolderInfo, installmentCount, remoteIp } = payload;
+        const paymentBody: any = {
           customer,
           billingType: 'CREDIT_CARD',
           value,
@@ -105,9 +119,11 @@ serve(async (req) => {
           dueDate: new Date().toISOString().split('T')[0],
           installmentCount: installmentCount || 1,
           installmentValue: installmentCount ? +(value / installmentCount).toFixed(2) : undefined,
-          creditCard,
+          creditCardToken,
           creditCardHolderInfo,
-        });
+          remoteIp: remoteIp || '0.0.0.0',
+        };
+        result = await asaasFetch(baseUrl, apiKey, '/payments', 'POST', paymentBody);
         break;
       }
 

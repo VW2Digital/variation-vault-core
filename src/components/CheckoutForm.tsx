@@ -191,11 +191,19 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
         });
         setPaymentResult(result);
       } else {
-        const result = await invokeAsaas('create_card_payment', {
+        // Step 1: Tokenize credit card
+        const holderInfo = {
+          name: name.trim(),
+          email: holderEmail.trim(),
+          cpfCnpj: holderCpf.replace(/\D/g, ''),
+          postalCode: holderPostalCode.replace(/\D/g, ''),
+          addressNumber: holderAddressNumber.trim(),
+          phone: holderPhone.replace(/\D/g, ''),
+          mobilePhone: holderPhone.replace(/\D/g, ''),
+        };
+
+        const tokenResult = await invokeAsaas('tokenize_credit_card', {
           customer: customerId,
-          value: totalValue,
-          description,
-          installmentCount: installments,
           creditCard: {
             holderName: cardName.trim(),
             number: cardNumber.replace(/\s/g, ''),
@@ -203,14 +211,21 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
             expiryYear: cardExpYear,
             ccv: cardCcv,
           },
-          creditCardHolderInfo: {
-            name: name.trim(),
-            email: holderEmail.trim(),
-            cpfCnpj: holderCpf.replace(/\D/g, ''),
-            postalCode: holderPostalCode.replace(/\D/g, ''),
-            addressNumber: holderAddressNumber.trim(),
-            phone: holderPhone.replace(/\D/g, ''),
-          },
+          creditCardHolderInfo: holderInfo,
+        });
+
+        if (!tokenResult?.creditCardToken) {
+          throw new Error('Falha ao tokenizar cartão');
+        }
+
+        // Step 2: Create payment with token
+        const result = await invokeAsaas('create_card_payment', {
+          customer: customerId,
+          value: totalValue,
+          description,
+          installmentCount: installments,
+          creditCardToken: tokenResult.creditCardToken,
+          creditCardHolderInfo: holderInfo,
         });
         setPaymentResult(result);
       }
