@@ -54,7 +54,7 @@ const SettingsPage = () => {
   if (loading) return <p className="text-muted-foreground">Carregando...</p>;
 
   return (
-    <div className="space-y-6 w-full max-w-2xl">
+    <div className="space-y-6 w-full">
       <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
 
       <Card className="border-border/50">
