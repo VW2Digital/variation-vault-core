@@ -3,12 +3,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 async function getAsaasConfig(supabaseUrl: string, supabaseKey: string) {
   const supabase = createClient(supabaseUrl, supabaseKey);
-  
+
   const { data: apiKeyRow } = await supabase
     .from('site_settings')
     .select('value')
@@ -23,9 +23,9 @@ async function getAsaasConfig(supabaseUrl: string, supabaseKey: string) {
 
   const apiKey = apiKeyRow?.value;
   const environment = envRow?.value || 'sandbox';
-  
+
   if (!apiKey) throw new Error('Asaas API Key não configurada');
-  
+
   const baseUrl = environment === 'production'
     ? 'https://api.asaas.com/v3'
     : 'https://sandbox.asaas.com/api/v3';
@@ -38,11 +38,12 @@ async function asaasFetch(baseUrl: string, apiKey: string, path: string, method:
     method,
     headers: {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
       'access_token': apiKey,
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  
+
   const data = await res.json();
   if (!res.ok) {
     console.error('Asaas API error:', JSON.stringify(data));
@@ -59,47 +60,75 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     const { action, ...payload } = await req.json();
     const { apiKey, baseUrl } = await getAsaasConfig(supabaseUrl, supabaseKey);
 
     let result;
 
     switch (action) {
+      // ─── 1. CREATE OR FIND CUSTOMER ───
       case 'create_customer': {
         const { name, email, cpfCnpj, phone } = payload;
-        result = await asaasFetch(baseUrl, apiKey, '/customers', 'POST', {
-          name,
-          email,
-          cpfCnpj,
-          mobilePhone: phone,
-        });
+
+        // Try to find existing customer by CPF
+        const existing = await asaasFetch(baseUrl, apiKey, `/customers?cpfCnpj=${cpfCnpj}`, 'GET');
+        if (existing?.data?.length > 0) {
+          // Update existing customer
+          const customerId = existing.data[0].id;
+          result = await asaasFetch(baseUrl, apiKey, `/customers/${customerId}`, 'PUT', {
+            name,
+            email,
+            mobilePhone: phone,
+          });
+        } else {
+          // Create new customer
+          result = await asaasFetch(baseUrl, apiKey, '/customers', 'POST', {
+            name,
+            email,
+            cpfCnpj,
+            mobilePhone: phone,
+          });
+        }
         break;
       }
 
+      // ─── 2. PIX PAYMENT ───
       case 'create_pix_payment': {
-        const { customer, value, description } = payload;
+        const { customer, value, description, orderId } = payload;
         result = await asaasFetch(baseUrl, apiKey, '/payments', 'POST', {
           customer,
           billingType: 'PIX',
           value,
           description,
           dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          externalReference: orderId || undefined,
         });
 
         // Get PIX QR code
         if (result.id) {
           const pixData = await asaasFetch(baseUrl, apiKey, `/payments/${result.id}/pixQrCode`, 'GET');
           result.pixQrCode = pixData;
+
+          // Update order with payment ID
+          if (orderId) {
+            await supabase
+              .from('orders')
+              .update({ asaas_payment_id: result.id, status: result.status || 'PENDING' })
+              .eq('id', orderId);
+          }
         }
         break;
       }
 
+      // ─── 3. TOKENIZE CREDIT CARD ───
       case 'tokenize_credit_card': {
         const { customer, creditCard, creditCardHolderInfo } = payload;
-        const remoteIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() 
-          || req.headers.get('x-real-ip') 
+        const remoteIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+          || req.headers.get('x-real-ip')
           || '0.0.0.0';
+
         result = await asaasFetch(baseUrl, apiKey, '/creditCard/tokenizeCreditCard', 'POST', {
           customer,
           creditCard,
@@ -109,30 +138,51 @@ serve(async (req) => {
         break;
       }
 
+      // ─── 4. CREDIT CARD PAYMENT (with token) ───
       case 'create_card_payment': {
-        const { customer, value, description, creditCardToken, creditCardHolderInfo, installmentCount, remoteIp } = payload;
+        const { customer, value, description, creditCardToken, creditCardHolderInfo, installmentCount, orderId } = payload;
+        const remoteIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+          || req.headers.get('x-real-ip')
+          || '0.0.0.0';
+
         const paymentBody: any = {
           customer,
           billingType: 'CREDIT_CARD',
           value,
           description,
           dueDate: new Date().toISOString().split('T')[0],
-          installmentCount: installmentCount || 1,
-          installmentValue: installmentCount ? +(value / installmentCount).toFixed(2) : undefined,
           creditCardToken,
           creditCardHolderInfo,
-          remoteIp: remoteIp || '0.0.0.0',
+          remoteIp,
+          externalReference: orderId || undefined,
         };
+
+        // Installments
+        if (installmentCount && installmentCount > 1) {
+          paymentBody.installmentCount = installmentCount;
+          paymentBody.installmentValue = +(value / installmentCount).toFixed(2);
+        }
+
         result = await asaasFetch(baseUrl, apiKey, '/payments', 'POST', paymentBody);
+
+        // Update order with payment ID and status
+        if (orderId && result.id) {
+          await supabase
+            .from('orders')
+            .update({ asaas_payment_id: result.id, status: result.status || 'PENDING' })
+            .eq('id', orderId);
+        }
         break;
       }
 
+      // ─── 5. CHECK PAYMENT STATUS ───
       case 'get_payment_status': {
         const { paymentId } = payload;
         result = await asaasFetch(baseUrl, apiKey, `/payments/${paymentId}`, 'GET');
         break;
       }
 
+      // ─── 6. LIST PAYMENTS ───
       case 'list_payments': {
         const limit = payload.limit || 50;
         const offset = payload.offset || 0;

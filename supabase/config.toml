@@ -2,3 +2,6 @@ project_id = "vkomfiplmhpkhfpidrng"
 
 [functions.asaas-checkout]
 verify_jwt = false
+
+[functions.asaas-webhook]
+verify_jwt = false

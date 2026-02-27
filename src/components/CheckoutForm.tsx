@@ -107,6 +107,34 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
     return data;
   };
 
+  const createOrder = async (paymentMethodType: string): Promise<string> => {
+    const { data, error } = await supabase
+      .from('orders' as any)
+      .insert({
+        customer_name: name.trim(),
+        customer_email: email.trim(),
+        customer_cpf: cpf.replace(/\D/g, ''),
+        customer_phone: phone.replace(/\D/g, ''),
+        asaas_customer_id: customerId,
+        product_name: productName,
+        dosage,
+        quantity,
+        unit_price: unitPrice,
+        total_value: totalValue,
+        payment_method: paymentMethodType,
+        installments: paymentMethodType === 'credit_card' ? installments : 1,
+        status: 'PENDING',
+      } as any)
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Order creation error:', error);
+      throw new Error('Erro ao criar pedido');
+    }
+    return (data as any).id;
+  };
+
   const formatCpf = (v: string) => {
     const digits = v.replace(/\D/g, '').slice(0, 11);
     if (digits.length <= 3) return digits;
@@ -120,6 +148,10 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
     if (digits.length <= 2) return `(${digits}`;
     if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  };
+
+  const formatCardNumber = (v: string) => {
+    return v.replace(/\D/g, '').slice(0, 16).replace(/(\d{4})/g, '$1 ').trim();
   };
 
   const validateCustomer = (): boolean => {
@@ -183,15 +215,19 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
     try {
       const description = `${productName} ${dosage} x${quantity}`;
 
+      // Create order in DB first
+      const orderId = await createOrder(paymentMethod);
+
       if (paymentMethod === 'pix') {
         const result = await invokeAsaas('create_pix_payment', {
           customer: customerId,
           value: totalValue,
           description,
+          orderId,
         });
         setPaymentResult(result);
       } else {
-        // Step 1: Tokenize credit card
+        // Step 1: Tokenize
         const holderInfo = {
           name: name.trim(),
           email: holderEmail.trim(),
@@ -218,7 +254,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
           throw new Error('Falha ao tokenizar cartão');
         }
 
-        // Step 2: Create payment with token
+        // Step 2: Pay with token
         const result = await invokeAsaas('create_card_payment', {
           customer: customerId,
           value: totalValue,
@@ -226,6 +262,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
           installmentCount: installments,
           creditCardToken: tokenResult.creditCardToken,
           creditCardHolderInfo: holderInfo,
+          orderId,
         });
         setPaymentResult(result);
       }
@@ -235,10 +272,6 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
     } finally {
       setProcessing(false);
     }
-  };
-
-  const formatCardNumber = (v: string) => {
-    return v.replace(/\D/g, '').slice(0, 16).replace(/(\d{4})/g, '$1 ').trim();
   };
 
   const maxInstallments = Math.min(6, Math.floor(totalValue / 5) || 1);
@@ -461,7 +494,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
           <div className="text-center py-4 space-y-2">
             <QrCode className="w-10 h-10 text-muted-foreground mx-auto" />
             <p className="text-sm text-muted-foreground">
-              Ao confirmar, um QR Code PIX será gerado para pagamento imediato.
+              {t('pixDescription') || 'Ao confirmar, um QR Code PIX será gerado para pagamento imediato.'}
             </p>
           </div>
         )}
@@ -478,7 +511,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
         </div>
 
         <button type="button" onClick={() => setStep('customer')} className="text-xs text-muted-foreground hover:text-foreground w-full text-center">
-          ← Voltar aos dados pessoais
+          ← {t('backToData') || 'Voltar aos dados pessoais'}
         </button>
       </CardContent>
     </Card>
