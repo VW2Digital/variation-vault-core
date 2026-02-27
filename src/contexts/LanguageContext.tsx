@@ -139,6 +139,8 @@ const translations = {
   error: { pt: 'Erro', es: 'Error', en: 'Error' },
   paymentError: { pt: 'Erro no pagamento', es: 'Error en el pago', en: 'Payment error' },
   status: { pt: 'Status', es: 'Estado', en: 'Status' },
+  pixDescription: { pt: 'Ao confirmar, um QR Code PIX será gerado para pagamento imediato.', es: 'Al confirmar, se generará un QR Code PIX para pago inmediato.', en: 'A PIX QR Code will be generated for immediate payment.' },
+  backToData: { pt: 'Voltar aos dados pessoais', es: 'Volver a los datos personales', en: 'Back to personal data' },
 } as const;
 
 type TranslationKey = keyof typeof translations;

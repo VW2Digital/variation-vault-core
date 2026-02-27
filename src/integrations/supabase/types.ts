@@ -38,6 +38,66 @@ export type Database = {
         }
         Relationships: []
       }
+      orders: {
+        Row: {
+          asaas_customer_id: string | null
+          asaas_payment_id: string | null
+          created_at: string
+          customer_cpf: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string | null
+          dosage: string | null
+          id: string
+          installments: number
+          payment_method: string
+          product_name: string
+          quantity: number
+          status: string
+          total_value: number
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          asaas_customer_id?: string | null
+          asaas_payment_id?: string | null
+          created_at?: string
+          customer_cpf: string
+          customer_email: string
+          customer_name: string
+          customer_phone?: string | null
+          dosage?: string | null
+          id?: string
+          installments?: number
+          payment_method?: string
+          product_name: string
+          quantity?: number
+          status?: string
+          total_value?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          asaas_customer_id?: string | null
+          asaas_payment_id?: string | null
+          created_at?: string
+          customer_cpf?: string
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string | null
+          dosage?: string | null
+          id?: string
+          installments?: number
+          payment_method?: string
+          product_name?: string
+          quantity?: number
+          status?: string
+          total_value?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_variations: {
         Row: {
           created_at: string
