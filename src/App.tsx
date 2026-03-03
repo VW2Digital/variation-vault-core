@@ -16,6 +16,8 @@ import BannerList from "./pages/BannerList";
 import SettingsPage from "./pages/SettingsPage";
 import OrdersPage from "./pages/OrdersPage";
 import Checkout from "./pages/Checkout";
+import CustomerLogin from "./pages/CustomerLogin";
+import CustomerDashboard from "./pages/CustomerDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +34,8 @@ const App = () => (
           <Route path="/catalogo" element={<Catalog />} />
           <Route path="/produto/:id" element={<ProductCheckout />} />
           <Route path="/checkout/:id" element={<Checkout />} />
+          <Route path="/cliente/login" element={<CustomerLogin />} />
+          <Route path="/minha-conta" element={<CustomerDashboard />} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Dashboard />} />
