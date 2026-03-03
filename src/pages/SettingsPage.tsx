@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Phone, CreditCard, Eye, EyeOff, Truck, MapPin } from 'lucide-react';
+import { Phone, CreditCard, Eye, EyeOff, Truck, MapPin, Mail } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -24,6 +24,9 @@ const SettingsPage = () => {
   const [melhorEnvioEnv, setMelhorEnvioEnv] = useState('sandbox');
   const [showApiKey, setShowApiKey] = useState(false);
   const [showMelhorEnvioToken, setShowMelhorEnvioToken] = useState(false);
+  const [resendApiKey, setResendApiKey] = useState('');
+  const [resendFromEmail, setResendFromEmail] = useState('');
+  const [showResendKey, setShowResendKey] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -55,7 +58,9 @@ const SettingsPage = () => {
       fetchSetting('melhor_envio_client_id'),
       fetchSetting('melhor_envio_environment'),
       fetchSetting('melhor_envio_sender'),
-    ]).then(([wp, apiKey, env, meToken, meClientId, meEnv, senderJson]) => {
+      fetchSetting('resend_api_key'),
+      fetchSetting('resend_from_email'),
+    ]).then(([wp, apiKey, env, meToken, meClientId, meEnv, senderJson, rKey, rFrom]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
@@ -83,6 +88,8 @@ const SettingsPage = () => {
           setPackageWeight(String(s.package_weight || '0.1'));
         } catch {}
       }
+      setResendApiKey(rKey || '');
+      setResendFromEmail(rFrom || 'onboarding@resend.dev');
     }).finally(() => setLoading(false));
   }, []);
 
@@ -115,6 +122,8 @@ const SettingsPage = () => {
         upsertSetting('melhor_envio_client_id', melhorEnvioClientId),
         upsertSetting('melhor_envio_environment', melhorEnvioEnv),
         upsertSetting('melhor_envio_sender', senderData),
+        upsertSetting('resend_api_key', resendApiKey),
+        upsertSetting('resend_from_email', resendFromEmail),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
@@ -240,6 +249,49 @@ const SettingsPage = () => {
                 {showMelhorEnvioToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Mail className="w-5 h-5" /> Resend - Email de Notificação
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>API Key do Resend</Label>
+            <div className="relative">
+              <Input
+                type={showResendKey ? 'text' : 'password'}
+                value={resendApiKey}
+                onChange={(e) => setResendApiKey(e.target.value)}
+                placeholder="re_..."
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowResendKey(!showResendKey)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showResendKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Encontre sua API Key em resend.com → API Keys
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label>Email de envio (From)</Label>
+            <Input
+              value={resendFromEmail}
+              onChange={(e) => setResendFromEmail(e.target.value)}
+              placeholder="onboarding@resend.dev"
+            />
+            <p className="text-xs text-muted-foreground">
+              Use onboarding@resend.dev para testes ou configure seu domínio no Resend para usar um email personalizado.
+            </p>
           </div>
         </CardContent>
       </Card>
