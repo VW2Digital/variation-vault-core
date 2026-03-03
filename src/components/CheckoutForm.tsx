@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle } from 'lucide-react';
+import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle, MapPin } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface CheckoutFormProps {
@@ -16,20 +16,18 @@ interface CheckoutFormProps {
 }
 
 type PaymentMethod = 'credit_card' | 'pix';
-type CheckoutStep = 'customer' | 'payment' | 'success';
+type CheckoutStep = 'customer' | 'address' | 'payment' | 'success';
 
 // Validation helpers
 const isValidCpf = (cpf: string): boolean => {
   const digits = cpf.replace(/\D/g, '');
   if (digits.length !== 11) return false;
   if (/^(\d)\1+$/.test(digits)) return false;
-  
   let sum = 0;
   for (let i = 0; i < 9; i++) sum += parseInt(digits[i]) * (10 - i);
   let remainder = (sum * 10) % 11;
   if (remainder === 10) remainder = 0;
   if (remainder !== parseInt(digits[9])) return false;
-  
   sum = 0;
   for (let i = 0; i < 10; i++) sum += parseInt(digits[i]) * (11 - i);
   remainder = (sum * 10) % 11;
@@ -40,22 +38,9 @@ const isValidCpf = (cpf: string): boolean => {
 const isValidEmail = (email: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidPhone = (phone: string): boolean => phone.replace(/\D/g, '').length >= 10;
 
-interface FieldError {
-  name?: string;
-  email?: string;
-  cpf?: string;
-  phone?: string;
-}
-
-interface CardError {
-  cardNumber?: string;
-  cardName?: string;
-  cardExpMonth?: string;
-  cardExpYear?: string;
-  cardCcv?: string;
-  holderPostalCode?: string;
-  holderAddressNumber?: string;
-}
+interface FieldError { name?: string; email?: string; cpf?: string; phone?: string; }
+interface AddressError { postalCode?: string; address?: string; number?: string; district?: string; city?: string; state?: string; }
+interface CardError { cardNumber?: string; cardName?: string; cardExpMonth?: string; cardExpYear?: string; cardCcv?: string; holderPostalCode?: string; holderAddressNumber?: string; }
 
 const ErrorText = ({ msg }: { msg?: string }) =>
   msg ? (
@@ -81,6 +66,17 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
   const [cpf, setCpf] = useState('');
   const [phone, setPhone] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldError>({});
+
+  // Address fields
+  const [addrPostalCode, setAddrPostalCode] = useState('');
+  const [addrStreet, setAddrStreet] = useState('');
+  const [addrNumber, setAddrNumber] = useState('');
+  const [addrComplement, setAddrComplement] = useState('');
+  const [addrDistrict, setAddrDistrict] = useState('');
+  const [addrCity, setAddrCity] = useState('');
+  const [addrState, setAddrState] = useState('');
+  const [addressErrors, setAddressErrors] = useState<AddressError>({});
+  const [fetchingCep, setFetchingCep] = useState(false);
 
   // Card fields
   const [cardNumber, setCardNumber] = useState('');
@@ -108,13 +104,19 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
   };
 
   const createOrder = async (paymentMethodType: string): Promise<string> => {
-    // Try to link order to authenticated customer
     const { data: { session } } = await supabase.auth.getSession();
     const orderData: any = {
       customer_name: name.trim(),
       customer_email: email.trim(),
       customer_cpf: cpf.replace(/\D/g, ''),
       customer_phone: phone.replace(/\D/g, ''),
+      customer_postal_code: addrPostalCode.replace(/\D/g, ''),
+      customer_address: addrStreet.trim(),
+      customer_number: addrNumber.trim(),
+      customer_complement: addrComplement.trim(),
+      customer_district: addrDistrict.trim(),
+      customer_city: addrCity.trim(),
+      customer_state: addrState.trim().toUpperCase(),
       asaas_customer_id: customerId,
       product_name: productName,
       dosage,
@@ -161,21 +163,52 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
     return v.replace(/\D/g, '').slice(0, 16).replace(/(\d{4})/g, '$1 ').trim();
   };
 
+  const formatCep = (v: string) => {
+    const digits = v.replace(/\D/g, '').slice(0, 8);
+    if (digits.length <= 5) return digits;
+    return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+  };
+
+  const fetchAddressByCep = async (cep: string) => {
+    const digits = cep.replace(/\D/g, '');
+    if (digits.length !== 8) return;
+    setFetchingCep(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        setAddrStreet(data.logradouro || '');
+        setAddrDistrict(data.bairro || '');
+        setAddrCity(data.localidade || '');
+        setAddrState(data.uf || '');
+      }
+    } catch { /* ignore */ }
+    finally { setFetchingCep(false); }
+  };
+
   const validateCustomer = (): boolean => {
     const errors: FieldError = {};
-    if (!name.trim()) errors.name = t('nameRequired');
-    else if (name.trim().length < 3) errors.name = t('nameMin');
-
-    if (!email.trim()) errors.email = t('emailRequired');
-    else if (!isValidEmail(email)) errors.email = t('emailInvalid');
-
-    if (!cpf.trim()) errors.cpf = t('cpfRequired');
-    else if (!isValidCpf(cpf)) errors.cpf = t('cpfInvalid');
-
-    if (!phone.trim()) errors.phone = t('phoneRequired');
-    else if (!isValidPhone(phone)) errors.phone = t('phoneInvalid');
-
+    if (!name.trim()) errors.name = 'Nome é obrigatório';
+    else if (name.trim().length < 3) errors.name = 'Nome deve ter pelo menos 3 caracteres';
+    if (!email.trim()) errors.email = 'Email é obrigatório';
+    else if (!isValidEmail(email)) errors.email = 'Email inválido';
+    if (!cpf.trim()) errors.cpf = 'CPF é obrigatório';
+    else if (!isValidCpf(cpf)) errors.cpf = 'CPF inválido';
+    if (!phone.trim()) errors.phone = 'Telefone é obrigatório';
+    else if (!isValidPhone(phone)) errors.phone = 'Telefone inválido';
     setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateAddress = (): boolean => {
+    const errors: AddressError = {};
+    if (!addrPostalCode.replace(/\D/g, '') || addrPostalCode.replace(/\D/g, '').length < 8) errors.postalCode = 'CEP inválido';
+    if (!addrStreet.trim()) errors.address = 'Endereço é obrigatório';
+    if (!addrNumber.trim()) errors.number = 'Número é obrigatório';
+    if (!addrDistrict.trim()) errors.district = 'Bairro é obrigatório';
+    if (!addrCity.trim()) errors.city = 'Cidade é obrigatória';
+    if (!addrState.trim() || addrState.trim().length !== 2) errors.state = 'UF inválida (2 letras)';
+    setAddressErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
@@ -183,13 +216,13 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
     if (paymentMethod === 'pix') return true;
     const errors: CardError = {};
     const num = cardNumber.replace(/\s/g, '');
-    if (num.length < 13) errors.cardNumber = t('cardNumberInvalid');
-    if (!cardName.trim()) errors.cardName = t('cardNameRequired');
-    if (!cardExpMonth || parseInt(cardExpMonth) < 1 || parseInt(cardExpMonth) > 12) errors.cardExpMonth = t('monthInvalid');
-    if (!cardExpYear || cardExpYear.length !== 4) errors.cardExpYear = t('yearInvalid');
-    if (!cardCcv || cardCcv.length < 3) errors.cardCcv = t('cvvInvalid');
-    if (!holderPostalCode.replace(/\D/g, '') || holderPostalCode.replace(/\D/g, '').length < 8) errors.holderPostalCode = t('cepInvalid');
-    if (!holderAddressNumber.trim()) errors.holderAddressNumber = t('numberRequired');
+    if (num.length < 13) errors.cardNumber = 'Número do cartão inválido';
+    if (!cardName.trim()) errors.cardName = 'Nome é obrigatório';
+    if (!cardExpMonth || parseInt(cardExpMonth) < 1 || parseInt(cardExpMonth) > 12) errors.cardExpMonth = 'Mês inválido';
+    if (!cardExpYear || cardExpYear.length !== 4) errors.cardExpYear = 'Ano inválido';
+    if (!cardCcv || cardCcv.length < 3) errors.cardCcv = 'CVV inválido';
+    if (!holderPostalCode.replace(/\D/g, '') || holderPostalCode.replace(/\D/g, '').length < 8) errors.holderPostalCode = 'CEP inválido';
+    if (!holderAddressNumber.trim()) errors.holderAddressNumber = 'Número é obrigatório';
     setCardErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -208,12 +241,20 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
       setHolderEmail(email);
       setHolderCpf(cpf);
       setHolderPhone(phone);
-      setStep('payment');
+      setStep('address');
     } catch (err: any) {
-      toast({ title: t('error'), description: err.message, variant: 'destructive' });
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     } finally {
       setProcessing(false);
     }
+  };
+
+  const handleAddressNext = () => {
+    if (!validateAddress()) return;
+    // Pre-fill card holder postal code and number
+    setHolderPostalCode(addrPostalCode);
+    setHolderAddressNumber(addrNumber);
+    setStep('payment');
   };
 
   const handlePayment = async () => {
@@ -221,61 +262,41 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
     setProcessing(true);
     try {
       const description = `${productName} ${dosage} x${quantity}`;
-
-      // Create order in DB first
       const orderId = await createOrder(paymentMethod);
 
       if (paymentMethod === 'pix') {
         const result = await invokeAsaas('create_pix_payment', {
-          customer: customerId,
-          value: totalValue,
-          description,
-          orderId,
+          customer: customerId, value: totalValue, description, orderId,
         });
         setPaymentResult(result);
       } else {
-        // Step 1: Tokenize
         const holderInfo = {
-          name: name.trim(),
-          email: holderEmail.trim(),
+          name: name.trim(), email: holderEmail.trim(),
           cpfCnpj: holderCpf.replace(/\D/g, ''),
           postalCode: holderPostalCode.replace(/\D/g, ''),
           addressNumber: holderAddressNumber.trim(),
           phone: holderPhone.replace(/\D/g, ''),
           mobilePhone: holderPhone.replace(/\D/g, ''),
         };
-
         const tokenResult = await invokeAsaas('tokenize_credit_card', {
           customer: customerId,
           creditCard: {
-            holderName: cardName.trim(),
-            number: cardNumber.replace(/\s/g, ''),
-            expiryMonth: cardExpMonth,
-            expiryYear: cardExpYear,
-            ccv: cardCcv,
+            holderName: cardName.trim(), number: cardNumber.replace(/\s/g, ''),
+            expiryMonth: cardExpMonth, expiryYear: cardExpYear, ccv: cardCcv,
           },
           creditCardHolderInfo: holderInfo,
         });
-
-        if (!tokenResult?.creditCardToken) {
-          throw new Error('Falha ao tokenizar cartão');
-        }
-
-        // Step 2: Pay with token
+        if (!tokenResult?.creditCardToken) throw new Error('Falha ao tokenizar cartão');
         const result = await invokeAsaas('create_card_payment', {
-          customer: customerId,
-          value: totalValue,
-          description,
-          installmentCount: installments,
-          creditCardToken: tokenResult.creditCardToken,
-          creditCardHolderInfo: holderInfo,
-          orderId,
+          customer: customerId, value: totalValue, description,
+          installmentCount: installments, creditCardToken: tokenResult.creditCardToken,
+          creditCardHolderInfo: holderInfo, orderId,
         });
         setPaymentResult(result);
       }
       setStep('success');
     } catch (err: any) {
-      toast({ title: t('paymentError'), description: err.message, variant: 'destructive' });
+      toast({ title: 'Erro no pagamento', description: err.message, variant: 'destructive' });
     } finally {
       setProcessing(false);
     }
@@ -285,9 +306,10 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: t('copied') });
+    toast({ title: 'Copiado!' });
   };
 
+  // ─── SUCCESS ───
   if (step === 'success') {
     return (
       <Card className="border-primary/30 bg-primary/5">
@@ -295,14 +317,10 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
           <CheckCircle2 className="w-12 h-12 text-primary mx-auto" />
           {paymentMethod === 'pix' && paymentResult?.pixQrCode ? (
             <>
-              <h3 className="text-lg font-bold text-foreground">{t('pixGenerated')}</h3>
-              <p className="text-sm text-muted-foreground">{t('scanQR')}</p>
+              <h3 className="text-lg font-bold text-foreground">PIX Gerado!</h3>
+              <p className="text-sm text-muted-foreground">Escaneie o QR Code ou copie o código</p>
               {paymentResult.pixQrCode.encodedImage && (
-                <img
-                  src={`data:image/png;base64,${paymentResult.pixQrCode.encodedImage}`}
-                  alt="QR Code PIX"
-                  className="w-48 h-48 mx-auto rounded-lg border border-border"
-                />
+                <img src={`data:image/png;base64,${paymentResult.pixQrCode.encodedImage}`} alt="QR Code PIX" className="w-48 h-48 mx-auto rounded-lg border border-border" />
               )}
               {paymentResult.pixQrCode.payload && (
                 <div className="flex items-center gap-2">
@@ -312,15 +330,15 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
                   </Button>
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">{t('value')}: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              <p className="text-xs text-muted-foreground">Valor: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             </>
           ) : (
             <>
-              <h3 className="text-lg font-bold text-foreground">{t('paymentProcessed')}</h3>
+              <h3 className="text-lg font-bold text-foreground">Pagamento Processado!</h3>
               <p className="text-sm text-muted-foreground">
-                {t('status')}: <span className="font-medium text-primary">{paymentResult?.status === 'CONFIRMED' ? t('confirmed') : paymentResult?.status === 'PENDING' ? t('pending') : paymentResult?.status}</span>
+                Status: <span className="font-medium text-primary">{paymentResult?.status === 'CONFIRMED' ? 'Confirmado' : paymentResult?.status === 'PENDING' ? 'Pendente' : paymentResult?.status}</span>
               </p>
-              <p className="text-xs text-muted-foreground">{t('value')}: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              <p className="text-xs text-muted-foreground">Valor: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             </>
           )}
         </CardContent>
@@ -328,75 +346,126 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
     );
   }
 
+  // ─── CUSTOMER DATA ───
   if (step === 'customer') {
     return (
       <Card className="border-border/50">
         <CardHeader>
-          <CardTitle className="text-base">{t('buyerData')}</CardTitle>
+          <CardTitle className="text-base">Dados do Comprador</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
-            <Label className="text-xs">{t('fullName')} *</Label>
-            <Input
-              value={name}
-              onChange={(e) => { setName(e.target.value); setFieldErrors(p => ({ ...p, name: undefined })); }}
-              placeholder="João da Silva"
-              className={fieldErrors.name ? 'border-destructive' : ''}
-            />
+            <Label className="text-xs">Nome completo *</Label>
+            <Input value={name} onChange={(e) => { setName(e.target.value); setFieldErrors(p => ({ ...p, name: undefined })); }} placeholder="João da Silva" className={fieldErrors.name ? 'border-destructive' : ''} />
             <ErrorText msg={fieldErrors.name} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">{t('email')} *</Label>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setFieldErrors(p => ({ ...p, email: undefined })); }}
-              placeholder="joao@email.com"
-              className={fieldErrors.email ? 'border-destructive' : ''}
-            />
+            <Label className="text-xs">Email *</Label>
+            <Input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setFieldErrors(p => ({ ...p, email: undefined })); }} placeholder="joao@email.com" className={fieldErrors.email ? 'border-destructive' : ''} />
             <ErrorText msg={fieldErrors.email} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs">{t('cpf')} *</Label>
-              <Input
-                value={cpf}
-                onChange={(e) => { setCpf(formatCpf(e.target.value)); setFieldErrors(p => ({ ...p, cpf: undefined })); }}
-                placeholder="000.000.000-00"
-                className={fieldErrors.cpf ? 'border-destructive' : ''}
-              />
+              <Label className="text-xs">CPF *</Label>
+              <Input value={cpf} onChange={(e) => { setCpf(formatCpf(e.target.value)); setFieldErrors(p => ({ ...p, cpf: undefined })); }} placeholder="000.000.000-00" className={fieldErrors.cpf ? 'border-destructive' : ''} />
               <ErrorText msg={fieldErrors.cpf} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">{t('phoneLabel')} *</Label>
-              <Input
-                value={phone}
-                onChange={(e) => { setPhone(formatPhone(e.target.value)); setFieldErrors(p => ({ ...p, phone: undefined })); }}
-                placeholder="(11) 99999-9999"
-                className={fieldErrors.phone ? 'border-destructive' : ''}
-              />
+              <Label className="text-xs">Telefone *</Label>
+              <Input value={phone} onChange={(e) => { setPhone(formatPhone(e.target.value)); setFieldErrors(p => ({ ...p, phone: undefined })); }} placeholder="(11) 99999-9999" className={fieldErrors.phone ? 'border-destructive' : ''} />
               <ErrorText msg={fieldErrors.phone} />
             </div>
           </div>
           <Button onClick={handleCreateCustomer} disabled={processing} className="w-full">
             {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            {t('continueToPayment')}
+            Continuar
           </Button>
         </CardContent>
       </Card>
     );
   }
 
+  // ─── ADDRESS ───
+  if (step === 'address') {
+    return (
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <MapPin className="w-4 h-4" /> Endereço de Entrega
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">CEP *</Label>
+            <Input
+              value={addrPostalCode}
+              onChange={(e) => {
+                const formatted = formatCep(e.target.value);
+                setAddrPostalCode(formatted);
+                setAddressErrors(p => ({ ...p, postalCode: undefined }));
+                if (formatted.replace(/\D/g, '').length === 8) fetchAddressByCep(formatted);
+              }}
+              placeholder="00000-000"
+              className={addressErrors.postalCode ? 'border-destructive' : ''}
+            />
+            <ErrorText msg={addressErrors.postalCode} />
+            {fetchingCep && <p className="text-xs text-muted-foreground">Buscando endereço...</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Endereço *</Label>
+            <Input value={addrStreet} onChange={(e) => { setAddrStreet(e.target.value); setAddressErrors(p => ({ ...p, address: undefined })); }} placeholder="Rua, Avenida..." className={addressErrors.address ? 'border-destructive' : ''} />
+            <ErrorText msg={addressErrors.address} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Número *</Label>
+              <Input value={addrNumber} onChange={(e) => { setAddrNumber(e.target.value); setAddressErrors(p => ({ ...p, number: undefined })); }} placeholder="123" className={addressErrors.number ? 'border-destructive' : ''} />
+              <ErrorText msg={addressErrors.number} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Complemento</Label>
+              <Input value={addrComplement} onChange={(e) => setAddrComplement(e.target.value)} placeholder="Apto, Bloco..." />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Bairro *</Label>
+            <Input value={addrDistrict} onChange={(e) => { setAddrDistrict(e.target.value); setAddressErrors(p => ({ ...p, district: undefined })); }} placeholder="Centro" className={addressErrors.district ? 'border-destructive' : ''} />
+            <ErrorText msg={addressErrors.district} />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2 space-y-1.5">
+              <Label className="text-xs">Cidade *</Label>
+              <Input value={addrCity} onChange={(e) => { setAddrCity(e.target.value); setAddressErrors(p => ({ ...p, city: undefined })); }} placeholder="São Paulo" className={addressErrors.city ? 'border-destructive' : ''} />
+              <ErrorText msg={addressErrors.city} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">UF *</Label>
+              <Input value={addrState} onChange={(e) => { setAddrState(e.target.value.toUpperCase()); setAddressErrors(p => ({ ...p, state: undefined })); }} placeholder="SP" maxLength={2} className={addressErrors.state ? 'border-destructive' : ''} />
+              <ErrorText msg={addressErrors.state} />
+            </div>
+          </div>
+          <Button onClick={handleAddressNext} className="w-full">
+            Continuar para Pagamento
+          </Button>
+          <button type="button" onClick={() => setStep('customer')} className="text-xs text-muted-foreground hover:text-foreground w-full text-center">
+            ← Voltar aos dados pessoais
+          </button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // ─── PAYMENT ───
   return (
     <Card className="border-border/50">
       <CardHeader>
-        <CardTitle className="text-base">{t('paymentMethod')}</CardTitle>
+        <CardTitle className="text-base">Forma de Pagamento</CardTitle>
         <div className="flex gap-2 mt-2">
           <Button type="button" variant={paymentMethod === 'pix' ? 'default' : 'outline'} size="sm" onClick={() => setPaymentMethod('pix')} className="flex items-center gap-1.5">
             <QrCode className="w-4 h-4" /> PIX
           </Button>
           <Button type="button" variant={paymentMethod === 'credit_card' ? 'default' : 'outline'} size="sm" onClick={() => setPaymentMethod('credit_card')} className="flex items-center gap-1.5">
-            <CreditCard className="w-4 h-4" /> {t('creditCard')}
+            <CreditCard className="w-4 h-4" /> Cartão
           </Button>
         </div>
       </CardHeader>
@@ -404,92 +473,53 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
         {paymentMethod === 'credit_card' && (
           <>
             <div className="space-y-1.5">
-              <Label className="text-xs">{t('cardNumber')} *</Label>
-              <Input
-                value={cardNumber}
-                onChange={(e) => { setCardNumber(formatCardNumber(e.target.value)); setCardErrors(p => ({ ...p, cardNumber: undefined })); }}
-                placeholder="0000 0000 0000 0000"
-                className={cardErrors.cardNumber ? 'border-destructive' : ''}
-              />
+              <Label className="text-xs">Número do cartão *</Label>
+              <Input value={cardNumber} onChange={(e) => { setCardNumber(formatCardNumber(e.target.value)); setCardErrors(p => ({ ...p, cardNumber: undefined })); }} placeholder="0000 0000 0000 0000" className={cardErrors.cardNumber ? 'border-destructive' : ''} />
               <ErrorText msg={cardErrors.cardNumber} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">{t('cardName')} *</Label>
-              <Input
-                value={cardName}
-                onChange={(e) => { setCardName(e.target.value); setCardErrors(p => ({ ...p, cardName: undefined })); }}
-                placeholder="JOAO DA SILVA"
-                className={cardErrors.cardName ? 'border-destructive' : ''}
-              />
+              <Label className="text-xs">Nome no cartão *</Label>
+              <Input value={cardName} onChange={(e) => { setCardName(e.target.value); setCardErrors(p => ({ ...p, cardName: undefined })); }} placeholder="JOAO DA SILVA" className={cardErrors.cardName ? 'border-destructive' : ''} />
               <ErrorText msg={cardErrors.cardName} />
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div className="space-y-1.5">
-                <Label className="text-xs">{t('month')} *</Label>
-                <Input
-                  value={cardExpMonth}
-                  onChange={(e) => { setCardExpMonth(e.target.value.replace(/\D/g, '').slice(0, 2)); setCardErrors(p => ({ ...p, cardExpMonth: undefined })); }}
-                  placeholder="MM"
-                  className={cardErrors.cardExpMonth ? 'border-destructive' : ''}
-                />
+                <Label className="text-xs">Mês *</Label>
+                <Input value={cardExpMonth} onChange={(e) => { setCardExpMonth(e.target.value.replace(/\D/g, '').slice(0, 2)); setCardErrors(p => ({ ...p, cardExpMonth: undefined })); }} placeholder="MM" className={cardErrors.cardExpMonth ? 'border-destructive' : ''} />
                 <ErrorText msg={cardErrors.cardExpMonth} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">{t('year')} *</Label>
-                <Input
-                  value={cardExpYear}
-                  onChange={(e) => { setCardExpYear(e.target.value.replace(/\D/g, '').slice(0, 4)); setCardErrors(p => ({ ...p, cardExpYear: undefined })); }}
-                  placeholder="AAAA"
-                  className={cardErrors.cardExpYear ? 'border-destructive' : ''}
-                />
+                <Label className="text-xs">Ano *</Label>
+                <Input value={cardExpYear} onChange={(e) => { setCardExpYear(e.target.value.replace(/\D/g, '').slice(0, 4)); setCardErrors(p => ({ ...p, cardExpYear: undefined })); }} placeholder="AAAA" className={cardErrors.cardExpYear ? 'border-destructive' : ''} />
                 <ErrorText msg={cardErrors.cardExpYear} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">CVV *</Label>
-                <Input
-                  value={cardCcv}
-                  onChange={(e) => { setCardCcv(e.target.value.replace(/\D/g, '').slice(0, 4)); setCardErrors(p => ({ ...p, cardCcv: undefined })); }}
-                  placeholder="123"
-                  className={cardErrors.cardCcv ? 'border-destructive' : ''}
-                />
+                <Input value={cardCcv} onChange={(e) => { setCardCcv(e.target.value.replace(/\D/g, '').slice(0, 4)); setCardErrors(p => ({ ...p, cardCcv: undefined })); }} placeholder="123" className={cardErrors.cardCcv ? 'border-destructive' : ''} />
                 <ErrorText msg={cardErrors.cardCcv} />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">{t('installments')}</Label>
-              <select
-                value={installments}
-                onChange={(e) => setInstallments(Number(e.target.value))}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
+              <Label className="text-xs">Parcelas</Label>
+              <select value={installments} onChange={(e) => setInstallments(Number(e.target.value))} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                 {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((n) => (
                   <option key={n} value={n}>
-                    {n}x de R$ {(totalValue / n).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} {n === 1 ? t('cashPayment') : t('noInterest')}
+                    {n}x de R$ {(totalValue / n).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} {n === 1 ? '(à vista)' : '(sem juros)'}
                   </option>
                 ))}
               </select>
             </div>
             <div className="border-t border-border/50 pt-3 space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">{t('holderData')}</p>
+              <p className="text-xs font-medium text-muted-foreground">Dados do titular</p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">{t('cep')} *</Label>
-                  <Input
-                    value={holderPostalCode}
-                    onChange={(e) => { setHolderPostalCode(e.target.value); setCardErrors(p => ({ ...p, holderPostalCode: undefined })); }}
-                    placeholder="00000-000"
-                    className={cardErrors.holderPostalCode ? 'border-destructive' : ''}
-                  />
+                  <Label className="text-xs">CEP *</Label>
+                  <Input value={holderPostalCode} onChange={(e) => { setHolderPostalCode(e.target.value); setCardErrors(p => ({ ...p, holderPostalCode: undefined })); }} placeholder="00000-000" className={cardErrors.holderPostalCode ? 'border-destructive' : ''} />
                   <ErrorText msg={cardErrors.holderPostalCode} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">{t('addressNumber')} *</Label>
-                  <Input
-                    value={holderAddressNumber}
-                    onChange={(e) => { setHolderAddressNumber(e.target.value); setCardErrors(p => ({ ...p, holderAddressNumber: undefined })); }}
-                    placeholder="123"
-                    className={cardErrors.holderAddressNumber ? 'border-destructive' : ''}
-                  />
+                  <Label className="text-xs">Número *</Label>
+                  <Input value={holderAddressNumber} onChange={(e) => { setHolderAddressNumber(e.target.value); setCardErrors(p => ({ ...p, holderAddressNumber: undefined })); }} placeholder="123" className={cardErrors.holderAddressNumber ? 'border-destructive' : ''} />
                   <ErrorText msg={cardErrors.holderAddressNumber} />
                 </div>
               </div>
@@ -501,7 +531,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
           <div className="text-center py-4 space-y-2">
             <QrCode className="w-10 h-10 text-muted-foreground mx-auto" />
             <p className="text-sm text-muted-foreground">
-              {t('pixDescription') || 'Ao confirmar, um QR Code PIX será gerado para pagamento imediato.'}
+              Ao confirmar, um QR Code PIX será gerado para pagamento imediato.
             </p>
           </div>
         )}
@@ -513,12 +543,12 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
           </div>
           <Button onClick={handlePayment} disabled={processing} className="w-full">
             {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            {paymentMethod === 'pix' ? t('generatePix') : `${t('pay')} ${t('creditCard')}`}
+            {paymentMethod === 'pix' ? 'Gerar PIX' : 'Pagar com Cartão'}
           </Button>
         </div>
 
-        <button type="button" onClick={() => setStep('customer')} className="text-xs text-muted-foreground hover:text-foreground w-full text-center">
-          ← {t('backToData') || 'Voltar aos dados pessoais'}
+        <button type="button" onClick={() => setStep('address')} className="text-xs text-muted-foreground hover:text-foreground w-full text-center">
+          ← Voltar ao endereço
         </button>
       </CardContent>
     </Card>
