@@ -52,12 +52,17 @@ export type Database = {
           dosage: string | null
           id: string
           installments: number
+          label_url: string | null
           payment_method: string
           product_name: string
           quantity: number
+          shipment_id: string | null
+          shipping_service: string | null
+          shipping_status: string | null
           status: string
           total_value: number
           tracking_code: string | null
+          tracking_url: string | null
           unit_price: number
           updated_at: string
         }
@@ -74,12 +79,17 @@ export type Database = {
           dosage?: string | null
           id?: string
           installments?: number
+          label_url?: string | null
           payment_method?: string
           product_name: string
           quantity?: number
+          shipment_id?: string | null
+          shipping_service?: string | null
+          shipping_status?: string | null
           status?: string
           total_value?: number
           tracking_code?: string | null
+          tracking_url?: string | null
           unit_price?: number
           updated_at?: string
         }
@@ -96,12 +106,17 @@ export type Database = {
           dosage?: string | null
           id?: string
           installments?: number
+          label_url?: string | null
           payment_method?: string
           product_name?: string
           quantity?: number
+          shipment_id?: string | null
+          shipping_service?: string | null
+          shipping_status?: string | null
           status?: string
           total_value?: number
           tracking_code?: string | null
+          tracking_url?: string | null
           unit_price?: number
           updated_at?: string
         }
@@ -195,6 +210,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      shipping_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          event_type: string | null
+          id: string
+          order_id: string | null
+          request_payload: Json | null
+          response_payload: Json | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          event_type?: string | null
+          id?: string
+          order_id?: string | null
+          request_payload?: Json | null
+          response_payload?: Json | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          event_type?: string | null
+          id?: string
+          order_id?: string | null
+          request_payload?: Json | null
+          response_payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipping_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       site_settings: {
         Row: {
