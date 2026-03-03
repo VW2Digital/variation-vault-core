@@ -108,23 +108,30 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
   };
 
   const createOrder = async (paymentMethodType: string): Promise<string> => {
+    // Try to link order to authenticated customer
+    const { data: { session } } = await supabase.auth.getSession();
+    const orderData: any = {
+      customer_name: name.trim(),
+      customer_email: email.trim(),
+      customer_cpf: cpf.replace(/\D/g, ''),
+      customer_phone: phone.replace(/\D/g, ''),
+      asaas_customer_id: customerId,
+      product_name: productName,
+      dosage,
+      quantity,
+      unit_price: unitPrice,
+      total_value: totalValue,
+      payment_method: paymentMethodType,
+      installments: paymentMethodType === 'credit_card' ? installments : 1,
+      status: 'PENDING',
+    };
+    if (session?.user?.id) {
+      orderData.customer_user_id = session.user.id;
+    }
+
     const { data, error } = await supabase
       .from('orders' as any)
-      .insert({
-        customer_name: name.trim(),
-        customer_email: email.trim(),
-        customer_cpf: cpf.replace(/\D/g, ''),
-        customer_phone: phone.replace(/\D/g, ''),
-        asaas_customer_id: customerId,
-        product_name: productName,
-        dosage,
-        quantity,
-        unit_price: unitPrice,
-        total_value: totalValue,
-        payment_method: paymentMethodType,
-        installments: paymentMethodType === 'credit_card' ? installments : 1,
-        status: 'PENDING',
-      } as any)
+      .insert(orderData)
       .select('id')
       .single();
 

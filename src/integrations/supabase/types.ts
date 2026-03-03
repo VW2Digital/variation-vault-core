@@ -47,6 +47,8 @@ export type Database = {
           customer_email: string
           customer_name: string
           customer_phone: string | null
+          customer_user_id: string | null
+          delivery_status: string | null
           dosage: string | null
           id: string
           installments: number
@@ -55,6 +57,7 @@ export type Database = {
           quantity: number
           status: string
           total_value: number
+          tracking_code: string | null
           unit_price: number
           updated_at: string
         }
@@ -66,6 +69,8 @@ export type Database = {
           customer_email: string
           customer_name: string
           customer_phone?: string | null
+          customer_user_id?: string | null
+          delivery_status?: string | null
           dosage?: string | null
           id?: string
           installments?: number
@@ -74,6 +79,7 @@ export type Database = {
           quantity?: number
           status?: string
           total_value?: number
+          tracking_code?: string | null
           unit_price?: number
           updated_at?: string
         }
@@ -85,6 +91,8 @@ export type Database = {
           customer_email?: string
           customer_name?: string
           customer_phone?: string | null
+          customer_user_id?: string | null
+          delivery_status?: string | null
           dosage?: string | null
           id?: string
           installments?: number
@@ -93,6 +101,7 @@ export type Database = {
           quantity?: number
           status?: string
           total_value?: number
+          tracking_code?: string | null
           unit_price?: number
           updated_at?: string
         }
