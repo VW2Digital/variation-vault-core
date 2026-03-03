@@ -20,6 +20,7 @@ const SettingsPage = () => {
   const [asaasApiKey, setAsaasApiKey] = useState('');
   const [asaasEnv, setAsaasEnv] = useState('sandbox');
   const [melhorEnvioToken, setMelhorEnvioToken] = useState('');
+  const [melhorEnvioClientId, setMelhorEnvioClientId] = useState('');
   const [melhorEnvioEnv, setMelhorEnvioEnv] = useState('sandbox');
   const [showApiKey, setShowApiKey] = useState(false);
   const [showMelhorEnvioToken, setShowMelhorEnvioToken] = useState(false);
@@ -32,12 +33,14 @@ const SettingsPage = () => {
       fetchSetting('asaas_api_key'),
       fetchSetting('asaas_environment'),
       fetchSetting('melhor_envio_token'),
+      fetchSetting('melhor_envio_client_id'),
       fetchSetting('melhor_envio_environment'),
-    ]).then(([wp, apiKey, env, meToken, meEnv]) => {
+    ]).then(([wp, apiKey, env, meToken, meClientId, meEnv]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
       setMelhorEnvioToken(meToken);
+      setMelhorEnvioClientId(meClientId);
       setMelhorEnvioEnv(meEnv || 'sandbox');
     }).finally(() => setLoading(false));
   }, []);
@@ -50,6 +53,7 @@ const SettingsPage = () => {
         upsertSetting('asaas_api_key', asaasApiKey),
         upsertSetting('asaas_environment', asaasEnv),
         upsertSetting('melhor_envio_token', melhorEnvioToken),
+        upsertSetting('melhor_envio_client_id', melhorEnvioClientId),
         upsertSetting('melhor_envio_environment', melhorEnvioEnv),
       ]);
       toast({ title: 'Configurações salvas!' });
@@ -149,6 +153,17 @@ const SettingsPage = () => {
                 <SelectItem value="production">Produção</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Client ID</Label>
+            <Input
+              value={melhorEnvioClientId}
+              onChange={(e) => setMelhorEnvioClientId(e.target.value)}
+              placeholder="Seu Client ID do Melhor Envio"
+            />
+            <p className="text-xs text-muted-foreground">
+              Encontre seu Client ID no painel do Melhor Envio em Configurações → Dados do aplicativo
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Token de Acesso</Label>
