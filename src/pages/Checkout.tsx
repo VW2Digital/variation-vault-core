@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { fetchProduct } from '@/lib/api';
 import { AnimatedSection } from '@/components/AnimatedSection';
 import CheckoutForm from '@/components/CheckoutForm';
@@ -12,6 +13,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 const Checkout = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { t } = useLanguage();
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -19,6 +21,15 @@ const Checkout = () => {
   const quantity = Number(searchParams.get('qty')) || 1;
 
   useEffect(() => {
+    // Auth guard - redirect to login if not authenticated
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        const currentUrl = window.location.pathname + window.location.search;
+        navigate(`/cliente/login?redirect=${encodeURIComponent(currentUrl)}`);
+        return;
+      }
+    });
+
     if (!id) return;
     fetchProduct(id).then((prod) => {
       setProduct(prod);
@@ -28,7 +39,7 @@ const Checkout = () => {
         if (idx >= 0) setSelectedVariation(idx);
       }
     }).finally(() => setLoading(false));
-  }, [id, searchParams]);
+  }, [id, searchParams, navigate]);
 
   if (loading) {
     return (
