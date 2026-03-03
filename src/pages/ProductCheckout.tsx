@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
 import { fetchProduct, fetchTestimonials, fetchBanners, fetchSetting } from '@/lib/api';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
@@ -325,10 +326,15 @@ const ProductCheckout = () => {
             {variation?.in_stock ? (
               <Button
                 className="w-full h-14 text-lg font-semibold rounded-xl"
-                onClick={() => {
+                onClick={async () => {
+                  const { data: { session } } = await supabase.auth.getSession();
                   const params = new URLSearchParams();
                   if (variation?.id) params.set('v', variation.id);
                   params.set('qty', String(quantity));
+                  if (!session) {
+                    navigate(`/cliente/login?redirect=${encodeURIComponent(`/checkout/${id}?${params.toString()}`)}`);
+                    return;
+                  }
                   navigate(`/checkout/${id}?${params.toString()}`);
                 }}
               >
