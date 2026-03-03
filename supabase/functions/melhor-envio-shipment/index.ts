@@ -52,12 +52,15 @@ async function logShipping(supabase: any, orderId: string, eventType: string, pa
   });
 }
 
-async function sendTrackingEmail(order: any, trackingCode: string, trackingUrl: string) {
-  const resendApiKey = Deno.env.get('RESEND_API_KEY');
+async function sendTrackingEmail(supabase: any, order: any, trackingCode: string, trackingUrl: string) {
+  // Try site_settings first, then fall back to env var
+  let resendApiKey = await getSetting(supabase, 'resend_api_key');
+  if (!resendApiKey) resendApiKey = Deno.env.get('RESEND_API_KEY') || '';
   if (!resendApiKey) {
-    console.log('[Email] RESEND_API_KEY not configured, skipping email');
+    console.log('[Email] Resend API Key não configurada, pulando envio de email');
     return;
   }
+  const fromEmail = (await getSetting(supabase, 'resend_from_email')) || 'onboarding@resend.dev';
 
   const emailHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -109,7 +112,7 @@ async function sendTrackingEmail(order: any, trackingCode: string, trackingUrl: 
         'Authorization': `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: 'Liberty Pharma <onboarding@resend.dev>',
+        from: `Liberty Pharma <${fromEmail}>`,
         to: [order.customer_email],
         subject: `Seu pedido foi enviado! Rastreio: ${trackingCode}`,
         html: emailHtml,
@@ -258,7 +261,7 @@ serve(async (req) => {
       if (trackingCode) {
         const { data: freshOrder } = await supabase.from('orders').select('*').eq('id', orderId).single();
         if (freshOrder) {
-          await sendTrackingEmail(freshOrder, trackingCode, trackingUrl);
+          await sendTrackingEmail(supabase, freshOrder, trackingCode, trackingUrl);
         }
       }
 
