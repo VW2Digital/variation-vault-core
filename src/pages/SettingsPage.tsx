@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Phone, CreditCard, Eye, EyeOff, Truck } from 'lucide-react';
+import { Phone, CreditCard, Eye, EyeOff, Truck, MapPin } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -27,6 +27,25 @@ const SettingsPage = () => {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Sender address
+  const [senderName, setSenderName] = useState('');
+  const [senderPhone, setSenderPhone] = useState('');
+  const [senderEmail, setSenderEmail] = useState('');
+  const [senderDocument, setSenderDocument] = useState('');
+  const [senderPostalCode, setSenderPostalCode] = useState('');
+  const [senderAddress, setSenderAddress] = useState('');
+  const [senderNumber, setSenderNumber] = useState('');
+  const [senderComplement, setSenderComplement] = useState('');
+  const [senderDistrict, setSenderDistrict] = useState('');
+  const [senderCity, setSenderCity] = useState('');
+  const [senderState, setSenderState] = useState('');
+
+  // Package defaults
+  const [packageHeight, setPackageHeight] = useState('4');
+  const [packageWidth, setPackageWidth] = useState('12');
+  const [packageLength, setPackageLength] = useState('17');
+  const [packageWeight, setPackageWeight] = useState('0.1');
+
   useEffect(() => {
     Promise.all([
       fetchSetting('whatsapp_number'),
@@ -35,19 +54,59 @@ const SettingsPage = () => {
       fetchSetting('melhor_envio_token'),
       fetchSetting('melhor_envio_client_id'),
       fetchSetting('melhor_envio_environment'),
-    ]).then(([wp, apiKey, env, meToken, meClientId, meEnv]) => {
+      fetchSetting('melhor_envio_sender'),
+    ]).then(([wp, apiKey, env, meToken, meClientId, meEnv, senderJson]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
       setMelhorEnvioToken(meToken);
       setMelhorEnvioClientId(meClientId);
       setMelhorEnvioEnv(meEnv || 'sandbox');
+
+      if (senderJson) {
+        try {
+          const s = JSON.parse(senderJson);
+          setSenderName(s.name || '');
+          setSenderPhone(s.phone || '');
+          setSenderEmail(s.email || '');
+          setSenderDocument(s.document || '');
+          setSenderPostalCode(s.postal_code || '');
+          setSenderAddress(s.address || '');
+          setSenderNumber(s.number || '');
+          setSenderComplement(s.complement || '');
+          setSenderDistrict(s.district || '');
+          setSenderCity(s.city || '');
+          setSenderState(s.state || '');
+          setPackageHeight(String(s.package_height || '4'));
+          setPackageWidth(String(s.package_width || '12'));
+          setPackageLength(String(s.package_length || '17'));
+          setPackageWeight(String(s.package_weight || '0.1'));
+        } catch {}
+      }
     }).finally(() => setLoading(false));
   }, []);
 
   const handleSave = async () => {
     setSaving(true);
     try {
+      const senderData = JSON.stringify({
+        name: senderName,
+        phone: senderPhone,
+        email: senderEmail,
+        document: senderDocument,
+        postal_code: senderPostalCode,
+        address: senderAddress,
+        number: senderNumber,
+        complement: senderComplement,
+        district: senderDistrict,
+        city: senderCity,
+        state: senderState,
+        package_height: Number(packageHeight) || 4,
+        package_width: Number(packageWidth) || 12,
+        package_length: Number(packageLength) || 17,
+        package_weight: Number(packageWeight) || 0.1,
+      });
+
       await Promise.all([
         upsertSetting('whatsapp_number', whatsapp),
         upsertSetting('asaas_api_key', asaasApiKey),
@@ -55,6 +114,7 @@ const SettingsPage = () => {
         upsertSetting('melhor_envio_token', melhorEnvioToken),
         upsertSetting('melhor_envio_client_id', melhorEnvioClientId),
         upsertSetting('melhor_envio_environment', melhorEnvioEnv),
+        upsertSetting('melhor_envio_sender', senderData),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
@@ -161,9 +221,6 @@ const SettingsPage = () => {
               onChange={(e) => setMelhorEnvioClientId(e.target.value)}
               placeholder="Seu Client ID do Melhor Envio"
             />
-            <p className="text-xs text-muted-foreground">
-              Encontre seu Client ID no painel do Melhor Envio em Configurações → Dados do aplicativo
-            </p>
           </div>
           <div className="space-y-2">
             <Label>Token de Acesso</Label>
@@ -183,9 +240,87 @@ const SettingsPage = () => {
                 {showMelhorEnvioToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Encontre seu token no painel do Melhor Envio em Configurações → Tokens
-            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <MapPin className="w-5 h-5" /> Endereço do Remetente (Melhor Envio)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Preencha com os dados de quem envia os produtos. Usado para gerar etiquetas de frete.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Nome / Razão Social</Label>
+              <Input value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Liberty Pharma" />
+            </div>
+            <div className="space-y-2">
+              <Label>CPF / CNPJ</Label>
+              <Input value={senderDocument} onChange={(e) => setSenderDocument(e.target.value)} placeholder="00.000.000/0001-00" />
+            </div>
+            <div className="space-y-2">
+              <Label>Telefone</Label>
+              <Input value={senderPhone} onChange={(e) => setSenderPhone(e.target.value)} placeholder="41999990000" />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input value={senderEmail} onChange={(e) => setSenderEmail(e.target.value)} placeholder="contato@empresa.com" />
+            </div>
+            <div className="space-y-2">
+              <Label>CEP</Label>
+              <Input value={senderPostalCode} onChange={(e) => setSenderPostalCode(e.target.value)} placeholder="80000-000" />
+            </div>
+            <div className="space-y-2">
+              <Label>Endereço</Label>
+              <Input value={senderAddress} onChange={(e) => setSenderAddress(e.target.value)} placeholder="Rua Exemplo" />
+            </div>
+            <div className="space-y-2">
+              <Label>Número</Label>
+              <Input value={senderNumber} onChange={(e) => setSenderNumber(e.target.value)} placeholder="123" />
+            </div>
+            <div className="space-y-2">
+              <Label>Complemento</Label>
+              <Input value={senderComplement} onChange={(e) => setSenderComplement(e.target.value)} placeholder="Sala 1" />
+            </div>
+            <div className="space-y-2">
+              <Label>Bairro</Label>
+              <Input value={senderDistrict} onChange={(e) => setSenderDistrict(e.target.value)} placeholder="Centro" />
+            </div>
+            <div className="space-y-2">
+              <Label>Cidade</Label>
+              <Input value={senderCity} onChange={(e) => setSenderCity(e.target.value)} placeholder="Curitiba" />
+            </div>
+            <div className="space-y-2">
+              <Label>Estado (sigla)</Label>
+              <Input value={senderState} onChange={(e) => setSenderState(e.target.value)} placeholder="PR" maxLength={2} />
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-border/50">
+            <p className="text-sm font-medium text-foreground mb-3">Dimensões padrão da embalagem</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <Label>Altura (cm)</Label>
+                <Input type="number" value={packageHeight} onChange={(e) => setPackageHeight(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Largura (cm)</Label>
+                <Input type="number" value={packageWidth} onChange={(e) => setPackageWidth(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Comprimento (cm)</Label>
+                <Input type="number" value={packageLength} onChange={(e) => setPackageLength(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Peso (kg)</Label>
+                <Input type="number" step="0.01" value={packageWeight} onChange={(e) => setPackageWeight(e.target.value)} />
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

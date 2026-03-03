@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.asaas-webhook]
 verify_jwt = false
+
+[functions.melhor-envio-shipment]
+verify_jwt = false

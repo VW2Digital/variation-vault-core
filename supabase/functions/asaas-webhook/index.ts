@@ -70,6 +70,62 @@ serve(async (req) => {
           .update({ status: newStatus, asaas_payment_id: payment.id })
           .eq('id', payment.externalReference);
       }
+
+      // ─── AUTO-TRIGGER SHIPPING ON PAYMENT CONFIRMATION ───
+      if (newStatus === 'PAID') {
+        console.log('[Webhook] Payment confirmed, triggering shipping flow...');
+
+        // Find the order to trigger shipping
+        let orderId = payment.externalReference;
+
+        if (!orderId) {
+          // Find order by asaas_payment_id
+          const { data: orderData } = await supabase
+            .from('orders')
+            .select('id, customer_postal_code, shipment_id')
+            .eq('asaas_payment_id', payment.id)
+            .single();
+
+          orderId = orderData?.id;
+
+          // Only trigger if order has a postal code (address) and no shipment yet
+          if (orderData && !orderData.shipment_id && orderData.customer_postal_code) {
+            console.log(`[Webhook] Auto-shipping order ${orderId}`);
+          } else if (orderData && !orderData.customer_postal_code) {
+            console.log(`[Webhook] Skipping auto-shipping: no postal code for order ${orderId}`);
+            orderId = null;
+          } else if (orderData?.shipment_id) {
+            console.log(`[Webhook] Skipping auto-shipping: shipment already exists for order ${orderId}`);
+            orderId = null;
+          }
+        }
+
+        if (orderId) {
+          try {
+            // Call melhor-envio-shipment function
+            const shipmentResponse = await fetch(
+              `${supabaseUrl}/functions/v1/melhor-envio-shipment`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseKey}`,
+                },
+                body: JSON.stringify({
+                  order_id: orderId,
+                  action: 'full_flow',
+                }),
+              }
+            );
+
+            const shipmentResult = await shipmentResponse.text();
+            console.log(`[Webhook] Shipping result: ${shipmentResult}`);
+          } catch (shipErr: any) {
+            console.error('[Webhook] Shipping trigger error:', shipErr.message);
+            // Don't fail the webhook because of shipping error
+          }
+        }
+      }
     }
 
     return new Response(JSON.stringify({ received: true }), {

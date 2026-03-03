@@ -43,10 +43,17 @@ export type Database = {
           asaas_customer_id: string | null
           asaas_payment_id: string | null
           created_at: string
+          customer_address: string | null
+          customer_city: string | null
+          customer_complement: string | null
           customer_cpf: string
+          customer_district: string | null
           customer_email: string
           customer_name: string
+          customer_number: string | null
           customer_phone: string | null
+          customer_postal_code: string | null
+          customer_state: string | null
           customer_user_id: string | null
           delivery_status: string | null
           dosage: string | null
@@ -70,10 +77,17 @@ export type Database = {
           asaas_customer_id?: string | null
           asaas_payment_id?: string | null
           created_at?: string
+          customer_address?: string | null
+          customer_city?: string | null
+          customer_complement?: string | null
           customer_cpf: string
+          customer_district?: string | null
           customer_email: string
           customer_name: string
+          customer_number?: string | null
           customer_phone?: string | null
+          customer_postal_code?: string | null
+          customer_state?: string | null
           customer_user_id?: string | null
           delivery_status?: string | null
           dosage?: string | null
@@ -97,10 +111,17 @@ export type Database = {
           asaas_customer_id?: string | null
           asaas_payment_id?: string | null
           created_at?: string
+          customer_address?: string | null
+          customer_city?: string | null
+          customer_complement?: string | null
           customer_cpf?: string
+          customer_district?: string | null
           customer_email?: string
           customer_name?: string
+          customer_number?: string | null
           customer_phone?: string | null
+          customer_postal_code?: string | null
+          customer_state?: string | null
           customer_user_id?: string | null
           delivery_status?: string | null
           dosage?: string | null
