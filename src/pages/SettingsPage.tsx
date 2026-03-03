@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Phone, CreditCard, Eye, EyeOff } from 'lucide-react';
+import { Phone, CreditCard, Eye, EyeOff, Truck } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -19,7 +19,10 @@ const SettingsPage = () => {
   const [whatsapp, setWhatsapp] = useState('');
   const [asaasApiKey, setAsaasApiKey] = useState('');
   const [asaasEnv, setAsaasEnv] = useState('sandbox');
+  const [melhorEnvioToken, setMelhorEnvioToken] = useState('');
+  const [melhorEnvioEnv, setMelhorEnvioEnv] = useState('sandbox');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [showMelhorEnvioToken, setShowMelhorEnvioToken] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -28,10 +31,14 @@ const SettingsPage = () => {
       fetchSetting('whatsapp_number'),
       fetchSetting('asaas_api_key'),
       fetchSetting('asaas_environment'),
-    ]).then(([wp, apiKey, env]) => {
+      fetchSetting('melhor_envio_token'),
+      fetchSetting('melhor_envio_environment'),
+    ]).then(([wp, apiKey, env, meToken, meEnv]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
+      setMelhorEnvioToken(meToken);
+      setMelhorEnvioEnv(meEnv || 'sandbox');
     }).finally(() => setLoading(false));
   }, []);
 
@@ -42,6 +49,8 @@ const SettingsPage = () => {
         upsertSetting('whatsapp_number', whatsapp),
         upsertSetting('asaas_api_key', asaasApiKey),
         upsertSetting('asaas_environment', asaasEnv),
+        upsertSetting('melhor_envio_token', melhorEnvioToken),
+        upsertSetting('melhor_envio_environment', melhorEnvioEnv),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
@@ -117,6 +126,50 @@ const SettingsPage = () => {
             </div>
             <p className="text-xs text-muted-foreground">
               Encontre sua API Key no painel do Asaas em Configurações → Integrações → API
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Truck className="w-5 h-5" /> Melhor Envio
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Ambiente</Label>
+            <Select value={melhorEnvioEnv} onValueChange={setMelhorEnvioEnv}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sandbox">Sandbox (Testes)</SelectItem>
+                <SelectItem value="production">Produção</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Token de Acesso</Label>
+            <div className="relative">
+              <Input
+                type={showMelhorEnvioToken ? 'text' : 'password'}
+                value={melhorEnvioToken}
+                onChange={(e) => setMelhorEnvioToken(e.target.value)}
+                placeholder="Seu token do Melhor Envio"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowMelhorEnvioToken(!showMelhorEnvioToken)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showMelhorEnvioToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Encontre seu token no painel do Melhor Envio em Configurações → Tokens
             </p>
           </div>
         </CardContent>
