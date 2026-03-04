@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Package, Loader2 } from 'lucide-react';
+import { Package, Loader2, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import logoImg from '@/assets/liberty-pharma-logo.png';
 
@@ -13,6 +13,7 @@ const CustomerLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -20,7 +21,6 @@ const CustomerLogin = () => {
   const { toast } = useToast();
   const redirectTo = searchParams.get('redirect') || '/minha-conta';
 
-  // If already logged in, redirect
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) navigate(redirectTo);
@@ -61,6 +61,30 @@ const CustomerLogin = () => {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/redefinir-senha`,
+      });
+      if (error) throw error;
+      toast({
+        title: 'Email enviado!',
+        description: 'Verifique sua caixa de entrada para redefinir a senha.',
+      });
+      setIsForgotPassword(false);
+    } catch (err: any) {
+      toast({
+        title: 'Erro',
+        description: err.message || 'Não foi possível enviar o email.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <header className="border-b border-border/50 bg-card">
@@ -81,66 +105,109 @@ const CustomerLogin = () => {
               <Package className="w-7 h-7 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Área do Cliente</h1>
+              <h1 className="text-2xl font-bold text-foreground">
+                {isForgotPassword ? 'Esqueci minha senha' : 'Área do Cliente'}
+              </h1>
               <p className="text-muted-foreground text-sm mt-1">
-                {isSignUp
-                  ? 'Crie sua conta para acompanhar seus pedidos'
-                  : 'Faça login para acompanhar seus pedidos'}
+                {isForgotPassword
+                  ? 'Informe seu email para receber o link de redefinição'
+                  : isSignUp
+                    ? 'Crie sua conta para acompanhar seus pedidos'
+                    : 'Faça login para acompanhar seus pedidos'
+                }
               </p>
             </div>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {isSignUp && (
+            {isForgotPassword ? (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Nome completo</Label>
+                  <Label htmlFor="email">Email</Label>
                   <Input
-                    id="name"
-                    placeholder="Seu nome"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
                   />
                 </div>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                {isSignUp ? 'Criar Conta' : 'Entrar'}
-              </Button>
-              <p className="text-sm text-center text-muted-foreground">
-                {isSignUp ? 'Já tem conta?' : 'Não tem conta?'}{' '}
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Enviar Link de Redefinição
+                </Button>
                 <button
                   type="button"
-                  onClick={() => setIsSignUp(!isSignUp)}
-                  className="text-primary font-medium hover:underline"
+                  onClick={() => setIsForgotPassword(false)}
+                  className="w-full text-sm text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 transition-colors"
                 >
-                  {isSignUp ? 'Fazer login' : 'Criar conta'}
+                  <ArrowLeft className="w-3 h-3" /> Voltar ao login
                 </button>
-              </p>
-            </form>
+              </form>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {isSignUp && (
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nome completo</Label>
+                    <Input
+                      id="name"
+                      placeholder="Seu nome"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Senha</Label>
+                    {!isSignUp && (
+                      <button
+                        type="button"
+                        onClick={() => setIsForgotPassword(true)}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Esqueceu a senha?
+                      </button>
+                    )}
+                  </div>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  {isSignUp ? 'Criar Conta' : 'Entrar'}
+                </Button>
+                <p className="text-sm text-center text-muted-foreground">
+                  {isSignUp ? 'Já tem conta?' : 'Não tem conta?'}{' '}
+                  <button
+                    type="button"
+                    onClick={() => setIsSignUp(!isSignUp)}
+                    className="text-primary font-medium hover:underline"
+                  >
+                    {isSignUp ? 'Fazer login' : 'Criar conta'}
+                  </button>
+                </p>
+              </form>
+            )}
           </CardContent>
         </Card>
       </div>

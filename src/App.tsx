@@ -22,6 +22,7 @@ import CustomerLogin from "./pages/CustomerLogin";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import CartPage from "./pages/CartPage";
 import CartCheckout from "./pages/CartCheckout";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const App = () => (
           <Route path="/checkout-carrinho" element={<CartCheckout />} />
           <Route path="/cliente/login" element={<CustomerLogin />} />
           <Route path="/minha-conta" element={<CustomerDashboard />} />
+          <Route path="/redefinir-senha" element={<ResetPassword />} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Dashboard />} />
