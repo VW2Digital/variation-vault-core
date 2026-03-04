@@ -113,9 +113,9 @@ const Catalog = () => {
               />
             </div>
 
-            <div className="flex gap-2 flex-wrap">
+            <div className="grid grid-cols-2 md:flex gap-2">
               <Select value={pharmaFilter} onValueChange={setPharmaFilter}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="md:w-[160px]">
                   <SelectValue placeholder={t('allForms')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -127,7 +127,7 @@ const Catalog = () => {
               </Select>
 
               <Select value={routeFilter} onValueChange={setRouteFilter}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="md:w-[160px]">
                   <SelectValue placeholder={t('allRoutes')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -139,7 +139,7 @@ const Catalog = () => {
               </Select>
 
               <Select value={stockFilter} onValueChange={setStockFilter}>
-                <SelectTrigger className="w-[150px]">
+                <SelectTrigger className="md:w-[150px]">
                   <SelectValue placeholder={t('all')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -150,7 +150,7 @@ const Catalog = () => {
               </Select>
 
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="md:w-[160px]">
                   <SlidersHorizontal className="w-4 h-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
