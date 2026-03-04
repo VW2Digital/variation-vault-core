@@ -72,6 +72,8 @@ const OrdersPage = () => {
   const [trackingCode, setTrackingCode] = useState('');
   const [deliveryStatus, setDeliveryStatus] = useState('PROCESSING');
   const [saving, setSaving] = useState(false);
+  const [filterPayment, setFilterPayment] = useState('ALL');
+  const [filterDelivery, setFilterDelivery] = useState('ALL');
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -121,6 +123,12 @@ const OrdersPage = () => {
     }
   };
 
+  const filteredOrders = orders.filter(order => {
+    if (filterPayment !== 'ALL' && order.status !== filterPayment) return false;
+    if (filterDelivery !== 'ALL' && (order.delivery_status || 'PROCESSING') !== filterDelivery) return false;
+    return true;
+  });
+
   return (
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between">
@@ -130,11 +138,39 @@ const OrdersPage = () => {
         </Button>
       </div>
 
+      <div className="flex flex-wrap gap-3">
+        <Select value={filterPayment} onValueChange={setFilterPayment}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Pagamento" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Todos os pagamentos</SelectItem>
+            <SelectItem value="PENDING">Pendente</SelectItem>
+            <SelectItem value="PAID">Pago</SelectItem>
+            <SelectItem value="CONFIRMED">Confirmado</SelectItem>
+            <SelectItem value="RECEIVED">Recebido</SelectItem>
+            <SelectItem value="OVERDUE">Vencido</SelectItem>
+            <SelectItem value="REFUNDED">Estornado</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterDelivery} onValueChange={setFilterDelivery}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Entrega" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Todas as entregas</SelectItem>
+            {deliveryStatuses.map(s => (
+              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
-      ) : orders.length === 0 ? (
+      ) : filteredOrders.length === 0 ? (
         <div className="text-center py-20 space-y-3">
           <Receipt className="w-12 h-12 text-muted-foreground mx-auto" />
           <p className="text-muted-foreground">Nenhum pedido encontrado.</p>
@@ -156,7 +192,7 @@ const OrdersPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {orders.map((order) => {
+                {filteredOrders.map((order) => {
                   const status = statusMap[order.status] || { label: order.status, variant: 'outline' as const };
                   const delivery = deliveryStatuses.find(d => d.value === order.delivery_status);
                   return (
