@@ -16,6 +16,7 @@ import TestimonialList from "./pages/TestimonialList";
 import BannerList from "./pages/BannerList";
 import SettingsPage from "./pages/SettingsPage";
 import OrdersPage from "./pages/OrdersPage";
+import UsersPage from "./pages/UsersPage";
 import Checkout from "./pages/Checkout";
 import CustomerLogin from "./pages/CustomerLogin";
 import CustomerDashboard from "./pages/CustomerDashboard";
@@ -51,6 +52,7 @@ const App = () => (
             <Route path="depoimentos" element={<TestimonialList />} />
             <Route path="banners" element={<BannerList />} />
             <Route path="pedidos" element={<OrdersPage />} />
+            <Route path="usuarios" element={<UsersPage />} />
             <Route path="configuracoes" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
