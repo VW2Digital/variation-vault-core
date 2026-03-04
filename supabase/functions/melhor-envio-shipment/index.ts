@@ -280,6 +280,74 @@ serve(async (req) => {
       });
     }
 
+    // ─── BATCH REFRESH TRACKING (called by cron) ───
+    if (action === 'batch_refresh_tracking') {
+      const { token, baseUrl } = await getMelhorEnvioConfig(supabase);
+
+      // Find all orders with shipment_id but no tracking_code
+      const { data: pendingOrders, error: pendingErr } = await supabase
+        .from('orders')
+        .select('id, shipment_id, tracking_code, shipping_service, shipping_status')
+        .not('shipment_id', 'is', null)
+        .is('tracking_code', null)
+        .limit(20);
+
+      if (pendingErr) throw new Error('Erro ao buscar pedidos pendentes: ' + pendingErr.message);
+
+      const results: any[] = [];
+      for (const order of (pendingOrders || [])) {
+        try {
+          const shipmentDetails = await fetchShipmentDetails(baseUrl, token, order.shipment_id!);
+
+          let trackingResult = null;
+          try {
+            trackingResult = await melhorEnvioFetch(baseUrl, token, '/api/v2/me/shipment/tracking', 'POST', { orders: [order.shipment_id] });
+          } catch (_e) { /* non-fatal */ }
+
+          const { trackingCode, displayName } = extractTrackingInfo(shipmentDetails, trackingResult, order.shipment_id!);
+
+          const updateData: Record<string, any> = {};
+          if (trackingCode) {
+            updateData.tracking_code = trackingCode;
+            updateData.tracking_url = `https://www.melhorrastreio.com.br/rastreio/${trackingCode}`;
+            updateData.delivery_status = 'SHIPPED';
+          }
+          if (displayName && displayName !== order.shipping_service) {
+            updateData.shipping_service = displayName;
+          }
+          const meStatus = shipmentDetails?.status;
+          if (meStatus) {
+            updateData.shipping_status = meStatus;
+            if (meStatus === 'delivered') updateData.delivery_status = 'DELIVERED';
+            if (meStatus === 'posted') updateData.delivery_status = 'SHIPPED';
+          }
+
+          if (Object.keys(updateData).length > 0) {
+            updateData.updated_at = new Date().toISOString();
+            await supabase.from('orders').update(updateData).eq('id', order.id);
+            console.log(`[ME][CRON] Order ${order.id} updated:`, JSON.stringify(updateData));
+          }
+
+          // Send email if tracking code was just found
+          if (trackingCode) {
+            const { data: freshOrder } = await supabase.from('orders').select('*').eq('id', order.id).single();
+            if (freshOrder) {
+              await sendTrackingEmail(supabase, freshOrder, trackingCode, `https://www.melhorrastreio.com.br/rastreio/${trackingCode}`);
+            }
+          }
+
+          results.push({ order_id: order.id, tracking_code: trackingCode || null, updated: Object.keys(updateData).length > 0 });
+        } catch (e: any) {
+          console.error(`[ME][CRON] Error for order ${order.id}:`, e.message);
+          results.push({ order_id: order.id, error: e.message });
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, processed: results.length, results }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // ─── REFRESH TRACKING ACTION ───
     if (action === 'refresh_tracking') {
       orderId = body.order_id;
