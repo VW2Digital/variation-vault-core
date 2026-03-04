@@ -53,7 +53,16 @@ serve(async (req) => {
       const redirectUri = body.redirect_uri;
       if (!redirectUri) throw new Error('redirect_uri é obrigatório');
 
-      const authUrl = `${baseUrl}/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=cart-read cart-write companies-read companies-write coupons-read coupons-write notifications-read orders-read ecommerce-shipping shipping-calculate shipping-cancel shipping-checkout shipping-companies shipping-generate shipping-preview shipping-print shipping-share shipping-tracking store-read store-write transactions-read users-read users-write webhooks-read webhooks-write`;
+      const scopes = [
+        'cart-read', 'cart-write', 'companies-read', 'companies-write',
+        'coupons-read', 'coupons-write', 'notifications-read', 'orders-read',
+        'products-read', 'products-write', 'products-destroy', 'purchases-read',
+        'shipping-calculate', 'shipping-cancel', 'shipping-checkout', 'shipping-companies',
+        'shipping-generate', 'shipping-preview', 'shipping-print', 'shipping-share',
+        'shipping-tracking', 'ecommerce-shipping', 'transactions-read',
+        'users-read', 'users-write', 'webhooks-read', 'webhooks-write', 'webhooks-delete',
+      ].join(' ');
+      const authUrl = `${baseUrl}/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}`;
 
       return new Response(JSON.stringify({ auth_url: authUrl }), {
         status: 200,
