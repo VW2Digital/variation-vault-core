@@ -18,6 +18,8 @@ const SettingsPage = () => {
   const { toast } = useToast();
   const [whatsapp, setWhatsapp] = useState('');
   const [asaasApiKey, setAsaasApiKey] = useState('');
+  const [asaasWebhookToken, setAsaasWebhookToken] = useState('');
+  const [showWebhookToken, setShowWebhookToken] = useState(false);
   const [asaasEnv, setAsaasEnv] = useState('sandbox');
   const [melhorEnvioToken, setMelhorEnvioToken] = useState('');
   const [melhorEnvioClientId, setMelhorEnvioClientId] = useState('');
@@ -54,16 +56,18 @@ const SettingsPage = () => {
       fetchSetting('whatsapp_number'),
       fetchSetting('asaas_api_key'),
       fetchSetting('asaas_environment'),
+      fetchSetting('asaas_webhook_token'),
       fetchSetting('melhor_envio_token'),
       fetchSetting('melhor_envio_client_id'),
       fetchSetting('melhor_envio_environment'),
       fetchSetting('melhor_envio_sender'),
       fetchSetting('resend_api_key'),
       fetchSetting('resend_from_email'),
-    ]).then(([wp, apiKey, env, meToken, meClientId, meEnv, senderJson, rKey, rFrom]) => {
+    ]).then(([wp, apiKey, env, webhookToken, meToken, meClientId, meEnv, senderJson, rKey, rFrom]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
+      setAsaasWebhookToken(webhookToken || '');
       setMelhorEnvioToken(meToken);
       setMelhorEnvioClientId(meClientId);
       setMelhorEnvioEnv(meEnv || 'sandbox');
@@ -118,6 +122,7 @@ const SettingsPage = () => {
         upsertSetting('whatsapp_number', whatsapp),
         upsertSetting('asaas_api_key', asaasApiKey),
         upsertSetting('asaas_environment', asaasEnv),
+        upsertSetting('asaas_webhook_token', asaasWebhookToken),
         upsertSetting('melhor_envio_token', melhorEnvioToken),
         upsertSetting('melhor_envio_client_id', melhorEnvioClientId),
         upsertSetting('melhor_envio_environment', melhorEnvioEnv),
@@ -200,6 +205,41 @@ const SettingsPage = () => {
             <p className="text-xs text-muted-foreground">
               Encontre sua API Key no painel do Asaas em Configurações → Integrações → API
             </p>
+          </div>
+          <div className="space-y-2">
+            <Label>Token de Autenticação do Webhook</Label>
+            <div className="relative">
+              <Input
+                type={showWebhookToken ? 'text' : 'password'}
+                value={asaasWebhookToken}
+                onChange={(e) => setAsaasWebhookToken(e.target.value)}
+                placeholder="Token definido no Asaas"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowWebhookToken(!showWebhookToken)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showWebhookToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Mesmo token configurado no painel do Asaas em Webhooks → Token de autenticação
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">URL do Webhook (copie para o Asaas)</Label>
+            <Input
+              readOnly
+              value="https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/asaas-webhook"
+              className="bg-muted text-xs"
+              onClick={(e) => {
+                (e.target as HTMLInputElement).select();
+                navigator.clipboard.writeText("https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/asaas-webhook");
+                toast({ title: 'URL copiada!' });
+              }}
+            />
           </div>
         </CardContent>
       </Card>

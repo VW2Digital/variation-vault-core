@@ -16,6 +16,22 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Validate webhook token
+    const incomingToken = req.headers.get('asaas-access-token') || new URL(req.url).searchParams.get('access_token');
+    const { data: tokenSetting } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', 'asaas_webhook_token')
+      .maybeSingle();
+
+    if (tokenSetting?.value && incomingToken !== tokenSetting.value) {
+      console.error('[Webhook] Invalid token');
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const body = await req.json();
     const { event, payment } = body;
 
