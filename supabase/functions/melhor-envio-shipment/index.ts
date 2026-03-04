@@ -196,11 +196,52 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    orderId = body.order_id;
     const action = body.action || 'full_flow';
-    let serviceId = body.service_id || null; // null = auto-detect
 
-    if (!orderId) throw new Error('order_id é obrigatório');
+    // ─── QUOTE ACTION (no order needed) ───
+    if (action === 'quote') {
+      const { token, baseUrl } = await getMelhorEnvioConfig(supabase);
+      const senderJson = await getSetting(supabase, 'melhor_envio_sender');
+      let sender: any;
+      try { sender = JSON.parse(senderJson); } catch {
+        throw new Error('Endereço do remetente não configurado.');
+      }
+
+      const quotePayload = {
+        from: { postal_code: sender.postal_code?.replace(/\D/g, '') },
+        to: { postal_code: body.postal_code?.replace(/\D/g, '') },
+        products: [{
+          id: 'quote',
+          width: sender.package_width || 12,
+          height: sender.package_height || 4,
+          length: sender.package_length || 17,
+          weight: sender.package_weight || 0.1,
+          insurance_value: Number(body.insurance_value || 0),
+          quantity: body.quantity || 1,
+        }],
+      };
+
+      const quoteResult = await melhorEnvioFetch(baseUrl, token, '/api/v2/me/shipment/calculate', 'POST', quotePayload);
+
+      const services = (Array.isArray(quoteResult) ? quoteResult : [])
+        .filter((s: any) => !s.error && s.id && s.price)
+        .map((s: any) => ({
+          id: s.id,
+          name: s.name || s.company?.name || 'Transportadora',
+          company: s.company?.name || '',
+          price: Number(s.price),
+          delivery_time: s.delivery_time || s.custom_delivery_time || null,
+          currency: 'BRL',
+        }))
+        .sort((a: any, b: any) => a.price - b.price);
+
+      return new Response(JSON.stringify({ services }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    orderId = body.order_id;
+    let serviceId = body.service_id || null;
     const { token, baseUrl } = await getMelhorEnvioConfig(supabase);
 
     const { data: order, error: orderError } = await supabase

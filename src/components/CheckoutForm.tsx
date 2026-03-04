@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle, MapPin } from 'lucide-react';
+import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle, MapPin, Truck } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCart } from '@/contexts/CartContext';
 
@@ -18,7 +18,15 @@ interface CheckoutFormProps {
 }
 
 type PaymentMethod = 'credit_card' | 'pix';
-type CheckoutStep = 'customer' | 'address' | 'payment' | 'success';
+type CheckoutStep = 'customer' | 'address' | 'shipping' | 'payment' | 'success';
+
+interface ShippingOption {
+  id: number;
+  name: string;
+  company: string;
+  price: number;
+  delivery_time: number | null;
+}
 
 // Validation helpers
 const isValidCpf = (cpf: string): boolean => {
@@ -55,7 +63,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, onSuccess }: C
   const { toast } = useToast();
   const { t } = useLanguage();
   const { clearCart } = useCart();
-  const totalValue = unitPrice * quantity;
+  const baseProductTotal = unitPrice * quantity;
 
   const [step, setStep] = useState<CheckoutStep>('customer');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
@@ -83,6 +91,14 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, onSuccess }: C
   const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
   const [saveAddress, setSaveAddress] = useState(false);
+
+  // Shipping selection
+  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
+  const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
+  const [loadingShipping, setLoadingShipping] = useState(false);
+
+  const shippingCost = selectedShipping?.price || 0;
+  const totalValue = baseProductTotal + shippingCost;
 
   // Load saved addresses on mount
   useEffect(() => {
@@ -161,6 +177,9 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, onSuccess }: C
       quantity,
       unit_price: unitPrice,
       total_value: totalValue,
+      shipping_cost: shippingCost,
+      selected_service_id: selectedShipping?.id || null,
+      shipping_service: selectedShipping ? `${selectedShipping.company} - ${selectedShipping.name}` : null,
       payment_method: paymentMethodType,
       installments: paymentMethodType === 'credit_card' ? installments : 1,
       status: 'PENDING',
@@ -312,6 +331,37 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, onSuccess }: C
     // Pre-fill card holder postal code and number
     setHolderPostalCode(addrPostalCode);
     setHolderAddressNumber(addrNumber);
+
+    // Fetch shipping options
+    setLoadingShipping(true);
+    setStep('shipping');
+    try {
+      const { data, error } = await supabase.functions.invoke('melhor-envio-shipment', {
+        body: {
+          action: 'quote',
+          postal_code: addrPostalCode.replace(/\D/g, ''),
+          insurance_value: baseProductTotal,
+          quantity,
+        },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.services && data.services.length > 0) {
+        setShippingOptions(data.services);
+      } else {
+        toast({ title: 'Aviso', description: 'Nenhuma transportadora disponível para este CEP.', variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Erro ao buscar frete', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoadingShipping(false);
+    }
+  };
+
+  const handleShippingNext = () => {
+    if (!selectedShipping) {
+      toast({ title: 'Selecione uma opção de frete', variant: 'destructive' });
+      return;
+    }
     setStep('payment');
   };
 
@@ -547,11 +597,96 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, onSuccess }: C
               </Label>
             </div>
           )}
-          <Button onClick={handleAddressNext} className="w-full">
-            Continuar para Pagamento
+          <Button onClick={handleAddressNext} disabled={loadingShipping} className="w-full">
+            {loadingShipping ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            Calcular Frete
           </Button>
           <button type="button" onClick={() => setStep('customer')} className="text-xs text-muted-foreground hover:text-foreground w-full text-center">
             ← Voltar aos dados pessoais
+          </button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // ─── SHIPPING ───
+  if (step === 'shipping') {
+    return (
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Truck className="w-4 h-4" /> Escolha o Frete
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadingShipping ? (
+            <div className="flex items-center justify-center py-8 gap-2">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Buscando opções de frete...</span>
+            </div>
+          ) : shippingOptions.length === 0 ? (
+            <div className="text-center py-6 space-y-2">
+              <p className="text-sm text-muted-foreground">Nenhuma opção de frete disponível para este CEP.</p>
+              <Button variant="outline" size="sm" onClick={() => setStep('address')}>
+                Alterar endereço
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {shippingOptions.map((opt) => (
+                <div
+                  key={opt.id}
+                  onClick={() => setSelectedShipping(opt)}
+                  className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                    selectedShipping?.id === opt.id
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{opt.company} — {opt.name}</p>
+                      {opt.delivery_time && (
+                        <p className="text-xs text-muted-foreground">
+                          Prazo: {opt.delivery_time} dias úteis
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-sm font-bold text-foreground">
+                      R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {shippingOptions.length > 0 && (
+            <>
+              <div className="border-t border-border/50 pt-3 space-y-1">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Produtos</span>
+                  <span>R$ {baseProductTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                </div>
+                {selectedShipping && (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Frete</span>
+                    <span>R$ {selectedShipping.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-bold text-foreground pt-1">
+                  <span>Total</span>
+                  <span>R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+              <Button onClick={handleShippingNext} disabled={!selectedShipping} className="w-full">
+                Continuar para Pagamento
+              </Button>
+            </>
+          )}
+
+          <button type="button" onClick={() => setStep('address')} className="text-xs text-muted-foreground hover:text-foreground w-full text-center">
+            ← Voltar ao endereço
           </button>
         </CardContent>
       </Card>
@@ -640,9 +775,21 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, onSuccess }: C
         )}
 
         <div className="border-t border-border/50 pt-3">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-sm text-muted-foreground">Total</span>
-            <span className="text-lg font-bold text-foreground">R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+          <div className="space-y-1 mb-3">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Produtos</span>
+              <span>R$ {baseProductTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+            </div>
+            {shippingCost > 0 && (
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Frete ({selectedShipping?.company})</span>
+                <span>R$ {shippingCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center pt-1">
+              <span className="text-sm text-muted-foreground">Total</span>
+              <span className="text-lg font-bold text-foreground">R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+            </div>
           </div>
           <Button onClick={handlePayment} disabled={processing} className="w-full">
             {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
@@ -650,8 +797,8 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, onSuccess }: C
           </Button>
         </div>
 
-        <button type="button" onClick={() => setStep('address')} className="text-xs text-muted-foreground hover:text-foreground w-full text-center">
-          ← Voltar ao endereço
+        <button type="button" onClick={() => setStep('shipping')} className="text-xs text-muted-foreground hover:text-foreground w-full text-center">
+          ← Voltar ao frete
         </button>
       </CardContent>
     </Card>
