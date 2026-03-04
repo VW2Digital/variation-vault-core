@@ -62,6 +62,59 @@ export type Database = {
         }
         Relationships: []
       }
+      banner_slides: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          image_desktop: string
+          image_mobile: string
+          image_tablet: string
+          link_url: string | null
+          product_id: string | null
+          sort_order: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          image_desktop?: string
+          image_mobile?: string
+          image_tablet?: string
+          link_url?: string | null
+          product_id?: string | null
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          image_desktop?: string
+          image_mobile?: string
+          image_tablet?: string
+          link_url?: string | null
+          product_id?: string | null
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "banner_slides_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       banners: {
         Row: {
           active: boolean

@@ -17,6 +17,7 @@ import { Search, SlidersHorizontal, Package, CircleCheck, ShoppingCart, X } from
 import { useCart } from '@/contexts/CartContext';
 import productHeroImg from '@/assets/product-hero.png';
 import Header from '@/components/Header';
+import BannerCarousel from '@/components/BannerCarousel';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const Catalog = () => {
@@ -90,6 +91,9 @@ const Catalog = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
+
+      {/* Banner Carousel */}
+      <BannerCarousel />
 
       {/* Hero */}
       <AnimatedSection variant="fadeUp" className="bg-gradient-to-b from-primary/5 to-transparent py-12 text-center">
