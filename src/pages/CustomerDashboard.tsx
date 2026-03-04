@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Package, LogOut, Truck, Clock, CheckCircle2, XCircle, Copy } from 'lucide-react';
+import { Loader2, Package, LogOut, Truck, Clock, CheckCircle2, XCircle, Copy, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import logoImg from '@/assets/liberty-pharma-logo.png';
 
@@ -183,19 +183,39 @@ const CustomerDashboard = () => {
                       </div>
                     </div>
 
-                    {/* Tracking Code */}
-                    {order.tracking_code && (
-                      <div className="bg-muted/50 border border-border/50 rounded-lg p-3 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Truck className="w-4 h-4 text-primary" />
-                          <div>
-                            <p className="text-xs text-muted-foreground">Código de Rastreio</p>
-                            <p className="font-mono font-semibold text-foreground">{order.tracking_code}</p>
+                    {/* Shipping Info */}
+                    {(order.tracking_code || order.shipping_service) && (
+                      <div className="bg-muted/50 border border-border/50 rounded-lg p-3 space-y-3">
+                        {order.shipping_service && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Truck className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-muted-foreground">Transportadora:</span>
+                            <span className="font-medium text-foreground">{order.shipping_service}</span>
                           </div>
-                        </div>
-                        <Button variant="ghost" size="sm" onClick={() => copyTracking(order.tracking_code)}>
-                          <Copy className="w-4 h-4" />
-                        </Button>
+                        )}
+                        {order.tracking_code && (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Package className="w-4 h-4 text-primary" />
+                              <div>
+                                <p className="text-xs text-muted-foreground">Código de Rastreio</p>
+                                <p className="font-mono font-semibold text-foreground">{order.tracking_code}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="sm" onClick={() => copyTracking(order.tracking_code)}>
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                              {order.tracking_url && (
+                                <Button variant="ghost" size="sm" asChild>
+                                  <a href={order.tracking_url} target="_blank" rel="noopener noreferrer">
+                                    <ExternalLink className="w-4 h-4" />
+                                  </a>
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </CardContent>
