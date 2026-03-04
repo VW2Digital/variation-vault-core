@@ -292,6 +292,8 @@ export type Database = {
           administration_route: string | null
           created_at: string
           description: string | null
+          free_shipping: boolean
+          free_shipping_min_value: number | null
           frequency: string | null
           id: string
           images: string[] | null
@@ -306,6 +308,8 @@ export type Database = {
           administration_route?: string | null
           created_at?: string
           description?: string | null
+          free_shipping?: boolean
+          free_shipping_min_value?: number | null
           frequency?: string | null
           id?: string
           images?: string[] | null
@@ -320,6 +324,8 @@ export type Database = {
           administration_route?: string | null
           created_at?: string
           description?: string | null
+          free_shipping?: boolean
+          free_shipping_min_value?: number | null
           frequency?: string | null
           id?: string
           images?: string[] | null

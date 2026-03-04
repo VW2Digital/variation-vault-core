@@ -52,6 +52,8 @@ export const createProduct = async (product: {
   administration_route?: string;
   frequency?: string;
   images?: string[];
+  free_shipping?: boolean;
+  free_shipping_min_value?: number;
   variations?: { dosage: string; price: number; in_stock: boolean; is_offer: boolean; image_url?: string; images?: string[] }[];
 }) => {
   const user = await getCurrentUser();
@@ -87,6 +89,8 @@ export const updateProduct = async (
     administration_route?: string;
     frequency?: string;
     images?: string[];
+    free_shipping?: boolean;
+    free_shipping_min_value?: number;
     variations?: { id?: string; dosage: string; price: number; in_stock: boolean; is_offer: boolean; image_url?: string; images?: string[] }[];
   }
 ) => {

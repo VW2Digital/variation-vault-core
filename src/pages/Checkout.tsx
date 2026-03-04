@@ -117,6 +117,8 @@ const Checkout = () => {
             dosage={variation?.dosage || ''}
             quantity={quantity}
             unitPrice={unitPrice}
+            freeShipping={product.free_shipping}
+            freeShippingMinValue={Number(product.free_shipping_min_value) || 0}
           />
         </AnimatedSection>
       </section>
