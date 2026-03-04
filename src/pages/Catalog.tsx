@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, SlidersHorizontal, Package, CircleCheck, ShoppingCart } from 'lucide-react';
+import { Search, SlidersHorizontal, Package, CircleCheck, ShoppingCart, X } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import productHeroImg from '@/assets/product-hero.png';
 import Header from '@/components/Header';
@@ -164,9 +164,21 @@ const Catalog = () => {
             </div>
           </div>
 
-          <p className="text-sm text-muted-foreground mt-3">
-            {flatItems.length} {flatItems.length === 1 ? t('productFound') : t('productsFound')}
-          </p>
+          <div className="flex items-center justify-between mt-3">
+            <p className="text-sm text-muted-foreground">
+              {flatItems.length} {flatItems.length === 1 ? t('productFound') : t('productsFound')}
+            </p>
+            {(search || pharmaFilter !== 'all' || routeFilter !== 'all' || stockFilter !== 'all') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setSearch(''); setPharmaFilter('all'); setRouteFilter('all'); setStockFilter('all'); }}
+                className="text-xs text-muted-foreground hover:text-destructive gap-1"
+              >
+                <X className="w-3 h-3" /> Limpar filtros
+              </Button>
+            )}
+          </div>
         </AnimatedSection>
 
         {/* Product Grid */}

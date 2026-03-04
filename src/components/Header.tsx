@@ -82,6 +82,7 @@ const Header = () => {
 
         {/* Mobile: cart + hamburger */}
         <div className="flex md:hidden items-center gap-2">
+          <LanguageSwitcher />
           <Link to="/carrinho" className="relative text-foreground">
             <ShoppingCart className="w-5 h-5" />
             {totalItems > 0 && (
