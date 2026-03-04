@@ -14,6 +14,8 @@ interface CheckoutFormProps {
   dosage: string;
   quantity: number;
   unitPrice: number;
+  freeShipping?: boolean;
+  freeShippingMinValue?: number;
   onSuccess?: () => void;
 }
 
@@ -59,11 +61,12 @@ const ErrorText = ({ msg }: { msg?: string }) =>
     </p>
   ) : null;
 
-const CheckoutForm = ({ productName, dosage, quantity, unitPrice, onSuccess }: CheckoutFormProps) => {
+const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, freeShippingMinValue, onSuccess }: CheckoutFormProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { clearCart } = useCart();
   const baseProductTotal = unitPrice * quantity;
+  const qualifiesForFreeShipping = freeShipping && baseProductTotal >= (freeShippingMinValue || 0);
 
   const [step, setStep] = useState<CheckoutStep>('customer');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
@@ -331,6 +334,13 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, onSuccess }: C
     // Pre-fill card holder postal code and number
     setHolderPostalCode(addrPostalCode);
     setHolderAddressNumber(addrNumber);
+
+    // If qualifies for free shipping, skip to payment directly
+    if (qualifiesForFreeShipping) {
+      setSelectedShipping({ id: 0, name: 'Frete Grátis', company: 'Grátis', price: 0, delivery_time: null });
+      setStep('shipping');
+      return;
+    }
 
     // Fetch shipping options
     setLoadingShipping(true);
@@ -619,7 +629,34 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, onSuccess }: C
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {loadingShipping ? (
+          {qualifiesForFreeShipping ? (
+            <div className="text-center py-6 space-y-3">
+              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full">
+                <Truck className="w-5 h-5" />
+                <span className="font-bold text-sm">Frete Grátis!</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Este produto possui frete grátis{freeShippingMinValue && freeShippingMinValue > 0 ? ` para compras acima de R$ ${freeShippingMinValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''}.
+              </p>
+              <div className="border-t border-border/50 pt-3 space-y-1">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Produtos</span>
+                  <span>R$ {baseProductTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between text-xs text-primary font-medium">
+                  <span>Frete</span>
+                  <span>Grátis</span>
+                </div>
+                <div className="flex justify-between text-sm font-bold text-foreground pt-1">
+                  <span>Total</span>
+                  <span>R$ {baseProductTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+              <Button onClick={handleShippingNext} className="w-full">
+                Continuar para Pagamento
+              </Button>
+            </div>
+          ) : loadingShipping ? (
             <div className="flex items-center justify-center py-8 gap-2">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Buscando opções de frete...</span>
@@ -632,37 +669,34 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, onSuccess }: C
               </Button>
             </div>
           ) : (
-            <div className="space-y-2">
-              {shippingOptions.map((opt) => (
-                <div
-                  key={opt.id}
-                  onClick={() => setSelectedShipping(opt)}
-                  className={`border rounded-lg p-3 cursor-pointer transition-colors ${
-                    selectedShipping?.id === opt.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{opt.company} — {opt.name}</p>
-                      {opt.delivery_time && (
-                        <p className="text-xs text-muted-foreground">
-                          Prazo: {opt.delivery_time} dias úteis
-                        </p>
-                      )}
-                    </div>
-                    <span className="text-sm font-bold text-foreground">
-                      R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {shippingOptions.length > 0 && (
             <>
+              <div className="space-y-2">
+                {shippingOptions.map((opt) => (
+                  <div
+                    key={opt.id}
+                    onClick={() => setSelectedShipping(opt)}
+                    className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                      selectedShipping?.id === opt.id
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{opt.company} — {opt.name}</p>
+                        {opt.delivery_time && (
+                          <p className="text-xs text-muted-foreground">
+                            Prazo: {opt.delivery_time} dias úteis
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-sm font-bold text-foreground">
+                        R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
               <div className="border-t border-border/50 pt-3 space-y-1">
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Produtos</span>

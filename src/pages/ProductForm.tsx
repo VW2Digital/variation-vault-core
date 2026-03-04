@@ -42,6 +42,8 @@ const ProductForm = () => {
   const [pharmaForm, setPharmaForm] = useState('');
   const [administrationRoute, setAdministrationRoute] = useState('');
   const [frequency, setFrequency] = useState('');
+  const [freeShipping, setFreeShipping] = useState(false);
+  const [freeShippingMinValue, setFreeShippingMinValue] = useState(0);
   const [variations, setVariations] = useState<Variation[]>([emptyVariation()]);
   const [saving, setSaving] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
@@ -57,6 +59,8 @@ const ProductForm = () => {
         setPharmaForm(p.pharma_form || '');
         setAdministrationRoute(p.administration_route || '');
         setFrequency(p.frequency || '');
+        setFreeShipping(p.free_shipping || false);
+        setFreeShippingMinValue(Number(p.free_shipping_min_value) || 0);
         setVariations(
           p.product_variations?.length > 0
             ? p.product_variations.map((v: any) => ({
@@ -90,6 +94,8 @@ const ProductForm = () => {
         pharma_form: pharmaForm,
         administration_route: administrationRoute,
         frequency,
+        free_shipping: freeShipping,
+        free_shipping_min_value: freeShippingMinValue,
         variations: variations.filter((v) => v.dosage.trim() !== ''),
       };
 
@@ -160,6 +166,34 @@ const ProductForm = () => {
           </CardContent>
         </Card>
 
+        <Card className="border-border/50">
+          <CardHeader><CardTitle className="text-lg">Frete Grátis</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Ativar frete grátis</Label>
+                <p className="text-xs text-muted-foreground">Ofereça frete grátis para este produto</p>
+              </div>
+              <Switch checked={freeShipping} onCheckedChange={setFreeShipping} />
+            </div>
+            {freeShipping && (
+              <div className="space-y-2">
+                <Label>Valor mínimo para frete grátis (R$)</Label>
+                <Input
+                  type="number"
+                  value={freeShippingMinValue || ''}
+                  onChange={(e) => setFreeShippingMinValue(Number(e.target.value))}
+                  placeholder="0 = sem valor mínimo"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {freeShippingMinValue > 0
+                    ? `Frete grátis para compras acima de R$ ${freeShippingMinValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                    : 'Frete grátis para qualquer valor de compra'}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card className="border-border/50">
           <CardHeader className="flex flex-row items-center justify-between">
