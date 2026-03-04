@@ -5,11 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Loader2, Package, LogOut, Truck, Clock, CheckCircle2, XCircle,
   Copy, ExternalLink, ShoppingCart, User, Search, Filter,
-  TrendingUp, CreditCard, MapPin, ChevronDown, RotateCw,
+  TrendingUp, CreditCard, MapPin, ChevronDown, RotateCw, Save, Phone,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
@@ -45,13 +46,20 @@ const CustomerDashboard = () => {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [deliveryFilter, setDeliveryFilter] = useState<DeliveryFilter>('all');
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState('');
+  const [profilePhone, setProfilePhone] = useState('');
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { navigate('/cliente/login'); return; }
       setUser(session.user);
-      await fetchOrders(session.user.email || '');
+      await Promise.all([
+        fetchOrders(session.user.email || ''),
+        fetchProfile(session.user.id),
+      ]);
     };
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       if (!session) navigate('/cliente/login');
@@ -74,6 +82,45 @@ const CustomerDashboard = () => {
       toast({ title: 'Erro ao carregar pedidos', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProfile = async (userId: string) => {
+    setProfileLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name, phone')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (data) {
+        setProfileName(data.full_name || '');
+        setProfilePhone(data.phone || '');
+      }
+    } catch (err) {
+      console.error('Profile fetch error:', err);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const saveProfile = async () => {
+    if (!user) return;
+    setProfileSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          user_id: user.id,
+          full_name: profileName.trim(),
+          phone: profilePhone.trim(),
+        }, { onConflict: 'user_id' });
+      if (error) throw error;
+      toast({ title: 'Perfil atualizado com sucesso!' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao salvar perfil', description: err.message, variant: 'destructive' });
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -468,32 +515,58 @@ const CustomerDashboard = () => {
                       <User className="w-5 h-5" /> Meus Dados
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground font-medium">Nome</p>
-                        <p className="text-foreground font-medium">
-                          {user?.user_metadata?.full_name || 'Não informado'}
-                        </p>
+                  <CardContent className="space-y-5">
+                    {profileLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                       </div>
-                      <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground font-medium">Email</p>
-                        <p className="text-foreground font-medium">{user?.email}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground font-medium">Membro desde</p>
-                        <p className="text-foreground font-medium">
-                          {user?.created_at
-                            ? new Date(user.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
-                            : '-'
-                          }
-                        </p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground font-medium">Total de Compras</p>
-                        <p className="text-foreground font-medium">{stats.total} pedidos</p>
-                      </div>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="profile-name">Nome completo</Label>
+                            <Input
+                              id="profile-name"
+                              value={profileName}
+                              onChange={(e) => setProfileName(e.target.value)}
+                              placeholder="Seu nome completo"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="profile-phone">Telefone</Label>
+                            <div className="relative">
+                              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                              <Input
+                                id="profile-phone"
+                                value={profilePhone}
+                                onChange={(e) => setProfilePhone(e.target.value)}
+                                placeholder="(00) 00000-0000"
+                                className="pl-9"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground font-medium">Email</p>
+                            <p className="text-foreground font-medium text-sm">{user?.email}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground font-medium">Membro desde</p>
+                            <p className="text-foreground font-medium text-sm">
+                              {user?.created_at
+                                ? new Date(user.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+                                : '-'
+                              }
+                            </p>
+                          </div>
+                        </div>
+                        <Button onClick={saveProfile} disabled={profileSaving} className="w-full sm:w-auto">
+                          {profileSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
+                          Salvar Alterações
+                        </Button>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
 
