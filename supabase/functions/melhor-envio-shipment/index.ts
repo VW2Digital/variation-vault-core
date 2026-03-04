@@ -14,10 +14,68 @@ async function getSetting(supabase: any, key: string) {
 async function getMelhorEnvioConfig(supabase: any) {
   const token = await getSetting(supabase, 'melhor_envio_token');
   const env = await getSetting(supabase, 'melhor_envio_environment') || 'sandbox';
+  const expiresAt = await getSetting(supabase, 'melhor_envio_token_expires_at');
+  
   if (!token) throw new Error('Token do Melhor Envio não configurado');
+  
   const baseUrl = env === 'production'
     ? 'https://www.melhorenvio.com.br'
     : 'https://sandbox.melhorenvio.com.br';
+
+  // Auto-refresh if token expires within 5 minutes
+  if (expiresAt) {
+    const expiryDate = new Date(expiresAt);
+    const fiveMinFromNow = new Date(Date.now() + 5 * 60 * 1000);
+    if (expiryDate <= fiveMinFromNow) {
+      console.log('[ME] Token expiring soon, attempting refresh...');
+      try {
+        const refreshToken = await getSetting(supabase, 'melhor_envio_refresh_token');
+        const clientId = await getSetting(supabase, 'melhor_envio_client_id');
+        const clientSecret = await getSetting(supabase, 'melhor_envio_client_secret');
+        
+        if (refreshToken && clientId && clientSecret) {
+          const tokenRes = await fetch(`${baseUrl}/oauth/token`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'User-Agent': 'LibertyPharma (libertyluminaepharma@gmail.com)',
+            },
+            body: JSON.stringify({
+              grant_type: 'refresh_token',
+              client_id: clientId,
+              client_secret: clientSecret,
+              refresh_token: refreshToken,
+            }),
+          });
+
+          if (tokenRes.ok) {
+            const tokenData = JSON.parse(await tokenRes.text());
+            const newExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
+            
+            // Find user_id from existing setting to upsert
+            const { data: tokenSetting } = await supabase
+              .from('site_settings').select('user_id').eq('key', 'melhor_envio_token').maybeSingle();
+            const uid = tokenSetting?.user_id || '';
+
+            await Promise.all([
+              supabase.from('site_settings').update({ value: tokenData.access_token }).eq('key', 'melhor_envio_token'),
+              supabase.from('site_settings').update({ value: tokenData.refresh_token }).eq('key', 'melhor_envio_refresh_token'),
+              supabase.from('site_settings').update({ value: newExpiresAt }).eq('key', 'melhor_envio_token_expires_at'),
+            ]);
+
+            console.log(`[ME] Token auto-refreshed. New expiry: ${newExpiresAt}`);
+            return { token: tokenData.access_token, baseUrl };
+          } else {
+            console.error('[ME] Auto-refresh failed:', await tokenRes.text());
+          }
+        }
+      } catch (err: any) {
+        console.error('[ME] Auto-refresh error:', err.message);
+      }
+    }
+  }
+
   return { token, baseUrl };
 }
 
