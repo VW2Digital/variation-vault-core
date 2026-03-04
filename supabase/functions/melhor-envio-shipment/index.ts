@@ -198,7 +198,7 @@ serve(async (req) => {
     const body = await req.json();
     orderId = body.order_id;
     const action = body.action || 'full_flow';
-    const serviceId = body.service_id || 1;
+    let serviceId = body.service_id || null; // null = auto-detect
 
     if (!orderId) throw new Error('order_id é obrigatório');
     const { token, baseUrl } = await getMelhorEnvioConfig(supabase);
@@ -219,6 +219,53 @@ serve(async (req) => {
 
     let shipmentId = order.shipment_id;
 
+    // ─── AUTO-DETECT SERVICE: Quote available carriers ───
+    if (!serviceId && (action === 'full_flow' || action === 'create_shipment')) {
+      console.log('[ME] No service_id provided, auto-detecting via quote...');
+      const quotePayload = {
+        from: { postal_code: sender.postal_code?.replace(/\D/g, '') },
+        to: { postal_code: order.customer_postal_code?.replace(/\D/g, '') },
+        products: [{
+          id: orderId,
+          width: sender.package_width || 12,
+          height: sender.package_height || 4,
+          length: sender.package_length || 17,
+          weight: sender.package_weight || 0.1,
+          insurance_value: Number(order.total_value),
+          quantity: order.quantity || 1,
+        }],
+      };
+
+      await logShipping(supabase, orderId, 'quote_request', quotePayload);
+      try {
+        const quoteResult = await melhorEnvioFetch(baseUrl, token, '/api/v2/me/shipment/calculate', 'POST', quotePayload);
+        await logShipping(supabase, orderId, 'quote_response', quoteResult);
+
+        // Filter services that don't have errors and pick cheapest
+        const available = (Array.isArray(quoteResult) ? quoteResult : [])
+          .filter((s: any) => !s.error && s.id && s.price);
+
+        if (available.length === 0) {
+          const errorDetails = (Array.isArray(quoteResult) ? quoteResult : [])
+            .filter((s: any) => s.error)
+            .map((s: any) => `${s.company?.name || s.name || 'unknown'}: ${s.error}`)
+            .join('; ');
+          throw new Error(`Nenhuma transportadora disponível para este trecho. Detalhes: ${errorDetails || 'sem resposta'}`);
+        }
+
+        // Sort by price and pick cheapest
+        available.sort((a: any, b: any) => Number(a.price) - Number(b.price));
+        serviceId = available[0].id;
+        console.log(`[ME] Auto-selected service: ${available[0].company?.name || available[0].name} (id=${serviceId}, price=R$${available[0].price})`);
+      } catch (quoteErr: any) {
+        if (quoteErr.message.includes('Nenhuma transportadora')) throw quoteErr;
+        console.error('[ME] Quote failed, falling back to service 1:', quoteErr.message);
+        serviceId = 1;
+      }
+    }
+
+    if (!serviceId) serviceId = 1;
+
     // ─── STEP 1: ADD TO CART ───
     if (action === 'full_flow' || action === 'create_shipment') {
       const cartPayload = {
@@ -228,7 +275,7 @@ serve(async (req) => {
           document: sender.document, address: sender.address,
           number: sender.number || 'S/N', complement: sender.complement || '',
           district: sender.district, city: sender.city, state_abbr: sender.state,
-          country_id: 'BR', postal_code: sender.postal_code,
+          country_id: 'BR', postal_code: sender.postal_code?.replace(/\D/g, ''),
         },
         to: {
           name: order.customer_name, phone: order.customer_phone || '',
@@ -236,7 +283,7 @@ serve(async (req) => {
           address: order.customer_address || '', number: order.customer_number || 'S/N',
           complement: order.customer_complement || '', district: order.customer_district || '',
           city: order.customer_city || '', state_abbr: order.customer_state || '',
-          country_id: 'BR', postal_code: order.customer_postal_code,
+          country_id: 'BR', postal_code: order.customer_postal_code?.replace(/\D/g, ''),
         },
         products: [{ name: order.product_name, quantity: order.quantity, unitary_value: Number(order.unit_price) }],
         volumes: [{

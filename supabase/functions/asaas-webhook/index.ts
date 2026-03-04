@@ -92,7 +92,27 @@ serve(async (req) => {
         console.log('[Webhook] Payment confirmed, triggering shipping flow...');
 
         // Find the order to trigger shipping
-        let orderId = payment.externalReference;
+        let orderId = payment.externalReference || null;
+        let shouldShip = false;
+
+        if (orderId) {
+          // Check if this order needs shipping
+          const { data: orderData } = await supabase
+            .from('orders')
+            .select('id, customer_postal_code, shipment_id')
+            .eq('id', orderId)
+            .single();
+
+          if (orderData && !orderData.shipment_id && orderData.customer_postal_code) {
+            shouldShip = true;
+          } else if (orderData?.shipment_id) {
+            console.log(`[Webhook] Skipping auto-shipping: shipment already exists for order ${orderId}`);
+            orderId = null;
+          } else if (orderData && !orderData.customer_postal_code) {
+            console.log(`[Webhook] Skipping auto-shipping: no postal code for order ${orderId}`);
+            orderId = null;
+          }
+        }
 
         if (!orderId) {
           // Find order by asaas_payment_id
@@ -102,21 +122,18 @@ serve(async (req) => {
             .eq('asaas_payment_id', payment.id)
             .single();
 
-          orderId = orderData?.id;
-
-          // Only trigger if order has a postal code (address) and no shipment yet
           if (orderData && !orderData.shipment_id && orderData.customer_postal_code) {
-            console.log(`[Webhook] Auto-shipping order ${orderId}`);
-          } else if (orderData && !orderData.customer_postal_code) {
-            console.log(`[Webhook] Skipping auto-shipping: no postal code for order ${orderId}`);
-            orderId = null;
+            orderId = orderData.id;
+            shouldShip = true;
           } else if (orderData?.shipment_id) {
-            console.log(`[Webhook] Skipping auto-shipping: shipment already exists for order ${orderId}`);
-            orderId = null;
+            console.log(`[Webhook] Skipping auto-shipping: shipment already exists`);
+          } else if (orderData && !orderData.customer_postal_code) {
+            console.log(`[Webhook] Skipping auto-shipping: no postal code`);
           }
         }
 
-        if (orderId) {
+        if (orderId && shouldShip) {
+          console.log(`[Webhook] Auto-shipping order ${orderId}`);
           try {
             // Call melhor-envio-shipment function
             const shipmentResponse = await fetch(
