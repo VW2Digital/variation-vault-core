@@ -42,8 +42,8 @@ const Header = () => {
     <header className="border-b border-border/50 bg-card sticky top-0 z-30">
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
         {/* Logo */}
-        <Link to="/catalogo" className="flex items-center gap-2">
-          <img src={logoImg} alt="Liberty Pharma" className="h-10 object-contain" />
+        <Link to="/catalogo" className="flex items-center gap-2 shrink-0">
+          <img src={logoImg} alt="Liberty Pharma" className="h-8 md:h-10 object-contain" />
         </Link>
 
         {/* Desktop Nav */}
@@ -81,19 +81,19 @@ const Header = () => {
         </nav>
 
         {/* Mobile: cart + hamburger */}
-        <div className="flex md:hidden items-center gap-2">
+        <div className="flex md:hidden items-center gap-3">
           <LanguageSwitcher />
-          <Link to="/carrinho" className="relative text-foreground">
+          <Link to="/carrinho" className="relative text-foreground p-1">
             <ShoppingCart className="w-5 h-5" />
             {totalItems > 0 && (
-              <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                 {totalItems}
               </span>
             )}
           </Link>
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="h-8 w-8">
                 <Menu className="w-5 h-5" />
               </Button>
             </SheetTrigger>
