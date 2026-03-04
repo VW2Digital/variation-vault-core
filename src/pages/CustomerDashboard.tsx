@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
-import logoImg from '@/assets/liberty-pharma-logo.png';
+import Header from '@/components/Header';
 import AddressManager from '@/components/AddressManager';
 
 const paymentStatusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: any; color: string }> = {
@@ -172,32 +172,7 @@ const CustomerDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border/50 bg-card sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/catalogo" className="flex items-center gap-2">
-            <img src={logoImg} alt="Liberty Pharma" className="h-10 object-contain" />
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link to="/carrinho" className="relative">
-              <Button variant="ghost" size="icon">
-                <ShoppingCart className="w-5 h-5" />
-              </Button>
-              {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                  {totalItems}
-                </span>
-              )}
-            </Link>
-            <Button variant="outline" size="sm" onClick={handleLogout} className="hidden sm:flex">
-              <LogOut className="w-4 h-4 mr-1" /> Sair
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout} className="sm:hidden">
-              <LogOut className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         {/* Welcome */}

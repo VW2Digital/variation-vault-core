@@ -5,10 +5,9 @@ import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/Ani
 import { fetchProduct, fetchTestimonials, fetchBanners, fetchSetting } from '@/lib/api';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
 import { useCart } from '@/contexts/CartContext';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import Header from '@/components/Header';
 import { useLanguage } from '@/contexts/LanguageContext';
 import productHeroImg from '@/assets/product-hero.png';
-import logoImg from '@/assets/liberty-pharma-logo.png';
 import testimonial1 from '@/assets/testimonial-1.jpg';
 import testimonial2 from '@/assets/testimonial-2.jpg';
 import testimonial3 from '@/assets/testimonial-3.jpg';
@@ -179,26 +178,7 @@ const ProductCheckout = () => {
         </div>
       )}
 
-      {/* Header */}
-      <header className="border-b border-border/50 bg-card">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/catalogo" className="flex items-center gap-2">
-            <img src={logoImg} alt="Liberty Pharma" className="h-10 object-contain" />
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link to="/catalogo" className="text-sm text-muted-foreground hover:text-foreground transition-colors">← {t('catalog')}</Link>
-            <Link to="/carrinho" className="relative text-foreground hover:text-primary transition-colors">
-              <ShoppingCart className="w-5 h-5" />
-              {totalItems > 0 && (
-                <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                  {totalItems}
-                </span>
-              )}
-            </Link>
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Product Section */}
       <section className="max-w-6xl mx-auto px-4 py-8">

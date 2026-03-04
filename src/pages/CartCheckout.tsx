@@ -4,9 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
 import CheckoutForm from '@/components/CheckoutForm';
 import { AnimatedSection } from '@/components/AnimatedSection';
-import logoImg from '@/assets/liberty-pharma-logo.png';
+import Header from '@/components/Header';
 import productHeroImg from '@/assets/product-hero.png';
-import { ChevronLeft } from 'lucide-react';
 
 const CartCheckout = () => {
   const navigate = useNavigate();
@@ -45,19 +44,7 @@ const CartCheckout = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border/50 bg-card">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/catalogo" className="flex items-center gap-2">
-            <img src={logoImg} alt="Liberty Pharma" className="h-10 object-contain" />
-          </Link>
-          <Link
-            to="/carrinho"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-          >
-            <ChevronLeft className="w-4 h-4" /> Voltar ao carrinho
-          </Link>
-        </div>
-      </header>
+      <Header />
 
       <section className="max-w-3xl mx-auto px-4 py-8">
         <AnimatedSection variant="fadeUp">

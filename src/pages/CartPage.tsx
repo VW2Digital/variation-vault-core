@@ -3,7 +3,7 @@ import { useCart } from '@/contexts/CartContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Minus, Plus, Trash2, ShoppingCart, ArrowLeft, Loader2 } from 'lucide-react';
-import logoImg from '@/assets/liberty-pharma-logo.png';
+import Header from '@/components/Header';
 import productHeroImg from '@/assets/product-hero.png';
 
 const CartPage = () => {
@@ -12,16 +12,7 @@ const CartPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border/50 bg-card sticky top-0 z-30">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/catalogo" className="flex items-center gap-2">
-            <img src={logoImg} alt="Liberty Pharma" className="h-10 object-contain" />
-          </Link>
-          <Link to="/catalogo" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
-            <ArrowLeft className="w-4 h-4" /> Continuar comprando
-          </Link>
-        </div>
-      </header>
+      <Header />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-2">
