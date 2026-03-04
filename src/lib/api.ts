@@ -158,6 +158,54 @@ export const deleteBanner = async (id: string) => {
   if (error) throw error;
 };
 
+// Banner Slides
+export const fetchBannerSlides = async (activeOnly = false) => {
+  let query = supabase
+    .from('banner_slides' as any)
+    .select('*')
+    .order('sort_order', { ascending: true });
+  if (activeOnly) query = query.eq('active', true);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data as any[];
+};
+
+export const createBannerSlide = async (slide: {
+  title: string;
+  image_desktop: string;
+  image_tablet: string;
+  image_mobile: string;
+  link_url?: string;
+  product_id?: string | null;
+  sort_order?: number;
+}) => {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Not authenticated');
+  const { data, error } = await supabase
+    .from('banner_slides' as any)
+    .insert({ ...slide, user_id: user.id } as any)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const updateBannerSlide = async (id: string, updates: any) => {
+  const { error } = await supabase
+    .from('banner_slides' as any)
+    .update(updates as any)
+    .eq('id', id);
+  if (error) throw error;
+};
+
+export const deleteBannerSlide = async (id: string) => {
+  const { error } = await supabase
+    .from('banner_slides' as any)
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+};
+
 // Testimonials
 export const fetchTestimonials = async () => {
   const { data, error } = await supabase
