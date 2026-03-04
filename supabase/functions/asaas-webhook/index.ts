@@ -94,17 +94,19 @@ serve(async (req) => {
         // Find the order to trigger shipping
         let orderId = payment.externalReference || null;
         let shouldShip = false;
+        let selectedServiceId: number | null = null;
 
         if (orderId) {
           // Check if this order needs shipping
           const { data: orderData } = await supabase
             .from('orders')
-            .select('id, customer_postal_code, shipment_id')
+            .select('id, customer_postal_code, shipment_id, selected_service_id')
             .eq('id', orderId)
             .single();
 
-          if (orderData && !orderData.shipment_id && orderData.customer_postal_code) {
+          if (orderData && !orderData.shipment_id && orderData.customer_postal_code && orderData.selected_service_id) {
             shouldShip = true;
+            selectedServiceId = orderData.selected_service_id;
           } else if (orderData?.shipment_id) {
             console.log(`[Webhook] Skipping auto-shipping: shipment already exists for order ${orderId}`);
             orderId = null;
@@ -118,13 +120,14 @@ serve(async (req) => {
           // Find order by asaas_payment_id
           const { data: orderData } = await supabase
             .from('orders')
-            .select('id, customer_postal_code, shipment_id')
+            .select('id, customer_postal_code, shipment_id, selected_service_id')
             .eq('asaas_payment_id', payment.id)
             .single();
 
-          if (orderData && !orderData.shipment_id && orderData.customer_postal_code) {
+          if (orderData && !orderData.shipment_id && orderData.customer_postal_code && orderData.selected_service_id) {
             orderId = orderData.id;
             shouldShip = true;
+            selectedServiceId = orderData.selected_service_id;
           } else if (orderData?.shipment_id) {
             console.log(`[Webhook] Skipping auto-shipping: shipment already exists`);
           } else if (orderData && !orderData.customer_postal_code) {
@@ -147,6 +150,7 @@ serve(async (req) => {
                 body: JSON.stringify({
                   order_id: orderId,
                   action: 'full_flow',
+                  service_id: selectedServiceId,
                 }),
               }
             );

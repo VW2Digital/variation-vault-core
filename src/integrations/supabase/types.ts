@@ -156,7 +156,9 @@ export type Database = {
           payment_method: string
           product_name: string
           quantity: number
+          selected_service_id: number | null
           shipment_id: string | null
+          shipping_cost: number | null
           shipping_service: string | null
           shipping_status: string | null
           status: string
@@ -190,7 +192,9 @@ export type Database = {
           payment_method?: string
           product_name: string
           quantity?: number
+          selected_service_id?: number | null
           shipment_id?: string | null
+          shipping_cost?: number | null
           shipping_service?: string | null
           shipping_status?: string | null
           status?: string
@@ -224,7 +228,9 @@ export type Database = {
           payment_method?: string
           product_name?: string
           quantity?: number
+          selected_service_id?: number | null
           shipment_id?: string | null
+          shipping_cost?: number | null
           shipping_service?: string | null
           shipping_status?: string | null
           status?: string
