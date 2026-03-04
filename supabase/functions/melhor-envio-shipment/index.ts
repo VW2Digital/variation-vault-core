@@ -52,11 +52,6 @@ async function getMelhorEnvioConfig(supabase: any) {
           if (tokenRes.ok) {
             const tokenData = JSON.parse(await tokenRes.text());
             const newExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
-            
-            // Find user_id from existing setting to upsert
-            const { data: tokenSetting } = await supabase
-              .from('site_settings').select('user_id').eq('key', 'melhor_envio_token').maybeSingle();
-            const uid = tokenSetting?.user_id || '';
 
             await Promise.all([
               supabase.from('site_settings').update({ value: tokenData.access_token }).eq('key', `melhor_envio_token_${env}`),
@@ -111,7 +106,6 @@ async function logShipping(supabase: any, orderId: string, eventType: string, pa
 }
 
 async function sendTrackingEmail(supabase: any, order: any, trackingCode: string, trackingUrl: string) {
-  // Try site_settings first, then fall back to env var
   let resendApiKey = await getSetting(supabase, 'resend_api_key');
   if (!resendApiKey) resendApiKey = Deno.env.get('RESEND_API_KEY') || '';
   if (!resendApiKey) {
@@ -184,6 +178,45 @@ async function sendTrackingEmail(supabase: any, order: any, trackingCode: string
   }
 }
 
+// Fetch shipment details to extract tracking and carrier info
+async function fetchShipmentDetails(baseUrl: string, token: string, shipmentId: string) {
+  try {
+    const data = await melhorEnvioFetch(baseUrl, token, `/api/v2/me/orders/${shipmentId}`, 'GET');
+    console.log(`[ME] Shipment details status: ${data?.status}, tracking: ${data?.tracking || 'none'}, self_tracking: ${data?.self_tracking || 'none'}`);
+    return data;
+  } catch (err: any) {
+    console.error('[ME] Failed to fetch shipment details:', err.message);
+    return null;
+  }
+}
+
+// Extract tracking code from multiple possible sources
+function extractTrackingInfo(shipmentDetails: any, trackingResult: any, shipmentId: string) {
+  let trackingCode = '';
+  let serviceName = '';
+  let companyName = '';
+
+  // Try from shipment details first (most reliable)
+  if (shipmentDetails) {
+    trackingCode = shipmentDetails.tracking || shipmentDetails.self_tracking || shipmentDetails.melhorenvio_tracking || '';
+    serviceName = shipmentDetails.service?.name || '';
+    companyName = shipmentDetails.service?.company?.name || '';
+  }
+
+  // Fallback to tracking endpoint result
+  if (!trackingCode && trackingResult) {
+    const trackingData = trackingResult?.[shipmentId];
+    trackingCode = trackingData?.tracking || trackingData?.melhorenvio_tracking || '';
+  }
+
+  // Build display name: "Jadlog .Com" or just "Jadlog"
+  const displayName = companyName && serviceName 
+    ? `${companyName} ${serviceName}`.trim()
+    : companyName || serviceName || '';
+
+  return { trackingCode, displayName };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -240,6 +273,87 @@ serve(async (req) => {
       });
     }
 
+    // ─── REFRESH TRACKING ACTION ───
+    if (action === 'refresh_tracking') {
+      orderId = body.order_id;
+      const { token, baseUrl } = await getMelhorEnvioConfig(supabase);
+      
+      const { data: order, error: orderError } = await supabase
+        .from('orders').select('*').eq('id', orderId).single();
+      if (orderError || !order) throw new Error('Pedido não encontrado');
+      if (!order.shipment_id) throw new Error('Pedido sem envio registrado');
+
+      // Fetch shipment details from ME
+      const shipmentDetails = await fetchShipmentDetails(baseUrl, token, order.shipment_id);
+      await logShipping(supabase, orderId, 'refresh_tracking_details', shipmentDetails);
+
+      // Also try the tracking endpoint
+      let trackingResult = null;
+      try {
+        trackingResult = await melhorEnvioFetch(baseUrl, token, '/api/v2/me/shipment/tracking', 'POST', { orders: [order.shipment_id] });
+        await logShipping(supabase, orderId, 'refresh_tracking_response', trackingResult);
+      } catch (e: any) {
+        console.log('[ME] Tracking endpoint error (non-fatal):', e.message);
+      }
+
+      const { trackingCode, displayName } = extractTrackingInfo(shipmentDetails, trackingResult, order.shipment_id);
+
+      const updateData: Record<string, any> = {};
+      if (trackingCode && trackingCode !== order.tracking_code) {
+        updateData.tracking_code = trackingCode;
+        updateData.tracking_url = `https://www.melhorrastreio.com.br/rastreio/${trackingCode}`;
+        updateData.delivery_status = 'SHIPPED';
+      }
+      if (displayName && displayName !== order.shipping_service) {
+        updateData.shipping_service = displayName;
+      }
+
+      // Update ME status
+      const meStatus = shipmentDetails?.status;
+      if (meStatus) {
+        const statusMap: Record<string, string> = {
+          'released': 'released',
+          'posted': 'posted',
+          'delivered': 'delivered',
+          'canceled': 'canceled',
+        };
+        if (statusMap[meStatus]) {
+          updateData.shipping_status = statusMap[meStatus];
+        }
+        if (meStatus === 'delivered') {
+          updateData.delivery_status = 'DELIVERED';
+        }
+        if (meStatus === 'posted') {
+          updateData.delivery_status = 'SHIPPED';
+        }
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        updateData.updated_at = new Date().toISOString();
+        await supabase.from('orders').update(updateData).eq('id', orderId);
+        console.log(`[ME] Order ${orderId} updated:`, JSON.stringify(updateData));
+      }
+
+      // Send email if tracking code was just found
+      if (trackingCode && trackingCode !== order.tracking_code) {
+        const { data: freshOrder } = await supabase.from('orders').select('*').eq('id', orderId).single();
+        if (freshOrder) {
+          const trackingUrl = `https://www.melhorrastreio.com.br/rastreio/${trackingCode}`;
+          await sendTrackingEmail(supabase, freshOrder, trackingCode, trackingUrl);
+        }
+      }
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        tracking_code: trackingCode || order.tracking_code || '',
+        shipping_service: displayName || order.shipping_service || '',
+        status: meStatus || order.shipping_status,
+        updated: Object.keys(updateData).length > 0,
+      }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     orderId = body.order_id;
     let serviceId = body.service_id || null;
     const { token, baseUrl } = await getMelhorEnvioConfig(supabase);
@@ -259,6 +373,7 @@ serve(async (req) => {
     }
 
     let shipmentId = order.shipment_id;
+    let selectedServiceName = '';
 
     // ─── AUTO-DETECT SERVICE: Quote available carriers ───
     if (!serviceId && (action === 'full_flow' || action === 'create_shipment')) {
@@ -282,7 +397,6 @@ serve(async (req) => {
         const quoteResult = await melhorEnvioFetch(baseUrl, token, '/api/v2/me/shipment/calculate', 'POST', quotePayload);
         await logShipping(supabase, orderId, 'quote_response', quoteResult);
 
-        // Filter services that don't have errors and pick cheapest
         const available = (Array.isArray(quoteResult) ? quoteResult : [])
           .filter((s: any) => !s.error && s.id && s.price);
 
@@ -294,14 +408,18 @@ serve(async (req) => {
           throw new Error(`Nenhuma transportadora disponível para este trecho. Detalhes: ${errorDetails || 'sem resposta'}`);
         }
 
-        // Sort by price and pick cheapest
         available.sort((a: any, b: any) => Number(a.price) - Number(b.price));
         serviceId = available[0].id;
-        console.log(`[ME] Auto-selected service: ${available[0].company?.name || available[0].name} (id=${serviceId}, price=R$${available[0].price})`);
+        // Store the real service name
+        const compName = available[0].company?.name || '';
+        const svcName = available[0].name || '';
+        selectedServiceName = compName && svcName ? `${compName} ${svcName}`.trim() : compName || svcName || `service_${serviceId}`;
+        console.log(`[ME] Auto-selected service: ${selectedServiceName} (id=${serviceId}, price=R$${available[0].price})`);
       } catch (quoteErr: any) {
         if (quoteErr.message.includes('Nenhuma transportadora')) throw quoteErr;
         console.error('[ME] Quote failed, falling back to service 1:', quoteErr.message);
         serviceId = 1;
+        selectedServiceName = 'Correios PAC';
       }
     }
 
@@ -339,8 +457,21 @@ serve(async (req) => {
       await logShipping(supabase, orderId, 'cart_add_response', cartResult);
 
       shipmentId = cartResult.id;
+      
+      // Extract service name from cart result if we don't have it yet
+      if (!selectedServiceName) {
+        const svc = cartResult.service;
+        if (svc) {
+          const compName = svc.company?.name || '';
+          const svcName = svc.name || '';
+          selectedServiceName = compName && svcName ? `${compName} ${svcName}`.trim() : compName || svcName || `service_${serviceId}`;
+        }
+      }
+
       await supabase.from('orders').update({
-        shipment_id: shipmentId, shipping_status: 'cart', shipping_service: `service_${serviceId}`,
+        shipment_id: shipmentId, 
+        shipping_status: 'cart', 
+        shipping_service: selectedServiceName || `service_${serviceId}`,
       }).eq('id', orderId);
 
       if (action === 'create_shipment') {
@@ -389,40 +520,90 @@ serve(async (req) => {
       }
     }
 
-    // ─── STEP 5: GET TRACKING ───
+    // ─── STEP 5: GET TRACKING (multiple attempts) ───
     if (action === 'full_flow' || action === 'get_tracking') {
-      const trackingResult = await melhorEnvioFetch(baseUrl, token, '/api/v2/me/shipment/tracking', 'POST', { orders: [shipmentId] });
-      await logShipping(supabase, orderId, 'tracking_response', trackingResult);
+      let trackingCode = '';
+      let trackingUrl = '';
 
-      const trackingData = trackingResult?.[shipmentId];
-      const trackingCode = trackingData?.tracking || '';
-      const trackingUrl = trackingCode ? `https://www.melhorrastreio.com.br/rastreio/${trackingCode}` : '';
+      // Method 1: Fetch shipment details (GET endpoint - most reliable)
+      const shipmentDetails = await fetchShipmentDetails(baseUrl, token, shipmentId);
+      await logShipping(supabase, orderId, 'shipment_details_response', shipmentDetails);
 
-      await supabase.from('orders').update({
-        shipping_status: 'shipped', tracking_code: trackingCode,
-        tracking_url: trackingUrl, delivery_status: 'SHIPPED',
-      }).eq('id', orderId);
+      if (shipmentDetails) {
+        trackingCode = shipmentDetails.tracking || shipmentDetails.self_tracking || shipmentDetails.melhorenvio_tracking || '';
+        
+        // Update service name from details if available
+        if (shipmentDetails.service) {
+          const compName = shipmentDetails.service.company?.name || '';
+          const svcName = shipmentDetails.service.name || '';
+          const fullName = compName && svcName ? `${compName} ${svcName}`.trim() : compName || svcName;
+          if (fullName) {
+            await supabase.from('orders').update({ shipping_service: fullName }).eq('id', orderId);
+          }
+        }
+      }
 
-      // ─── SEND TRACKING EMAIL ───
+      // Method 2: Tracking endpoint (fallback)
+      if (!trackingCode) {
+        try {
+          const trackingResult = await melhorEnvioFetch(baseUrl, token, '/api/v2/me/shipment/tracking', 'POST', { orders: [shipmentId] });
+          await logShipping(supabase, orderId, 'tracking_response', trackingResult);
+          const trackingData = trackingResult?.[shipmentId];
+          trackingCode = trackingData?.tracking || trackingData?.melhorenvio_tracking || '';
+        } catch (e: any) {
+          console.log('[ME] Tracking endpoint error (non-fatal):', e.message);
+        }
+      }
+
+      if (trackingCode) {
+        trackingUrl = `https://www.melhorrastreio.com.br/rastreio/${trackingCode}`;
+      }
+
+      // Always mark as shipped after label generation, even without tracking code
+      const updateData: Record<string, any> = {
+        shipping_status: 'shipped',
+        delivery_status: 'SHIPPED',
+      };
+
+      if (trackingCode) {
+        updateData.tracking_code = trackingCode;
+        updateData.tracking_url = trackingUrl;
+      }
+
+      await supabase.from('orders').update(updateData).eq('id', orderId);
+
+      // Send tracking email if we have a code
       if (trackingCode) {
         const { data: freshOrder } = await supabase.from('orders').select('*').eq('id', orderId).single();
         if (freshOrder) {
           await sendTrackingEmail(supabase, freshOrder, trackingCode, trackingUrl);
         }
+      } else {
+        console.log(`[ME] No tracking code available yet for shipment ${shipmentId}. Status: ${shipmentDetails?.status || 'unknown'}. Will be updated via webhook or manual refresh.`);
       }
 
       if (action === 'get_tracking') {
-        return new Response(JSON.stringify({ success: true, tracking_code: trackingCode }), {
+        return new Response(JSON.stringify({ 
+          success: true, 
+          tracking_code: trackingCode,
+          tracking_available: !!trackingCode,
+          shipment_status: shipmentDetails?.status || 'unknown',
+        }), {
           status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
     }
 
     const { data: updatedOrder } = await supabase
-      .from('orders').select('shipment_id, shipping_status, tracking_code, label_url, tracking_url')
+      .from('orders').select('shipment_id, shipping_status, tracking_code, label_url, tracking_url, shipping_service')
       .eq('id', orderId).single();
 
-    return new Response(JSON.stringify({ success: true, message: 'Fluxo completo executado', ...updatedOrder }), {
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: 'Fluxo completo executado', 
+      tracking_available: !!updatedOrder?.tracking_code,
+      ...updatedOrder,
+    }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error: any) {

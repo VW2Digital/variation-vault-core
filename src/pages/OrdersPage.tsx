@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Receipt, Loader2, Truck, Save } from 'lucide-react';
+import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -72,6 +72,7 @@ const OrdersPage = () => {
   const [trackingCode, setTrackingCode] = useState('');
   const [deliveryStatus, setDeliveryStatus] = useState('PROCESSING');
   const [saving, setSaving] = useState(false);
+  const [refreshingTracking, setRefreshingTracking] = useState<string | null>(null);
   const [filterPayment, setFilterPayment] = useState('ALL');
   const [filterDelivery, setFilterDelivery] = useState('ALL');
 
@@ -120,6 +121,34 @@ const OrdersPage = () => {
       toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const refreshTracking = async (orderId: string) => {
+    setRefreshingTracking(orderId);
+    try {
+      const { data, error } = await supabase.functions.invoke('melhor-envio-shipment', {
+        body: { action: 'refresh_tracking', order_id: orderId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (data?.tracking_code) {
+        toast({ title: 'Rastreio atualizado!', description: `Código: ${data.tracking_code}` });
+      } else {
+        toast({ 
+          title: 'Rastreio consultado', 
+          description: `Status: ${data?.status || 'desconhecido'}. Código ainda não disponível.` 
+        });
+      }
+
+      if (data?.updated) {
+        fetchOrders();
+      }
+    } catch (err: any) {
+      toast({ title: 'Erro ao atualizar rastreio', description: err.message, variant: 'destructive' });
+    } finally {
+      setRefreshingTracking(null);
     }
   };
 
@@ -188,6 +217,7 @@ const OrdersPage = () => {
                   <TableHead>Valor</TableHead>
                   <TableHead>Pagamento</TableHead>
                   <TableHead>Entrega</TableHead>
+                  <TableHead>Rastreio</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -226,6 +256,28 @@ const OrdersPage = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
+                        <div className="flex items-center gap-1">
+                          {order.tracking_code ? (
+                            <span className="font-mono text-xs text-foreground">{order.tracking_code}</span>
+                          ) : order.shipment_id ? (
+                            <span className="text-xs text-muted-foreground italic">Pendente</span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                          {order.shipment_id && !order.tracking_code && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => refreshTracking(order.id)}
+                              disabled={refreshingTracking === order.id}
+                            >
+                              <RotateCw className={`w-3 h-3 ${refreshingTracking === order.id ? 'animate-spin' : ''}`} />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button variant="ghost" size="sm" onClick={() => openTrackingDialog(order)}>
@@ -240,6 +292,16 @@ const OrdersPage = () => {
                               <div className="text-sm text-muted-foreground">
                                 <strong>{order.customer_name}</strong> — {order.product_name}
                               </div>
+                              {order.shipping_service && (
+                                <div className="text-xs text-muted-foreground">
+                                  Transportadora: <strong>{order.shipping_service}</strong>
+                                </div>
+                              )}
+                              {order.shipment_id && (
+                                <div className="text-xs text-muted-foreground">
+                                  Envio: <span className="font-mono">{order.shipment_id.slice(0, 8)}</span> — Status: {order.shipping_status || 'N/A'}
+                                </div>
+                              )}
                               <div className="space-y-2">
                                 <Label>Código de Rastreio</Label>
                                 <Input
@@ -261,10 +323,27 @@ const OrdersPage = () => {
                                   </SelectContent>
                                 </Select>
                               </div>
-                              <Button onClick={saveTracking} disabled={saving} className="w-full">
-                                {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                                Salvar
-                              </Button>
+                              <div className="flex gap-2">
+                                {order.shipment_id && (
+                                  <Button 
+                                    variant="outline" 
+                                    onClick={() => refreshTracking(order.id)} 
+                                    disabled={refreshingTracking === order.id}
+                                    className="flex-1"
+                                  >
+                                    {refreshingTracking === order.id ? (
+                                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                    ) : (
+                                      <RotateCw className="w-4 h-4 mr-2" />
+                                    )}
+                                    Buscar Rastreio
+                                  </Button>
+                                )}
+                                <Button onClick={saveTracking} disabled={saving} className="flex-1">
+                                  {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                                  Salvar
+                                </Button>
+                              </div>
                             </div>
                           </DialogContent>
                         </Dialog>
