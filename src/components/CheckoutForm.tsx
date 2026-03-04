@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -80,6 +80,40 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, onSuccess }: C
   const [addrState, setAddrState] = useState('');
   const [addressErrors, setAddressErrors] = useState<AddressError>({});
   const [fetchingCep, setFetchingCep] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>('');
+
+  // Load saved addresses on mount
+  useEffect(() => {
+    const loadAddresses = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data } = await supabase
+        .from('addresses')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('is_default', { ascending: false });
+      if (data && data.length > 0) {
+        setSavedAddresses(data as any[]);
+        const defaultAddr = data.find((a: any) => a.is_default) || data[0];
+        if (defaultAddr) {
+          applyAddress(defaultAddr as any);
+          setSelectedAddressId(defaultAddr.id);
+        }
+      }
+    };
+    loadAddresses();
+  }, []);
+
+  const applyAddress = (addr: any) => {
+    setAddrPostalCode(addr.postal_code?.replace(/(\d{5})(\d{3})/, '$1-$2') || '');
+    setAddrStreet(addr.street || '');
+    setAddrNumber(addr.number || '');
+    setAddrComplement(addr.complement || '');
+    setAddrDistrict(addr.district || '');
+    setAddrCity(addr.city || '');
+    setAddrState(addr.state || '');
+  };
 
   // Card fields
   const [cardNumber, setCardNumber] = useState('');
@@ -400,6 +434,34 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, onSuccess }: C
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          {/* Saved Address Selector */}
+          {savedAddresses.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Endereço salvo</Label>
+              <select
+                value={selectedAddressId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setSelectedAddressId(id);
+                  if (id === 'new') {
+                    setAddrPostalCode(''); setAddrStreet(''); setAddrNumber('');
+                    setAddrComplement(''); setAddrDistrict(''); setAddrCity(''); setAddrState('');
+                  } else {
+                    const addr = savedAddresses.find(a => a.id === id);
+                    if (addr) applyAddress(addr);
+                  }
+                }}
+                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {savedAddresses.map(a => (
+                  <option key={a.id} value={a.id}>
+                    {a.label} — {a.street}, {a.number} ({a.city}/{a.state})
+                  </option>
+                ))}
+                <option value="new">+ Novo endereço</option>
+              </select>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label className="text-xs">CEP *</Label>
             <Input

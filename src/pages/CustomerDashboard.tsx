@@ -15,6 +15,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
 import logoImg from '@/assets/liberty-pharma-logo.png';
+import AddressManager from '@/components/AddressManager';
 
 const paymentStatusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: any; color: string }> = {
   PENDING: { label: 'Aguardando Pagamento', variant: 'outline', icon: Clock, color: 'text-amber-500' },
@@ -291,6 +292,9 @@ const CustomerDashboard = () => {
                 <TabsTrigger value="orders" className="flex items-center gap-1.5">
                   <Package className="w-4 h-4" /> Pedidos
                 </TabsTrigger>
+                <TabsTrigger value="addresses" className="flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4" /> Endereços
+                </TabsTrigger>
                 <TabsTrigger value="profile" className="flex items-center gap-1.5">
                   <User className="w-4 h-4" /> Perfil
                 </TabsTrigger>
@@ -505,6 +509,11 @@ const CustomerDashboard = () => {
                     })}
                   </div>
                 )}
+              </TabsContent>
+
+              {/* Addresses Tab */}
+              <TabsContent value="addresses">
+                <AddressManager />
               </TabsContent>
 
               {/* Profile Tab */}
