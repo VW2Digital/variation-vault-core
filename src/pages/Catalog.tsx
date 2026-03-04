@@ -12,13 +12,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, SlidersHorizontal, Package, CircleCheck } from 'lucide-react';
+import { Search, SlidersHorizontal, Package, CircleCheck, ShoppingCart } from 'lucide-react';
+import { useCart } from '@/contexts/CartContext';
 import productHeroImg from '@/assets/product-hero.png';
 import logoImg from '@/assets/liberty-pharma-logo.png';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const Catalog = () => {
+  const { totalItems } = useCart();
   const { t } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,6 +96,14 @@ const Catalog = () => {
           </Link>
           <nav className="flex items-center gap-4 text-sm">
             <Link to="/catalogo" className="text-foreground font-medium">{t('catalog')}</Link>
+            <Link to="/carrinho" className="relative text-foreground hover:text-primary transition-colors">
+              <ShoppingCart className="w-5 h-5" />
+              {totalItems > 0 && (
+                <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                  {totalItems}
+                </span>
+              )}
+            </Link>
             <LanguageSwitcher />
           </nav>
         </div>

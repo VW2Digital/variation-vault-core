@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { CartProvider } from "@/contexts/CartContext";
 import Login from "./pages/Login";
 import AdminLayout from "./pages/AdminLayout";
 import Dashboard from "./pages/Dashboard";
@@ -18,6 +19,8 @@ import OrdersPage from "./pages/OrdersPage";
 import Checkout from "./pages/Checkout";
 import CustomerLogin from "./pages/CustomerLogin";
 import CustomerDashboard from "./pages/CustomerDashboard";
+import CartPage from "./pages/CartPage";
+import CartCheckout from "./pages/CartCheckout";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +28,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <LanguageProvider>
+    <CartProvider>
     <TooltipProvider>
       <Toaster />
       <Sonner />
@@ -34,6 +38,8 @@ const App = () => (
           <Route path="/catalogo" element={<Catalog />} />
           <Route path="/produto/:id" element={<ProductCheckout />} />
           <Route path="/checkout/:id" element={<Checkout />} />
+          <Route path="/carrinho" element={<CartPage />} />
+          <Route path="/checkout-carrinho" element={<CartCheckout />} />
           <Route path="/cliente/login" element={<CustomerLogin />} />
           <Route path="/minha-conta" element={<CustomerDashboard />} />
           <Route path="/login" element={<Login />} />
@@ -51,6 +57,7 @@ const App = () => (
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
+    </CartProvider>
     </LanguageProvider>
   </QueryClientProvider>
 );
