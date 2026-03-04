@@ -80,6 +80,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const [cpf, setCpf] = useState('');
   const [phone, setPhone] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldError>({});
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
   // Address fields
   const [addrPostalCode, setAddrPostalCode] = useState('');
@@ -103,11 +104,52 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const shippingCost = selectedShipping?.price || 0;
   const totalValue = baseProductTotal + shippingCost;
 
-  // Load saved addresses on mount
+  // Load saved profile + addresses on mount
   useEffect(() => {
-    const loadAddresses = async () => {
+    const loadUserData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      if (!session) { setProfileLoaded(true); return; }
+
+      // Load profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, phone, cpf')
+        .eq('user_id', session.user.id)
+        .single();
+
+      const userEmail = session.user.email || '';
+
+      if (profile && profile.full_name && userEmail && (profile as any).cpf && profile.phone) {
+        setName(profile.full_name);
+        setEmail(userEmail);
+        setCpf(formatCpf((profile as any).cpf));
+        setPhone(formatPhone(profile.phone));
+        // Auto-create Asaas customer and skip to address
+        try {
+          const customer = await invokeAsaas('create_customer', {
+            name: profile.full_name,
+            email: userEmail,
+            cpfCnpj: ((profile as any).cpf || '').replace(/\D/g, ''),
+            phone: (profile.phone || '').replace(/\D/g, ''),
+          });
+          setCustomerId(customer.id);
+          setHolderEmail(userEmail);
+          setHolderCpf(formatCpf((profile as any).cpf));
+          setHolderPhone(formatPhone(profile.phone));
+          setStep('address');
+        } catch {
+          // If Asaas fails, stay on customer step
+        }
+      } else {
+        // Pre-fill what we have
+        if (profile?.full_name) setName(profile.full_name);
+        if (userEmail) setEmail(userEmail);
+        if ((profile as any)?.cpf) setCpf(formatCpf((profile as any).cpf));
+        if (profile?.phone) setPhone(formatPhone(profile.phone));
+      }
+      setProfileLoaded(true);
+
+      // Load addresses
       const { data } = await supabase
         .from('addresses')
         .select('*')
@@ -122,7 +164,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
         }
       }
     };
-    loadAddresses();
+    loadUserData();
   }, []);
 
   const applyAddress = (addr: any) => {
@@ -301,6 +343,17 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
       setHolderEmail(email);
       setHolderCpf(cpf);
       setHolderPhone(phone);
+
+      // Save buyer data to profile for future purchases
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await supabase.from('profiles').update({
+          full_name: name.trim(),
+          phone: phone.replace(/\D/g, ''),
+          cpf: cpf.replace(/\D/g, ''),
+        } as any).eq('user_id', session.user.id);
+      }
+
       setStep('address');
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
