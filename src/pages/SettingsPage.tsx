@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Phone, CreditCard, Eye, EyeOff, Truck, MapPin, Mail } from 'lucide-react';
+import { Phone, CreditCard, Eye, EyeOff, Truck, MapPin, Mail, Link2, CheckCircle2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Select,
   SelectContent,
@@ -23,7 +24,11 @@ const SettingsPage = () => {
   const [asaasEnv, setAsaasEnv] = useState('sandbox');
   const [melhorEnvioToken, setMelhorEnvioToken] = useState('');
   const [melhorEnvioClientId, setMelhorEnvioClientId] = useState('');
+  const [melhorEnvioClientSecret, setMelhorEnvioClientSecret] = useState('');
+  const [showClientSecret, setShowClientSecret] = useState(false);
   const [melhorEnvioEnv, setMelhorEnvioEnv] = useState('sandbox');
+  const [melhorEnvioTokenExpires, setMelhorEnvioTokenExpires] = useState('');
+  const [oauthConnecting, setOauthConnecting] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [showMelhorEnvioToken, setShowMelhorEnvioToken] = useState(false);
   const [resendApiKey, setResendApiKey] = useState('');
@@ -51,6 +56,41 @@ const SettingsPage = () => {
   const [packageLength, setPackageLength] = useState('17');
   const [packageWeight, setPackageWeight] = useState('0.1');
 
+  // Handle OAuth callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (code) {
+      // Remove code from URL
+      window.history.replaceState({}, '', window.location.pathname);
+      
+      (async () => {
+        try {
+          const { data: userData } = await supabase.auth.getUser();
+          const redirectUri = `${window.location.origin}/admin/configuracoes`;
+          
+          const { data, error } = await supabase.functions.invoke('melhor-envio-oauth', {
+            body: {
+              action: 'exchange_code',
+              user_id: userData.user?.id,
+              redirect_uri: redirectUri,
+              code,
+            },
+          });
+          
+          if (error || data?.error) throw new Error(data?.error || error?.message);
+          toast({ title: 'Melhor Envio conectado com sucesso!', description: `Token expira em ${new Date(data.expires_at).toLocaleString('pt-BR')}` });
+          setMelhorEnvioTokenExpires(data.expires_at);
+          // Reload settings
+          const newToken = await fetchSetting('melhor_envio_token');
+          setMelhorEnvioToken(newToken);
+        } catch (err: any) {
+          toast({ title: 'Erro ao conectar', description: err.message, variant: 'destructive' });
+        }
+      })();
+    }
+  }, []);
+
   useEffect(() => {
     Promise.all([
       fetchSetting('whatsapp_number'),
@@ -59,18 +99,22 @@ const SettingsPage = () => {
       fetchSetting('asaas_webhook_token'),
       fetchSetting('melhor_envio_token'),
       fetchSetting('melhor_envio_client_id'),
+      fetchSetting('melhor_envio_client_secret'),
       fetchSetting('melhor_envio_environment'),
       fetchSetting('melhor_envio_sender'),
+      fetchSetting('melhor_envio_token_expires_at'),
       fetchSetting('resend_api_key'),
       fetchSetting('resend_from_email'),
-    ]).then(([wp, apiKey, env, webhookToken, meToken, meClientId, meEnv, senderJson, rKey, rFrom]) => {
+    ]).then(([wp, apiKey, env, webhookToken, meToken, meClientId, meClientSecret, meEnv, senderJson, meTokenExpires, rKey, rFrom]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
       setAsaasWebhookToken(webhookToken || '');
       setMelhorEnvioToken(meToken);
       setMelhorEnvioClientId(meClientId);
+      setMelhorEnvioClientSecret(meClientSecret || '');
       setMelhorEnvioEnv(meEnv || 'sandbox');
+      setMelhorEnvioTokenExpires(meTokenExpires || '');
 
       if (senderJson) {
         try {
@@ -125,6 +169,7 @@ const SettingsPage = () => {
         upsertSetting('asaas_webhook_token', asaasWebhookToken),
         upsertSetting('melhor_envio_token', melhorEnvioToken),
         upsertSetting('melhor_envio_client_id', melhorEnvioClientId),
+        upsertSetting('melhor_envio_client_secret', melhorEnvioClientSecret),
         upsertSetting('melhor_envio_environment', melhorEnvioEnv),
         upsertSetting('melhor_envio_sender', senderData),
         upsertSetting('resend_api_key', resendApiKey),
@@ -272,13 +317,91 @@ const SettingsPage = () => {
             />
           </div>
           <div className="space-y-2">
-            <Label>Token de Acesso</Label>
+            <Label>Client Secret</Label>
+            <div className="relative">
+              <Input
+                type={showClientSecret ? 'text' : 'password'}
+                value={melhorEnvioClientSecret}
+                onChange={(e) => setMelhorEnvioClientSecret(e.target.value)}
+                placeholder="Seu Client Secret do Melhor Envio"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowClientSecret(!showClientSecret)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showClientSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Encontre em Melhor Envio → Configurações → Tokens → Seu app → Client Secret
+            </p>
+          </div>
+
+          {/* OAuth Status */}
+          {melhorEnvioTokenExpires && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted border border-border/50">
+              <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+              <div className="text-sm">
+                <span className="font-medium">Conectado</span>
+                <span className="text-muted-foreground ml-1">
+                  — Token expira em {new Date(melhorEnvioTokenExpires).toLocaleString('pt-BR')}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* OAuth Connect Button */}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={oauthConnecting || !melhorEnvioClientId || !melhorEnvioClientSecret}
+              onClick={async () => {
+                setOauthConnecting(true);
+                try {
+                  // Save settings first
+                  await Promise.all([
+                    upsertSetting('melhor_envio_client_id', melhorEnvioClientId),
+                    upsertSetting('melhor_envio_client_secret', melhorEnvioClientSecret),
+                    upsertSetting('melhor_envio_environment', melhorEnvioEnv),
+                  ]);
+
+                  const { data: userData } = await supabase.auth.getUser();
+                  const redirectUri = `${window.location.origin}/admin/configuracoes`;
+
+                  const { data, error } = await supabase.functions.invoke('melhor-envio-oauth', {
+                    body: {
+                      action: 'get_auth_url',
+                      user_id: userData.user?.id,
+                      redirect_uri: redirectUri,
+                    },
+                  });
+
+                  if (error || data?.error) throw new Error(data?.error || error?.message);
+                  window.location.href = data.auth_url;
+                } catch (err: any) {
+                  toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+                } finally {
+                  setOauthConnecting(false);
+                }
+              }}
+              className="flex items-center gap-2"
+            >
+              <Link2 className="w-4 h-4" />
+              {oauthConnecting ? 'Conectando...' : 'Conectar com Melhor Envio (OAuth2)'}
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Token de Acesso (manual)</Label>
             <div className="relative">
               <Input
                 type={showMelhorEnvioToken ? 'text' : 'password'}
                 value={melhorEnvioToken}
                 onChange={(e) => setMelhorEnvioToken(e.target.value)}
-                placeholder="Seu token do Melhor Envio"
+                placeholder="Ou cole manualmente seu token"
                 className="pr-10"
               />
               <button
@@ -289,6 +412,23 @@ const SettingsPage = () => {
                 {showMelhorEnvioToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Opcional: use OAuth2 acima para renovação automática, ou cole o token manualmente.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">URL de Redirecionamento OAuth (copie para o Melhor Envio)</Label>
+            <Input
+              readOnly
+              value={`${window.location.origin}/admin/configuracoes`}
+              className="bg-muted text-xs"
+              onClick={(e) => {
+                (e.target as HTMLInputElement).select();
+                navigator.clipboard.writeText(`${window.location.origin}/admin/configuracoes`);
+                toast({ title: 'URL copiada!' });
+              }}
+            />
           </div>
         </CardContent>
       </Card>
