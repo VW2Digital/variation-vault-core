@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { ShoppingCart, User, Menu, LogOut, Package, Home } from 'lucide-react';
 import logoImg from '@/assets/liberty-pharma-logo.png';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -76,6 +77,7 @@ const Header = () => {
               </Button>
             </Link>
           )}
+          <LanguageSwitcher />
         </nav>
 
         {/* Mobile: cart + hamburger */}
@@ -124,6 +126,9 @@ const Header = () => {
                     Sair
                   </button>
                 )}
+                <div className="border-t border-border/50 mt-2 pt-4 px-3">
+                  <LanguageSwitcher />
+                </div>
               </nav>
             </SheetContent>
           </Sheet>
