@@ -10,20 +10,33 @@ import { ChevronLeft } from 'lucide-react';
 
 const CartCheckout = () => {
   const navigate = useNavigate();
-  const { items, totalPrice, clearCart } = useCart();
+  const { items, totalPrice, clearCart, loading } = useCart();
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         navigate(`/cliente/login?redirect=${encodeURIComponent('/checkout-carrinho')}`);
-        return;
       }
     });
   }, [navigate]);
 
-  if (items.length === 0) {
-    navigate('/carrinho');
-    return null;
+  // Only redirect to cart if items are empty AND cart has finished loading
+  useEffect(() => {
+    if (!loading && items.length === 0 && !ready) {
+      navigate('/carrinho');
+    }
+    if (!loading && items.length > 0) {
+      setReady(true);
+    }
+  }, [loading, items, navigate, ready]);
+
+  if (!ready) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
   }
 
   // Build a combined product name and total for CheckoutForm
