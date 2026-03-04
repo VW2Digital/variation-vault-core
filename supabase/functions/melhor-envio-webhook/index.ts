@@ -32,18 +32,36 @@ Deno.serve(async (req) => {
     if (payload?.event && payload?.data) {
       const { event, data } = payload;
       const shipmentId = data?.id;
-      const tracking = data?.tracking;
+      const tracking = data?.tracking || data?.self_tracking || data?.melhorenvio_tracking;
       const status = data?.status;
 
       if (shipmentId) {
-        // Update order that matches this shipment_id
         const updateData: Record<string, unknown> = {};
+        
         if (tracking) {
           updateData.tracking_code = tracking;
+          updateData.tracking_url = `https://www.melhorrastreio.com.br/rastreio/${tracking}`;
           updateData.delivery_status = "SHIPPED";
         }
+
         if (status) {
           updateData.shipping_status = status;
+          
+          // Map ME statuses to delivery statuses
+          if (status === 'posted') {
+            updateData.delivery_status = 'SHIPPED';
+          } else if (status === 'delivered') {
+            updateData.delivery_status = 'DELIVERED';
+          } else if (status === 'canceled') {
+            updateData.delivery_status = 'RETURNED';
+          }
+        }
+
+        // Also try to extract carrier info
+        if (data?.service?.company?.name) {
+          const compName = data.service.company.name;
+          const svcName = data.service.name || '';
+          updateData.shipping_service = compName && svcName ? `${compName} ${svcName}`.trim() : compName;
         }
 
         if (Object.keys(updateData).length > 0) {
@@ -57,7 +75,7 @@ Deno.serve(async (req) => {
           if (error) {
             console.error("Error updating order:", error);
           } else {
-            console.log(`Order updated for shipment ${shipmentId}`);
+            console.log(`Order updated for shipment ${shipmentId}:`, JSON.stringify(updateData));
           }
         }
       }
@@ -65,7 +83,7 @@ Deno.serve(async (req) => {
       // Log the event
       await supabase.from("shipping_logs").insert({
         order_id: null,
-        event_type: event,
+        event_type: `webhook_${event}`,
         request_payload: null,
         response_payload: payload,
         error_message: null,
@@ -79,7 +97,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("Webhook error:", error);
     return new Response(JSON.stringify({ error: "Internal error" }), {
-      status: 200, // Return 200 to avoid retries
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
