@@ -7,12 +7,14 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle, MapPin } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useCart } from '@/contexts/CartContext';
 
 interface CheckoutFormProps {
   productName: string;
   dosage: string;
   quantity: number;
   unitPrice: number;
+  onSuccess?: () => void;
 }
 
 type PaymentMethod = 'credit_card' | 'pix';
@@ -49,9 +51,10 @@ const ErrorText = ({ msg }: { msg?: string }) =>
     </p>
   ) : null;
 
-const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutFormProps) => {
+const CheckoutForm = ({ productName, dosage, quantity, unitPrice, onSuccess }: CheckoutFormProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { clearCart } = useCart();
   const totalValue = unitPrice * quantity;
 
   const [step, setStep] = useState<CheckoutStep>('customer');
@@ -295,6 +298,8 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice }: CheckoutForm
         setPaymentResult(result);
       }
       setStep('success');
+      await clearCart();
+      onSuccess?.();
     } catch (err: any) {
       toast({ title: 'Erro no pagamento', description: err.message, variant: 'destructive' });
     } finally {
