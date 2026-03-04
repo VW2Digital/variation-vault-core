@@ -82,6 +82,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, onSuccess }: C
   const [fetchingCep, setFetchingCep] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
+  const [saveAddress, setSaveAddress] = useState(false);
 
   // Load saved addresses on mount
   useEffect(() => {
@@ -286,8 +287,28 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, onSuccess }: C
     }
   };
 
-  const handleAddressNext = () => {
+  const handleAddressNext = async () => {
     if (!validateAddress()) return;
+    // Auto-save address if user opted in and is logged in and using a new address
+    if (saveAddress && selectedAddressId === 'new' || (saveAddress && savedAddresses.length === 0)) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          await supabase.from('addresses').insert({
+            user_id: session.user.id,
+            label: 'Checkout',
+            postal_code: addrPostalCode.replace(/\D/g, ''),
+            street: addrStreet.trim(),
+            number: addrNumber.trim(),
+            complement: addrComplement.trim(),
+            district: addrDistrict.trim(),
+            city: addrCity.trim(),
+            state: addrState.trim().toUpperCase(),
+            is_default: savedAddresses.length === 0,
+          });
+        }
+      } catch { /* non-blocking */ }
+    }
     // Pre-fill card holder postal code and number
     setHolderPostalCode(addrPostalCode);
     setHolderAddressNumber(addrNumber);
@@ -511,6 +532,21 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, onSuccess }: C
               <ErrorText msg={addressErrors.state} />
             </div>
           </div>
+          {/* Save address checkbox - only for new addresses and logged-in users */}
+          {(selectedAddressId === 'new' || savedAddresses.length === 0) && (
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="save-address"
+                checked={saveAddress}
+                onChange={(e) => setSaveAddress(e.target.checked)}
+                className="rounded border-border"
+              />
+              <Label htmlFor="save-address" className="text-xs text-muted-foreground cursor-pointer">
+                Salvar este endereço na minha conta
+              </Label>
+            </div>
+          )}
           <Button onClick={handleAddressNext} className="w-full">
             Continuar para Pagamento
           </Button>
