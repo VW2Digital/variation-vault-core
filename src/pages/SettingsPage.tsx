@@ -91,30 +91,40 @@ const SettingsPage = () => {
     }
   }, []);
 
+  // Load Melhor Envio env-specific credentials
+  const loadMelhorEnvioCredentials = async (env: string) => {
+    const [meToken, meClientId, meClientSecret, meTokenExpires] = await Promise.all([
+      fetchSetting(`melhor_envio_token_${env}`),
+      fetchSetting(`melhor_envio_client_id_${env}`),
+      fetchSetting(`melhor_envio_client_secret_${env}`),
+      fetchSetting(`melhor_envio_token_expires_at_${env}`),
+    ]);
+    setMelhorEnvioToken(meToken);
+    setMelhorEnvioClientId(meClientId);
+    setMelhorEnvioClientSecret(meClientSecret || '');
+    setMelhorEnvioTokenExpires(meTokenExpires || '');
+  };
+
   useEffect(() => {
     Promise.all([
       fetchSetting('whatsapp_number'),
       fetchSetting('asaas_api_key'),
       fetchSetting('asaas_environment'),
       fetchSetting('asaas_webhook_token'),
-      fetchSetting('melhor_envio_token'),
-      fetchSetting('melhor_envio_client_id'),
-      fetchSetting('melhor_envio_client_secret'),
       fetchSetting('melhor_envio_environment'),
       fetchSetting('melhor_envio_sender'),
-      fetchSetting('melhor_envio_token_expires_at'),
       fetchSetting('resend_api_key'),
       fetchSetting('resend_from_email'),
-    ]).then(([wp, apiKey, env, webhookToken, meToken, meClientId, meClientSecret, meEnv, senderJson, meTokenExpires, rKey, rFrom]) => {
+    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
       setAsaasWebhookToken(webhookToken || '');
-      setMelhorEnvioToken(meToken);
-      setMelhorEnvioClientId(meClientId);
-      setMelhorEnvioClientSecret(meClientSecret || '');
-      setMelhorEnvioEnv(meEnv || 'sandbox');
-      setMelhorEnvioTokenExpires(meTokenExpires || '');
+      const currentMeEnv = meEnv || 'sandbox';
+      setMelhorEnvioEnv(currentMeEnv);
+
+      // Load env-specific credentials
+      await loadMelhorEnvioCredentials(currentMeEnv);
 
       if (senderJson) {
         try {
@@ -140,6 +150,21 @@ const SettingsPage = () => {
       setResendFromEmail(rFrom || 'onboarding@resend.dev');
     }).finally(() => setLoading(false));
   }, []);
+
+  // When environment changes, save current credentials and load the new env's
+  const handleMelhorEnvioEnvChange = async (newEnv: string) => {
+    // Save current env credentials before switching
+    const oldEnv = melhorEnvioEnv;
+    if (melhorEnvioClientId || melhorEnvioClientSecret || melhorEnvioToken) {
+      await Promise.all([
+        upsertSetting(`melhor_envio_client_id_${oldEnv}`, melhorEnvioClientId),
+        upsertSetting(`melhor_envio_client_secret_${oldEnv}`, melhorEnvioClientSecret),
+        upsertSetting(`melhor_envio_token_${oldEnv}`, melhorEnvioToken),
+      ]);
+    }
+    setMelhorEnvioEnv(newEnv);
+    await loadMelhorEnvioCredentials(newEnv);
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -167,9 +192,9 @@ const SettingsPage = () => {
         upsertSetting('asaas_api_key', asaasApiKey),
         upsertSetting('asaas_environment', asaasEnv),
         upsertSetting('asaas_webhook_token', asaasWebhookToken),
-        upsertSetting('melhor_envio_token', melhorEnvioToken),
-        upsertSetting('melhor_envio_client_id', melhorEnvioClientId),
-        upsertSetting('melhor_envio_client_secret', melhorEnvioClientSecret),
+        upsertSetting(`melhor_envio_token_${melhorEnvioEnv}`, melhorEnvioToken),
+        upsertSetting(`melhor_envio_client_id_${melhorEnvioEnv}`, melhorEnvioClientId),
+        upsertSetting(`melhor_envio_client_secret_${melhorEnvioEnv}`, melhorEnvioClientSecret),
         upsertSetting('melhor_envio_environment', melhorEnvioEnv),
         upsertSetting('melhor_envio_sender', senderData),
         upsertSetting('resend_api_key', resendApiKey),
@@ -298,7 +323,7 @@ const SettingsPage = () => {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Ambiente</Label>
-            <Select value={melhorEnvioEnv} onValueChange={setMelhorEnvioEnv}>
+            <Select value={melhorEnvioEnv} onValueChange={handleMelhorEnvioEnvChange}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -363,8 +388,8 @@ const SettingsPage = () => {
                 try {
                   // Save settings first
                   await Promise.all([
-                    upsertSetting('melhor_envio_client_id', melhorEnvioClientId),
-                    upsertSetting('melhor_envio_client_secret', melhorEnvioClientSecret),
+                    upsertSetting(`melhor_envio_client_id_${melhorEnvioEnv}`, melhorEnvioClientId),
+                    upsertSetting(`melhor_envio_client_secret_${melhorEnvioEnv}`, melhorEnvioClientSecret),
                     upsertSetting('melhor_envio_environment', melhorEnvioEnv),
                   ]);
 

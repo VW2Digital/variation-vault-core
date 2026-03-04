@@ -36,9 +36,9 @@ serve(async (req) => {
 
     if (!userId) throw new Error('user_id é obrigatório');
 
-    const clientId = await getSetting(supabase, 'melhor_envio_client_id');
-    const clientSecret = await getSetting(supabase, 'melhor_envio_client_secret');
     const env = (await getSetting(supabase, 'melhor_envio_environment')) || 'sandbox';
+    const clientId = await getSetting(supabase, `melhor_envio_client_id_${env}`);
+    const clientSecret = await getSetting(supabase, `melhor_envio_client_secret_${env}`);
 
     const baseUrl = env === 'production'
       ? 'https://www.melhorenvio.com.br'
@@ -109,9 +109,9 @@ serve(async (req) => {
 
       // Save tokens
       await Promise.all([
-        upsertSetting(supabase, 'melhor_envio_token', accessToken, userId),
-        upsertSetting(supabase, 'melhor_envio_refresh_token', refreshToken, userId),
-        upsertSetting(supabase, 'melhor_envio_token_expires_at', expiresAt, userId),
+        upsertSetting(supabase, `melhor_envio_token_${env}`, accessToken, userId),
+        upsertSetting(supabase, `melhor_envio_refresh_token_${env}`, refreshToken, userId),
+        upsertSetting(supabase, `melhor_envio_token_expires_at_${env}`, expiresAt, userId),
       ]);
 
       console.log(`[OAuth] Tokens saved. Expires at: ${expiresAt}`);
@@ -128,7 +128,7 @@ serve(async (req) => {
 
     // ─── REFRESH TOKEN ───
     if (action === 'refresh_token') {
-      const refreshToken = await getSetting(supabase, 'melhor_envio_refresh_token');
+      const refreshToken = await getSetting(supabase, `melhor_envio_refresh_token_${env}`);
       if (!refreshToken) {
         throw new Error('Refresh token não encontrado. Reconecte com o Melhor Envio.');
       }
@@ -163,9 +163,9 @@ serve(async (req) => {
       const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
       await Promise.all([
-        upsertSetting(supabase, 'melhor_envio_token', newAccessToken, userId),
-        upsertSetting(supabase, 'melhor_envio_refresh_token', newRefreshToken, userId),
-        upsertSetting(supabase, 'melhor_envio_token_expires_at', expiresAt, userId),
+        upsertSetting(supabase, `melhor_envio_token_${env}`, newAccessToken, userId),
+        upsertSetting(supabase, `melhor_envio_refresh_token_${env}`, newRefreshToken, userId),
+        upsertSetting(supabase, `melhor_envio_token_expires_at_${env}`, expiresAt, userId),
       ]);
 
       console.log(`[OAuth] Token refreshed. New expiry: ${expiresAt}`);
