@@ -12,9 +12,9 @@ async function getSetting(supabase: any, key: string) {
 }
 
 async function getMelhorEnvioConfig(supabase: any) {
-  const token = await getSetting(supabase, 'melhor_envio_token');
   const env = await getSetting(supabase, 'melhor_envio_environment') || 'sandbox';
-  const expiresAt = await getSetting(supabase, 'melhor_envio_token_expires_at');
+  const token = await getSetting(supabase, `melhor_envio_token_${env}`);
+  const expiresAt = await getSetting(supabase, `melhor_envio_token_expires_at_${env}`);
   
   if (!token) throw new Error('Token do Melhor Envio não configurado');
   
@@ -29,9 +29,9 @@ async function getMelhorEnvioConfig(supabase: any) {
     if (expiryDate <= fiveMinFromNow) {
       console.log('[ME] Token expiring soon, attempting refresh...');
       try {
-        const refreshToken = await getSetting(supabase, 'melhor_envio_refresh_token');
-        const clientId = await getSetting(supabase, 'melhor_envio_client_id');
-        const clientSecret = await getSetting(supabase, 'melhor_envio_client_secret');
+        const refreshToken = await getSetting(supabase, `melhor_envio_refresh_token_${env}`);
+        const clientId = await getSetting(supabase, `melhor_envio_client_id_${env}`);
+        const clientSecret = await getSetting(supabase, `melhor_envio_client_secret_${env}`);
         
         if (refreshToken && clientId && clientSecret) {
           const tokenRes = await fetch(`${baseUrl}/oauth/token`, {
@@ -59,9 +59,9 @@ async function getMelhorEnvioConfig(supabase: any) {
             const uid = tokenSetting?.user_id || '';
 
             await Promise.all([
-              supabase.from('site_settings').update({ value: tokenData.access_token }).eq('key', 'melhor_envio_token'),
-              supabase.from('site_settings').update({ value: tokenData.refresh_token }).eq('key', 'melhor_envio_refresh_token'),
-              supabase.from('site_settings').update({ value: newExpiresAt }).eq('key', 'melhor_envio_token_expires_at'),
+              supabase.from('site_settings').update({ value: tokenData.access_token }).eq('key', `melhor_envio_token_${env}`),
+              supabase.from('site_settings').update({ value: tokenData.refresh_token }).eq('key', `melhor_envio_refresh_token_${env}`),
+              supabase.from('site_settings').update({ value: newExpiresAt }).eq('key', `melhor_envio_token_expires_at_${env}`),
             ]);
 
             console.log(`[ME] Token auto-refreshed. New expiry: ${newExpiresAt}`);
