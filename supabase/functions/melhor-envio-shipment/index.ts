@@ -16,7 +16,7 @@ async function getMelhorEnvioConfig(supabase: any) {
   const env = await getSetting(supabase, 'melhor_envio_environment') || 'sandbox';
   if (!token) throw new Error('Token do Melhor Envio não configurado');
   const baseUrl = env === 'production'
-    ? 'https://api.melhorenvio.com.br'
+    ? 'https://www.melhorenvio.com.br'
     : 'https://sandbox.melhorenvio.com.br';
   return { token, baseUrl };
 }
