@@ -182,7 +182,8 @@ async function sendTrackingEmail(supabase: any, order: any, trackingCode: string
 async function fetchShipmentDetails(baseUrl: string, token: string, shipmentId: string) {
   try {
     const data = await melhorEnvioFetch(baseUrl, token, `/api/v2/me/orders/${shipmentId}`, 'GET');
-    console.log(`[ME] Shipment details status: ${data?.status}, tracking: ${data?.tracking || 'none'}, self_tracking: ${data?.self_tracking || 'none'}`);
+    const volumeTracking = data?.volumes?.[0]?.tracking || '';
+    console.log(`[ME] Shipment details status: ${data?.status}, tracking: ${data?.tracking || 'none'}, self_tracking: ${data?.self_tracking || 'none'}, protocol: ${data?.protocol || 'none'}, volume_tracking: ${volumeTracking || 'none'}`);
     return data;
   } catch (err: any) {
     console.error('[ME] Failed to fetch shipment details:', err.message);
@@ -196,9 +197,15 @@ function extractTrackingInfo(shipmentDetails: any, trackingResult: any, shipment
   let serviceName = '';
   let companyName = '';
 
-  // Try from shipment details first (most reliable)
+  // Priority: authorization_code (real carrier code) > tracking > volume tracking > self_tracking (ME internal)
   if (shipmentDetails) {
-    trackingCode = shipmentDetails.tracking || shipmentDetails.self_tracking || shipmentDetails.melhorenvio_tracking || '';
+    const volumeTracking = shipmentDetails.volumes?.[0]?.tracking || '';
+    trackingCode = shipmentDetails.authorization_code
+      || shipmentDetails.tracking 
+      || volumeTracking
+      || shipmentDetails.self_tracking 
+      || shipmentDetails.melhorenvio_tracking 
+      || '';
     serviceName = shipmentDetails.service?.name || '';
     companyName = shipmentDetails.service?.company?.name || '';
   }
@@ -206,7 +213,7 @@ function extractTrackingInfo(shipmentDetails: any, trackingResult: any, shipment
   // Fallback to tracking endpoint result
   if (!trackingCode && trackingResult) {
     const trackingData = trackingResult?.[shipmentId];
-    trackingCode = trackingData?.tracking || trackingData?.melhorenvio_tracking || '';
+    trackingCode = trackingData?.authorization_code || trackingData?.tracking || trackingData?.melhorenvio_tracking || '';
   }
 
   // Build display name: "Jadlog .Com" or just "Jadlog"
@@ -530,7 +537,7 @@ serve(async (req) => {
       await logShipping(supabase, orderId, 'shipment_details_response', shipmentDetails);
 
       if (shipmentDetails) {
-        trackingCode = shipmentDetails.tracking || shipmentDetails.self_tracking || shipmentDetails.melhorenvio_tracking || '';
+        trackingCode = shipmentDetails.authorization_code || shipmentDetails.tracking || shipmentDetails.self_tracking || shipmentDetails.melhorenvio_tracking || '';
         
         // Update service name from details if available
         if (shipmentDetails.service) {
@@ -549,7 +556,7 @@ serve(async (req) => {
           const trackingResult = await melhorEnvioFetch(baseUrl, token, '/api/v2/me/shipment/tracking', 'POST', { orders: [shipmentId] });
           await logShipping(supabase, orderId, 'tracking_response', trackingResult);
           const trackingData = trackingResult?.[shipmentId];
-          trackingCode = trackingData?.tracking || trackingData?.melhorenvio_tracking || '';
+          trackingCode = trackingData?.authorization_code || trackingData?.tracking || trackingData?.melhorenvio_tracking || '';
         } catch (e: any) {
           console.log('[ME] Tracking endpoint error (non-fatal):', e.message);
         }

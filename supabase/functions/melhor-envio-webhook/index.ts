@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     if (payload?.event && payload?.data) {
       const { event, data } = payload;
       const shipmentId = data?.id;
-      const tracking = data?.tracking || data?.self_tracking || data?.melhorenvio_tracking;
+      const tracking = data?.authorization_code || data?.tracking || data?.self_tracking || data?.melhorenvio_tracking;
       const status = data?.status;
 
       if (shipmentId) {
