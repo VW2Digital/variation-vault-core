@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { signIn, signUp } from '@/lib/api';
+import { signIn } from '@/lib/api';
 import { useNavigate, Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,6 @@ import logoImg from '@/assets/liberty-pharma-logo.png';
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -21,12 +20,7 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      if (isSignUp) {
-        await signUp(email, password);
-        toast({ title: 'Conta criada com sucesso!', description: 'Você já está logado.' });
-      } else {
-        await signIn(email, password);
-      }
+      await signIn(email, password);
       navigate('/admin');
     } catch (err: any) {
       toast({
@@ -49,55 +43,49 @@ const Login = () => {
         </div>
       </header>
       <div className="flex-1 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-lg border-border/50">
-        <CardHeader className="text-center space-y-4 pb-2">
-          <div className="mx-auto w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-            <ShieldCheck className="w-7 h-7 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Painel Administrativo</h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              {isSignUp ? 'Crie sua conta para gerenciar produtos' : 'Faça login para gerenciar seus produtos'}
-            </p>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+        <Card className="w-full max-w-md shadow-lg border-border/50">
+          <CardHeader className="text-center space-y-4 pb-2">
+            <div className="mx-auto w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+              <ShieldCheck className="w-7 h-7 text-primary" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Painel Administrativo</h1>
+              <p className="text-muted-foreground text-sm mt-1">
+                Faça login para gerenciar seus produtos
+              </p>
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Carregando...' : isSignUp ? 'Criar Conta' : 'Entrar'}
-            </Button>
-            <p className="text-sm text-center text-muted-foreground">
-              {isSignUp ? 'Já tem conta?' : 'Não tem conta?'}{' '}
-              <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-primary font-medium hover:underline">
-                {isSignUp ? 'Fazer login' : 'Criar conta'}
-              </button>
-            </p>
-          </form>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Senha</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? 'Carregando...' : 'Entrar'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
