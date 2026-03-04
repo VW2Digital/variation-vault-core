@@ -4,10 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { fetchProduct } from '@/lib/api';
 import { AnimatedSection } from '@/components/AnimatedSection';
 import CheckoutForm from '@/components/CheckoutForm';
-import logoImg from '@/assets/liberty-pharma-logo.png';
+import Header from '@/components/Header';
 import productHeroImg from '@/assets/product-hero.png';
-import { ChevronLeft } from 'lucide-react';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const Checkout = () => {
@@ -71,23 +69,7 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border/50 bg-card">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/catalogo" className="flex items-center gap-2">
-            <img src={logoImg} alt="Liberty Pharma" className="h-10 object-contain" />
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link
-              to={`/produto/${id}?v=${variation?.id || ''}`}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-            >
-              <ChevronLeft className="w-4 h-4" /> {t('backToProduct')}
-            </Link>
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </header>
+      <Header />
 
       <section className="max-w-3xl mx-auto px-4 py-8">
         <AnimatedSection variant="fadeUp">
