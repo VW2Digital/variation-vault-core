@@ -32,6 +32,7 @@ import { Label } from '@/components/ui/label';
 
 const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   PENDING: { label: 'Pendente', variant: 'outline' },
+  PAID: { label: 'Pago', variant: 'default' },
   RECEIVED: { label: 'Recebido', variant: 'default' },
   CONFIRMED: { label: 'Confirmado', variant: 'default' },
   OVERDUE: { label: 'Vencido', variant: 'destructive' },
