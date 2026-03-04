@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle, MapPin, Truck } from 'lucide-react';
+import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle, MapPin, Truck, ShoppingBag } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCart } from '@/contexts/CartContext';
 
@@ -65,6 +66,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const { toast } = useToast();
   const { t } = useLanguage();
   const { clearCart } = useCart();
+  const navigate = useNavigate();
   const baseProductTotal = unitPrice * quantity;
   const qualifiesForFreeShipping = freeShipping && baseProductTotal >= (freeShippingMinValue || 0);
 
@@ -483,6 +485,17 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   };
 
   // ─── SUCCESS ───
+  // Auto-redirect to customer dashboard after payment (delayed for PIX to allow scanning)
+  useEffect(() => {
+    if (step === 'success') {
+      const delay = paymentMethod === 'pix' ? 30000 : 5000; // 30s for PIX, 5s for card
+      const timer = setTimeout(() => {
+        navigate('/minha-conta');
+      }, delay);
+      return () => clearTimeout(timer);
+    }
+  }, [step, paymentMethod, navigate]);
+
   if (step === 'success') {
     return (
       <Card className="border-primary/30 bg-primary/5">
@@ -504,6 +517,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
                 </div>
               )}
               <p className="text-xs text-muted-foreground">Valor: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              <p className="text-xs text-muted-foreground mt-2">Você será redirecionado em 30 segundos...</p>
             </>
           ) : (
             <>
@@ -512,8 +526,13 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
                 Status: <span className="font-medium text-primary">{paymentResult?.status === 'CONFIRMED' ? 'Confirmado' : paymentResult?.status === 'PENDING' ? 'Pendente' : paymentResult?.status}</span>
               </p>
               <p className="text-xs text-muted-foreground">Valor: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              <p className="text-xs text-muted-foreground mt-2">Você será redirecionado em 5 segundos...</p>
             </>
           )}
+          <Button onClick={() => navigate('/minha-conta')} className="mt-4 gap-2">
+            <ShoppingBag className="w-4 h-4" />
+            Ver meus pedidos
+          </Button>
         </CardContent>
       </Card>
     );
