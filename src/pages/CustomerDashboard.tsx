@@ -17,10 +17,11 @@ import { useCart } from '@/contexts/CartContext';
 import Header from '@/components/Header';
 import AddressManager from '@/components/AddressManager';
 
-const paymentStatusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: any; color: string }> = {
+const paymentStatusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: any; color: string; badgeClass?: string }> = {
   PENDING: { label: 'Aguardando Pagamento', variant: 'outline', icon: Clock, color: 'text-amber-500' },
-  RECEIVED: { label: 'Pago', variant: 'default', icon: CheckCircle2, color: 'text-emerald-500' },
-  CONFIRMED: { label: 'Confirmado', variant: 'default', icon: CheckCircle2, color: 'text-emerald-500' },
+  PAID: { label: 'Pago', variant: 'default', icon: CheckCircle2, color: 'text-emerald-500', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
+  RECEIVED: { label: 'Pago', variant: 'default', icon: CheckCircle2, color: 'text-emerald-500', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
+  CONFIRMED: { label: 'Pago', variant: 'default', icon: CheckCircle2, color: 'text-emerald-500', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
   OVERDUE: { label: 'Vencido', variant: 'destructive', icon: XCircle, color: 'text-red-500' },
   REFUNDED: { label: 'Estornado', variant: 'secondary', icon: XCircle, color: 'text-muted-foreground' },
 };
@@ -341,7 +342,7 @@ const CustomerDashboard = () => {
                 ) : (
                   <div className="space-y-3">
                     {filteredOrders.map((order) => {
-                      const paymentStatus = paymentStatusMap[order.status] || { label: order.status, variant: 'outline' as const, icon: Clock, color: '' };
+                      const paymentStatus = paymentStatusMap[order.status] || { label: order.status, variant: 'outline' as const, icon: Clock, color: '', badgeClass: '' };
                       const deliveryStatus = deliveryStatusMap[order.delivery_status] || { label: order.delivery_status || 'Em Processamento', variant: 'outline' as const, color: '' };
                       const PaymentIcon = paymentStatus.icon;
                       const isExpanded = expandedOrder === order.id;
@@ -377,7 +378,7 @@ const CustomerDashboard = () => {
                             {/* Status + Price Row */}
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <div className="flex flex-wrap gap-1.5">
-                                <Badge variant={paymentStatus.variant} className="flex items-center gap-1 text-xs">
+                                <Badge variant={paymentStatus.variant} className={`flex items-center gap-1 text-xs ${paymentStatus.badgeClass || ''}`}>
                                   <PaymentIcon className="w-3 h-3" />
                                   {paymentStatus.label}
                                 </Badge>
