@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { fetchProducts } from '@/lib/api';
+import { supabase } from '@/integrations/supabase/client';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +21,8 @@ import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const Catalog = () => {
-  const { totalItems } = useCart();
+  const { totalItems, addToCart } = useCart();
+  const navigate = useNavigate();
   const { t } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -211,54 +213,79 @@ const Catalog = () => {
 
               return (
                 <StaggerItem key={variation?.id || `${product.id}-${idx}`}>
-                  <Link
-                    to={`/produto/${product.id}${variation ? `?v=${variation.id}` : ''}`}
-                    className="group block rounded-xl border border-border/50 bg-card overflow-hidden hover:shadow-lg hover:border-primary/30 transition-all duration-300"
-                  >
-                    <div className="relative aspect-square bg-muted/30 flex items-center justify-center p-6 overflow-hidden">
-                      <img
-                        src={img}
-                        alt={displayName}
-                        className="max-w-[75%] max-h-[75%] object-contain group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-                        {offer && (
-                          <Badge className="bg-destructive text-destructive-foreground text-[10px] font-bold">
-                            {t('offer')}
-                          </Badge>
-                        )}
-                        {!inStock && (
-                          <Badge variant="secondary" className="text-[10px]">{t('outOfStock')}</Badge>
-                        )}
+                  <div className="group rounded-xl border border-border/50 bg-card overflow-hidden hover:shadow-lg hover:border-primary/30 transition-all duration-300">
+                    <Link
+                      to={`/produto/${product.id}${variation ? `?v=${variation.id}` : ''}`}
+                      className="block"
+                    >
+                      <div className="relative aspect-square bg-muted/30 flex items-center justify-center p-6 overflow-hidden">
+                        <img
+                          src={img}
+                          alt={displayName}
+                          className="max-w-[75%] max-h-[75%] object-contain group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+                          {offer && (
+                            <Badge className="bg-destructive text-destructive-foreground text-[10px] font-bold">
+                              {t('offer')}
+                            </Badge>
+                          )}
+                          {!inStock && (
+                            <Badge variant="secondary" className="text-[10px]">{t('outOfStock')}</Badge>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="p-4 space-y-2">
-                      <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
-                        {displayName}
-                      </h3>
-                      {product.subtitle && (
-                        <p className="text-xs text-muted-foreground line-clamp-1">{product.subtitle}</p>
-                      )}
-                      {product.active_ingredient && (
-                        <p className="text-[11px] text-muted-foreground">
-                          {t('activeIngredient')}: <span className="font-medium">{product.active_ingredient}</span>
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between pt-1">
-                        {price !== null ? (
-                          <p className="text-primary font-bold text-lg">
-                            R$ {price.toLocaleString('pt-BR')}
+                      <div className="p-4 space-y-2">
+                        <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                          {displayName}
+                        </h3>
+                        {product.subtitle && (
+                          <p className="text-xs text-muted-foreground line-clamp-1">{product.subtitle}</p>
+                        )}
+                        {product.active_ingredient && (
+                          <p className="text-[11px] text-muted-foreground">
+                            {t('activeIngredient')}: <span className="font-medium">{product.active_ingredient}</span>
                           </p>
-                        ) : (
-                          <p className="text-muted-foreground text-sm">{t('consult')}</p>
                         )}
-                        {inStock && (
-                          <span className="text-[10px] text-success font-medium flex items-center gap-0.5"><CircleCheck className="w-3 h-3" /> {t('inStock')}</span>
-                        )}
+                        <div className="flex items-center justify-between pt-1">
+                          {price !== null ? (
+                            <p className="text-primary font-bold text-lg">
+                              R$ {price.toLocaleString('pt-BR')}
+                            </p>
+                          ) : (
+                            <p className="text-muted-foreground text-sm">{t('consult')}</p>
+                          )}
+                          {inStock && (
+                            <span className="text-[10px] text-success font-medium flex items-center gap-0.5"><CircleCheck className="w-3 h-3" /> {t('inStock')}</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </Link>
+                    </Link>
+
+                    {/* Add to Cart Button */}
+                    {variation && inStock && (
+                      <div className="px-4 pb-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full text-xs"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const { data: { session } } = await supabase.auth.getSession();
+                            if (!session) {
+                              navigate(`/cliente/login?redirect=${encodeURIComponent('/catalogo')}`);
+                              return;
+                            }
+                            addToCart(product.id, variation.id, 1);
+                          }}
+                        >
+                          <ShoppingCart className="w-3.5 h-3.5 mr-1.5" />
+                          Adicionar ao Carrinho
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </StaggerItem>
               );
             })}
