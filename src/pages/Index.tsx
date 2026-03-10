@@ -1,12 +1,281 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { fetchProducts } from '@/lib/api';
+import { supabase } from '@/integrations/supabase/client';
+import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ShoppingCart, CircleCheck, ArrowRight, Flame, Sparkles } from 'lucide-react';
+import { useCart } from '@/contexts/CartContext';
+import Header from '@/components/Header';
+import BannerCarousel from '@/components/BannerCarousel';
+import CountdownTimer from '@/components/CountdownTimer';
+import productHeroImg from '@/assets/product-hero.png';
 
 const Index = () => {
+  const { addToCart } = useCart();
+  const navigate = useNavigate();
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProducts()
+      .then(setProducts)
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Get offer items
+  const offerItems = products.flatMap((product) => {
+    const vars = product.product_variations || [];
+    return vars
+      .filter((v: any) => v.is_offer && v.offer_price && v.in_stock)
+      .map((variation: any) => ({ product, variation }));
+  });
+
+  // Get newest items (non-offer)
+  const newestItems = products
+    .flatMap((product) => {
+      const vars = product.product_variations || [];
+      if (vars.length === 0) return [{ product, variation: null }];
+      return vars.map((variation: any) => ({ product, variation }));
+    })
+    .slice(0, 8);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <Header />
+      <BannerCarousel />
+
+      {/* Offers Section */}
+      {!loading && offerItems.length > 0 && (
+        <section className="py-12 bg-gradient-to-b from-destructive/5 via-destructive/[0.02] to-transparent">
+          <div className="max-w-7xl mx-auto px-4">
+            <AnimatedSection variant="fadeUp">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center">
+                    <Flame className="w-6 h-6 text-destructive" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl md:text-3xl font-bold text-foreground">
+                      Ofertas do Dia
+                    </h2>
+                    <p className="text-sm text-muted-foreground">Aproveite antes que acabe!</p>
+                  </div>
+                </div>
+                <CountdownTimer variant="full" />
+              </div>
+            </AnimatedSection>
+
+            <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {offerItems.map(({ product, variation }, idx) => {
+                const price = Number(variation.price);
+                const offerPrice = Number(variation.offer_price);
+                const discount = Math.round(((price - offerPrice) / price) * 100);
+                const img = variation.images?.[0] || variation.image_url || product.images?.[0] || productHeroImg;
+                const displayName = `${product.name} ${variation.dosage}`;
+
+                return (
+                  <StaggerItem key={variation.id || `offer-${idx}`}>
+                    <div className="group rounded-xl border-2 border-destructive/20 bg-card overflow-hidden hover:shadow-xl hover:border-destructive/40 transition-all duration-300 relative">
+                      {/* Offer ribbon */}
+                      <div className="absolute top-0 right-0 z-10 bg-destructive text-destructive-foreground px-3 py-1 rounded-bl-xl text-xs font-bold">
+                        -{discount}%
+                      </div>
+
+                      <Link
+                        to={`/produto/${product.id}?v=${variation.id}`}
+                        className="block"
+                      >
+                        <div className="relative aspect-square bg-muted/30 flex items-center justify-center p-6 overflow-hidden">
+                          <img
+                            src={img}
+                            alt={displayName}
+                            className="max-w-[75%] max-h-[75%] object-contain group-hover:scale-110 transition-transform duration-500"
+                          />
+                        </div>
+
+                        <div className="p-4 space-y-2">
+                          <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                            {displayName}
+                          </h3>
+                          {product.subtitle && (
+                            <p className="text-xs text-muted-foreground line-clamp-1">{product.subtitle}</p>
+                          )}
+                          <div className="space-y-1">
+                            <p className="text-muted-foreground text-xs line-through">
+                              R$ {price.toLocaleString('pt-BR')}
+                            </p>
+                            <p className="text-destructive font-bold text-xl">
+                              R$ {offerPrice.toLocaleString('pt-BR')}
+                            </p>
+                            <CountdownTimer variant="compact" />
+                          </div>
+                        </div>
+                      </Link>
+
+                      <div className="px-4 pb-4">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="w-full text-xs bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const { data: { session } } = await supabase.auth.getSession();
+                            if (!session) {
+                              navigate(`/cliente/login?redirect=${encodeURIComponent('/catalogo')}`);
+                              return;
+                            }
+                            addToCart(product.id, variation.id, 1);
+                          }}
+                        >
+                          <ShoppingCart className="w-3.5 h-3.5 mr-1.5" />
+                          Comprar Agora
+                        </Button>
+                      </div>
+                    </div>
+                  </StaggerItem>
+                );
+              })}
+            </StaggerContainer>
+          </div>
+        </section>
+      )}
+
+      {/* Products Section */}
+      <section className="py-12">
+        <div className="max-w-7xl mx-auto px-4">
+          <AnimatedSection variant="fadeUp">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Sparkles className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-2xl md:text-3xl font-bold text-foreground">Nossos Produtos</h2>
+                  <p className="text-sm text-muted-foreground">Qualidade e confiança</p>
+                </div>
+              </div>
+              <Link to="/catalogo">
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  Ver todos <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
+            </div>
+          </AnimatedSection>
+
+          {loading ? (
+            <div className="text-center py-20 text-muted-foreground">Carregando...</div>
+          ) : (
+            <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {newestItems.slice(0, 8).map(({ product, variation }, idx) => {
+                const price = variation ? Number(variation.price) : null;
+                const offerPrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : null;
+                const inStock = variation ? variation.in_stock : false;
+                const offer = variation ? variation.is_offer : false;
+                const img = variation?.images?.[0] || variation?.image_url || product.images?.[0] || productHeroImg;
+                const displayName = variation
+                  ? `${product.name} ${variation.dosage}`
+                  : product.name;
+
+                return (
+                  <StaggerItem key={variation?.id || `${product.id}-${idx}`}>
+                    <div className="group rounded-xl border border-border/50 bg-card overflow-hidden hover:shadow-lg hover:border-primary/30 transition-all duration-300">
+                      <Link
+                        to={`/produto/${product.id}${variation ? `?v=${variation.id}` : ''}`}
+                        className="block"
+                      >
+                        <div className="relative aspect-square bg-muted/30 flex items-center justify-center p-6 overflow-hidden">
+                          <img
+                            src={img}
+                            alt={displayName}
+                            className="max-w-[75%] max-h-[75%] object-contain group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+                            {offer && offerPrice && price && (
+                              <Badge className="bg-destructive text-destructive-foreground text-[10px] font-bold">
+                                -{Math.round(((price - offerPrice) / price) * 100)}%
+                              </Badge>
+                            )}
+                            {!inStock && (
+                              <Badge variant="secondary" className="text-[10px]">Esgotado</Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="p-4 space-y-2">
+                          <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                            {displayName}
+                          </h3>
+                          {product.subtitle && (
+                            <p className="text-xs text-muted-foreground line-clamp-1">{product.subtitle}</p>
+                          )}
+                          <div className="flex items-center justify-between pt-1">
+                            {price !== null ? (
+                              <div>
+                                {offerPrice ? (
+                                  <>
+                                    <p className="text-muted-foreground text-xs line-through">
+                                      R$ {price.toLocaleString('pt-BR')}
+                                    </p>
+                                    <p className="text-destructive font-bold text-lg">
+                                      R$ {offerPrice.toLocaleString('pt-BR')}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <p className="text-primary font-bold text-lg">
+                                    R$ {price.toLocaleString('pt-BR')}
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-muted-foreground text-sm">Consulte</p>
+                            )}
+                            {inStock && (
+                              <span className="text-[10px] text-success font-medium flex items-center gap-0.5">
+                                <CircleCheck className="w-3 h-3" /> Em estoque
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </Link>
+
+                      {variation && inStock && (
+                        <div className="px-4 pb-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-xs"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const { data: { session } } = await supabase.auth.getSession();
+                              if (!session) {
+                                navigate(`/cliente/login?redirect=${encodeURIComponent('/')}`);
+                                return;
+                              }
+                              addToCart(product.id, variation.id, 1);
+                            }}
+                          >
+                            <ShoppingCart className="w-3.5 h-3.5 mr-1.5" />
+                            Adicionar ao Carrinho
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </StaggerItem>
+                );
+              })}
+            </StaggerContainer>
+          )}
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-border/50 bg-card">
+        <div className="max-w-7xl mx-auto px-4 py-8 text-center text-sm text-muted-foreground">
+          <p>© {new Date().getFullYear()} Liberty Pharma — Todos os direitos reservados.</p>
+        </div>
+      </footer>
     </div>
   );
 };

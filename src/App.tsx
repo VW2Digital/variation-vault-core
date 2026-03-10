@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/toaster";
+import Index from "./pages/Index";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -37,7 +38,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/catalogo" replace />} />
+          <Route path="/" element={<Index />} />
           <Route path="/catalogo" element={<Catalog />} />
           <Route path="/produto/:id" element={<ProductCheckout />} />
           <Route path="/checkout/:id" element={<Checkout />} />

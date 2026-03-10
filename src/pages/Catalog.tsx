@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Search, SlidersHorizontal, Package, CircleCheck, ShoppingCart, X } from 'lucide-react';
+import CountdownTimer from '@/components/CountdownTimer';
 import { useCart } from '@/contexts/CartContext';
 import productHeroImg from '@/assets/product-hero.png';
 import Header from '@/components/Header';
@@ -261,6 +262,7 @@ const Catalog = () => {
                                   <p className="text-destructive font-bold text-lg">
                                     R$ {offerPrice.toLocaleString('pt-BR')}
                                   </p>
+                                  <CountdownTimer variant="compact" />
                                 </>
                               ) : (
                                 <p className="text-primary font-bold text-lg">
