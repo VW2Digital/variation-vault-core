@@ -104,6 +104,7 @@ const ProductCheckout = () => {
   const [selectedVariation, setSelectedVariation] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [currentImage, setCurrentImage] = useState(0);
+  const [wholesalePrices, setWholesalePrices] = useState<Record<string, WholesaleTier[]>>({});
 
   useEffect(() => {
     if (!id) return;
