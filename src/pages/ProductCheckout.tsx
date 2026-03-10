@@ -447,28 +447,47 @@ const ProductCheckout = () => {
         </StaggerContainer>
       </AnimatedSection>
 
-      {/* Text Testimonials */}
-      <AnimatedSection className="max-w-6xl mx-auto px-4 pb-16">
-        <StaggerContainer className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-          { name: 'Maria S.', text: 'Produto excelente! Resultado visível já na segunda semana de uso.' },
-          { name: 'Carlos A.', text: 'Entrega rápida e produto de qualidade. Recomendo a todos.' },
-          { name: 'Juliana R.', text: 'Melhor custo-benefício do mercado. Atendimento impecável.' }].
-          map((t) =>
-          <StaggerItem key={t.name}>
-              <div className="p-5 rounded-xl border border-border/50 bg-card text-left space-y-3">
-                <div className="flex gap-1 text-primary">
-                  {'★★★★★'.split('').map((s, i) =>
-                <span key={i}>{s}</span>
-                )}
+      {/* Customer Reviews */}
+      {productReviews.length > 0 && (
+        <AnimatedSection className="max-w-6xl mx-auto px-4 pb-16">
+          <h2 className="text-2xl font-bold text-foreground mb-2 text-center">Avaliações de Clientes</h2>
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <div className="flex gap-0.5">
+              {[1, 2, 3, 4, 5].map((s) => {
+                const avg = productReviews.reduce((a, r) => a + r.rating, 0) / productReviews.length;
+                return (
+                  <Star key={s} className={`w-5 h-5 ${s <= Math.round(avg) ? 'fill-primary text-primary' : 'text-muted-foreground/30'}`} />
+                );
+              })}
+            </div>
+            <span className="text-sm text-muted-foreground">
+              ({(productReviews.reduce((a, r) => a + r.rating, 0) / productReviews.length).toFixed(1)}) · {productReviews.length} avaliação(ões)
+            </span>
+          </div>
+          <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {productReviews.map((rev) => (
+              <StaggerItem key={rev.id}>
+                <div className="p-5 rounded-xl border border-border/50 bg-card text-left space-y-3">
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star key={s} className={`w-4 h-4 ${s <= rev.rating ? 'fill-primary text-primary' : 'text-muted-foreground/30'}`} />
+                    ))}
+                  </div>
+                  {rev.comment && <p className="text-sm text-foreground">"{rev.comment}"</p>}
+                  <div className="flex items-center justify-between">
+                    <Badge variant="secondary" className="text-[10px]">
+                      <CheckCircle2 className="w-3 h-3 mr-1" /> Cliente verificado
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(rev.created_at).toLocaleDateString('pt-BR')}
+                    </span>
+                  </div>
                 </div>
-                <p className="text-sm text-foreground">"{t.text}"</p>
-                <p className="text-xs font-medium text-muted-foreground">— {t.name}</p>
-              </div>
-            </StaggerItem>
-          )}
-        </StaggerContainer>
-      </AnimatedSection>
+              </StaggerItem>
+            ))}
+          </StaggerContainer>
+        </AnimatedSection>
+      )}
 
       {/* WhatsApp FAB */}
       {whatsappNumber &&

@@ -300,6 +300,21 @@ const Catalog = () => {
                             {t('activeIngredient')}: <span className="font-medium">{product.active_ingredient}</span>
                           </p>
                         )}
+                        {reviewsMap[product.name] && (
+                          <div className="flex items-center gap-1">
+                            <div className="flex gap-0.5">
+                              {[1, 2, 3, 4, 5].map((s) => (
+                                <Star
+                                  key={s}
+                                  className={`w-3 h-3 ${s <= Math.round(reviewsMap[product.name].avg) ? 'fill-primary text-primary' : 'text-muted-foreground/30'}`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-[10px] text-muted-foreground">
+                              ({reviewsMap[product.name].count})
+                            </span>
+                          </div>
+                        )}
                         {hasWholesale && wholesaleMinQty && (
                           <span className="text-[10px] text-destructive font-bold">
                             A partir de {wholesaleMinQty} unid.
