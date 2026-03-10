@@ -11,7 +11,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Loader2, Users, ShieldCheck, ShieldX, Search } from 'lucide-react';
+import { Loader2, Users, ShieldCheck, ShieldX, Search, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface UserItem {
