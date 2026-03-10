@@ -592,6 +592,38 @@ export type Database = {
         }
         Relationships: []
       }
+      wholesale_prices: {
+        Row: {
+          created_at: string
+          id: string
+          min_quantity: number
+          price: number
+          variation_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          min_quantity: number
+          price?: number
+          variation_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          min_quantity?: number
+          price?: number
+          variation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wholesale_prices_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "product_variations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
