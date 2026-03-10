@@ -25,6 +25,7 @@ import CartPage from "./pages/CartPage";
 import CartCheckout from "./pages/CartCheckout";
 import ResetPassword from "./pages/ResetPassword";
 import AdminSupportPage from "./pages/AdminSupportPage";
+import AdminReviewsPage from "./pages/AdminReviewsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
