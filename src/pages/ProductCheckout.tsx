@@ -500,29 +500,6 @@ const ProductCheckout = () => {
         </StaggerContainer>
       </AnimatedSection>
 
-      {/* Text Testimonials */}
-      <AnimatedSection className="max-w-6xl mx-auto px-4 pb-16">
-        <StaggerContainer className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-            { name: 'Maria S.', text: 'Produto excelente! Resultado visível já na segunda semana de uso.' },
-            { name: 'Carlos A.', text: 'Entrega rápida e produto de qualidade. Recomendo a todos.' },
-            { name: 'Juliana R.', text: 'Melhor custo-benefício do mercado. Atendimento impecável.' },
-          ].map((t) => (
-            <StaggerItem key={t.name}>
-              <div className="p-5 rounded-xl border border-border/50 bg-card text-left space-y-3">
-                <div className="flex gap-1 text-primary">
-                  {'★★★★★'.split('').map((s, i) => (
-                    <span key={i}>{s}</span>
-                  ))}
-                </div>
-                <p className="text-sm text-foreground">"{t.text}"</p>
-                <p className="text-xs font-medium text-muted-foreground">— {t.name}</p>
-              </div>
-            </StaggerItem>
-          ))}
-        </StaggerContainer>
-      </AnimatedSection>
-
       {/* WhatsApp FAB */}
       {whatsappNumber && (
         <a
