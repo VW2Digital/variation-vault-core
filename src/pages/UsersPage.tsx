@@ -69,6 +69,23 @@ const UsersPage = () => {
     }
   };
 
+  const handleDeleteUser = async (userId: string) => {
+    setActionLoading(userId);
+    try {
+      const res = await supabase.functions.invoke('admin-users', {
+        method: 'POST',
+        body: { action: 'delete_user', userId },
+      });
+      if (res.error) throw new Error(res.error.message);
+      toast({ title: 'Conta excluída com sucesso!' });
+      await fetchUsers();
+    } catch (err: any) {
+      toast({ title: 'Erro ao excluir conta', description: err.message, variant: 'destructive' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const filteredUsers = users.filter(u => {
     if (!search) return true;
     const term = search.toLowerCase();
