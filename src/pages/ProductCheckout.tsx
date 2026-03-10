@@ -311,9 +311,20 @@ const ProductCheckout = () => {
                   <Badge variant="destructive">{t('unavailable')}</Badge>
                 )}
               </div>
-              <p className="text-3xl font-bold text-primary">
-                R$ {(Number(variation?.price || 0) * quantity).toLocaleString('pt-BR')}
-              </p>
+              {variation?.is_offer && variation?.offer_price ? (
+                <>
+                  <p className="text-lg text-muted-foreground line-through">
+                    R$ {(Number(variation.price) * quantity).toLocaleString('pt-BR')}
+                  </p>
+                  <p className="text-3xl font-bold text-destructive">
+                    R$ {(Number(variation.offer_price) * quantity).toLocaleString('pt-BR')}
+                  </p>
+                </>
+              ) : (
+                <p className="text-3xl font-bold text-primary">
+                  R$ {(Number(variation?.price || 0) * quantity).toLocaleString('pt-BR')}
+                </p>
+              )}
               <div className="text-xs text-muted-foreground space-y-1">
                 <p className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5" /> {t('upTo6x')}</p>
                 <p className="text-success font-medium flex items-center gap-1"><CircleDollarSign className="w-3.5 h-3.5" /> {t('pixAvailable')}</p>

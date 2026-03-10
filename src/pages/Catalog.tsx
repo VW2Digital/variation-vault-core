@@ -247,9 +247,22 @@ const Catalog = () => {
                         )}
                         <div className="flex items-center justify-between pt-1">
                           {price !== null ? (
-                            <p className="text-primary font-bold text-lg">
-                              R$ {price.toLocaleString('pt-BR')}
-                            </p>
+                            <div>
+                              {offerPrice ? (
+                                <>
+                                  <p className="text-muted-foreground text-xs line-through">
+                                    R$ {price.toLocaleString('pt-BR')}
+                                  </p>
+                                  <p className="text-destructive font-bold text-lg">
+                                    R$ {offerPrice.toLocaleString('pt-BR')}
+                                  </p>
+                                </>
+                              ) : (
+                                <p className="text-primary font-bold text-lg">
+                                  R$ {price.toLocaleString('pt-BR')}
+                                </p>
+                              )}
+                            </div>
                           ) : (
                             <p className="text-muted-foreground text-sm">{t('consult')}</p>
                           )}
