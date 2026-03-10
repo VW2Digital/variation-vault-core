@@ -294,6 +294,77 @@ const ProductForm = () => {
                     </Button>
                   )}
                 </div>
+                {/* Wholesale Prices */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold">Preços no Atacado</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        const newWp = [...v.wholesale_prices, { min_quantity: 0, price: 0 }];
+                        updateVariation(i, 'wholesale_prices', newWp);
+                      }}
+                    >
+                      <Plus className="mr-1 h-3 w-3" /> Faixa
+                    </Button>
+                  </div>
+                  {v.wholesale_prices.length > 0 && (
+                    <div className="space-y-2">
+                      {v.wholesale_prices.map((wp, wpIdx) => (
+                        <div key={wpIdx} className="flex items-center gap-2">
+                          <div className="flex-1 space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">A partir de (unid.)</Label>
+                            <Input
+                              type="number"
+                              min={2}
+                              value={wp.min_quantity || ''}
+                              onChange={(e) => {
+                                const newWp = [...v.wholesale_prices];
+                                newWp[wpIdx] = { ...newWp[wpIdx], min_quantity: Number(e.target.value) };
+                                updateVariation(i, 'wholesale_prices', newWp);
+                              }}
+                              placeholder="Ex: 10"
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Preço unitário (R$)</Label>
+                            <Input
+                              type="number"
+                              value={wp.price || ''}
+                              onChange={(e) => {
+                                const newWp = [...v.wholesale_prices];
+                                newWp[wpIdx] = { ...newWp[wpIdx], price: Number(e.target.value) };
+                                updateVariation(i, 'wholesale_prices', newWp);
+                              }}
+                              placeholder="0.00"
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive mt-4"
+                            onClick={() => {
+                              const newWp = v.wholesale_prices.filter((_, j) => j !== wpIdx);
+                              updateVariation(i, 'wholesale_prices', newWp);
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {v.wholesale_prices.length === 0 && (
+                    <p className="text-[10px] text-muted-foreground">Nenhuma faixa de atacado. Clique em "+ Faixa" para adicionar.</p>
+                  )}
+                </div>
+
                 {/* Variation images */}
                 <div className="space-y-2">
                   <Label className="text-xs">Imagens da Variação</Label>
