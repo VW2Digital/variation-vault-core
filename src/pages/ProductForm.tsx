@@ -125,13 +125,47 @@ const ProductForm = () => {
         variations: variations.filter((v) => v.dosage.trim() !== ''),
       };
 
+      let savedProduct: any;
       if (isEditing && id) {
         await updateProduct(id, data);
+        savedProduct = { id };
         toast({ title: 'Produto atualizado!' });
       } else {
-        await createProduct(data);
+        savedProduct = await createProduct(data);
         toast({ title: 'Produto criado!' });
       }
+
+      // Save wholesale prices for each variation
+      const productId = savedProduct?.id || id;
+      if (productId) {
+        // Fetch the saved variations to get their IDs
+        const { data: savedVars } = await supabase
+          .from('product_variations')
+          .select('id, dosage')
+          .eq('product_id', productId);
+        
+        if (savedVars) {
+          for (const sv of savedVars) {
+            const matchingVar = variations.find(v => v.dosage === sv.dosage);
+            if (matchingVar && matchingVar.wholesale_prices.length > 0) {
+              // Delete existing wholesale prices for this variation
+              await supabase.from('wholesale_prices' as any).delete().eq('variation_id', sv.id);
+              // Insert new ones
+              await supabase.from('wholesale_prices' as any).insert(
+                matchingVar.wholesale_prices.map(wp => ({
+                  variation_id: sv.id,
+                  min_quantity: wp.min_quantity,
+                  price: wp.price,
+                })) as any
+              );
+            } else {
+              // No wholesale prices, clean up
+              await supabase.from('wholesale_prices' as any).delete().eq('variation_id', sv.id);
+            }
+          }
+        }
+      }
+
       navigate('/admin/produtos');
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
