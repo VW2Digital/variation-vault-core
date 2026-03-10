@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { fetchProduct, createProduct, updateProduct, uploadFile } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +11,12 @@ import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, Plus, Trash2, ImagePlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+interface WholesaleTier {
+  id?: string;
+  min_quantity: number;
+  price: number;
+}
+
 interface Variation {
   id?: string;
   dosage: string;
@@ -19,6 +26,7 @@ interface Variation {
   is_offer: boolean;
   image_url: string;
   images: string[];
+  wholesale_prices: WholesaleTier[];
 }
 
 const emptyVariation = (): Variation => ({
@@ -29,6 +37,7 @@ const emptyVariation = (): Variation => ({
   is_offer: false,
   image_url: '',
   images: [],
+  wholesale_prices: [],
 });
 
 const ProductForm = () => {
@@ -53,7 +62,7 @@ const ProductForm = () => {
   useEffect(() => {
     if (id) {
       setLoadingProduct(true);
-      fetchProduct(id).then((p) => {
+      fetchProduct(id).then(async (p) => {
         setName(p.name);
         setSubtitle(p.subtitle || '');
         setDescription(p.description || '');
@@ -63,6 +72,20 @@ const ProductForm = () => {
         setFrequency(p.frequency || '');
         setFreeShipping(p.free_shipping || false);
         setFreeShippingMinValue(Number(p.free_shipping_min_value) || 0);
+        // Fetch wholesale prices for all variations
+        const varIds = (p.product_variations || []).map((v: any) => v.id);
+        let wholesaleMap: Record<string, WholesaleTier[]> = {};
+        if (varIds.length > 0) {
+          const { data: wp } = await supabase
+            .from('wholesale_prices' as any)
+            .select('*')
+            .in('variation_id', varIds)
+            .order('min_quantity', { ascending: true });
+          (wp || []).forEach((w: any) => {
+            if (!wholesaleMap[w.variation_id]) wholesaleMap[w.variation_id] = [];
+            wholesaleMap[w.variation_id].push({ id: w.id, min_quantity: w.min_quantity, price: Number(w.price) });
+          });
+        }
         setVariations(
           p.product_variations?.length > 0
             ? p.product_variations.map((v: any) => ({
@@ -74,6 +97,7 @@ const ProductForm = () => {
                 is_offer: v.is_offer,
                 image_url: v.image_url || '',
                 images: v.images || [],
+                wholesale_prices: wholesaleMap[v.id] || [],
               }))
             : [emptyVariation()]
         );
@@ -102,13 +126,47 @@ const ProductForm = () => {
         variations: variations.filter((v) => v.dosage.trim() !== ''),
       };
 
+      let savedProduct: any;
       if (isEditing && id) {
         await updateProduct(id, data);
+        savedProduct = { id };
         toast({ title: 'Produto atualizado!' });
       } else {
-        await createProduct(data);
+        savedProduct = await createProduct(data);
         toast({ title: 'Produto criado!' });
       }
+
+      // Save wholesale prices for each variation
+      const productId = savedProduct?.id || id;
+      if (productId) {
+        // Fetch the saved variations to get their IDs
+        const { data: savedVars } = await supabase
+          .from('product_variations')
+          .select('id, dosage')
+          .eq('product_id', productId);
+        
+        if (savedVars) {
+          for (const sv of savedVars) {
+            const matchingVar = variations.find(v => v.dosage === sv.dosage);
+            if (matchingVar && matchingVar.wholesale_prices.length > 0) {
+              // Delete existing wholesale prices for this variation
+              await supabase.from('wholesale_prices' as any).delete().eq('variation_id', sv.id);
+              // Insert new ones
+              await supabase.from('wholesale_prices' as any).insert(
+                matchingVar.wholesale_prices.map(wp => ({
+                  variation_id: sv.id,
+                  min_quantity: wp.min_quantity,
+                  price: wp.price,
+                })) as any
+              );
+            } else {
+              // No wholesale prices, clean up
+              await supabase.from('wholesale_prices' as any).delete().eq('variation_id', sv.id);
+            }
+          }
+        }
+      }
+
       navigate('/admin/produtos');
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
@@ -237,6 +295,77 @@ const ProductForm = () => {
                     </Button>
                   )}
                 </div>
+                {/* Wholesale Prices */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold">Preços no Atacado</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        const newWp = [...v.wholesale_prices, { min_quantity: 0, price: 0 }];
+                        updateVariation(i, 'wholesale_prices', newWp);
+                      }}
+                    >
+                      <Plus className="mr-1 h-3 w-3" /> Faixa
+                    </Button>
+                  </div>
+                  {v.wholesale_prices.length > 0 && (
+                    <div className="space-y-2">
+                      {v.wholesale_prices.map((wp, wpIdx) => (
+                        <div key={wpIdx} className="flex items-center gap-2">
+                          <div className="flex-1 space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">A partir de (unid.)</Label>
+                            <Input
+                              type="number"
+                              min={2}
+                              value={wp.min_quantity || ''}
+                              onChange={(e) => {
+                                const newWp = [...v.wholesale_prices];
+                                newWp[wpIdx] = { ...newWp[wpIdx], min_quantity: Number(e.target.value) };
+                                updateVariation(i, 'wholesale_prices', newWp);
+                              }}
+                              placeholder="Ex: 10"
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Preço unitário (R$)</Label>
+                            <Input
+                              type="number"
+                              value={wp.price || ''}
+                              onChange={(e) => {
+                                const newWp = [...v.wholesale_prices];
+                                newWp[wpIdx] = { ...newWp[wpIdx], price: Number(e.target.value) };
+                                updateVariation(i, 'wholesale_prices', newWp);
+                              }}
+                              placeholder="0.00"
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive mt-4"
+                            onClick={() => {
+                              const newWp = v.wholesale_prices.filter((_, j) => j !== wpIdx);
+                              updateVariation(i, 'wholesale_prices', newWp);
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {v.wholesale_prices.length === 0 && (
+                    <p className="text-[10px] text-muted-foreground">Nenhuma faixa de atacado. Clique em "+ Faixa" para adicionar.</p>
+                  )}
+                </div>
+
                 {/* Variation images */}
                 <div className="space-y-2">
                   <Label className="text-xs">Imagens da Variação</Label>

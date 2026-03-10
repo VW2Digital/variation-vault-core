@@ -5,6 +5,7 @@ import { fetchProduct } from '@/lib/api';
 import { AnimatedSection } from '@/components/AnimatedSection';
 import CheckoutForm from '@/components/CheckoutForm';
 import Header from '@/components/Header';
+import { getEffectivePrice, WholesaleTier } from '@/contexts/CartContext';
 import productHeroImg from '@/assets/product-hero.png';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -16,6 +17,7 @@ const Checkout = () => {
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedVariation, setSelectedVariation] = useState(0);
+  const [wholesaleTiers, setWholesaleTiers] = useState<WholesaleTier[]>([]);
   const quantity = Number(searchParams.get('qty')) || 1;
 
   useEffect(() => {
@@ -29,12 +31,22 @@ const Checkout = () => {
     });
 
     if (!id) return;
-    fetchProduct(id).then((prod) => {
+    fetchProduct(id).then(async (prod) => {
       setProduct(prod);
       const vId = searchParams.get('v');
+      let variationId = prod.product_variations?.[0]?.id;
       if (vId && prod.product_variations) {
         const idx = prod.product_variations.findIndex((v: any) => v.id === vId);
-        if (idx >= 0) setSelectedVariation(idx);
+        if (idx >= 0) { setSelectedVariation(idx); variationId = vId; }
+      }
+      // Fetch wholesale prices for selected variation
+      if (variationId) {
+        const { data: wpData } = await supabase
+          .from('wholesale_prices' as any)
+          .select('*')
+          .eq('variation_id', variationId)
+          .order('min_quantity', { ascending: true });
+        setWholesaleTiers((wpData || []).map((w: any) => ({ min_quantity: w.min_quantity, price: Number(w.price) })));
       }
     }).finally(() => setLoading(false));
   }, [id, searchParams, navigate]);
@@ -58,7 +70,8 @@ const Checkout = () => {
   const variations = product.product_variations || [];
   const variation = variations[selectedVariation];
   const originalPrice = Number(variation?.price || 0);
-  const unitPrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : originalPrice;
+  const basePrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : originalPrice;
+  const unitPrice = getEffectivePrice(basePrice, quantity, wholesaleTiers);
   const totalPrice = unitPrice * quantity;
 
   const variationImages = variation?.images?.length > 0

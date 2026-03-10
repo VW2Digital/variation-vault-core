@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useCart } from '@/contexts/CartContext';
+import { useCart, getEffectivePrice } from '@/contexts/CartContext';
 import CheckoutForm from '@/components/CheckoutForm';
 import { AnimatedSection } from '@/components/AnimatedSection';
 import Header from '@/components/Header';
