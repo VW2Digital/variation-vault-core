@@ -28,7 +28,7 @@ const Catalog = () => {
   const { t } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [wholesaleMap, setWholesaleMap] = useState<Record<string, boolean>>({});
+  const [wholesaleMap, setWholesaleMap] = useState<Record<string, number>>({});
   const [search, setSearch] = useState('');
   const [pharmaFilter, setPharmaFilter] = useState('all');
   const [routeFilter, setRouteFilter] = useState('all');
