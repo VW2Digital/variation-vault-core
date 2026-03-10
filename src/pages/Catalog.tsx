@@ -200,6 +200,7 @@ const Catalog = () => {
           <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {flatItems.map(({ product, variation }, idx) => {
               const price = variation ? Number(variation.price) : null;
+              const offerPrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : null;
               const inStock = variation ? variation.in_stock : false;
               const offer = variation ? variation.is_offer : false;
               const img = variation?.images?.[0] || variation?.image_url || product.images?.[0] || productHeroImg;
@@ -246,9 +247,22 @@ const Catalog = () => {
                         )}
                         <div className="flex items-center justify-between pt-1">
                           {price !== null ? (
-                            <p className="text-primary font-bold text-lg">
-                              R$ {price.toLocaleString('pt-BR')}
-                            </p>
+                            <div>
+                              {offerPrice ? (
+                                <>
+                                  <p className="text-muted-foreground text-xs line-through">
+                                    R$ {price.toLocaleString('pt-BR')}
+                                  </p>
+                                  <p className="text-destructive font-bold text-lg">
+                                    R$ {offerPrice.toLocaleString('pt-BR')}
+                                  </p>
+                                </>
+                              ) : (
+                                <p className="text-primary font-bold text-lg">
+                                  R$ {price.toLocaleString('pt-BR')}
+                                </p>
+                              )}
+                            </div>
                           ) : (
                             <p className="text-muted-foreground text-sm">{t('consult')}</p>
                           )}

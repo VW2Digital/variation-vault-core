@@ -260,7 +260,14 @@ const ProductCheckout = () => {
                         <img src={v.image_url} alt={v.dosage} className="w-10 h-10 object-contain rounded mb-1" />
                       )}
                       <p className="font-semibold text-foreground">{v.dosage}</p>
-                      <p className="text-primary font-bold">R$ {Number(v.price).toLocaleString('pt-BR')}</p>
+                      {v.is_offer && v.offer_price ? (
+                        <>
+                          <p className="text-muted-foreground text-xs line-through">R$ {Number(v.price).toLocaleString('pt-BR')}</p>
+                          <p className="text-destructive font-bold">R$ {Number(v.offer_price).toLocaleString('pt-BR')}</p>
+                        </>
+                      ) : (
+                        <p className="text-primary font-bold">R$ {Number(v.price).toLocaleString('pt-BR')}</p>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -304,9 +311,20 @@ const ProductCheckout = () => {
                   <Badge variant="destructive">{t('unavailable')}</Badge>
                 )}
               </div>
-              <p className="text-3xl font-bold text-primary">
-                R$ {(Number(variation?.price || 0) * quantity).toLocaleString('pt-BR')}
-              </p>
+              {variation?.is_offer && variation?.offer_price ? (
+                <>
+                  <p className="text-lg text-muted-foreground line-through">
+                    R$ {(Number(variation.price) * quantity).toLocaleString('pt-BR')}
+                  </p>
+                  <p className="text-3xl font-bold text-destructive">
+                    R$ {(Number(variation.offer_price) * quantity).toLocaleString('pt-BR')}
+                  </p>
+                </>
+              ) : (
+                <p className="text-3xl font-bold text-primary">
+                  R$ {(Number(variation?.price || 0) * quantity).toLocaleString('pt-BR')}
+                </p>
+              )}
               <div className="text-xs text-muted-foreground space-y-1">
                 <p className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5" /> {t('upTo6x')}</p>
                 <p className="text-success font-medium flex items-center gap-1"><CircleDollarSign className="w-3.5 h-3.5" /> {t('pixAvailable')}</p>

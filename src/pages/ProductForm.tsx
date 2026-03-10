@@ -14,6 +14,7 @@ interface Variation {
   id?: string;
   dosage: string;
   price: number;
+  offer_price: number;
   in_stock: boolean;
   is_offer: boolean;
   image_url: string;
@@ -23,6 +24,7 @@ interface Variation {
 const emptyVariation = (): Variation => ({
   dosage: '',
   price: 0,
+  offer_price: 0,
   in_stock: true,
   is_offer: false,
   image_url: '',
@@ -67,6 +69,7 @@ const ProductForm = () => {
                 id: v.id,
                 dosage: v.dosage,
                 price: Number(v.price),
+                offer_price: Number(v.offer_price || 0),
                 in_stock: v.in_stock,
                 is_offer: v.is_offer,
                 image_url: v.image_url || '',
@@ -211,9 +214,15 @@ const ProductForm = () => {
                     <Input value={v.dosage} onChange={(e) => updateVariation(i, 'dosage', e.target.value)} placeholder="5mg" />
                   </div>
                   <div className="w-32 space-y-2">
-                    <Label>Preço (R$)</Label>
+                    <Label>{v.is_offer ? 'Preço Original (R$)' : 'Preço (R$)'}</Label>
                     <Input type="number" value={v.price || ''} onChange={(e) => updateVariation(i, 'price', Number(e.target.value))} />
                   </div>
+                  {v.is_offer && (
+                    <div className="w-32 space-y-2">
+                      <Label className="text-destructive">Preço Oferta (R$)</Label>
+                      <Input type="number" value={v.offer_price || ''} onChange={(e) => updateVariation(i, 'offer_price', Number(e.target.value))} className="border-destructive/50" />
+                    </div>
+                  )}
                   <div className="flex flex-col items-center gap-1">
                     <Label className="text-xs">Estoque</Label>
                     <Switch checked={v.in_stock} onCheckedChange={(val) => updateVariation(i, 'in_stock', val)} />
