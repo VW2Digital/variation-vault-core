@@ -49,7 +49,12 @@ const CartPage = () => {
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-foreground text-sm truncate">{item.product_name}</h3>
                       <p className="text-xs text-muted-foreground">{item.dosage}</p>
-                      <p className="text-primary font-bold mt-1">
+                      {item.is_offer && (
+                        <p className="text-xs text-muted-foreground line-through">
+                          R$ {item.original_price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                      )}
+                      <p className={`font-bold mt-1 ${item.is_offer ? 'text-destructive' : 'text-primary'}`}>
                         R$ {item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                       {!item.in_stock && (
