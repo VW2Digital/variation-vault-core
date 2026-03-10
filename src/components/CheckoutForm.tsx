@@ -588,6 +588,9 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
 
   // ─── ADDRESS ───
   if (step === 'address') {
+    const hasSavedAddresses = savedAddresses.length > 0;
+    const showFullForm = !hasSavedAddresses || editingAddress || selectedAddressId === 'new';
+
     return (
       <Card className="border-border/50">
         <CardHeader>
@@ -596,102 +599,168 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {/* Saved Address Selector */}
-          {savedAddresses.length > 0 && (
-            <div className="space-y-1.5">
-              <Label className="text-xs">Endereço salvo</Label>
-              <select
-                value={selectedAddressId}
-                onChange={(e) => {
-                  const id = e.target.value;
-                  setSelectedAddressId(id);
-                  if (id === 'new') {
+          {/* Compact confirmation view when user has saved addresses and is NOT editing */}
+          {hasSavedAddresses && !showFullForm ? (
+            <div className="space-y-3">
+              {/* If multiple addresses, show selector */}
+              {savedAddresses.length > 1 && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Selecione o endereço</Label>
+                  <select
+                    value={selectedAddressId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setSelectedAddressId(id);
+                      if (id === 'new') {
+                        setAddrPostalCode(''); setAddrStreet(''); setAddrNumber('');
+                        setAddrComplement(''); setAddrDistrict(''); setAddrCity(''); setAddrState('');
+                        setEditingAddress(true);
+                      } else {
+                        const addr = savedAddresses.find(a => a.id === id);
+                        if (addr) applyAddress(addr);
+                      }
+                    }}
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    {savedAddresses.map(a => (
+                      <option key={a.id} value={a.id}>
+                        {a.label} — {a.street}, {a.number} ({a.city}/{a.state})
+                      </option>
+                    ))}
+                    <option value="new">+ Novo endereço</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Address summary card */}
+              <div className="bg-muted/50 rounded-lg p-4 border border-border/50 space-y-1">
+                <p className="text-sm font-medium text-foreground">{addrStreet}, {addrNumber}{addrComplement ? ` - ${addrComplement}` : ''}</p>
+                <p className="text-xs text-muted-foreground">{addrDistrict} — {addrCity}/{addrState}</p>
+                <p className="text-xs text-muted-foreground">CEP: {addrPostalCode}</p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setEditingAddress(true)} className="flex-1">
+                  Editar endereço
+                </Button>
+                {savedAddresses.length <= 1 && (
+                  <Button variant="outline" size="sm" onClick={() => {
+                    setSelectedAddressId('new');
                     setAddrPostalCode(''); setAddrStreet(''); setAddrNumber('');
                     setAddrComplement(''); setAddrDistrict(''); setAddrCity(''); setAddrState('');
-                  } else {
-                    const addr = savedAddresses.find(a => a.id === id);
-                    if (addr) applyAddress(addr);
-                  }
-                }}
-                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                {savedAddresses.map(a => (
-                  <option key={a.id} value={a.id}>
-                    {a.label} — {a.street}, {a.number} ({a.city}/{a.state})
-                  </option>
-                ))}
-                <option value="new">+ Novo endereço</option>
-              </select>
+                    setEditingAddress(true);
+                  }} className="flex-1">
+                    Usar outro endereço
+                  </Button>
+                )}
+              </div>
+
+              <Button onClick={handleAddressNext} disabled={loadingShipping} className="w-full">
+                {loadingShipping ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Continuar
+              </Button>
             </div>
+          ) : (
+            <>
+              {/* Full address form */}
+              {savedAddresses.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Endereço salvo</Label>
+                  <select
+                    value={selectedAddressId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setSelectedAddressId(id);
+                      if (id === 'new') {
+                        setAddrPostalCode(''); setAddrStreet(''); setAddrNumber('');
+                        setAddrComplement(''); setAddrDistrict(''); setAddrCity(''); setAddrState('');
+                      } else {
+                        const addr = savedAddresses.find(a => a.id === id);
+                        if (addr) applyAddress(addr);
+                        setEditingAddress(false);
+                      }
+                    }}
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    {savedAddresses.map(a => (
+                      <option key={a.id} value={a.id}>
+                        {a.label} — {a.street}, {a.number} ({a.city}/{a.state})
+                      </option>
+                    ))}
+                    <option value="new">+ Novo endereço</option>
+                  </select>
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label className="text-xs">CEP *</Label>
+                <Input
+                  value={addrPostalCode}
+                  onChange={(e) => {
+                    const formatted = formatCep(e.target.value);
+                    setAddrPostalCode(formatted);
+                    setAddressErrors(p => ({ ...p, postalCode: undefined }));
+                    if (formatted.replace(/\D/g, '').length === 8) fetchAddressByCep(formatted);
+                  }}
+                  placeholder="00000-000"
+                  className={addressErrors.postalCode ? 'border-destructive' : ''}
+                />
+                <ErrorText msg={addressErrors.postalCode} />
+                {fetchingCep && <p className="text-xs text-muted-foreground">Buscando endereço...</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Endereço *</Label>
+                <Input value={addrStreet} onChange={(e) => { setAddrStreet(e.target.value); setAddressErrors(p => ({ ...p, address: undefined })); }} placeholder="Rua, Avenida..." className={addressErrors.address ? 'border-destructive' : ''} />
+                <ErrorText msg={addressErrors.address} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Número *</Label>
+                  <Input value={addrNumber} onChange={(e) => { setAddrNumber(e.target.value); setAddressErrors(p => ({ ...p, number: undefined })); }} placeholder="123" className={addressErrors.number ? 'border-destructive' : ''} />
+                  <ErrorText msg={addressErrors.number} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Complemento</Label>
+                  <Input value={addrComplement} onChange={(e) => setAddrComplement(e.target.value)} placeholder="Apto, Bloco..." />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Bairro *</Label>
+                <Input value={addrDistrict} onChange={(e) => { setAddrDistrict(e.target.value); setAddressErrors(p => ({ ...p, district: undefined })); }} placeholder="Centro" className={addressErrors.district ? 'border-destructive' : ''} />
+                <ErrorText msg={addressErrors.district} />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2 space-y-1.5">
+                  <Label className="text-xs">Cidade *</Label>
+                  <Input value={addrCity} onChange={(e) => { setAddrCity(e.target.value); setAddressErrors(p => ({ ...p, city: undefined })); }} placeholder="São Paulo" className={addressErrors.city ? 'border-destructive' : ''} />
+                  <ErrorText msg={addressErrors.city} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">UF *</Label>
+                  <Input value={addrState} onChange={(e) => { setAddrState(e.target.value.toUpperCase()); setAddressErrors(p => ({ ...p, state: undefined })); }} placeholder="SP" maxLength={2} className={addressErrors.state ? 'border-destructive' : ''} />
+                  <ErrorText msg={addressErrors.state} />
+                </div>
+              </div>
+              {/* Save address checkbox - only for new addresses */}
+              {(selectedAddressId === 'new' || savedAddresses.length === 0) && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="save-address"
+                    checked={saveAddress}
+                    onChange={(e) => setSaveAddress(e.target.checked)}
+                    className="rounded border-border"
+                  />
+                  <Label htmlFor="save-address" className="text-xs text-muted-foreground cursor-pointer">
+                    Salvar este endereço na minha conta
+                  </Label>
+                </div>
+              )}
+              <Button onClick={() => { setEditingAddress(false); handleAddressNext(); }} disabled={loadingShipping} className="w-full">
+                {loadingShipping ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Calcular Frete
+              </Button>
+            </>
           )}
-          <div className="space-y-1.5">
-            <Label className="text-xs">CEP *</Label>
-            <Input
-              value={addrPostalCode}
-              onChange={(e) => {
-                const formatted = formatCep(e.target.value);
-                setAddrPostalCode(formatted);
-                setAddressErrors(p => ({ ...p, postalCode: undefined }));
-                if (formatted.replace(/\D/g, '').length === 8) fetchAddressByCep(formatted);
-              }}
-              placeholder="00000-000"
-              className={addressErrors.postalCode ? 'border-destructive' : ''}
-            />
-            <ErrorText msg={addressErrors.postalCode} />
-            {fetchingCep && <p className="text-xs text-muted-foreground">Buscando endereço...</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Endereço *</Label>
-            <Input value={addrStreet} onChange={(e) => { setAddrStreet(e.target.value); setAddressErrors(p => ({ ...p, address: undefined })); }} placeholder="Rua, Avenida..." className={addressErrors.address ? 'border-destructive' : ''} />
-            <ErrorText msg={addressErrors.address} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Número *</Label>
-              <Input value={addrNumber} onChange={(e) => { setAddrNumber(e.target.value); setAddressErrors(p => ({ ...p, number: undefined })); }} placeholder="123" className={addressErrors.number ? 'border-destructive' : ''} />
-              <ErrorText msg={addressErrors.number} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Complemento</Label>
-              <Input value={addrComplement} onChange={(e) => setAddrComplement(e.target.value)} placeholder="Apto, Bloco..." />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Bairro *</Label>
-            <Input value={addrDistrict} onChange={(e) => { setAddrDistrict(e.target.value); setAddressErrors(p => ({ ...p, district: undefined })); }} placeholder="Centro" className={addressErrors.district ? 'border-destructive' : ''} />
-            <ErrorText msg={addressErrors.district} />
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2 space-y-1.5">
-              <Label className="text-xs">Cidade *</Label>
-              <Input value={addrCity} onChange={(e) => { setAddrCity(e.target.value); setAddressErrors(p => ({ ...p, city: undefined })); }} placeholder="São Paulo" className={addressErrors.city ? 'border-destructive' : ''} />
-              <ErrorText msg={addressErrors.city} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">UF *</Label>
-              <Input value={addrState} onChange={(e) => { setAddrState(e.target.value.toUpperCase()); setAddressErrors(p => ({ ...p, state: undefined })); }} placeholder="SP" maxLength={2} className={addressErrors.state ? 'border-destructive' : ''} />
-              <ErrorText msg={addressErrors.state} />
-            </div>
-          </div>
-          {/* Save address checkbox - only for new addresses and logged-in users */}
-          {(selectedAddressId === 'new' || savedAddresses.length === 0) && (
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="save-address"
-                checked={saveAddress}
-                onChange={(e) => setSaveAddress(e.target.checked)}
-                className="rounded border-border"
-              />
-              <Label htmlFor="save-address" className="text-xs text-muted-foreground cursor-pointer">
-                Salvar este endereço na minha conta
-              </Label>
-            </div>
-          )}
-          <Button onClick={handleAddressNext} disabled={loadingShipping} className="w-full">
-            {loadingShipping ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            Calcular Frete
-          </Button>
           <button type="button" onClick={() => setStep('customer')} className="text-xs text-muted-foreground hover:text-foreground w-full text-center">
             ← Voltar aos dados pessoais
           </button>
