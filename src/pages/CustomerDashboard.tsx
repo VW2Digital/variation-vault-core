@@ -323,6 +323,9 @@ const CustomerDashboard = () => {
                 <TabsTrigger value="profile" className="flex items-center gap-1.5">
                   <User className="w-4 h-4" /> Perfil
                 </TabsTrigger>
+                <TabsTrigger value="reviews" className="flex items-center gap-1.5">
+                  <Star className="w-4 h-4" /> Avaliações
+                </TabsTrigger>
                 <TabsTrigger value="help" className="flex items-center gap-1.5">
                   <HelpCircle className="w-4 h-4" /> Ajuda
                 </TabsTrigger>
