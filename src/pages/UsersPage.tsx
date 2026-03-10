@@ -11,7 +11,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Loader2, Users, ShieldCheck, ShieldX, Search } from 'lucide-react';
+import { Loader2, Users, ShieldCheck, ShieldX, Search, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface UserItem {
@@ -64,6 +64,23 @@ const UsersPage = () => {
       await fetchUsers();
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    setActionLoading(userId);
+    try {
+      const res = await supabase.functions.invoke('admin-users', {
+        method: 'POST',
+        body: { action: 'delete_user', userId },
+      });
+      if (res.error) throw new Error(res.error.message);
+      toast({ title: 'Conta excluída com sucesso!' });
+      await fetchUsers();
+    } catch (err: any) {
+      toast({ title: 'Erro ao excluir conta', description: err.message, variant: 'destructive' });
     } finally {
       setActionLoading(null);
     }
@@ -166,7 +183,54 @@ const UsersPage = () => {
                           {new Date(u.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </TableCell>
                         <TableCell className="text-right">
-                          {isAdmin ? (
+                          <div className="flex items-center justify-end gap-2">
+                            {isAdmin ? (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                                    disabled={actionLoading === u.id}
+                                  >
+                                    {actionLoading === u.id ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <><ShieldX className="w-3 h-3 mr-1" /> Remover Admin</>
+                                    )}
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Remover permissão de admin?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      O usuário <strong>{u.email}</strong> perderá acesso ao painel administrativo.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleRoleAction(u.id, 'admin', 'remove_role')}>
+                                      Confirmar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleRoleAction(u.id, 'admin', 'add_role')}
+                                disabled={actionLoading === u.id}
+                              >
+                                {actionLoading === u.id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <><ShieldCheck className="w-3 h-3 mr-1" /> Tornar Admin</>
+                                )}
+                              </Button>
+                            )}
+
+                            {/* Delete user button */}
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button
@@ -175,42 +239,28 @@ const UsersPage = () => {
                                   className="text-destructive border-destructive/30 hover:bg-destructive/10"
                                   disabled={actionLoading === u.id}
                                 >
-                                  {actionLoading === u.id ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <><ShieldX className="w-3 h-3 mr-1" /> Remover Admin</>
-                                  )}
+                                  <Trash2 className="w-3 h-3 mr-1" /> Apagar
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>Remover permissão de admin?</AlertDialogTitle>
+                                  <AlertDialogTitle>Apagar conta permanentemente?</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    O usuário <strong>{u.email}</strong> perderá acesso ao painel administrativo.
+                                    A conta de <strong>{u.email}</strong> será excluída permanentemente, incluindo todos os dados associados. Esta ação não pode ser desfeita.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleRoleAction(u.id, 'admin', 'remove_role')}>
-                                    Confirmar
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteUser(u.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Apagar Conta
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleRoleAction(u.id, 'admin', 'add_role')}
-                              disabled={actionLoading === u.id}
-                            >
-                              {actionLoading === u.id ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <><ShieldCheck className="w-3 h-3 mr-1" /> Tornar Admin</>
-                              )}
-                            </Button>
-                          )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
