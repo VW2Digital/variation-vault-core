@@ -126,22 +126,11 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
         setEmail(userEmail);
         setCpf(formatCpf((profile as any).cpf));
         setPhone(formatPhone(profile.phone));
-        // Auto-create Asaas customer and skip to address
-        try {
-          const customer = await invokeAsaas('create_customer', {
-            name: profile.full_name,
-            email: userEmail,
-            cpfCnpj: ((profile as any).cpf || '').replace(/\D/g, ''),
-            phone: (profile.phone || '').replace(/\D/g, ''),
-          });
-          setCustomerId(customer.id);
-          setHolderEmail(userEmail);
-          setHolderCpf(formatCpf((profile as any).cpf));
-          setHolderPhone(formatPhone(profile.phone));
-          setStep('address');
-        } catch {
-          // If Asaas fails, stay on customer step
-        }
+        setHolderEmail(userEmail);
+        setHolderCpf(formatCpf((profile as any).cpf));
+        setHolderPhone(formatPhone(profile.phone));
+        // Skip directly to address step - Asaas customer will be created at payment time
+        setStep('address');
       } else {
         // Pre-fill what we have
         if (profile?.full_name) setName(profile.full_name);
