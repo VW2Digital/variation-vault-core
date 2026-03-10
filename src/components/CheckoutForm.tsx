@@ -834,8 +834,11 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
       <div>
         <StepIndicator currentStep={step} />
         <Card className="border-border/50">
-          </CardTitle>
-        </CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Truck className="w-4 h-4" /> Escolha o Frete
+            </CardTitle>
+          </CardHeader>
         <CardContent className="space-y-3">
           {qualifiesForFreeShipping ? (
             <div className="text-center py-6 space-y-3">
