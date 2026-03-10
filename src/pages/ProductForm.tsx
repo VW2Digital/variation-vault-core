@@ -150,7 +150,7 @@ const ProductForm = () => {
             const matchingVar = variations.find(v => v.dosage === sv.dosage);
             if (matchingVar && matchingVar.wholesale_prices.length > 0) {
               // Delete existing wholesale prices for this variation
-              await supabase.from('wholesale_prices' as any).delete().eq('variation_id', sv.id);
+              await supabase.from('wholesale_prices').delete().eq('variation_id', sv.id);
               // Insert new ones
               await supabase.from('wholesale_prices' as any).insert(
                 matchingVar.wholesale_prices.map(wp => ({
