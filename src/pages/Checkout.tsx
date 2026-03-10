@@ -70,7 +70,8 @@ const Checkout = () => {
   const variations = product.product_variations || [];
   const variation = variations[selectedVariation];
   const originalPrice = Number(variation?.price || 0);
-  const unitPrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : originalPrice;
+  const basePrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : originalPrice;
+  const unitPrice = getEffectivePrice(basePrice, quantity, wholesaleTiers);
   const totalPrice = unitPrice * quantity;
 
   const variationImages = variation?.images?.length > 0
