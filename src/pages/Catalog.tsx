@@ -281,13 +281,12 @@ const Catalog = () => {
                             {t('activeIngredient')}: <span className="font-medium">{product.active_ingredient}</span>
                           </p>
                         )}
+                        {hasWholesale && wholesaleMinQty && (
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            A partir de {wholesaleMinQty} unid.
+                          </span>
+                        )}
                         <div className="flex items-center justify-between pt-1">
-                          {hasWholesale && wholesaleMinQty && (
-                            <span className="text-[10px] text-muted-foreground font-medium">
-                              A partir de {wholesaleMinQty} unid.
-                            </span>
-                          )}
-                        </div>
                           {price !== null ? (
                             <div>
                               {offerPrice ? (
