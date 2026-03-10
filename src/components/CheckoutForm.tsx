@@ -71,6 +71,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const qualifiesForFreeShipping = freeShipping && baseProductTotal >= (freeShippingMinValue || 0);
 
   const [step, setStep] = useState<CheckoutStep>('customer');
+  const [editingAddress, setEditingAddress] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
   const [processing, setProcessing] = useState(false);
   const [customerId, setCustomerId] = useState('');
