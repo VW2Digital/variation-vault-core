@@ -5,6 +5,7 @@ import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/Ani
 import { fetchProduct, fetchTestimonials, fetchBanners, fetchSetting } from '@/lib/api';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
 import { useCart } from '@/contexts/CartContext';
+import { getEffectivePrice, WholesaleTier } from '@/contexts/CartContext';
 import Header from '@/components/Header';
 import { useLanguage } from '@/contexts/LanguageContext';
 import productHeroImg from '@/assets/product-hero.png';
