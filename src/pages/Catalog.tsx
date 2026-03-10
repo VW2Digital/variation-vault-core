@@ -34,6 +34,7 @@ const Catalog = () => {
   const [routeFilter, setRouteFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [stockFilter, setStockFilter] = useState('all');
+  const [reviewsMap, setReviewsMap] = useState<Record<string, { avg: number; count: number }>>({});
 
   useEffect(() => {
     fetchProducts()
@@ -49,12 +50,30 @@ const Catalog = () => {
             .order('min_quantity', { ascending: true });
           const wpSet: Record<string, number> = {};
           (wpData || []).forEach((w: any) => {
-            // Keep the lowest min_quantity per variation
             if (!(w.variation_id in wpSet) || w.min_quantity < wpSet[w.variation_id]) {
               wpSet[w.variation_id] = w.min_quantity;
             }
           });
           setWholesaleMap(wpSet);
+        }
+        // Fetch reviews for average ratings
+        const productNames = prods.map((p: any) => p.name);
+        if (productNames.length > 0) {
+          const { data: revData } = await supabase
+            .from('reviews')
+            .select('product_name, rating')
+            .in('product_name', productNames);
+          const rMap: Record<string, { total: number; count: number }> = {};
+          (revData || []).forEach((r: any) => {
+            if (!rMap[r.product_name]) rMap[r.product_name] = { total: 0, count: 0 };
+            rMap[r.product_name].total += r.rating;
+            rMap[r.product_name].count += 1;
+          });
+          const finalMap: Record<string, { avg: number; count: number }> = {};
+          Object.entries(rMap).forEach(([name, { total, count }]) => {
+            finalMap[name] = { avg: total / count, count };
+          });
+          setReviewsMap(finalMap);
         }
       })
       .finally(() => setLoading(false));
