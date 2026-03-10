@@ -126,22 +126,11 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
         setEmail(userEmail);
         setCpf(formatCpf((profile as any).cpf));
         setPhone(formatPhone(profile.phone));
-        // Auto-create Asaas customer and skip to address
-        try {
-          const customer = await invokeAsaas('create_customer', {
-            name: profile.full_name,
-            email: userEmail,
-            cpfCnpj: ((profile as any).cpf || '').replace(/\D/g, ''),
-            phone: (profile.phone || '').replace(/\D/g, ''),
-          });
-          setCustomerId(customer.id);
-          setHolderEmail(userEmail);
-          setHolderCpf(formatCpf((profile as any).cpf));
-          setHolderPhone(formatPhone(profile.phone));
-          setStep('address');
-        } catch {
-          // If Asaas fails, stay on customer step
-        }
+        setHolderEmail(userEmail);
+        setHolderCpf(formatCpf((profile as any).cpf));
+        setHolderPhone(formatPhone(profile.phone));
+        // Skip directly to address step - Asaas customer will be created at payment time
+        setStep('address');
       } else {
         // Pre-fill what we have
         if (profile?.full_name) setName(profile.full_name);
@@ -434,12 +423,25 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
     if (!validateCard()) return;
     setProcessing(true);
     try {
+      // Ensure Asaas customer exists (may not have been created if profile auto-skipped)
+      let asaasCustomerId = customerId;
+      if (!asaasCustomerId) {
+        const customer = await invokeAsaas('create_customer', {
+          name: name.trim(),
+          email: email.trim(),
+          cpfCnpj: cpf.replace(/\D/g, ''),
+          phone: phone.replace(/\D/g, ''),
+        });
+        asaasCustomerId = customer.id;
+        setCustomerId(customer.id);
+      }
+
       const description = `${productName} ${dosage} x${quantity}`;
       const orderId = await createOrder(paymentMethod);
 
       if (paymentMethod === 'pix') {
         const result = await invokeAsaas('create_pix_payment', {
-          customer: customerId, value: totalValue, description, orderId,
+          customer: asaasCustomerId, value: totalValue, description, orderId,
         });
         setPaymentResult(result);
       } else {
@@ -452,7 +454,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
           mobilePhone: holderPhone.replace(/\D/g, ''),
         };
         const tokenResult = await invokeAsaas('tokenize_credit_card', {
-          customer: customerId,
+          customer: asaasCustomerId,
           creditCard: {
             holderName: cardName.trim(), number: cardNumber.replace(/\s/g, ''),
             expiryMonth: cardExpMonth, expiryYear: cardExpYear, ccv: cardCcv,
@@ -461,7 +463,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
         });
         if (!tokenResult?.creditCardToken) throw new Error('Falha ao tokenizar cartão');
         const result = await invokeAsaas('create_card_payment', {
-          customer: customerId, value: totalValue, description,
+          customer: asaasCustomerId, value: totalValue, description,
           installmentCount: installments, creditCardToken: tokenResult.creditCardToken,
           creditCardHolderInfo: holderInfo, orderId,
         });
