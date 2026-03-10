@@ -17,6 +17,7 @@ const Checkout = () => {
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedVariation, setSelectedVariation] = useState(0);
+  const [wholesaleTiers, setWholesaleTiers] = useState<WholesaleTier[]>([]);
   const quantity = Number(searchParams.get('qty')) || 1;
 
   useEffect(() => {
