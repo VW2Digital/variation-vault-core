@@ -35,6 +35,7 @@ import {
   CircleDollarSign,
   ShoppingCart,
   Package,
+  Star,
 } from 'lucide-react';
 
 const VideoTestimonialCard = ({ thumbnail, name, videoUrl }: { thumbnail: string; name: string; videoUrl?: string }) => {
@@ -106,6 +107,7 @@ const ProductCheckout = () => {
   const [quantity, setQuantity] = useState(1);
   const [currentImage, setCurrentImage] = useState(0);
   const [wholesalePrices, setWholesalePrices] = useState<Record<string, WholesaleTier[]>>({});
+  const [productReviews, setProductReviews] = useState<any[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -135,6 +137,13 @@ const ProductCheckout = () => {
         });
         setWholesalePrices(wpMap);
       }
+      // Fetch reviews for this product
+      const { data: revData } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('product_name', prod.name)
+        .order('created_at', { ascending: false });
+      setProductReviews(revData || []);
     }).finally(() => setLoading(false));
   }, [id, searchParams]);
 
@@ -499,6 +508,43 @@ const ProductCheckout = () => {
           ))}
         </StaggerContainer>
       </AnimatedSection>
+
+      {/* Customer Reviews */}
+      {productReviews.length > 0 && (
+        <AnimatedSection className="max-w-6xl mx-auto px-4 pb-12">
+          <h2 className="text-2xl font-bold text-foreground mb-2 text-center">Avaliações de Clientes</h2>
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <div className="flex gap-0.5">
+              {[1, 2, 3, 4, 5].map(s => {
+                const avg = productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length;
+                return <Star key={s} className={`w-5 h-5 ${s <= Math.round(avg) ? 'text-primary fill-primary' : 'text-muted-foreground/30'}`} />;
+              })}
+            </div>
+            <span className="text-sm text-muted-foreground">
+              ({productReviews.length} {productReviews.length === 1 ? 'avaliação' : 'avaliações'})
+            </span>
+          </div>
+          <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {productReviews.map((review) => (
+              <StaggerItem key={review.id}>
+                <div className="p-5 rounded-xl border border-border/50 bg-card text-left space-y-3">
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map(s => (
+                      <Star key={s} className={`w-4 h-4 ${s <= review.rating ? 'text-primary fill-primary' : 'text-muted-foreground/30'}`} />
+                    ))}
+                  </div>
+                  {review.comment && (
+                    <p className="text-sm text-foreground">"{review.comment}"</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    — Cliente verificado · {new Date(review.created_at).toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+              </StaggerItem>
+            ))}
+          </StaggerContainer>
+        </AnimatedSection>
+      )}
 
       {/* WhatsApp FAB */}
       {whatsappNumber && (
