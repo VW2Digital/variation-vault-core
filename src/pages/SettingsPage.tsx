@@ -225,8 +225,9 @@ const SettingsPage = () => {
             <Label>Número do WhatsApp (com código do país)</Label>
             <Input
               value={whatsapp}
-              onChange={(e) => setWhatsapp(e.target.value)}
+              onChange={(e) => setWhatsapp(e.target.value.replace(/\D/g, ''))}
               placeholder="5511999999999"
+              inputMode="numeric"
             />
             <p className="text-xs text-muted-foreground">
               Formato: código do país + DDD + número. Ex: 5511999999999
