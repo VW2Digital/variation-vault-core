@@ -441,7 +441,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
 
       if (paymentMethod === 'pix') {
         const result = await invokeAsaas('create_pix_payment', {
-          customer: customerId, value: totalValue, description, orderId,
+          customer: asaasCustomerId, value: totalValue, description, orderId,
         });
         setPaymentResult(result);
       } else {
@@ -454,7 +454,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
           mobilePhone: holderPhone.replace(/\D/g, ''),
         };
         const tokenResult = await invokeAsaas('tokenize_credit_card', {
-          customer: customerId,
+          customer: asaasCustomerId,
           creditCard: {
             holderName: cardName.trim(), number: cardNumber.replace(/\s/g, ''),
             expiryMonth: cardExpMonth, expiryYear: cardExpYear, ccv: cardCcv,
@@ -463,7 +463,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
         });
         if (!tokenResult?.creditCardToken) throw new Error('Falha ao tokenizar cartão');
         const result = await invokeAsaas('create_card_payment', {
-          customer: customerId, value: totalValue, description,
+          customer: asaasCustomerId, value: totalValue, description,
           installmentCount: installments, creditCardToken: tokenResult.creditCardToken,
           creditCardHolderInfo: holderInfo, orderId,
         });
