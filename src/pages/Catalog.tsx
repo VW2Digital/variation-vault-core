@@ -253,6 +253,13 @@ const Catalog = () => {
                             <Badge variant="secondary" className="text-[10px]">{t('outOfStock')}</Badge>
                           )}
                         </div>
+                        {hasWholesale && (
+                          <div className="absolute top-3 right-3">
+                            <Badge className="bg-primary/90 text-primary-foreground text-[10px] font-bold gap-1">
+                              <Layers className="w-3 h-3" /> Atacado
+                            </Badge>
+                          </div>
+                        )}
                       </div>
 
                       <div className="p-4 space-y-2">
