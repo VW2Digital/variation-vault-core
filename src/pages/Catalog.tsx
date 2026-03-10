@@ -222,7 +222,12 @@ const Catalog = () => {
                           className="max-w-[75%] max-h-[75%] object-contain group-hover:scale-105 transition-transform duration-500"
                         />
                         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-                          {offer && (
+                          {offer && offerPrice && price && (
+                            <Badge className="bg-destructive text-destructive-foreground text-[10px] font-bold">
+                              -{Math.round(((price - offerPrice) / price) * 100)}%
+                            </Badge>
+                          )}
+                          {offer && !offerPrice && (
                             <Badge className="bg-destructive text-destructive-foreground text-[10px] font-bold">
                               {t('offer')}
                             </Badge>
