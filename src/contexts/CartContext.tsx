@@ -88,7 +88,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
       // Fetch wholesale prices
       const { data: wholesaleData } = await supabase
-        .from('wholesale_prices' as any)
+        .from('wholesale_prices')
         .select('*')
         .in('variation_id', varIds)
         .order('min_quantity', { ascending: true });

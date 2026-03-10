@@ -77,7 +77,7 @@ const ProductForm = () => {
         let wholesaleMap: Record<string, WholesaleTier[]> = {};
         if (varIds.length > 0) {
           const { data: wp } = await supabase
-            .from('wholesale_prices' as any)
+            .from('wholesale_prices')
             .select('*')
             .in('variation_id', varIds)
             .order('min_quantity', { ascending: true });
@@ -150,18 +150,18 @@ const ProductForm = () => {
             const matchingVar = variations.find(v => v.dosage === sv.dosage);
             if (matchingVar && matchingVar.wholesale_prices.length > 0) {
               // Delete existing wholesale prices for this variation
-              await supabase.from('wholesale_prices' as any).delete().eq('variation_id', sv.id);
+              await supabase.from('wholesale_prices').delete().eq('variation_id', sv.id);
               // Insert new ones
-              await supabase.from('wholesale_prices' as any).insert(
+              await supabase.from('wholesale_prices').insert(
                 matchingVar.wholesale_prices.map(wp => ({
                   variation_id: sv.id,
                   min_quantity: wp.min_quantity,
                   price: wp.price,
-                })) as any
+                }))
               );
             } else {
               // No wholesale prices, clean up
-              await supabase.from('wholesale_prices' as any).delete().eq('variation_id', sv.id);
+              await supabase.from('wholesale_prices').delete().eq('variation_id', sv.id);
             }
           }
         }

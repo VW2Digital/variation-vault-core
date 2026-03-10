@@ -43,7 +43,7 @@ const Catalog = () => {
         const allVarIds = prods.flatMap((p: any) => (p.product_variations || []).map((v: any) => v.id));
         if (allVarIds.length > 0) {
           const { data: wpData } = await supabase
-            .from('wholesale_prices' as any)
+            .from('wholesale_prices')
             .select('variation_id')
             .in('variation_id', allVarIds);
           const wpSet: Record<string, boolean> = {};
