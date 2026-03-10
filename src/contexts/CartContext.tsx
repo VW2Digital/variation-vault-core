@@ -86,6 +86,19 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         supabase.from('products').select('id, name, images').in('id', prodIds),
       ]);
 
+      // Fetch wholesale prices
+      const { data: wholesaleData } = await supabase
+        .from('wholesale_prices' as any)
+        .select('*')
+        .in('variation_id', varIds)
+        .order('min_quantity', { ascending: true });
+      
+      const wpMap: Record<string, WholesaleTier[]> = {};
+      (wholesaleData || []).forEach((w: any) => {
+        if (!wpMap[w.variation_id]) wpMap[w.variation_id] = [];
+        wpMap[w.variation_id].push({ min_quantity: w.min_quantity, price: Number(w.price) });
+      });
+
       const varMap = new Map((variations || []).map(v => [v.id, v]));
       const prodMap = new Map((products || []).map(p => [p.id, p]));
 
@@ -93,6 +106,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         const v = varMap.get(ci.variation_id);
         const p = prodMap.get(ci.product_id);
         const isOffer = v?.is_offer && v?.offer_price;
+        const basePrice = isOffer ? Number(v.offer_price) : Number(v?.price || 0);
+        const wp = wpMap[ci.variation_id] || [];
         return {
           id: ci.id,
           product_id: ci.product_id,
@@ -100,11 +115,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           quantity: ci.quantity,
           product_name: p?.name || '',
           dosage: v?.dosage || '',
-          price: isOffer ? Number(v.offer_price) : Number(v?.price || 0),
+          price: getEffectivePrice(basePrice, ci.quantity, wp),
           original_price: Number(v?.price || 0),
           is_offer: !!isOffer,
           image_url: v?.images?.[0] || v?.image_url || p?.images?.[0] || '',
           in_stock: v?.in_stock ?? false,
+          wholesale_prices: wp,
         };
       });
       setItems(enriched);
