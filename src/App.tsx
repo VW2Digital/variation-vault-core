@@ -23,6 +23,7 @@ import CustomerDashboard from "./pages/CustomerDashboard";
 import CartPage from "./pages/CartPage";
 import CartCheckout from "./pages/CartCheckout";
 import ResetPassword from "./pages/ResetPassword";
+import AdminSupportPage from "./pages/AdminSupportPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
