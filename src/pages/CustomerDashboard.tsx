@@ -10,12 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Loader2, Package, LogOut, Truck, Clock, CheckCircle2, XCircle,
   Copy, ExternalLink, ShoppingCart, User, Search, Filter,
-  TrendingUp, CreditCard, MapPin, ChevronDown, RotateCw, Save, Phone,
+  TrendingUp, CreditCard, MapPin, ChevronDown, RotateCw, Save, Phone, HelpCircle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
 import Header from '@/components/Header';
 import AddressManager from '@/components/AddressManager';
+import SupportChat from '@/components/SupportChat';
 
 const paymentStatusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: any; color: string; badgeClass?: string }> = {
   PENDING: { label: 'Aguardando Pagamento', variant: 'outline', icon: Clock, color: 'text-amber-500' },
@@ -273,6 +274,9 @@ const CustomerDashboard = () => {
                 </TabsTrigger>
                 <TabsTrigger value="profile" className="flex items-center gap-1.5">
                   <User className="w-4 h-4" /> Perfil
+                </TabsTrigger>
+                <TabsTrigger value="help" className="flex items-center gap-1.5">
+                  <HelpCircle className="w-4 h-4" /> Ajuda
                 </TabsTrigger>
               </TabsList>
 
@@ -577,6 +581,11 @@ const CustomerDashboard = () => {
                     </CardContent>
                   </Card>
                 )}
+              </TabsContent>
+
+              {/* Help Tab */}
+              <TabsContent value="help">
+                {user && <SupportChat userId={user.id} />}
               </TabsContent>
             </Tabs>
           </>
