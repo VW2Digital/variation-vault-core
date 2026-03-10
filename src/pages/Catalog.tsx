@@ -28,7 +28,7 @@ const Catalog = () => {
   const { t } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [wholesaleMap, setWholesaleMap] = useState<Record<string, boolean>>({});
+  const [wholesaleMap, setWholesaleMap] = useState<Record<string, number>>({});
   const [search, setSearch] = useState('');
   const [pharmaFilter, setPharmaFilter] = useState('all');
   const [routeFilter, setRouteFilter] = useState('all');
@@ -44,10 +44,16 @@ const Catalog = () => {
         if (allVarIds.length > 0) {
           const { data: wpData } = await supabase
             .from('wholesale_prices')
-            .select('variation_id')
-            .in('variation_id', allVarIds);
-          const wpSet: Record<string, boolean> = {};
-          (wpData || []).forEach((w: any) => { wpSet[w.variation_id] = true; });
+            .select('variation_id, min_quantity')
+            .in('variation_id', allVarIds)
+            .order('min_quantity', { ascending: true });
+          const wpSet: Record<string, number> = {};
+          (wpData || []).forEach((w: any) => {
+            // Keep the lowest min_quantity per variation
+            if (!(w.variation_id in wpSet) || w.min_quantity < wpSet[w.variation_id]) {
+              wpSet[w.variation_id] = w.min_quantity;
+            }
+          });
           setWholesaleMap(wpSet);
         }
       })
@@ -220,7 +226,8 @@ const Catalog = () => {
               const inStock = variation ? variation.in_stock : false;
               const offer = variation ? variation.is_offer : false;
               const img = variation?.images?.[0] || variation?.image_url || product.images?.[0] || productHeroImg;
-              const hasWholesale = variation ? !!wholesaleMap[variation.id] : false;
+              const hasWholesale = variation ? (variation.id in wholesaleMap) : false;
+              const wholesaleMinQty = variation ? wholesaleMap[variation.id] : undefined;
               const displayName = variation
                 ? `${product.name} ${variation.dosage}`
                 : product.name;
@@ -254,10 +261,15 @@ const Catalog = () => {
                           )}
                         </div>
                         {hasWholesale && (
-                          <div className="absolute top-3 right-3">
+                          <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
                             <Badge className="bg-primary/90 text-primary-foreground text-[10px] font-bold gap-1">
                               <Layers className="w-3 h-3" /> Atacado
                             </Badge>
+                            {wholesaleMinQty && (
+                              <span className="text-[9px] bg-background/90 text-foreground px-1.5 py-0.5 rounded font-medium shadow-sm">
+                                A partir de {wholesaleMinQty} unid.
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
