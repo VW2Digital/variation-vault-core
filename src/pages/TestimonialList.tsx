@@ -148,31 +148,69 @@ const TestimonialList = () => {
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Maria Silva" required />
               </div>
               <div className="space-y-2">
-                <Label>Vídeo (max 50MB)</Label>
-                <div onClick={() => videoInputRef.current?.click()} className="border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-8 text-center cursor-pointer transition-colors">
-                  {videoPreview ? (
-                    <div className="space-y-3">
-                      <video src={videoPreview} className="max-h-48 mx-auto rounded-lg" controls />
-                      <p className="text-sm text-muted-foreground">{videoFile?.name}</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Upload className="w-10 h-10 mx-auto text-muted-foreground/50" />
-                      <p className="text-sm text-muted-foreground">Clique para selecionar um vídeo</p>
-                      <p className="text-xs text-muted-foreground/70">MP4, MOV, WebM</p>
-                    </div>
-                  )}
-                  <input ref={videoInputRef} type="file" accept="video/*" onChange={handleVideoChange} className="hidden" />
+                <Label>Tipo de entrada</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={inputMode === 'upload' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setInputMode('upload')}
+                  >
+                    <Upload className="mr-2 h-4 w-4" /> Enviar arquivo
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={inputMode === 'url' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setInputMode('url')}
+                  >
+                    <Link className="mr-2 h-4 w-4" /> Colar URL
+                  </Button>
                 </div>
               </div>
-              {thumbnailPreview && (
+
+              {inputMode === 'upload' ? (
+                <div className="space-y-2">
+                  <Label>Vídeo (max 50MB)</Label>
+                  <div onClick={() => videoInputRef.current?.click()} className="border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-8 text-center cursor-pointer transition-colors">
+                    {videoPreview ? (
+                      <div className="space-y-3">
+                        <video src={videoPreview} className="max-h-48 mx-auto rounded-lg" controls />
+                        <p className="text-sm text-muted-foreground">{videoFile?.name}</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Upload className="w-10 h-10 mx-auto text-muted-foreground/50" />
+                        <p className="text-sm text-muted-foreground">Clique para selecionar um vídeo</p>
+                        <p className="text-xs text-muted-foreground/70">MP4, MOV, WebM</p>
+                      </div>
+                    )}
+                    <input ref={videoInputRef} type="file" accept="video/*" onChange={handleVideoChange} className="hidden" />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>URL do Vídeo</Label>
+                  <Input
+                    value={videoUrl}
+                    onChange={(e) => setVideoUrl(e.target.value)}
+                    placeholder="Ex: https://www.youtube.com/watch?v=... ou link direto do vídeo"
+                    type="url"
+                  />
+                  <p className="text-xs text-muted-foreground">Cole o link do YouTube, Instagram, TikTok ou link direto do vídeo</p>
+                </div>
+              )}
+
+              {inputMode === 'upload' && thumbnailPreview && (
                 <div className="space-y-2">
                   <Label>Thumbnail gerada</Label>
                   <img src={thumbnailPreview} alt="Thumb" className="h-24 rounded-lg border border-border" />
                 </div>
               )}
               <div className="flex gap-3">
-                <Button type="submit" disabled={!videoFile || !name.trim() || isProcessing}>
+                <Button type="submit" disabled={
+                  (inputMode === 'upload' ? !videoFile : !videoUrl.trim()) || !name.trim() || isProcessing
+                }>
                   {isProcessing ? 'Enviando...' : 'Salvar'}
                 </Button>
                 <Button type="button" variant="outline" onClick={resetForm}>Cancelar</Button>
