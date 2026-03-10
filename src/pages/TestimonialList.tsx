@@ -18,7 +18,9 @@ const TestimonialList = () => {
   const { toast } = useToast();
   const [isAdding, setIsAdding] = useState(false);
   const [name, setName] = useState('');
+  const [inputMode, setInputMode] = useState<'upload' | 'url'>('upload');
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoUrl, setVideoUrl] = useState('');
   const [videoPreview, setVideoPreview] = useState('');
   const [thumbnailBlob, setThumbnailBlob] = useState<Blob | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState('');
