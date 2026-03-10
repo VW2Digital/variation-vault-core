@@ -226,7 +226,8 @@ const Catalog = () => {
               const inStock = variation ? variation.in_stock : false;
               const offer = variation ? variation.is_offer : false;
               const img = variation?.images?.[0] || variation?.image_url || product.images?.[0] || productHeroImg;
-              const hasWholesale = variation ? !!wholesaleMap[variation.id] : false;
+              const hasWholesale = variation ? (variation.id in wholesaleMap) : false;
+              const wholesaleMinQty = variation ? wholesaleMap[variation.id] : undefined;
               const displayName = variation
                 ? `${product.name} ${variation.dosage}`
                 : product.name;
