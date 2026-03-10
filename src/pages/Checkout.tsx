@@ -42,7 +42,7 @@ const Checkout = () => {
       // Fetch wholesale prices for selected variation
       if (variationId) {
         const { data: wpData } = await supabase
-          .from('wholesale_prices' as any)
+          .from('wholesale_prices')
           .select('*')
           .eq('variation_id', variationId)
           .order('min_quantity', { ascending: true });

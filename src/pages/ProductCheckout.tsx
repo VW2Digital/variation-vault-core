@@ -124,7 +124,7 @@ const ProductCheckout = () => {
       const varIds = (prod.product_variations || []).map((v: any) => v.id);
       if (varIds.length > 0) {
         const { data: wpData } = await supabase
-          .from('wholesale_prices' as any)
+          .from('wholesale_prices')
           .select('*')
           .in('variation_id', varIds)
           .order('min_quantity', { ascending: true });
