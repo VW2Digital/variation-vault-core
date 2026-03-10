@@ -54,7 +54,7 @@ export const createProduct = async (product: {
   images?: string[];
   free_shipping?: boolean;
   free_shipping_min_value?: number;
-  variations?: { dosage: string; price: number; in_stock: boolean; is_offer: boolean; image_url?: string; images?: string[] }[];
+  variations?: { dosage: string; price: number; offer_price?: number; in_stock: boolean; is_offer: boolean; image_url?: string; images?: string[] }[];
 }) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Not authenticated');
