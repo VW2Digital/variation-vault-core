@@ -262,6 +262,7 @@ const Catalog = () => {
                                   <p className="text-destructive font-bold text-lg">
                                     R$ {offerPrice.toLocaleString('pt-BR')}
                                   </p>
+                                  <CountdownTimer variant="compact" />
                                 </>
                               ) : (
                                 <p className="text-primary font-bold text-lg">
