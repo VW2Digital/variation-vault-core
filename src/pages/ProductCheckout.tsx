@@ -5,7 +5,6 @@ import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/Ani
 import { fetchProduct, fetchTestimonials, fetchBanners, fetchSetting } from '@/lib/api';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
 import { useCart } from '@/contexts/CartContext';
-import { getEffectivePrice, WholesaleTier } from '@/contexts/CartContext';
 import Header from '@/components/Header';
 import { useLanguage } from '@/contexts/LanguageContext';
 import productHeroImg from '@/assets/product-hero.png';
@@ -18,8 +17,8 @@ import {
   Accordion,
   AccordionContent,
   AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
+  AccordionTrigger } from
+'@/components/ui/accordion';
 import {
   Minus,
   Plus,
@@ -33,12 +32,10 @@ import {
   ChevronRight,
   CreditCard,
   CircleDollarSign,
-  ShoppingCart,
-  Package,
-  Star,
-} from 'lucide-react';
+  ShoppingCart } from
+'lucide-react';
 
-const VideoTestimonialCard = ({ thumbnail, name, videoUrl }: { thumbnail: string; name: string; videoUrl?: string }) => {
+const VideoTestimonialCard = ({ thumbnail, name, videoUrl }: {thumbnail: string;name: string;videoUrl?: string;}) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -51,25 +48,25 @@ const VideoTestimonialCard = ({ thumbnail, name, videoUrl }: { thumbnail: string
 
   return (
     <div className="relative rounded-xl overflow-hidden border border-border/50 bg-foreground/5 aspect-[9/16] max-h-[420px]">
-      {isPlaying && videoUrl ? (
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          className="w-full h-full object-cover"
-          controls
-          onEnded={() => setIsPlaying(false)}
-        />
-      ) : (
-        <>
+      {isPlaying && videoUrl ?
+      <video
+        ref={videoRef}
+        src={videoUrl}
+        className="w-full h-full object-cover"
+        controls
+        onEnded={() => setIsPlaying(false)} /> :
+
+
+      <>
           <img
-            src={thumbnail}
-            alt={`Depoimento de ${name}`}
-            className="w-full h-full object-cover"
-          />
+          src={thumbnail}
+          alt={`Depoimento de ${name}`}
+          className="w-full h-full object-cover" />
+        
           <button
-            onClick={handlePlay}
-            className="absolute inset-0 flex items-center justify-center bg-foreground/20 hover:bg-foreground/30 transition-colors"
-          >
+          onClick={handlePlay}
+          className="absolute inset-0 flex items-center justify-center bg-foreground/20 hover:bg-foreground/30 transition-colors">
+          
             <div className="w-14 h-14 rounded-full bg-card/90 flex items-center justify-center shadow-lg">
               <div className="w-0 h-0 border-t-[10px] border-t-transparent border-l-[16px] border-l-foreground border-b-[10px] border-b-transparent ml-1" />
             </div>
@@ -87,13 +84,13 @@ const VideoTestimonialCard = ({ thumbnail, name, videoUrl }: { thumbnail: string
             </div>
           </div>
         </>
-      )}
-    </div>
-  );
+      }
+    </div>);
+
 };
 
 const ProductCheckout = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams<{id: string;}>();
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { addToCart, totalItems } = useCart();
@@ -106,12 +103,10 @@ const ProductCheckout = () => {
   const [selectedVariation, setSelectedVariation] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [currentImage, setCurrentImage] = useState(0);
-  const [wholesalePrices, setWholesalePrices] = useState<Record<string, WholesaleTier[]>>({});
-  const [productReviews, setProductReviews] = useState<any[]>([]);
 
   useEffect(() => {
     if (!id) return;
-    Promise.all([fetchProduct(id), fetchTestimonials(), fetchBanners(), fetchSetting('whatsapp_number')]).then(async ([prod, tests, bans, wp]) => {
+    Promise.all([fetchProduct(id), fetchTestimonials(), fetchBanners(), fetchSetting('whatsapp_number')]).then(([prod, tests, bans, wp]) => {
       setProduct(prod);
       setDynamicTestimonials(tests);
       setBanners(bans);
@@ -122,28 +117,6 @@ const ProductCheckout = () => {
         const idx = prod.product_variations.findIndex((v: any) => v.id === vId);
         if (idx >= 0) setSelectedVariation(idx);
       }
-      // Fetch wholesale prices
-      const varIds = (prod.product_variations || []).map((v: any) => v.id);
-      if (varIds.length > 0) {
-        const { data: wpData } = await supabase
-          .from('wholesale_prices')
-          .select('*')
-          .in('variation_id', varIds)
-          .order('min_quantity', { ascending: true });
-        const wpMap: Record<string, WholesaleTier[]> = {};
-        (wpData || []).forEach((w: any) => {
-          if (!wpMap[w.variation_id]) wpMap[w.variation_id] = [];
-          wpMap[w.variation_id].push({ min_quantity: w.min_quantity, price: Number(w.price) });
-        });
-        setWholesalePrices(wpMap);
-      }
-      // Fetch reviews for this product
-      const { data: revData } = await supabase
-        .from('reviews')
-        .select('*')
-        .eq('product_name', prod.name)
-        .order('created_at', { ascending: false });
-      setProductReviews(revData || []);
     }).finally(() => setLoading(false));
   }, [id, searchParams]);
 
@@ -151,59 +124,59 @@ const ProductCheckout = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <p className="text-muted-foreground">Carregando...</p>
-      </div>
-    );
+      </div>);
+
   }
 
   if (!product) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <p className="text-muted-foreground">Nenhum produto disponível.</p>
-      </div>
-    );
+      </div>);
+
   }
 
   const variations = product.product_variations || [];
   const variation = variations[selectedVariation];
-  
+
   // Build images: only from the selected variation
-  const variationImages = variation?.images?.length > 0
-    ? variation.images
-    : variation?.image_url
-      ? [variation.image_url]
-      : [];
+  const variationImages = variation?.images?.length > 0 ?
+  variation.images :
+  variation?.image_url ?
+  [variation.image_url] :
+  [];
   const images = variationImages.length > 0 ? variationImages : [productHeroImg];
 
   const trustBadges = [
-    { icon: ShieldCheck, title: t('certifiedProduct'), desc: t('certifiedDesc') },
-    { icon: Truck, title: t('fastDelivery'), desc: t('fastDeliveryDesc') },
-    { icon: Award, title: t('premiumQuality'), desc: t('premiumQualityDesc') },
-    { icon: CalendarClock, title: t('weeklyUse'), desc: t('weeklyUseDesc') },
-  ];
+  { icon: ShieldCheck, title: t('certifiedProduct'), desc: t('certifiedDesc') },
+  { icon: Truck, title: t('fastDelivery'), desc: t('fastDeliveryDesc') },
+  { icon: Award, title: t('premiumQuality'), desc: t('premiumQualityDesc') },
+  { icon: CalendarClock, title: t('weeklyUse'), desc: t('weeklyUseDesc') }];
+
 
   const details = [
-    { label: t('activeIngredientLabel'), value: product.active_ingredient },
-    { label: t('dosageLabel'), value: variation?.dosage },
-    { label: t('pharmaForm'), value: product.pharma_form },
-    { label: t('adminRoute'), value: product.administration_route },
-    { label: t('frequency'), value: product.frequency },
-  ];
+  { label: t('activeIngredientLabel'), value: product.active_ingredient },
+  { label: t('dosageLabel'), value: variation?.dosage },
+  { label: t('pharmaForm'), value: product.pharma_form },
+  { label: t('adminRoute'), value: product.administration_route },
+  { label: t('frequency'), value: product.frequency }];
+
 
   return (
     <div className="min-h-screen bg-background">
       {/* Top Banner */}
-      {banners.length > 0 && (
-        <div className="bg-black text-white overflow-hidden">
+      {banners.length > 0 &&
+      <div className="bg-black text-white overflow-hidden">
           <div className="animate-marquee whitespace-nowrap py-2 text-xs font-medium tracking-wide">
-            {banners.map((b) => (
-              <span key={b.id} className="mx-8">{b.text}</span>
-            ))}
-            {banners.map((b) => (
-              <span key={`dup-${b.id}`} className="mx-8">{b.text}</span>
-            ))}
+            {banners.map((b) =>
+          <span key={b.id} className="mx-8">{b.text}</span>
+          )}
+            {banners.map((b) =>
+          <span key={`dup-${b.id}`} className="mx-8">{b.text}</span>
+          )}
           </div>
         </div>
-      )}
+      }
 
       <Header />
 
@@ -216,41 +189,41 @@ const ProductCheckout = () => {
               <img
                 src={images[currentImage]}
                 alt={product.name}
-                className="max-w-[80%] max-h-[80%] object-contain"
-              />
-              {images.length > 1 && (
-                <>
+                className="max-w-[80%] max-h-[80%] object-contain" />
+              
+              {images.length > 1 &&
+              <>
                   <button
-                    onClick={() => setCurrentImage((p) => (p > 0 ? p - 1 : images.length - 1))}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-card/80 border border-border flex items-center justify-center hover:bg-card transition-colors"
-                  >
+                  onClick={() => setCurrentImage((p) => p > 0 ? p - 1 : images.length - 1)}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-card/80 border border-border flex items-center justify-center hover:bg-card transition-colors">
+                  
                     <ChevronLeft className="w-5 h-5 text-foreground" />
                   </button>
                   <button
-                    onClick={() => setCurrentImage((p) => (p < images.length - 1 ? p + 1 : 0))}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-card/80 border border-border flex items-center justify-center hover:bg-card transition-colors"
-                  >
+                  onClick={() => setCurrentImage((p) => p < images.length - 1 ? p + 1 : 0)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-card/80 border border-border flex items-center justify-center hover:bg-card transition-colors">
+                  
                     <ChevronRight className="w-5 h-5 text-foreground" />
                   </button>
                 </>
-              )}
+              }
             </div>
             {/* Thumbnails */}
-            {images.length > 1 && (
-              <div className="flex gap-2 mt-3">
-                {images.map((img, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentImage(i)}
-                    className={`w-16 h-16 rounded-lg border-2 overflow-hidden transition-all ${
-                      i === currentImage ? 'border-primary' : 'border-border/50 opacity-60 hover:opacity-100'
-                    }`}
-                  >
+            {images.length > 1 &&
+            <div className="flex gap-2 mt-3">
+                {images.map((img, i) =>
+              <button
+                key={i}
+                onClick={() => setCurrentImage(i)}
+                className={`w-16 h-16 rounded-lg border-2 overflow-hidden transition-all ${
+                i === currentImage ? 'border-primary' : 'border-border/50 opacity-60 hover:opacity-100'}`
+                }>
+                
                     <img src={img} alt="" className="w-full h-full object-cover" />
                   </button>
-                ))}
+              )}
               </div>
-            )}
+            }
           </AnimatedSection>
 
           {/* Product Info */}
@@ -261,45 +234,38 @@ const ProductCheckout = () => {
             </div>
 
             {/* Dosage Selector */}
-            {variations.length > 1 && (
-              <div className="space-y-2">
+            {variations.length > 1 &&
+            <div className="space-y-2">
                 <p className="text-sm font-medium text-foreground">{t('selectDosage')}</p>
                 <div className="flex gap-3">
-                  {variations.map((v: any, i: number) => (
-                    <button
-                      key={v.id}
-                      onClick={() => { setSelectedVariation(i); setCurrentImage(0); }}
-                      className={`relative flex-1 p-4 rounded-lg border-2 transition-all text-left ${
-                        i === selectedVariation
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/30'
-                      }`}
-                    >
-                      {v.is_offer && (
-                        <span className="absolute -top-2 right-2 bg-destructive text-destructive-foreground text-[10px] font-bold px-2 py-0.5 rounded">
+                  {variations.map((v: any, i: number) =>
+                <button
+                  key={v.id}
+                  onClick={() => {setSelectedVariation(i);setCurrentImage(0);}}
+                  className={`relative flex-1 p-4 rounded-lg border-2 transition-all text-left ${
+                  i === selectedVariation ?
+                  'border-primary bg-primary/5' :
+                  'border-border hover:border-primary/30'}`
+                  }>
+                  
+                      {v.is_offer &&
+                  <span className="absolute -top-2 right-2 bg-destructive text-destructive-foreground text-[10px] font-bold px-2 py-0.5 rounded">
                           {t('offer')}
                         </span>
-                      )}
-                      {i === selectedVariation && (
-                        <CheckCircle2 className="absolute top-2 right-2 w-5 h-5 text-primary" />
-                      )}
-                      {v.image_url && (
-                        <img src={v.image_url} alt={v.dosage} className="w-10 h-10 object-contain rounded mb-1" />
-                      )}
+                  }
+                      {i === selectedVariation &&
+                  <CheckCircle2 className="absolute top-2 right-2 w-5 h-5 text-primary" />
+                  }
+                      {v.image_url
+
+                  }
                       <p className="font-semibold text-foreground">{v.dosage}</p>
-                      {v.is_offer && v.offer_price ? (
-                        <>
-                          <p className="text-muted-foreground text-xs line-through">R$ {Number(v.price).toLocaleString('pt-BR')}</p>
-                          <p className="text-destructive font-bold">R$ {Number(v.offer_price).toLocaleString('pt-BR')}</p>
-                        </>
-                      ) : (
-                        <p className="text-primary font-bold">R$ {Number(v.price).toLocaleString('pt-BR')}</p>
-                      )}
+                      <p className="text-primary font-bold">R$ {Number(v.price).toLocaleString('pt-BR')}</p>
                     </button>
-                  ))}
+                )}
                 </div>
               </div>
-            )}
+            }
 
             {/* Info note */}
             <div className="bg-muted rounded-lg p-3 text-sm text-muted-foreground">
@@ -312,8 +278,8 @@ const ProductCheckout = () => {
               <div className="flex items-center gap-0">
                 <button
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="w-10 h-10 border border-border rounded-l-lg flex items-center justify-center hover:bg-muted transition-colors"
-                >
+                  className="w-10 h-10 border border-border rounded-l-lg flex items-center justify-center hover:bg-muted transition-colors">
+                  
                   <Minus className="w-4 h-4 text-foreground" />
                 </button>
                 <div className="w-14 h-10 border-y border-border flex items-center justify-center text-foreground font-medium">
@@ -321,110 +287,74 @@ const ProductCheckout = () => {
                 </div>
                 <button
                   onClick={() => setQuantity((q) => q + 1)}
-                  className="w-10 h-10 border border-border rounded-r-lg flex items-center justify-center hover:bg-muted transition-colors"
-                >
+                  className="w-10 h-10 border border-border rounded-r-lg flex items-center justify-center hover:bg-muted transition-colors">
+                  
                   <Plus className="w-4 h-4 text-foreground" />
                 </button>
               </div>
             </div>
 
-            {/* Wholesale Tiers */}
-            {variation && (wholesalePrices[variation.id] || []).length > 0 && (
-              <div className="border border-primary/20 rounded-xl p-4 bg-primary/5 space-y-2">
-                <p className="text-sm font-semibold text-primary flex items-center gap-1.5">
-                  <Package className="w-4 h-4" /> Preços no Atacado
-                </p>
-                <div className="grid gap-1.5">
-                  {wholesalePrices[variation.id].map((wp, i) => (
-                    <div key={i} className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">A partir de <span className="font-semibold text-foreground">{wp.min_quantity} unid.</span></span>
-                      <span className="font-bold text-primary">R$ {wp.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} /unid.</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Price Box */}
-            {(() => {
-              const wp = variation ? (wholesalePrices[variation.id] || []) : [];
-              const basePrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : Number(variation?.price || 0);
-              const effectivePrice = getEffectivePrice(basePrice, quantity, wp);
-              const isWholesale = effectivePrice < basePrice;
-              return (
-                <div className="border border-border/50 rounded-xl p-5 space-y-3 bg-card">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">{t('price')}</p>
-                    {variation?.in_stock ? (
-                      <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/10">{t('inStock')}</Badge>
-                    ) : (
-                      <Badge variant="destructive">{t('unavailable')}</Badge>
-                    )}
-                  </div>
-                  {variation?.is_offer && variation?.offer_price ? (
-                    <p className="text-lg text-muted-foreground line-through">
-                      R$ {(Number(variation.price) * quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-                  ) : null}
-                  {isWholesale && (
-                    <p className="text-sm text-muted-foreground line-through">
-                      R$ {(basePrice * quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-                  )}
-                  <p className={`text-3xl font-bold ${isWholesale ? 'text-primary' : variation?.is_offer ? 'text-destructive' : 'text-primary'}`}>
-                    R$ {(effectivePrice * quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                  {isWholesale && (
-                    <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/10 text-xs">
-                      Preço atacado aplicado!
-                    </Badge>
-                  )}
-                </div>
-              );
-            })()}
+            <div className="border border-border/50 rounded-xl p-5 space-y-3 bg-card">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">{t('price')}</p>
+                {variation?.in_stock ?
+                <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/10">{t('inStock')}</Badge> :
+
+                <Badge variant="destructive">{t('unavailable')}</Badge>
+                }
+              </div>
+              <p className="text-3xl font-bold text-primary">
+                R$ {(Number(variation?.price || 0) * quantity).toLocaleString('pt-BR')}
+              </p>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5" /> {t('upTo6x')}</p>
+                <p className="text-success font-medium flex items-center gap-1"><CircleDollarSign className="w-3.5 h-3.5" /> {t('pixAvailable')}</p>
+              </div>
+            </div>
 
             {/* Buy Buttons */}
-            {variation?.in_stock ? (
-              <div className="space-y-3">
+            {variation?.in_stock ?
+            <div className="space-y-3">
                 <Button
-                  className="w-full h-14 text-lg font-semibold rounded-xl"
-                  onClick={async () => {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    const params = new URLSearchParams();
-                    if (variation?.id) params.set('v', variation.id);
-                    params.set('qty', String(quantity));
-                    if (!session) {
-                      navigate(`/cliente/login?redirect=${encodeURIComponent(`/checkout/${id}?${params.toString()}`)}`);
-                      return;
-                    }
-                    navigate(`/checkout/${id}?${params.toString()}`);
-                  }}
-                >
+                className="w-full h-14 text-lg font-semibold rounded-xl"
+                onClick={async () => {
+                  const { data: { session } } = await supabase.auth.getSession();
+                  const params = new URLSearchParams();
+                  if (variation?.id) params.set('v', variation.id);
+                  params.set('qty', String(quantity));
+                  if (!session) {
+                    navigate(`/cliente/login?redirect=${encodeURIComponent(`/checkout/${id}?${params.toString()}`)}`);
+                    return;
+                  }
+                  navigate(`/checkout/${id}?${params.toString()}`);
+                }}>
+                
                   {t('buyNow')}
                 </Button>
                 <Button
-                  variant="outline"
-                  className="w-full h-12 text-base font-semibold rounded-xl"
-                  onClick={async () => {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (!session) {
-                      navigate(`/cliente/login?redirect=${encodeURIComponent(`/produto/${id}?v=${variation?.id}`)}`);
-                      return;
-                    }
-                    if (variation?.id && id) {
-                      addToCart(id, variation.id, quantity);
-                    }
-                  }}
-                >
+                variant="outline"
+                className="w-full h-12 text-base font-semibold rounded-xl"
+                onClick={async () => {
+                  const { data: { session } } = await supabase.auth.getSession();
+                  if (!session) {
+                    navigate(`/cliente/login?redirect=${encodeURIComponent(`/produto/${id}?v=${variation?.id}`)}`);
+                    return;
+                  }
+                  if (variation?.id && id) {
+                    addToCart(id, variation.id, quantity);
+                  }
+                }}>
+                
                   <ShoppingCart className="w-5 h-5 mr-2" />
                   Adicionar ao Carrinho
                 </Button>
-              </div>
-            ) : (
-              <Button className="w-full h-14 text-lg font-semibold rounded-xl" disabled>
+              </div> :
+
+            <Button className="w-full h-14 text-lg font-semibold rounded-xl" disabled>
                 {t('soldOut')}
               </Button>
-            )}
+            }
 
           </AnimatedSection>
         </div>
@@ -432,8 +362,8 @@ const ProductCheckout = () => {
         {/* Trust Badges - Full width */}
         <AnimatedSection variant="fadeUp" className="mt-8">
           <StaggerContainer className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {trustBadges.map((badge) => (
-              <StaggerItem key={badge.title}>
+            {trustBadges.map((badge) =>
+            <StaggerItem key={badge.title}>
                 <div className="flex items-start gap-3 p-3 rounded-lg border border-border/50 bg-card">
                   <badge.icon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                   <div>
@@ -442,7 +372,7 @@ const ProductCheckout = () => {
                   </div>
                 </div>
               </StaggerItem>
-            ))}
+            )}
           </StaggerContainer>
         </AnimatedSection>
 
@@ -451,12 +381,12 @@ const ProductCheckout = () => {
           <div className="border border-border/50 rounded-xl p-5 bg-card space-y-4">
             <h3 className="font-bold text-foreground">{t('productDetails')}</h3>
             <div className="divide-y divide-border/50">
-              {details.map((d) => (
-                <div key={d.label} className="flex justify-between py-2.5 text-sm">
+              {details.map((d) =>
+              <div key={d.label} className="flex justify-between py-2.5 text-sm">
                   <span className="text-muted-foreground">{d.label}</span>
                   <span className="font-medium text-foreground">{d.value || '—'}</span>
                 </div>
-              ))}
+              )}
             </div>
             <p className="text-xs text-muted-foreground pt-2">
               {product.description}
@@ -492,73 +422,59 @@ const ProductCheckout = () => {
           {t('testimonialSubtitle')}
         </p>
         <StaggerContainer className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {dynamicTestimonials.map((t) => (
-            <StaggerItem key={t.id}>
+          {dynamicTestimonials.map((t) =>
+          <StaggerItem key={t.id}>
               <VideoTestimonialCard thumbnail={t.thumbnail_url} name={t.name} videoUrl={t.video_url} />
             </StaggerItem>
-          ))}
+          )}
           {dynamicTestimonials.length === 0 && [
-            { img: testimonial1, name: 'Maria S.' },
-            { img: testimonial2, name: 'Carlos A.' },
-            { img: testimonial3, name: 'Juliana R.' },
-          ].map((t, idx) => (
-            <StaggerItem key={idx}>
+          { img: testimonial1, name: 'Maria S.' },
+          { img: testimonial2, name: 'Carlos A.' },
+          { img: testimonial3, name: 'Juliana R.' }].
+          map((t, idx) =>
+          <StaggerItem key={idx}>
               <VideoTestimonialCard thumbnail={t.img} name={t.name} />
             </StaggerItem>
-          ))}
+          )}
         </StaggerContainer>
       </AnimatedSection>
 
-      {/* Customer Reviews */}
-      {productReviews.length > 0 && (
-        <AnimatedSection className="max-w-6xl mx-auto px-4 pb-12">
-          <h2 className="text-2xl font-bold text-foreground mb-2 text-center">Avaliações de Clientes</h2>
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <div className="flex gap-0.5">
-              {[1, 2, 3, 4, 5].map(s => {
-                const avg = productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length;
-                return <Star key={s} className={`w-5 h-5 ${s <= Math.round(avg) ? 'text-primary fill-primary' : 'text-muted-foreground/30'}`} />;
-              })}
-            </div>
-            <span className="text-sm text-muted-foreground">
-              ({productReviews.length} {productReviews.length === 1 ? 'avaliação' : 'avaliações'})
-            </span>
-          </div>
-          <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {productReviews.map((review) => (
-              <StaggerItem key={review.id}>
-                <div className="p-5 rounded-xl border border-border/50 bg-card text-left space-y-3">
-                  <div className="flex gap-0.5">
-                    {[1, 2, 3, 4, 5].map(s => (
-                      <Star key={s} className={`w-4 h-4 ${s <= review.rating ? 'text-primary fill-primary' : 'text-muted-foreground/30'}`} />
-                    ))}
-                  </div>
-                  {review.comment && (
-                    <p className="text-sm text-foreground">"{review.comment}"</p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    — Cliente verificado · {new Date(review.created_at).toLocaleDateString('pt-BR')}
-                  </p>
+      {/* Text Testimonials */}
+      <AnimatedSection className="max-w-6xl mx-auto px-4 pb-16">
+        <StaggerContainer className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+          { name: 'Maria S.', text: 'Produto excelente! Resultado visível já na segunda semana de uso.' },
+          { name: 'Carlos A.', text: 'Entrega rápida e produto de qualidade. Recomendo a todos.' },
+          { name: 'Juliana R.', text: 'Melhor custo-benefício do mercado. Atendimento impecável.' }].
+          map((t) =>
+          <StaggerItem key={t.name}>
+              <div className="p-5 rounded-xl border border-border/50 bg-card text-left space-y-3">
+                <div className="flex gap-1 text-primary">
+                  {'★★★★★'.split('').map((s, i) =>
+                <span key={i}>{s}</span>
+                )}
                 </div>
-              </StaggerItem>
-            ))}
-          </StaggerContainer>
-        </AnimatedSection>
-      )}
+                <p className="text-sm text-foreground">"{t.text}"</p>
+                <p className="text-xs font-medium text-muted-foreground">— {t.name}</p>
+              </div>
+            </StaggerItem>
+          )}
+        </StaggerContainer>
+      </AnimatedSection>
 
       {/* WhatsApp FAB */}
-      {whatsappNumber && (
-        <a
-          href={`https://wa.me/${whatsappNumber}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="fixed bottom-6 right-6 w-14 h-14 bg-[#25D366] rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-50"
-        >
+      {whatsappNumber &&
+      <a
+        href={`https://wa.me/${whatsappNumber}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-[#25D366] rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-50">
+        
           <WhatsAppIcon className="w-7 h-7 text-white" />
         </a>
-      )}
-    </div>
-  );
+      }
+    </div>);
+
 };
 
 export default ProductCheckout;
