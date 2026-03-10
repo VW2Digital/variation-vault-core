@@ -603,39 +603,42 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   // ─── CUSTOMER DATA ───
   if (step === 'customer') {
     return (
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="text-base">Dados do Comprador</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Nome completo *</Label>
-            <Input value={name} onChange={(e) => { setName(e.target.value); setFieldErrors(p => ({ ...p, name: undefined })); }} placeholder="João da Silva" className={fieldErrors.name ? 'border-destructive' : ''} />
-            <ErrorText msg={fieldErrors.name} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Email *</Label>
-            <Input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setFieldErrors(p => ({ ...p, email: undefined })); }} placeholder="joao@email.com" className={fieldErrors.email ? 'border-destructive' : ''} />
-            <ErrorText msg={fieldErrors.email} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+      <div>
+        <StepIndicator currentStep={step} />
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle className="text-base">Dados do Comprador</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-xs">CPF *</Label>
-              <Input value={cpf} onChange={(e) => { setCpf(formatCpf(e.target.value)); setFieldErrors(p => ({ ...p, cpf: undefined })); }} placeholder="000.000.000-00" className={fieldErrors.cpf ? 'border-destructive' : ''} />
-              <ErrorText msg={fieldErrors.cpf} />
+              <Label className="text-xs">Nome completo *</Label>
+              <Input value={name} onChange={(e) => { setName(e.target.value); setFieldErrors(p => ({ ...p, name: undefined })); }} placeholder="João da Silva" className={fieldErrors.name ? 'border-destructive' : ''} />
+              <ErrorText msg={fieldErrors.name} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Telefone *</Label>
-              <Input value={phone} onChange={(e) => { setPhone(formatPhone(e.target.value)); setFieldErrors(p => ({ ...p, phone: undefined })); }} placeholder="(11) 99999-9999" className={fieldErrors.phone ? 'border-destructive' : ''} />
-              <ErrorText msg={fieldErrors.phone} />
+              <Label className="text-xs">Email *</Label>
+              <Input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setFieldErrors(p => ({ ...p, email: undefined })); }} placeholder="joao@email.com" className={fieldErrors.email ? 'border-destructive' : ''} />
+              <ErrorText msg={fieldErrors.email} />
             </div>
-          </div>
-          <Button onClick={handleCreateCustomer} disabled={processing} className="w-full">
-            {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            Continuar
-          </Button>
-        </CardContent>
-      </Card>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">CPF *</Label>
+                <Input value={cpf} onChange={(e) => { setCpf(formatCpf(e.target.value)); setFieldErrors(p => ({ ...p, cpf: undefined })); }} placeholder="000.000.000-00" className={fieldErrors.cpf ? 'border-destructive' : ''} />
+                <ErrorText msg={fieldErrors.cpf} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Telefone *</Label>
+                <Input value={phone} onChange={(e) => { setPhone(formatPhone(e.target.value)); setFieldErrors(p => ({ ...p, phone: undefined })); }} placeholder="(11) 99999-9999" className={fieldErrors.phone ? 'border-destructive' : ''} />
+                <ErrorText msg={fieldErrors.phone} />
+              </div>
+            </div>
+            <Button onClick={handleCreateCustomer} disabled={processing} className="w-full">
+              {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Continuar
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
