@@ -28,6 +28,7 @@ const Catalog = () => {
   const { t } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [wholesaleMap, setWholesaleMap] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState('');
   const [pharmaFilter, setPharmaFilter] = useState('all');
   const [routeFilter, setRouteFilter] = useState('all');
@@ -36,7 +37,20 @@ const Catalog = () => {
 
   useEffect(() => {
     fetchProducts()
-      .then(setProducts)
+      .then(async (prods) => {
+        setProducts(prods);
+        // Fetch which variations have wholesale prices
+        const allVarIds = prods.flatMap((p: any) => (p.product_variations || []).map((v: any) => v.id));
+        if (allVarIds.length > 0) {
+          const { data: wpData } = await supabase
+            .from('wholesale_prices' as any)
+            .select('variation_id')
+            .in('variation_id', allVarIds);
+          const wpSet: Record<string, boolean> = {};
+          (wpData || []).forEach((w: any) => { wpSet[w.variation_id] = true; });
+          setWholesaleMap(wpSet);
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 
