@@ -69,6 +69,7 @@ const CustomerDashboard = () => {
       await Promise.all([
         fetchOrders(session.user.email || ''),
         fetchProfile(session.user.id),
+        fetchReviews(session.user.id),
       ]);
     };
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
