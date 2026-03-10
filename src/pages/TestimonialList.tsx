@@ -118,10 +118,12 @@ const TestimonialList = () => {
   const resetForm = () => {
     setName('');
     setVideoFile(null);
+    setVideoUrl('');
     setVideoPreview('');
     setThumbnailBlob(null);
     setThumbnailPreview('');
     setIsAdding(false);
+    setInputMode('upload');
     if (videoInputRef.current) videoInputRef.current.value = '';
   };
 
