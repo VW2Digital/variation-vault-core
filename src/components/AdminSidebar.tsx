@@ -23,6 +23,7 @@ const items = [
   { title: 'Pedidos', url: '/admin/pedidos', icon: ShoppingBag },
   { title: 'Banners', url: '/admin/banners', icon: Megaphone },
   { title: 'Usuários', url: '/admin/usuarios', icon: Users },
+  { title: 'Suporte', url: '/admin/suporte', icon: MessageCircle },
   { title: 'Configurações', url: '/admin/configuracoes', icon: Settings },
 ];
 

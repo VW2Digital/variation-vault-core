@@ -582,6 +582,11 @@ const CustomerDashboard = () => {
                   </Card>
                 )}
               </TabsContent>
+
+              {/* Help Tab */}
+              <TabsContent value="help">
+                {user && <SupportChat userId={user.id} />}
+              </TabsContent>
             </Tabs>
           </>
         )}
