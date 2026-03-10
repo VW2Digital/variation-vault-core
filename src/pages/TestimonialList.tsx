@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Trash2, Video, Upload, Play } from 'lucide-react';
+import { Plus, Trash2, Video, Upload, Play, Link } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -18,7 +18,9 @@ const TestimonialList = () => {
   const { toast } = useToast();
   const [isAdding, setIsAdding] = useState(false);
   const [name, setName] = useState('');
+  const [inputMode, setInputMode] = useState<'upload' | 'url'>('upload');
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoUrl, setVideoUrl] = useState('');
   const [videoPreview, setVideoPreview] = useState('');
   const [thumbnailBlob, setThumbnailBlob] = useState<Blob | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState('');
@@ -70,19 +72,29 @@ const TestimonialList = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!videoFile || !name.trim()) return;
+    if (!name.trim()) return;
+
+    if (inputMode === 'upload' && !videoFile) return;
+    if (inputMode === 'url' && !videoUrl.trim()) return;
+
     setIsProcessing(true);
     try {
-      const videoPath = `${crypto.randomUUID()}-${videoFile.name}`;
-      const videoUrl = await uploadFile('testimonial-videos', videoPath, videoFile);
-
+      let finalVideoUrl = '';
       let thumbnailUrl = '';
-      if (thumbnailBlob) {
-        const thumbPath = `${crypto.randomUUID()}-thumb.jpg`;
-        thumbnailUrl = await uploadFile('testimonial-videos', thumbPath, new File([thumbnailBlob], 'thumb.jpg', { type: 'image/jpeg' }));
+
+      if (inputMode === 'upload' && videoFile) {
+        const videoPath = `${crypto.randomUUID()}-${videoFile.name}`;
+        finalVideoUrl = await uploadFile('testimonial-videos', videoPath, videoFile);
+
+        if (thumbnailBlob) {
+          const thumbPath = `${crypto.randomUUID()}-thumb.jpg`;
+          thumbnailUrl = await uploadFile('testimonial-videos', thumbPath, new File([thumbnailBlob], 'thumb.jpg', { type: 'image/jpeg' }));
+        }
+      } else {
+        finalVideoUrl = videoUrl.trim();
       }
 
-      await createTestimonial({ name: name.trim(), video_url: videoUrl, thumbnail_url: thumbnailUrl });
+      await createTestimonial({ name: name.trim(), video_url: finalVideoUrl, thumbnail_url: thumbnailUrl });
       toast({ title: 'Depoimento adicionado!' });
       resetForm();
       load();
@@ -106,10 +118,12 @@ const TestimonialList = () => {
   const resetForm = () => {
     setName('');
     setVideoFile(null);
+    setVideoUrl('');
     setVideoPreview('');
     setThumbnailBlob(null);
     setThumbnailPreview('');
     setIsAdding(false);
+    setInputMode('upload');
     if (videoInputRef.current) videoInputRef.current.value = '';
   };
 
@@ -134,31 +148,69 @@ const TestimonialList = () => {
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Maria Silva" required />
               </div>
               <div className="space-y-2">
-                <Label>Vídeo (max 50MB)</Label>
-                <div onClick={() => videoInputRef.current?.click()} className="border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-8 text-center cursor-pointer transition-colors">
-                  {videoPreview ? (
-                    <div className="space-y-3">
-                      <video src={videoPreview} className="max-h-48 mx-auto rounded-lg" controls />
-                      <p className="text-sm text-muted-foreground">{videoFile?.name}</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Upload className="w-10 h-10 mx-auto text-muted-foreground/50" />
-                      <p className="text-sm text-muted-foreground">Clique para selecionar um vídeo</p>
-                      <p className="text-xs text-muted-foreground/70">MP4, MOV, WebM</p>
-                    </div>
-                  )}
-                  <input ref={videoInputRef} type="file" accept="video/*" onChange={handleVideoChange} className="hidden" />
+                <Label>Tipo de entrada</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={inputMode === 'upload' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setInputMode('upload')}
+                  >
+                    <Upload className="mr-2 h-4 w-4" /> Enviar arquivo
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={inputMode === 'url' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setInputMode('url')}
+                  >
+                    <Link className="mr-2 h-4 w-4" /> Colar URL
+                  </Button>
                 </div>
               </div>
-              {thumbnailPreview && (
+
+              {inputMode === 'upload' ? (
+                <div className="space-y-2">
+                  <Label>Vídeo (max 50MB)</Label>
+                  <div onClick={() => videoInputRef.current?.click()} className="border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-8 text-center cursor-pointer transition-colors">
+                    {videoPreview ? (
+                      <div className="space-y-3">
+                        <video src={videoPreview} className="max-h-48 mx-auto rounded-lg" controls />
+                        <p className="text-sm text-muted-foreground">{videoFile?.name}</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Upload className="w-10 h-10 mx-auto text-muted-foreground/50" />
+                        <p className="text-sm text-muted-foreground">Clique para selecionar um vídeo</p>
+                        <p className="text-xs text-muted-foreground/70">MP4, MOV, WebM</p>
+                      </div>
+                    )}
+                    <input ref={videoInputRef} type="file" accept="video/*" onChange={handleVideoChange} className="hidden" />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>URL do Vídeo</Label>
+                  <Input
+                    value={videoUrl}
+                    onChange={(e) => setVideoUrl(e.target.value)}
+                    placeholder="Ex: https://www.youtube.com/watch?v=... ou link direto do vídeo"
+                    type="url"
+                  />
+                  <p className="text-xs text-muted-foreground">Cole o link do YouTube, Instagram, TikTok ou link direto do vídeo</p>
+                </div>
+              )}
+
+              {inputMode === 'upload' && thumbnailPreview && (
                 <div className="space-y-2">
                   <Label>Thumbnail gerada</Label>
                   <img src={thumbnailPreview} alt="Thumb" className="h-24 rounded-lg border border-border" />
                 </div>
               )}
               <div className="flex gap-3">
-                <Button type="submit" disabled={!videoFile || !name.trim() || isProcessing}>
+                <Button type="submit" disabled={
+                  (inputMode === 'upload' ? !videoFile : !videoUrl.trim()) || !name.trim() || isProcessing
+                }>
                   {isProcessing ? 'Enviando...' : 'Salvar'}
                 </Button>
                 <Button type="button" variant="outline" onClick={resetForm}>Cancelar</Button>
