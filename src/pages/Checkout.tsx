@@ -5,6 +5,7 @@ import { fetchProduct } from '@/lib/api';
 import { AnimatedSection } from '@/components/AnimatedSection';
 import CheckoutForm from '@/components/CheckoutForm';
 import Header from '@/components/Header';
+import { getEffectivePrice, WholesaleTier } from '@/contexts/CartContext';
 import productHeroImg from '@/assets/product-hero.png';
 import { useLanguage } from '@/contexts/LanguageContext';
 
