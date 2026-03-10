@@ -72,19 +72,29 @@ const TestimonialList = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!videoFile || !name.trim()) return;
+    if (!name.trim()) return;
+
+    if (inputMode === 'upload' && !videoFile) return;
+    if (inputMode === 'url' && !videoUrl.trim()) return;
+
     setIsProcessing(true);
     try {
-      const videoPath = `${crypto.randomUUID()}-${videoFile.name}`;
-      const videoUrl = await uploadFile('testimonial-videos', videoPath, videoFile);
-
+      let finalVideoUrl = '';
       let thumbnailUrl = '';
-      if (thumbnailBlob) {
-        const thumbPath = `${crypto.randomUUID()}-thumb.jpg`;
-        thumbnailUrl = await uploadFile('testimonial-videos', thumbPath, new File([thumbnailBlob], 'thumb.jpg', { type: 'image/jpeg' }));
+
+      if (inputMode === 'upload' && videoFile) {
+        const videoPath = `${crypto.randomUUID()}-${videoFile.name}`;
+        finalVideoUrl = await uploadFile('testimonial-videos', videoPath, videoFile);
+
+        if (thumbnailBlob) {
+          const thumbPath = `${crypto.randomUUID()}-thumb.jpg`;
+          thumbnailUrl = await uploadFile('testimonial-videos', thumbPath, new File([thumbnailBlob], 'thumb.jpg', { type: 'image/jpeg' }));
+        }
+      } else {
+        finalVideoUrl = videoUrl.trim();
       }
 
-      await createTestimonial({ name: name.trim(), video_url: videoUrl, thumbnail_url: thumbnailUrl });
+      await createTestimonial({ name: name.trim(), video_url: finalVideoUrl, thumbnail_url: thumbnailUrl });
       toast({ title: 'Depoimento adicionado!' });
       resetForm();
       load();
