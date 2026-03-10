@@ -14,6 +14,7 @@ interface Variation {
   id?: string;
   dosage: string;
   price: number;
+  offer_price: number;
   in_stock: boolean;
   is_offer: boolean;
   image_url: string;
@@ -23,6 +24,7 @@ interface Variation {
 const emptyVariation = (): Variation => ({
   dosage: '',
   price: 0,
+  offer_price: 0,
   in_stock: true,
   is_offer: false,
   image_url: '',
