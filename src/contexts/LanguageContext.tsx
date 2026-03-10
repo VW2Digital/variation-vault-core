@@ -49,7 +49,7 @@ const translations = {
   quantity: { pt: 'Quantidade', es: 'Cantidad', en: 'Quantity' },
   price: { pt: 'Preço', es: 'Precio', en: 'Price' },
   unavailable: { pt: 'Indisponível', es: 'No disponible', en: 'Unavailable' },
-  upTo6x: { pt: 'Até 6x sem juros no cartão', es: 'Hasta 6x sin intereses', en: 'Up to 6x interest-free' },
+  upTo6x: { pt: 'Aceitamos todos os cartões', es: 'Aceptamos todas las tarjetas', en: 'We accept all cards' },
   pixAvailable: { pt: 'PIX disponível', es: 'PIX disponible', en: 'PIX available' },
   buyNow: { pt: 'Comprar Agora', es: 'Comprar Ahora', en: 'Buy Now' },
   soldOut: { pt: 'Produto Esgotado', es: 'Producto Agotado', en: 'Sold Out' },
