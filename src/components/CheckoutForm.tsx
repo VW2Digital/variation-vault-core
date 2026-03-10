@@ -824,6 +824,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
           </button>
         </CardContent>
       </Card>
+      </div>
     );
   }
 
