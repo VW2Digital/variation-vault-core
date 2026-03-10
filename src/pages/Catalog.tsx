@@ -282,7 +282,7 @@ const Catalog = () => {
                           </p>
                         )}
                         {hasWholesale && wholesaleMinQty && (
-                          <span className="text-[10px] text-muted-foreground font-medium">
+                          <span className="text-[10px] text-destructive font-bold">
                             A partir de {wholesaleMinQty} unid.
                           </span>
                         )}
