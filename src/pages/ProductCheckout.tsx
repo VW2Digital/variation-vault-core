@@ -268,7 +268,14 @@ const ProductCheckout = () => {
                         <img src={v.image_url} alt={v.dosage} className="w-12 h-12 object-contain mb-1 rounded" />
                       )}
                       <p className="font-semibold text-foreground">{v.dosage}</p>
-                      <p className="text-primary font-bold">R$ {Number(v.price).toLocaleString('pt-BR')}</p>
+                      {v.is_offer && v.offer_price ? (
+                        <>
+                          <p className="text-muted-foreground text-xs line-through">R$ {Number(v.price).toLocaleString('pt-BR')}</p>
+                          <p className="text-destructive font-bold">R$ {Number(v.offer_price).toLocaleString('pt-BR')}</p>
+                        </>
+                      ) : (
+                        <p className="text-primary font-bold">R$ {Number(v.price).toLocaleString('pt-BR')}</p>
+                      )}
                     </button>
                 )}
                 </div>
