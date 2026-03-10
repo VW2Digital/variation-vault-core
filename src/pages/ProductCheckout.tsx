@@ -264,9 +264,9 @@ const ProductCheckout = () => {
                       {i === selectedVariation &&
                   <CheckCircle2 className="absolute top-2 right-2 w-5 h-5 text-primary" />
                   }
-                      {v.image_url
-
-                  }
+                      {v.image_url && (
+                        <img src={v.image_url} alt={v.dosage} className="w-12 h-12 object-contain mb-1 rounded" />
+                      )}
                       <p className="font-semibold text-foreground">{v.dosage}</p>
                       <p className="text-primary font-bold">R$ {Number(v.price).toLocaleString('pt-BR')}</p>
                     </button>
