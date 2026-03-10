@@ -149,6 +149,46 @@ const CustomerDashboard = () => {
     if (user?.email) fetchOrders(user.email);
   };
 
+  const fetchReviews = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setReviews(data || []);
+    } catch (err) {
+      console.error('Reviews fetch error:', err);
+    }
+  };
+
+  const submitReview = async (orderId: string, productName: string) => {
+    if (!user) return;
+    setReviewSaving(true);
+    try {
+      const { error } = await supabase.from('reviews').upsert({
+        user_id: user.id,
+        order_id: orderId,
+        product_name: productName,
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+      }, { onConflict: 'user_id,order_id' });
+      if (error) throw error;
+      toast({ title: 'Avaliação enviada com sucesso!' });
+      setReviewingOrderId(null);
+      setReviewRating(5);
+      setReviewComment('');
+      fetchReviews(user.id);
+    } catch (err: any) {
+      toast({ title: 'Erro ao enviar avaliação', description: err.message, variant: 'destructive' });
+    } finally {
+      setReviewSaving(false);
+    }
+  };
+
+  const reviewedOrderIds = useMemo(() => new Set(reviews.map(r => r.order_id)), [reviews]);
+
   // Stats
   const stats = useMemo(() => {
     const total = orders.length;
