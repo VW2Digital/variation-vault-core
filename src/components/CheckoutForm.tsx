@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle, MapPin, Truck, ShoppingBag } from 'lucide-react';
+import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle, MapPin, Truck, ShoppingBag, User, Check } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCart } from '@/contexts/CartContext';
 
@@ -61,6 +61,59 @@ const ErrorText = ({ msg }: { msg?: string }) =>
       <AlertCircle className="w-3 h-3" /> {msg}
     </p>
   ) : null;
+
+const STEPS = [
+  { key: 'customer', label: 'Dados', icon: User },
+  { key: 'address', label: 'Endereço', icon: MapPin },
+  { key: 'shipping', label: 'Frete', icon: Truck },
+  { key: 'payment', label: 'Pagamento', icon: CreditCard },
+] as const;
+
+const StepIndicator = ({ currentStep }: { currentStep: CheckoutStep }) => {
+  const currentIndex = STEPS.findIndex(s => s.key === currentStep);
+
+  return (
+    <div className="flex items-center justify-between mb-6 px-2">
+      {STEPS.map((s, i) => {
+        const Icon = s.icon;
+        const isCompleted = i < currentIndex;
+        const isCurrent = i === currentIndex;
+
+        return (
+          <div key={s.key} className="flex items-center flex-1 last:flex-none">
+            <div className="flex flex-col items-center gap-1">
+              <div
+                className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                  isCompleted
+                    ? 'bg-primary border-primary text-primary-foreground'
+                    : isCurrent
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-muted-foreground/30 bg-muted text-muted-foreground/50'
+                }`}
+              >
+                {isCompleted ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
+              </div>
+              <span
+                className={`text-[10px] font-medium transition-colors ${
+                  isCompleted || isCurrent ? 'text-foreground' : 'text-muted-foreground/50'
+                }`}
+              >
+                {s.label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div
+                className={`flex-1 h-0.5 mx-1.5 mt-[-18px] rounded transition-colors duration-300 ${
+                  i < currentIndex ? 'bg-primary' : 'bg-muted-foreground/20'
+                }`}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, freeShippingMinValue, onSuccess }: CheckoutFormProps) => {
   const { toast } = useToast();
@@ -550,39 +603,42 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   // ─── CUSTOMER DATA ───
   if (step === 'customer') {
     return (
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="text-base">Dados do Comprador</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Nome completo *</Label>
-            <Input value={name} onChange={(e) => { setName(e.target.value); setFieldErrors(p => ({ ...p, name: undefined })); }} placeholder="João da Silva" className={fieldErrors.name ? 'border-destructive' : ''} />
-            <ErrorText msg={fieldErrors.name} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Email *</Label>
-            <Input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setFieldErrors(p => ({ ...p, email: undefined })); }} placeholder="joao@email.com" className={fieldErrors.email ? 'border-destructive' : ''} />
-            <ErrorText msg={fieldErrors.email} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+      <div>
+        <StepIndicator currentStep={step} />
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle className="text-base">Dados do Comprador</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-xs">CPF *</Label>
-              <Input value={cpf} onChange={(e) => { setCpf(formatCpf(e.target.value)); setFieldErrors(p => ({ ...p, cpf: undefined })); }} placeholder="000.000.000-00" className={fieldErrors.cpf ? 'border-destructive' : ''} />
-              <ErrorText msg={fieldErrors.cpf} />
+              <Label className="text-xs">Nome completo *</Label>
+              <Input value={name} onChange={(e) => { setName(e.target.value); setFieldErrors(p => ({ ...p, name: undefined })); }} placeholder="João da Silva" className={fieldErrors.name ? 'border-destructive' : ''} />
+              <ErrorText msg={fieldErrors.name} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Telefone *</Label>
-              <Input value={phone} onChange={(e) => { setPhone(formatPhone(e.target.value)); setFieldErrors(p => ({ ...p, phone: undefined })); }} placeholder="(11) 99999-9999" className={fieldErrors.phone ? 'border-destructive' : ''} />
-              <ErrorText msg={fieldErrors.phone} />
+              <Label className="text-xs">Email *</Label>
+              <Input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setFieldErrors(p => ({ ...p, email: undefined })); }} placeholder="joao@email.com" className={fieldErrors.email ? 'border-destructive' : ''} />
+              <ErrorText msg={fieldErrors.email} />
             </div>
-          </div>
-          <Button onClick={handleCreateCustomer} disabled={processing} className="w-full">
-            {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            Continuar
-          </Button>
-        </CardContent>
-      </Card>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">CPF *</Label>
+                <Input value={cpf} onChange={(e) => { setCpf(formatCpf(e.target.value)); setFieldErrors(p => ({ ...p, cpf: undefined })); }} placeholder="000.000.000-00" className={fieldErrors.cpf ? 'border-destructive' : ''} />
+                <ErrorText msg={fieldErrors.cpf} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Telefone *</Label>
+                <Input value={phone} onChange={(e) => { setPhone(formatPhone(e.target.value)); setFieldErrors(p => ({ ...p, phone: undefined })); }} placeholder="(11) 99999-9999" className={fieldErrors.phone ? 'border-destructive' : ''} />
+                <ErrorText msg={fieldErrors.phone} />
+              </div>
+            </div>
+            <Button onClick={handleCreateCustomer} disabled={processing} className="w-full">
+              {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Continuar
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -592,12 +648,14 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
     const showFullForm = !hasSavedAddresses || editingAddress || selectedAddressId === 'new';
 
     return (
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <MapPin className="w-4 h-4" /> Endereço de Entrega
-          </CardTitle>
-        </CardHeader>
+      <div>
+        <StepIndicator currentStep={step} />
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <MapPin className="w-4 h-4" /> Endereço de Entrega
+            </CardTitle>
+          </CardHeader>
         <CardContent className="space-y-3">
           {/* Compact confirmation view when user has saved addresses and is NOT editing */}
           {hasSavedAddresses && !showFullForm ? (
@@ -766,18 +824,21 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
           </button>
         </CardContent>
       </Card>
+      </div>
     );
   }
 
   // ─── SHIPPING ───
   if (step === 'shipping') {
     return (
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Truck className="w-4 h-4" /> Escolha o Frete
-          </CardTitle>
-        </CardHeader>
+      <div>
+        <StepIndicator currentStep={step} />
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Truck className="w-4 h-4" /> Escolha o Frete
+            </CardTitle>
+          </CardHeader>
         <CardContent className="space-y-3">
           {qualifiesForFreeShipping ? (
             <div className="text-center py-6 space-y-3">
@@ -874,12 +935,15 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
           </button>
         </CardContent>
       </Card>
+      </div>
     );
   }
 
   // ─── PAYMENT ───
   return (
-    <Card className="border-border/50">
+    <div>
+      <StepIndicator currentStep={step} />
+      <Card className="border-border/50">
       <CardHeader>
         <CardTitle className="text-base">Forma de Pagamento</CardTitle>
         <div className="flex gap-2 mt-2">
@@ -986,6 +1050,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
         </button>
       </CardContent>
     </Card>
+    </div>
   );
 };
 
