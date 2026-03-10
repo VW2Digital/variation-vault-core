@@ -71,6 +71,20 @@ const ProductForm = () => {
         setFrequency(p.frequency || '');
         setFreeShipping(p.free_shipping || false);
         setFreeShippingMinValue(Number(p.free_shipping_min_value) || 0);
+        // Fetch wholesale prices for all variations
+        const varIds = (p.product_variations || []).map((v: any) => v.id);
+        let wholesaleMap: Record<string, WholesaleTier[]> = {};
+        if (varIds.length > 0) {
+          const { data: wp } = await supabase
+            .from('wholesale_prices' as any)
+            .select('*')
+            .in('variation_id', varIds)
+            .order('min_quantity', { ascending: true });
+          (wp || []).forEach((w: any) => {
+            if (!wholesaleMap[w.variation_id]) wholesaleMap[w.variation_id] = [];
+            wholesaleMap[w.variation_id].push({ id: w.id, min_quantity: w.min_quantity, price: Number(w.price) });
+          });
+        }
         setVariations(
           p.product_variations?.length > 0
             ? p.product_variations.map((v: any) => ({
@@ -82,6 +96,7 @@ const ProductForm = () => {
                 is_offer: v.is_offer,
                 image_url: v.image_url || '',
                 images: v.images || [],
+                wholesale_prices: wholesaleMap[v.id] || [],
               }))
             : [emptyVariation()]
         );
