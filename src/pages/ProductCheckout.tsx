@@ -103,20 +103,27 @@ const ProductCheckout = () => {
   const [selectedVariation, setSelectedVariation] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [currentImage, setCurrentImage] = useState(0);
+  const [productReviews, setProductReviews] = useState<any[]>([]);
 
   useEffect(() => {
     if (!id) return;
-    Promise.all([fetchProduct(id), fetchTestimonials(), fetchBanners(), fetchSetting('whatsapp_number')]).then(([prod, tests, bans, wp]) => {
+    Promise.all([fetchProduct(id), fetchTestimonials(), fetchBanners(), fetchSetting('whatsapp_number')]).then(async ([prod, tests, bans, wp]) => {
       setProduct(prod);
       setDynamicTestimonials(tests);
       setBanners(bans);
       setWhatsappNumber(wp);
-      // Pre-select variation from query param
       const vId = searchParams.get('v');
       if (vId && prod.product_variations) {
         const idx = prod.product_variations.findIndex((v: any) => v.id === vId);
         if (idx >= 0) setSelectedVariation(idx);
       }
+      // Fetch reviews for this product
+      const { data: revData } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('product_name', prod.name)
+        .order('created_at', { ascending: false });
+      setProductReviews(revData || []);
     }).finally(() => setLoading(false));
   }, [id, searchParams]);
 
