@@ -152,12 +152,12 @@ const ProductForm = () => {
               // Delete existing wholesale prices for this variation
               await supabase.from('wholesale_prices').delete().eq('variation_id', sv.id);
               // Insert new ones
-              await supabase.from('wholesale_prices' as any).insert(
+              await supabase.from('wholesale_prices').insert(
                 matchingVar.wholesale_prices.map(wp => ({
                   variation_id: sv.id,
                   min_quantity: wp.min_quantity,
                   price: wp.price,
-                })) as any
+                }))
               );
             } else {
               // No wholesale prices, clean up
