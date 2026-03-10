@@ -423,6 +423,19 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
     if (!validateCard()) return;
     setProcessing(true);
     try {
+      // Ensure Asaas customer exists (may not have been created if profile auto-skipped)
+      let asaasCustomerId = customerId;
+      if (!asaasCustomerId) {
+        const customer = await invokeAsaas('create_customer', {
+          name: name.trim(),
+          email: email.trim(),
+          cpfCnpj: cpf.replace(/\D/g, ''),
+          phone: phone.replace(/\D/g, ''),
+        });
+        asaasCustomerId = customer.id;
+        setCustomerId(customer.id);
+      }
+
       const description = `${productName} ${dosage} x${quantity}`;
       const orderId = await createOrder(paymentMethod);
 
