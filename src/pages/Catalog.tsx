@@ -261,15 +261,10 @@ const Catalog = () => {
                           )}
                         </div>
                         {hasWholesale && (
-                          <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
+                          <div className="absolute top-3 right-3">
                             <Badge className="bg-primary/90 text-primary-foreground text-[10px] font-bold gap-1">
                               <Layers className="w-3 h-3" /> Atacado
                             </Badge>
-                            {wholesaleMinQty && (
-                              <span className="text-[9px] bg-background/90 text-foreground px-1.5 py-0.5 rounded font-medium shadow-sm">
-                                A partir de {wholesaleMinQty} unid.
-                              </span>
-                            )}
                           </div>
                         )}
                       </div>
@@ -285,6 +280,11 @@ const Catalog = () => {
                           <p className="text-[11px] text-muted-foreground">
                             {t('activeIngredient')}: <span className="font-medium">{product.active_ingredient}</span>
                           </p>
+                        )}
+                        {hasWholesale && wholesaleMinQty && (
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            A partir de {wholesaleMinQty} unid.
+                          </span>
                         )}
                         <div className="flex items-center justify-between pt-1">
                           {price !== null ? (
