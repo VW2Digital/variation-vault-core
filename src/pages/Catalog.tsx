@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, SlidersHorizontal, Package, CircleCheck, ShoppingCart, X, Layers } from 'lucide-react';
+import { Search, SlidersHorizontal, Package, CircleCheck, ShoppingCart, X, Layers, Star } from 'lucide-react';
 import CountdownTimer from '@/components/CountdownTimer';
 import { useCart } from '@/contexts/CartContext';
 import productHeroImg from '@/assets/product-hero.png';
@@ -34,6 +34,7 @@ const Catalog = () => {
   const [routeFilter, setRouteFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [stockFilter, setStockFilter] = useState('all');
+  const [reviewsMap, setReviewsMap] = useState<Record<string, { avg: number; count: number }>>({});
 
   useEffect(() => {
     fetchProducts()
@@ -49,12 +50,30 @@ const Catalog = () => {
             .order('min_quantity', { ascending: true });
           const wpSet: Record<string, number> = {};
           (wpData || []).forEach((w: any) => {
-            // Keep the lowest min_quantity per variation
             if (!(w.variation_id in wpSet) || w.min_quantity < wpSet[w.variation_id]) {
               wpSet[w.variation_id] = w.min_quantity;
             }
           });
           setWholesaleMap(wpSet);
+        }
+        // Fetch reviews for average ratings
+        const productNames = prods.map((p: any) => p.name);
+        if (productNames.length > 0) {
+          const { data: revData } = await supabase
+            .from('reviews')
+            .select('product_name, rating')
+            .in('product_name', productNames);
+          const rMap: Record<string, { total: number; count: number }> = {};
+          (revData || []).forEach((r: any) => {
+            if (!rMap[r.product_name]) rMap[r.product_name] = { total: 0, count: 0 };
+            rMap[r.product_name].total += r.rating;
+            rMap[r.product_name].count += 1;
+          });
+          const finalMap: Record<string, { avg: number; count: number }> = {};
+          Object.entries(rMap).forEach(([name, { total, count }]) => {
+            finalMap[name] = { avg: total / count, count };
+          });
+          setReviewsMap(finalMap);
         }
       })
       .finally(() => setLoading(false));
@@ -280,6 +299,21 @@ const Catalog = () => {
                           <p className="text-[11px] text-muted-foreground">
                             {t('activeIngredient')}: <span className="font-medium">{product.active_ingredient}</span>
                           </p>
+                        )}
+                        {reviewsMap[product.name] && (
+                          <div className="flex items-center gap-1">
+                            <div className="flex gap-0.5">
+                              {[1, 2, 3, 4, 5].map((s) => (
+                                <Star
+                                  key={s}
+                                  className={`w-3 h-3 ${s <= Math.round(reviewsMap[product.name].avg) ? 'fill-primary text-primary' : 'text-muted-foreground/30'}`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-[10px] text-muted-foreground">
+                              ({reviewsMap[product.name].count})
+                            </span>
+                          </div>
                         )}
                         {hasWholesale && wholesaleMinQty && (
                           <span className="text-[10px] text-destructive font-bold">

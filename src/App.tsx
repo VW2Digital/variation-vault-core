@@ -25,6 +25,7 @@ import CartPage from "./pages/CartPage";
 import CartCheckout from "./pages/CartCheckout";
 import ResetPassword from "./pages/ResetPassword";
 import AdminSupportPage from "./pages/AdminSupportPage";
+import AdminReviewsPage from "./pages/AdminReviewsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ const App = () => (
             <Route path="banners" element={<BannerList />} />
             <Route path="pedidos" element={<OrdersPage />} />
             <Route path="usuarios" element={<UsersPage />} />
+            <Route path="avaliacoes" element={<AdminReviewsPage />} />
             <Route path="suporte" element={<AdminSupportPage />} />
             <Route path="configuracoes" element={<SettingsPage />} />
           </Route>
