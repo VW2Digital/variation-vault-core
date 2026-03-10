@@ -31,12 +31,22 @@ const Checkout = () => {
     });
 
     if (!id) return;
-    fetchProduct(id).then((prod) => {
+    fetchProduct(id).then(async (prod) => {
       setProduct(prod);
       const vId = searchParams.get('v');
+      let variationId = prod.product_variations?.[0]?.id;
       if (vId && prod.product_variations) {
         const idx = prod.product_variations.findIndex((v: any) => v.id === vId);
-        if (idx >= 0) setSelectedVariation(idx);
+        if (idx >= 0) { setSelectedVariation(idx); variationId = vId; }
+      }
+      // Fetch wholesale prices for selected variation
+      if (variationId) {
+        const { data: wpData } = await supabase
+          .from('wholesale_prices' as any)
+          .select('*')
+          .eq('variation_id', variationId)
+          .order('min_quantity', { ascending: true });
+        setWholesaleTiers((wpData || []).map((w: any) => ({ min_quantity: w.min_quantity, price: Number(w.price) })));
       }
     }).finally(() => setLoading(false));
   }, [id, searchParams, navigate]);
