@@ -69,6 +69,7 @@ const ProductForm = () => {
                 id: v.id,
                 dosage: v.dosage,
                 price: Number(v.price),
+                offer_price: Number(v.offer_price || 0),
                 in_stock: v.in_stock,
                 is_offer: v.is_offer,
                 image_url: v.image_url || '',
