@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Loader2, Package, LogOut, Truck, Clock, CheckCircle2, XCircle,
   Copy, ExternalLink, ShoppingCart, User, Search, Filter,
   TrendingUp, CreditCard, MapPin, ChevronDown, RotateCw, Save, Phone, HelpCircle,
+  Star, MessageSquare,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
@@ -53,6 +55,11 @@ const CustomerDashboard = () => {
   const [profilePhone, setProfilePhone] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewingOrderId, setReviewingOrderId] = useState<string | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSaving, setReviewSaving] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -62,6 +69,7 @@ const CustomerDashboard = () => {
       await Promise.all([
         fetchOrders(session.user.email || ''),
         fetchProfile(session.user.id),
+        fetchReviews(session.user.id),
       ]);
     };
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
@@ -140,6 +148,46 @@ const CustomerDashboard = () => {
   const refreshOrders = () => {
     if (user?.email) fetchOrders(user.email);
   };
+
+  const fetchReviews = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setReviews(data || []);
+    } catch (err) {
+      console.error('Reviews fetch error:', err);
+    }
+  };
+
+  const submitReview = async (orderId: string, productName: string) => {
+    if (!user) return;
+    setReviewSaving(true);
+    try {
+      const { error } = await supabase.from('reviews').upsert({
+        user_id: user.id,
+        order_id: orderId,
+        product_name: productName,
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+      }, { onConflict: 'user_id,order_id' });
+      if (error) throw error;
+      toast({ title: 'Avaliação enviada com sucesso!' });
+      setReviewingOrderId(null);
+      setReviewRating(5);
+      setReviewComment('');
+      fetchReviews(user.id);
+    } catch (err: any) {
+      toast({ title: 'Erro ao enviar avaliação', description: err.message, variant: 'destructive' });
+    } finally {
+      setReviewSaving(false);
+    }
+  };
+
+  const reviewedOrderIds = useMemo(() => new Set(reviews.map(r => r.order_id)), [reviews]);
 
   // Stats
   const stats = useMemo(() => {
@@ -274,6 +322,9 @@ const CustomerDashboard = () => {
                 </TabsTrigger>
                 <TabsTrigger value="profile" className="flex items-center gap-1.5">
                   <User className="w-4 h-4" /> Perfil
+                </TabsTrigger>
+                <TabsTrigger value="reviews" className="flex items-center gap-1.5">
+                  <Star className="w-4 h-4" /> Avaliações
                 </TabsTrigger>
                 <TabsTrigger value="help" className="flex items-center gap-1.5">
                   <HelpCircle className="w-4 h-4" /> Ajuda
@@ -581,6 +632,115 @@ const CustomerDashboard = () => {
                     </CardContent>
                   </Card>
                 )}
+              </TabsContent>
+
+              {/* Reviews Tab */}
+              <TabsContent value="reviews" className="space-y-4">
+                <Card className="border-border/50">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Star className="w-5 h-5" /> Minhas Avaliações
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Orders available for review */}
+                    {orders.filter(o => (o.status === 'RECEIVED' || o.status === 'CONFIRMED')).length === 0 ? (
+                      <div className="text-center py-8 space-y-2">
+                        <Star className="w-10 h-10 text-muted-foreground/40 mx-auto" />
+                        <p className="text-sm text-muted-foreground">Você ainda não possui pedidos pagos para avaliar.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {orders
+                          .filter(o => o.status === 'RECEIVED' || o.status === 'CONFIRMED')
+                          .map((order) => {
+                            const existingReview = reviews.find(r => r.order_id === order.id);
+                            const isReviewing = reviewingOrderId === order.id;
+
+                            return (
+                              <div key={order.id} className="border border-border/50 rounded-lg p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="font-semibold text-sm text-foreground">{order.product_name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {order.dosage && `${order.dosage} · `}
+                                      Pedido #{order.id.slice(0, 8).toUpperCase()} · {new Date(order.created_at).toLocaleDateString('pt-BR')}
+                                    </p>
+                                  </div>
+                                  {existingReview ? (
+                                    <div className="flex items-center gap-1">
+                                      {[1, 2, 3, 4, 5].map(s => (
+                                        <Star key={s} className={`w-4 h-4 ${s <= existingReview.rating ? 'text-primary fill-primary' : 'text-muted-foreground/30'}`} />
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setReviewingOrderId(isReviewing ? null : order.id);
+                                        setReviewRating(5);
+                                        setReviewComment('');
+                                      }}
+                                    >
+                                      <Star className="w-4 h-4 mr-1" /> Avaliar
+                                    </Button>
+                                  )}
+                                </div>
+
+                                {existingReview && existingReview.comment && (
+                                  <p className="text-sm text-muted-foreground italic">"{existingReview.comment}"</p>
+                                )}
+
+                                {isReviewing && !existingReview && (
+                                  <div className="space-y-3 pt-2 border-t border-border/50 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Nota</Label>
+                                      <div className="flex gap-1">
+                                        {[1, 2, 3, 4, 5].map(s => (
+                                          <button
+                                            key={s}
+                                            type="button"
+                                            onClick={() => setReviewRating(s)}
+                                            className="focus:outline-none"
+                                          >
+                                            <Star className={`w-6 h-6 transition-colors ${s <= reviewRating ? 'text-primary fill-primary' : 'text-muted-foreground/30 hover:text-primary/50'}`} />
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Comentário (opcional)</Label>
+                                      <Textarea
+                                        value={reviewComment}
+                                        onChange={(e) => setReviewComment(e.target.value)}
+                                        placeholder="Conte sua experiência com o produto..."
+                                        rows={3}
+                                        maxLength={500}
+                                      />
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <Button
+                                        size="sm"
+                                        onClick={() => submitReview(order.id, order.product_name)}
+                                        disabled={reviewSaving}
+                                      >
+                                        {reviewSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
+                                        Enviar Avaliação
+                                      </Button>
+                                      <Button size="sm" variant="ghost" onClick={() => setReviewingOrderId(null)}>
+                                        Cancelar
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               {/* Help Tab */}
