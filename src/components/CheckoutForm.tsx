@@ -648,10 +648,9 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
     const showFullForm = !hasSavedAddresses || editingAddress || selectedAddressId === 'new';
 
     return (
+      <div>
+      <StepIndicator currentStep={step} />
       <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <MapPin className="w-4 h-4" /> Endereço de Entrega
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
