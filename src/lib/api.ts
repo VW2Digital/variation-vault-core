@@ -105,7 +105,7 @@ export const updateProduct = async (
     if (variations.length > 0) {
       const { error: vError } = await supabase
         .from('product_variations')
-        .insert(variations.map((v) => ({ dosage: v.dosage, price: v.price, in_stock: v.in_stock, is_offer: v.is_offer, image_url: v.image_url || '', images: v.images || [], product_id: id })));
+        .insert(variations.map((v) => ({ dosage: v.dosage, price: v.price, offer_price: v.offer_price || 0, in_stock: v.in_stock, is_offer: v.is_offer, image_url: v.image_url || '', images: v.images || [], product_id: id })));
       if (vError) throw vError;
     }
   }
