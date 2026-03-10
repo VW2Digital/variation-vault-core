@@ -35,6 +35,7 @@ import {
   CircleDollarSign,
   ShoppingCart,
   Package,
+  Star,
 } from 'lucide-react';
 
 const VideoTestimonialCard = ({ thumbnail, name, videoUrl }: { thumbnail: string; name: string; videoUrl?: string }) => {
