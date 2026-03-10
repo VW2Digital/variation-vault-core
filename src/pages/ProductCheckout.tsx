@@ -108,7 +108,7 @@ const ProductCheckout = () => {
 
   useEffect(() => {
     if (!id) return;
-    Promise.all([fetchProduct(id), fetchTestimonials(), fetchBanners(), fetchSetting('whatsapp_number')]).then(([prod, tests, bans, wp]) => {
+    Promise.all([fetchProduct(id), fetchTestimonials(), fetchBanners(), fetchSetting('whatsapp_number')]).then(async ([prod, tests, bans, wp]) => {
       setProduct(prod);
       setDynamicTestimonials(tests);
       setBanners(bans);
@@ -118,6 +118,21 @@ const ProductCheckout = () => {
       if (vId && prod.product_variations) {
         const idx = prod.product_variations.findIndex((v: any) => v.id === vId);
         if (idx >= 0) setSelectedVariation(idx);
+      }
+      // Fetch wholesale prices
+      const varIds = (prod.product_variations || []).map((v: any) => v.id);
+      if (varIds.length > 0) {
+        const { data: wpData } = await supabase
+          .from('wholesale_prices' as any)
+          .select('*')
+          .in('variation_id', varIds)
+          .order('min_quantity', { ascending: true });
+        const wpMap: Record<string, WholesaleTier[]> = {};
+        (wpData || []).forEach((w: any) => {
+          if (!wpMap[w.variation_id]) wpMap[w.variation_id] = [];
+          wpMap[w.variation_id].push({ min_quantity: w.min_quantity, price: Number(w.price) });
+        });
+        setWholesalePrices(wpMap);
       }
     }).finally(() => setLoading(false));
   }, [id, searchParams]);
