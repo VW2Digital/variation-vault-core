@@ -77,7 +77,7 @@ const ProductForm = () => {
         let wholesaleMap: Record<string, WholesaleTier[]> = {};
         if (varIds.length > 0) {
           const { data: wp } = await supabase
-            .from('wholesale_prices' as any)
+            .from('wholesale_prices')
             .select('*')
             .in('variation_id', varIds)
             .order('min_quantity', { ascending: true });
