@@ -99,6 +99,15 @@ serve(async (req) => {
         });
       }
 
+      if (action === "delete_user") {
+        // Delete user from auth (cascades to profiles, roles, etc.)
+        const { error } = await adminClient.auth.admin.deleteUser(userId);
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       throw new Error("Unknown action");
     }
 
