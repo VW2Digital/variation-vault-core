@@ -39,6 +39,8 @@ import {
 const VideoTestimonialCard = ({ thumbnail, name, videoUrl }: {thumbnail: string;name: string;videoUrl?: string;}) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const previewRef = useRef<HTMLVideoElement>(null);
+  const hasThumbnail = thumbnail && thumbnail.trim() !== '';
 
   const handlePlay = () => {
     if (videoUrl) {
@@ -48,7 +50,7 @@ const VideoTestimonialCard = ({ thumbnail, name, videoUrl }: {thumbnail: string;
   };
 
   return (
-    <div className="relative rounded-xl overflow-hidden border border-border/50 bg-foreground/5 aspect-[9/16] max-h-[420px]">
+    <div className="relative rounded-xl overflow-hidden border border-border/50 bg-muted aspect-[9/16] max-h-[420px]">
       {isPlaying && videoUrl ?
       <video
         ref={videoRef}
@@ -57,12 +59,25 @@ const VideoTestimonialCard = ({ thumbnail, name, videoUrl }: {thumbnail: string;
         controls
         onEnded={() => setIsPlaying(false)} /> :
 
-
       <>
-          <img
-          src={thumbnail}
-          alt={`Depoimento de ${name}`}
-          className="w-full h-full object-cover" />
+          {hasThumbnail ? (
+            <img
+              src={thumbnail}
+              alt={`Depoimento de ${name}`}
+              className="w-full h-full object-cover" />
+          ) : videoUrl ? (
+            <video
+              ref={previewRef}
+              src={`${videoUrl}#t=0.5`}
+              className="w-full h-full object-cover"
+              muted
+              preload="metadata"
+              playsInline />
+          ) : (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <span className="text-muted-foreground text-sm">{name}</span>
+            </div>
+          )}
         
           <button
           onClick={handlePlay}
