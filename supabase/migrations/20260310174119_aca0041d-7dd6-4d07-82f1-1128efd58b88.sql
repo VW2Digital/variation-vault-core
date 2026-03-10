@@ -1,0 +1,1 @@
+ALTER TABLE public.product_variations ADD COLUMN offer_price numeric DEFAULT 0;
