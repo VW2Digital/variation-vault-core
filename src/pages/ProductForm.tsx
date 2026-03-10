@@ -62,7 +62,7 @@ const ProductForm = () => {
   useEffect(() => {
     if (id) {
       setLoadingProduct(true);
-      fetchProduct(id).then((p) => {
+      fetchProduct(id).then(async (p) => {
         setName(p.name);
         setSubtitle(p.subtitle || '');
         setDescription(p.description || '');
