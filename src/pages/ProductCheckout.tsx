@@ -107,6 +107,7 @@ const ProductCheckout = () => {
   const [quantity, setQuantity] = useState(1);
   const [currentImage, setCurrentImage] = useState(0);
   const [wholesalePrices, setWholesalePrices] = useState<Record<string, WholesaleTier[]>>({});
+  const [productReviews, setProductReviews] = useState<any[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -136,6 +137,13 @@ const ProductCheckout = () => {
         });
         setWholesalePrices(wpMap);
       }
+      // Fetch reviews for this product
+      const { data: revData } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('product_name', prod.name)
+        .order('created_at', { ascending: false });
+      setProductReviews(revData || []);
     }).finally(() => setLoading(false));
   }, [id, searchParams]);
 
