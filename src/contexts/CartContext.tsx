@@ -10,6 +10,8 @@ export interface CartItem {
   product_name: string;
   dosage: string;
   price: number;
+  original_price: number;
+  is_offer: boolean;
   image_url: string;
   in_stock: boolean;
 }
@@ -66,7 +68,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const prodIds = [...new Set(data.map(i => i.product_id))];
 
       const [{ data: variations }, { data: products }] = await Promise.all([
-        supabase.from('product_variations').select('id, dosage, price, image_url, images, in_stock').in('id', varIds),
+        supabase.from('product_variations').select('id, dosage, price, offer_price, is_offer, image_url, images, in_stock').in('id', varIds),
         supabase.from('products').select('id, name, images').in('id', prodIds),
       ]);
 
@@ -76,6 +78,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const enriched: CartItem[] = data.map(ci => {
         const v = varMap.get(ci.variation_id);
         const p = prodMap.get(ci.product_id);
+        const isOffer = v?.is_offer && v?.offer_price;
         return {
           id: ci.id,
           product_id: ci.product_id,
@@ -83,7 +86,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           quantity: ci.quantity,
           product_name: p?.name || '',
           dosage: v?.dosage || '',
-          price: Number(v?.price || 0),
+          price: isOffer ? Number(v.offer_price) : Number(v?.price || 0),
+          original_price: Number(v?.price || 0),
+          is_offer: !!isOffer,
           image_url: v?.images?.[0] || v?.image_url || p?.images?.[0] || '',
           in_stock: v?.in_stock ?? false,
         };

@@ -63,9 +63,16 @@ const CartCheckout = () => {
                     <p className="font-semibold text-foreground text-sm">{item.product_name}</p>
                     <p className="text-xs text-muted-foreground">{item.dosage} — Qtd: {item.quantity}</p>
                   </div>
-                  <p className="font-bold text-primary text-sm">
-                    R$ {(item.price * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
+                  <div className="text-right">
+                    {item.is_offer && (
+                      <p className="text-xs text-muted-foreground line-through">
+                        R$ {(item.original_price * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    )}
+                    <p className={`font-bold text-sm ${item.is_offer ? 'text-destructive' : 'text-primary'}`}>
+                      R$ {(item.price * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
