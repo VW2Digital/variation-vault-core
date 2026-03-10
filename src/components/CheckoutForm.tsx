@@ -62,6 +62,59 @@ const ErrorText = ({ msg }: { msg?: string }) =>
     </p>
   ) : null;
 
+const STEPS = [
+  { key: 'customer', label: 'Dados', icon: User },
+  { key: 'address', label: 'Endereço', icon: MapPin },
+  { key: 'shipping', label: 'Frete', icon: Truck },
+  { key: 'payment', label: 'Pagamento', icon: CreditCard },
+] as const;
+
+const StepIndicator = ({ currentStep }: { currentStep: CheckoutStep }) => {
+  const currentIndex = STEPS.findIndex(s => s.key === currentStep);
+
+  return (
+    <div className="flex items-center justify-between mb-6 px-2">
+      {STEPS.map((s, i) => {
+        const Icon = s.icon;
+        const isCompleted = i < currentIndex;
+        const isCurrent = i === currentIndex;
+
+        return (
+          <div key={s.key} className="flex items-center flex-1 last:flex-none">
+            <div className="flex flex-col items-center gap-1">
+              <div
+                className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                  isCompleted
+                    ? 'bg-primary border-primary text-primary-foreground'
+                    : isCurrent
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-muted-foreground/30 bg-muted text-muted-foreground/50'
+                }`}
+              >
+                {isCompleted ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
+              </div>
+              <span
+                className={`text-[10px] font-medium transition-colors ${
+                  isCompleted || isCurrent ? 'text-foreground' : 'text-muted-foreground/50'
+                }`}
+              >
+                {s.label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div
+                className={`flex-1 h-0.5 mx-1.5 mt-[-18px] rounded transition-colors duration-300 ${
+                  i < currentIndex ? 'bg-primary' : 'bg-muted-foreground/20'
+                }`}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, freeShippingMinValue, onSuccess }: CheckoutFormProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
