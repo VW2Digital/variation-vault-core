@@ -55,6 +55,11 @@ const CustomerDashboard = () => {
   const [profilePhone, setProfilePhone] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewingOrderId, setReviewingOrderId] = useState<string | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSaving, setReviewSaving] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
