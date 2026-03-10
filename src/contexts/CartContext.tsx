@@ -78,6 +78,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const enriched: CartItem[] = data.map(ci => {
         const v = varMap.get(ci.variation_id);
         const p = prodMap.get(ci.product_id);
+        const isOffer = v?.is_offer && v?.offer_price;
         return {
           id: ci.id,
           product_id: ci.product_id,
@@ -85,7 +86,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           quantity: ci.quantity,
           product_name: p?.name || '',
           dosage: v?.dosage || '',
-          price: Number(v?.price || 0),
+          price: isOffer ? Number(v.offer_price) : Number(v?.price || 0),
+          original_price: Number(v?.price || 0),
+          is_offer: !!isOffer,
           image_url: v?.images?.[0] || v?.image_url || p?.images?.[0] || '',
           in_stock: v?.in_stock ?? false,
         };

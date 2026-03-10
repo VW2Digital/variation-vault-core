@@ -88,9 +88,22 @@ const Checkout = () => {
                 <p className="text-sm text-muted-foreground">{variation?.dosage}</p>
                 <p className="text-sm text-muted-foreground">{t('qty')}: {quantity}</p>
               </div>
-              <p className="text-xl font-bold text-primary">
-                R$ {totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </p>
+              <div className="text-right">
+                {variation?.is_offer && variation?.offer_price ? (
+                  <>
+                    <p className="text-sm text-muted-foreground line-through">
+                      R$ {(originalPrice * quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-xl font-bold text-destructive">
+                      R$ {totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xl font-bold text-primary">
+                    R$ {totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
