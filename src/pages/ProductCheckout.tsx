@@ -318,35 +318,64 @@ const ProductCheckout = () => {
               </div>
             </div>
 
-            {/* Price Box */}
-            <div className="border border-border/50 rounded-xl p-5 space-y-3 bg-card">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{t('price')}</p>
-                {variation?.in_stock ? (
-                  <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/10">{t('inStock')}</Badge>
-                ) : (
-                  <Badge variant="destructive">{t('unavailable')}</Badge>
-                )}
-              </div>
-              {variation?.is_offer && variation?.offer_price ? (
-                <>
-                  <p className="text-lg text-muted-foreground line-through">
-                    R$ {(Number(variation.price) * quantity).toLocaleString('pt-BR')}
-                  </p>
-                  <p className="text-3xl font-bold text-destructive">
-                    R$ {(Number(variation.offer_price) * quantity).toLocaleString('pt-BR')}
-                  </p>
-                </>
-              ) : (
-                <p className="text-3xl font-bold text-primary">
-                  R$ {(Number(variation?.price || 0) * quantity).toLocaleString('pt-BR')}
+            {/* Wholesale Tiers */}
+            {variation && (wholesalePrices[variation.id] || []).length > 0 && (
+              <div className="border border-primary/20 rounded-xl p-4 bg-primary/5 space-y-2">
+                <p className="text-sm font-semibold text-primary flex items-center gap-1.5">
+                  <Package className="w-4 h-4" /> Preços no Atacado
                 </p>
-              )}
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5" /> {t('upTo6x')}</p>
-                <p className="text-success font-medium flex items-center gap-1"><CircleDollarSign className="w-3.5 h-3.5" /> {t('pixAvailable')}</p>
+                <div className="grid gap-1.5">
+                  {wholesalePrices[variation.id].map((wp, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">A partir de <span className="font-semibold text-foreground">{wp.min_quantity} unid.</span></span>
+                      <span className="font-bold text-primary">R$ {wp.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} /unid.</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Price Box */}
+            {(() => {
+              const wp = variation ? (wholesalePrices[variation.id] || []) : [];
+              const basePrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : Number(variation?.price || 0);
+              const effectivePrice = getEffectivePrice(basePrice, quantity, wp);
+              const isWholesale = effectivePrice < basePrice;
+              return (
+                <div className="border border-border/50 rounded-xl p-5 space-y-3 bg-card">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">{t('price')}</p>
+                    {variation?.in_stock ? (
+                      <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/10">{t('inStock')}</Badge>
+                    ) : (
+                      <Badge variant="destructive">{t('unavailable')}</Badge>
+                    )}
+                  </div>
+                  {variation?.is_offer && variation?.offer_price ? (
+                    <p className="text-lg text-muted-foreground line-through">
+                      R$ {(Number(variation.price) * quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  ) : null}
+                  {isWholesale && (
+                    <p className="text-sm text-muted-foreground line-through">
+                      R$ {(basePrice * quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  )}
+                  <p className={`text-3xl font-bold ${isWholesale ? 'text-primary' : variation?.is_offer ? 'text-destructive' : 'text-primary'}`}>
+                    R$ {(effectivePrice * quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                  {isWholesale && (
+                    <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/10 text-xs">
+                      Preço atacado aplicado!
+                    </Badge>
+                  )}
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <p className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5" /> {t('upTo6x')}</p>
+                    <p className="text-success font-medium flex items-center gap-1"><CircleDollarSign className="w-3.5 h-3.5" /> {t('pixAvailable')}</p>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Buy Buttons */}
             {variation?.in_stock ? (
