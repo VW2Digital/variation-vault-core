@@ -2,6 +2,11 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+export interface WholesaleTier {
+  min_quantity: number;
+  price: number;
+}
+
 export interface CartItem {
   id: string;
   product_id: string;
@@ -14,7 +19,16 @@ export interface CartItem {
   is_offer: boolean;
   image_url: string;
   in_stock: boolean;
+  wholesale_prices: WholesaleTier[];
 }
+
+export const getEffectivePrice = (basePrice: number, quantity: number, wholesalePrices: WholesaleTier[]): number => {
+  if (!wholesalePrices || wholesalePrices.length === 0) return basePrice;
+  // Sort descending by min_quantity to find the best matching tier
+  const sorted = [...wholesalePrices].sort((a, b) => b.min_quantity - a.min_quantity);
+  const tier = sorted.find(t => quantity >= t.min_quantity);
+  return tier ? tier.price : basePrice;
+};
 
 interface CartContextType {
   items: CartItem[];
