@@ -10,6 +10,12 @@ import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, Plus, Trash2, ImagePlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+interface WholesaleTier {
+  id?: string;
+  min_quantity: number;
+  price: number;
+}
+
 interface Variation {
   id?: string;
   dosage: string;
@@ -19,6 +25,7 @@ interface Variation {
   is_offer: boolean;
   image_url: string;
   images: string[];
+  wholesale_prices: WholesaleTier[];
 }
 
 const emptyVariation = (): Variation => ({
@@ -29,6 +36,7 @@ const emptyVariation = (): Variation => ({
   is_offer: false,
   image_url: '',
   images: [],
+  wholesale_prices: [],
 });
 
 const ProductForm = () => {
