@@ -10,6 +10,8 @@ export interface CartItem {
   product_name: string;
   dosage: string;
   price: number;
+  original_price: number;
+  is_offer: boolean;
   image_url: string;
   in_stock: boolean;
 }
