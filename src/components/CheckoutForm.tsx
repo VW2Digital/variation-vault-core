@@ -154,6 +154,12 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
           applyAddress(defaultAddr as any);
           setSelectedAddressId(defaultAddr.id);
         }
+        // If profile is complete and has saved addresses, auto-advance to address confirmation
+        const hasCompleteProfile = profile && profile.full_name && userEmail && (profile as any).cpf && profile.phone;
+        if (hasCompleteProfile) {
+          // Will show address confirmation (not full form)
+          setEditingAddress(false);
+        }
       }
     };
     loadUserData();
