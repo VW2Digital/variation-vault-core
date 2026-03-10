@@ -935,12 +935,15 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
           </button>
         </CardContent>
       </Card>
+      </div>
     );
   }
 
   // ─── PAYMENT ───
   return (
-    <Card className="border-border/50">
+    <div>
+      <StepIndicator currentStep={step} />
+      <Card className="border-border/50">
       <CardHeader>
         <CardTitle className="text-base">Forma de Pagamento</CardTitle>
         <div className="flex gap-2 mt-2">
