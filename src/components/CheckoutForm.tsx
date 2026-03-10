@@ -649,10 +649,13 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
 
     return (
       <div>
-      <StepIndicator currentStep={step} />
-      <Card className="border-border/50">
-          </CardTitle>
-        </CardHeader>
+        <StepIndicator currentStep={step} />
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <MapPin className="w-4 h-4" /> Endereço de Entrega
+            </CardTitle>
+          </CardHeader>
         <CardContent className="space-y-3">
           {/* Compact confirmation view when user has saved addresses and is NOT editing */}
           {hasSavedAddresses && !showFullForm ? (
