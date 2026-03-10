@@ -370,10 +370,6 @@ const ProductCheckout = () => {
                       Preço atacado aplicado!
                     </Badge>
                   )}
-                  <div className="text-xs text-muted-foreground space-y-1">
-                    <p className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5" /> {t('upTo6x')}</p>
-                    <p className="text-success font-medium flex items-center gap-1"><CircleDollarSign className="w-3.5 h-3.5" /> {t('pixAvailable')}</p>
-                  </div>
                 </div>
               );
             })()}
