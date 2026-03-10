@@ -214,9 +214,15 @@ const ProductForm = () => {
                     <Input value={v.dosage} onChange={(e) => updateVariation(i, 'dosage', e.target.value)} placeholder="5mg" />
                   </div>
                   <div className="w-32 space-y-2">
-                    <Label>Preço (R$)</Label>
+                    <Label>{v.is_offer ? 'Preço Original (R$)' : 'Preço (R$)'}</Label>
                     <Input type="number" value={v.price || ''} onChange={(e) => updateVariation(i, 'price', Number(e.target.value))} />
                   </div>
+                  {v.is_offer && (
+                    <div className="w-32 space-y-2">
+                      <Label className="text-destructive">Preço Oferta (R$)</Label>
+                      <Input type="number" value={v.offer_price || ''} onChange={(e) => updateVariation(i, 'offer_price', Number(e.target.value))} className="border-destructive/50" />
+                    </div>
+                  )}
                   <div className="flex flex-col items-center gap-1">
                     <Label className="text-xs">Estoque</Label>
                     <Switch checked={v.in_stock} onCheckedChange={(val) => updateVariation(i, 'in_stock', val)} />
