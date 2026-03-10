@@ -111,6 +111,15 @@ const Checkout = () => {
                       R$ {totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </>
+                ) : unitPrice < basePrice ? (
+                  <>
+                    <p className="text-sm text-muted-foreground line-through">
+                      R$ {(basePrice * quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-xl font-bold text-primary">
+                      R$ {totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </>
                 ) : (
                   <p className="text-xl font-bold text-primary">
                     R$ {totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -118,6 +127,22 @@ const Checkout = () => {
                 )}
               </div>
             </div>
+
+            {/* Savings Calculator */}
+            {(() => {
+              const savings = (basePrice * quantity) - totalPrice;
+              if (savings <= 0) return null;
+              return (
+                <div className="mt-4 border-t border-border pt-3">
+                  <div className="flex items-center justify-between bg-success/10 rounded-lg px-4 py-2.5">
+                    <span className="text-sm font-medium text-success">💰 Você está economizando</span>
+                    <span className="text-lg font-bold text-success">
+                      R$ {savings.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Checkout Form */}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart, getEffectivePrice } from '@/contexts/CartContext';
 import CheckoutForm from '@/components/CheckoutForm';
@@ -52,30 +53,58 @@ const CartCheckout = () => {
           <div className="border border-border/50 rounded-xl p-5 bg-card mb-6">
             <h2 className="text-lg font-bold text-foreground mb-4">Resumo do Pedido</h2>
             <div className="space-y-3">
-              {items.map((item) => (
-                <div key={item.variation_id} className="flex items-center gap-4">
-                  <img
-                    src={item.image_url || productHeroImg}
-                    alt={item.product_name}
-                    className="w-14 h-14 object-contain rounded-lg border border-border/50 bg-muted p-1"
-                  />
-                  <div className="flex-1">
-                    <p className="font-semibold text-foreground text-sm">{item.product_name}</p>
-                    <p className="text-xs text-muted-foreground">{item.dosage} — Qtd: {item.quantity}</p>
-                  </div>
-                  <div className="text-right">
-                    {item.is_offer && (
-                      <p className="text-xs text-muted-foreground line-through">
-                        R$ {(item.original_price * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              {items.map((item) => {
+                const originalTotal = item.original_price * item.quantity;
+                const effectiveTotal = item.price * item.quantity;
+                const hasSavings = effectiveTotal < originalTotal;
+                return (
+                  <div key={item.variation_id} className="flex items-center gap-4">
+                    <img
+                      src={item.image_url || productHeroImg}
+                      alt={item.product_name}
+                      className="w-14 h-14 object-contain rounded-lg border border-border/50 bg-muted p-1"
+                    />
+                    <div className="flex-1">
+                      <p className="font-semibold text-foreground text-sm">{item.product_name}</p>
+                      <p className="text-xs text-muted-foreground">{item.dosage} — Qtd: {item.quantity}</p>
+                      {item.wholesale_prices.length > 0 && item.price < (item.is_offer ? (item.original_price * (item.is_offer ? 1 : 1)) : item.original_price) && (
+                        <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/10 text-[10px] mt-1">
+                          Atacado aplicado
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      {hasSavings && (
+                        <p className="text-xs text-muted-foreground line-through">
+                          R$ {originalTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                      )}
+                      <p className={`font-bold text-sm ${hasSavings ? 'text-primary' : item.is_offer ? 'text-destructive' : 'text-primary'}`}>
+                        R$ {effectiveTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
-                    )}
-                    <p className={`font-bold text-sm ${item.is_offer ? 'text-destructive' : 'text-primary'}`}>
-                      R$ {(item.price * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Savings Calculator */}
+            {(() => {
+              const totalOriginal = items.reduce((sum, item) => sum + item.original_price * item.quantity, 0);
+              const totalSavings = totalOriginal - totalPrice;
+              if (totalSavings <= 0) return null;
+              return (
+                <div className="border-t border-border mt-4 pt-3">
+                  <div className="flex items-center justify-between bg-success/10 rounded-lg px-4 py-2.5 mb-3">
+                    <span className="text-sm font-medium text-success">💰 Você está economizando</span>
+                    <span className="text-lg font-bold text-success">
+                      R$ {totalSavings.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })()}
+
             <div className="border-t border-border mt-4 pt-3 flex justify-between font-bold">
               <span className="text-foreground">Total</span>
               <span className="text-primary text-lg">

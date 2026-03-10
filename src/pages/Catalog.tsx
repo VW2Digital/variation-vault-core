@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchProducts } from '@/lib/api';
+import { WholesaleTier } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
 import { Input } from '@/components/ui/input';
@@ -13,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, SlidersHorizontal, Package, CircleCheck, ShoppingCart, X } from 'lucide-react';
+import { Search, SlidersHorizontal, Package, CircleCheck, ShoppingCart, X, Layers } from 'lucide-react';
 import CountdownTimer from '@/components/CountdownTimer';
 import { useCart } from '@/contexts/CartContext';
 import productHeroImg from '@/assets/product-hero.png';
@@ -27,6 +28,7 @@ const Catalog = () => {
   const { t } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [wholesaleMap, setWholesaleMap] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState('');
   const [pharmaFilter, setPharmaFilter] = useState('all');
   const [routeFilter, setRouteFilter] = useState('all');
@@ -35,7 +37,20 @@ const Catalog = () => {
 
   useEffect(() => {
     fetchProducts()
-      .then(setProducts)
+      .then(async (prods) => {
+        setProducts(prods);
+        // Fetch which variations have wholesale prices
+        const allVarIds = prods.flatMap((p: any) => (p.product_variations || []).map((v: any) => v.id));
+        if (allVarIds.length > 0) {
+          const { data: wpData } = await supabase
+            .from('wholesale_prices' as any)
+            .select('variation_id')
+            .in('variation_id', allVarIds);
+          const wpSet: Record<string, boolean> = {};
+          (wpData || []).forEach((w: any) => { wpSet[w.variation_id] = true; });
+          setWholesaleMap(wpSet);
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -205,6 +220,7 @@ const Catalog = () => {
               const inStock = variation ? variation.in_stock : false;
               const offer = variation ? variation.is_offer : false;
               const img = variation?.images?.[0] || variation?.image_url || product.images?.[0] || productHeroImg;
+              const hasWholesale = variation ? !!wholesaleMap[variation.id] : false;
               const displayName = variation
                 ? `${product.name} ${variation.dosage}`
                 : product.name;
@@ -237,6 +253,13 @@ const Catalog = () => {
                             <Badge variant="secondary" className="text-[10px]">{t('outOfStock')}</Badge>
                           )}
                         </div>
+                        {hasWholesale && (
+                          <div className="absolute top-3 right-3">
+                            <Badge className="bg-primary/90 text-primary-foreground text-[10px] font-bold gap-1">
+                              <Layers className="w-3 h-3" /> Atacado
+                            </Badge>
+                          </div>
+                        )}
                       </div>
 
                       <div className="p-4 space-y-2">
