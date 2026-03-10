@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart, getEffectivePrice } from '@/contexts/CartContext';
 import CheckoutForm from '@/components/CheckoutForm';
