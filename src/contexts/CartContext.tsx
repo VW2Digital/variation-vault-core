@@ -68,7 +68,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const prodIds = [...new Set(data.map(i => i.product_id))];
 
       const [{ data: variations }, { data: products }] = await Promise.all([
-        supabase.from('product_variations').select('id, dosage, price, image_url, images, in_stock').in('id', varIds),
+        supabase.from('product_variations').select('id, dosage, price, offer_price, is_offer, image_url, images, in_stock').in('id', varIds),
         supabase.from('products').select('id, name, images').in('id', prodIds),
       ]);
 
