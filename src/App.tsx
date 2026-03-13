@@ -27,6 +27,9 @@ import ResetPassword from "./pages/ResetPassword";
 import AdminSupportPage from "./pages/AdminSupportPage";
 import AdminReviewsPage from "./pages/AdminReviewsPage";
 import NotFound from "./pages/NotFound";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfUse from "./pages/TermsOfUse";
+import ContactPage from "./pages/ContactPage";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +51,9 @@ const App = () => (
           <Route path="/cliente/login" element={<CustomerLogin />} />
           <Route path="/minha-conta" element={<CustomerDashboard />} />
           <Route path="/redefinir-senha" element={<ResetPassword />} />
+          <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
+          <Route path="/termos-de-uso" element={<TermsOfUse />} />
+          <Route path="/contato" element={<ContactPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Dashboard />} />
