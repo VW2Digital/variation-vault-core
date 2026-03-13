@@ -36,6 +36,7 @@ const SettingsPage = () => {
   const [showResendKey, setShowResendKey] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [fetchingProfile, setFetchingProfile] = useState(false);
 
   // Sender address
   const [senderName, setSenderName] = useState('');
