@@ -303,8 +303,11 @@ const Catalog = () => {
 
                       <div className="p-4 space-y-2">
                         <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
-                          {displayName}
+                          {product.name}
                         </h3>
+                        {variation?.dosage && (
+                          <p className="text-xs text-muted-foreground font-medium">{variation.dosage}</p>
+                        )}
                         {product.subtitle && (
                           <p className="text-xs text-muted-foreground line-clamp-1">{product.subtitle}</p>
                         )}
