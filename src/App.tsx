@@ -27,6 +27,9 @@ import ResetPassword from "./pages/ResetPassword";
 import AdminSupportPage from "./pages/AdminSupportPage";
 import AdminReviewsPage from "./pages/AdminReviewsPage";
 import NotFound from "./pages/NotFound";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfUse from "./pages/TermsOfUse";
+import ContactPage from "./pages/ContactPage";
 
 const queryClient = new QueryClient();
 
