@@ -255,12 +255,14 @@ export const upsertSetting = async (key: string, value: string) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Not authenticated');
   
-  const { data: existing } = await supabase
+  const { data: existing, error: selectError } = await supabase
     .from('site_settings' as any)
     .select('id')
     .eq('key', key)
     .maybeSingle();
   
+  if (selectError) throw selectError;
+
   if ((existing as any)?.id) {
     const { error } = await supabase
       .from('site_settings' as any)
