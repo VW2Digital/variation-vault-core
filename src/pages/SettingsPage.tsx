@@ -609,11 +609,17 @@ const SettingsPage = () => {
             </div>
             <div className="space-y-2">
               <Label>CPF / CNPJ</Label>
-              <Input value={senderDocument} onChange={(e) => setSenderDocument(e.target.value)} placeholder="00.000.000/0001-00" />
+              <Input value={formatCpfCnpj(senderDocument)} onChange={(e) => setSenderDocument(e.target.value.replace(/\D/g, '').slice(0, 14))} placeholder="000.000.000-00" />
+              {senderDocument && senderDocument.replace(/\D/g, '').length > 0 && senderDocument.replace(/\D/g, '').length !== 11 && senderDocument.replace(/\D/g, '').length !== 14 && (
+                <p className="text-xs text-destructive">CPF deve ter 11 dígitos ou CNPJ 14 dígitos</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Telefone</Label>
-              <Input value={senderPhone} onChange={(e) => setSenderPhone(e.target.value)} placeholder="41999990000" />
+              <Input value={formatPhone(senderPhone)} onChange={(e) => setSenderPhone(e.target.value.replace(/\D/g, '').slice(0, 11))} placeholder="(41) 99999-0000" />
+              {senderPhone && senderPhone.replace(/\D/g, '').length > 0 && senderPhone.replace(/\D/g, '').length < 10 && (
+                <p className="text-xs text-destructive">Telefone deve ter pelo menos 10 dígitos</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Email</Label>
@@ -621,7 +627,10 @@ const SettingsPage = () => {
             </div>
             <div className="space-y-2">
               <Label>CEP</Label>
-              <Input value={senderPostalCode} onChange={(e) => setSenderPostalCode(e.target.value)} placeholder="80000-000" />
+              <Input value={formatCep(senderPostalCode)} onChange={(e) => setSenderPostalCode(e.target.value.replace(/\D/g, '').slice(0, 8))} placeholder="80000-000" />
+              {senderPostalCode && senderPostalCode.replace(/\D/g, '').length > 0 && senderPostalCode.replace(/\D/g, '').length !== 8 && (
+                <p className="text-xs text-destructive">CEP deve ter 8 dígitos</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Endereço</Label>
