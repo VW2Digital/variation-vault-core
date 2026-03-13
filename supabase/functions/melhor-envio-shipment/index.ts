@@ -238,6 +238,34 @@ serve(async (req) => {
     const body = await req.json();
     const action = body.action || 'full_flow';
 
+    // ─── FETCH PROFILE ACTION ───
+    if (action === 'fetch_profile') {
+      const { token, baseUrl } = await getMelhorEnvioConfig(supabase);
+      const profileData = await melhorEnvioFetch(baseUrl, token, '/api/v2/me', 'GET');
+      
+      // Extract address from the first company or user data
+      const company = profileData?.companies?.[0] || {};
+      const address = company?.address || profileData?.address || {};
+      
+      const result = {
+        name: company?.name || profileData?.firstname + ' ' + (profileData?.lastname || ''),
+        phone: company?.phone?.phone ? (company.phone.area_code || '') + company.phone.phone : (profileData?.phone?.phone ? (profileData.phone.area_code || '') + profileData.phone.phone : ''),
+        email: profileData?.email || '',
+        document: company?.document || profileData?.document || '',
+        postal_code: address?.postal_code || '',
+        address: address?.address || '',
+        number: address?.number || '',
+        complement: address?.complement || '',
+        district: address?.district || '',
+        city: address?.city?.city || address?.city || '',
+        state: address?.city?.state?.state_abbr || address?.state_abbr || '',
+      };
+
+      return new Response(JSON.stringify({ success: true, profile: result }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // ─── QUOTE ACTION (no order needed) ───
     if (action === 'quote') {
       const { token, baseUrl } = await getMelhorEnvioConfig(supabase);
