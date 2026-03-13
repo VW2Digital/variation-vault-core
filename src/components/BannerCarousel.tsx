@@ -60,7 +60,7 @@ const BannerCarousel = () => {
       <img
         src={slide.image_desktop || slide.image_tablet || slide.image_mobile}
         alt={slide.title || 'Banner'}
-        className="w-full h-full object-cover"
+        className="w-full h-full object-contain sm:object-contain lg:object-cover"
       />
     </picture>
   );
