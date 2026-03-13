@@ -255,30 +255,19 @@ export const upsertSetting = async (key: string, value: string) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Not authenticated');
   
-  // Fetch all records with this key (handle potential duplicates)
-  const { data: existingRows, error: selectError } = await supabase
+  const { data: existing, error: selectError } = await supabase
     .from('site_settings' as any)
     .select('id')
-    .eq('key', key);
+    .eq('key', key)
+    .maybeSingle();
   
   if (selectError) throw selectError;
 
-  const rows = (existingRows || []) as any[];
-  
-  if (rows.length > 1) {
-    // Clean up duplicates: keep the first, delete the rest
-    const idsToDelete = rows.slice(1).map((r: any) => r.id);
-    await supabase
-      .from('site_settings' as any)
-      .delete()
-      .in('id', idsToDelete);
-  }
-
-  if (rows.length > 0) {
+  if ((existing as any)?.id) {
     const { error } = await supabase
       .from('site_settings' as any)
       .update({ value, user_id: user.id } as any)
-      .eq('id', rows[0].id);
+      .eq('id', (existing as any).id);
     if (error) throw error;
   } else {
     const { error } = await supabase
