@@ -73,6 +73,7 @@ const ProductForm = () => {
         setFrequency(p.frequency || '');
         setFreeShipping(p.free_shipping || false);
         setFreeShippingMinValue(Number(p.free_shipping_min_value) || 0);
+        setIsBestseller(p.is_bestseller || false);
         // Fetch wholesale prices for all variations
         const varIds = (p.product_variations || []).map((v: any) => v.id);
         let wholesaleMap: Record<string, WholesaleTier[]> = {};
