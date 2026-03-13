@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, SlidersHorizontal, Package, CircleCheck, ShoppingCart, X, Layers, Star } from 'lucide-react';
+import { Search, SlidersHorizontal, Package, CircleCheck, ShoppingCart, X, Layers, Star, Truck } from 'lucide-react';
 import CountdownTimer from '@/components/CountdownTimer';
 import { useCart } from '@/contexts/CartContext';
 import productHeroImg from '@/assets/product-hero.png';
@@ -279,11 +279,18 @@ const Catalog = () => {
                             <Badge variant="secondary" className="text-[10px]">{t('outOfStock')}</Badge>
                           )}
                         </div>
-                        {hasWholesale && (
-                          <div className="absolute top-3 right-3">
-                            <Badge className="bg-primary/90 text-primary-foreground text-[10px] font-bold gap-1">
-                              <Layers className="w-3 h-3" /> Atacado
-                            </Badge>
+                        {(hasWholesale || product.free_shipping) && (
+                          <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
+                            {hasWholesale && (
+                              <Badge className="bg-primary/90 text-primary-foreground text-[10px] font-bold gap-1">
+                                <Layers className="w-3 h-3" /> Atacado
+                              </Badge>
+                            )}
+                            {product.free_shipping && (
+                              <Badge className="bg-success/90 text-white text-[10px] font-bold gap-1">
+                                <Truck className="w-3 h-3" /> Frete Grátis
+                              </Badge>
+                            )}
                           </div>
                         )}
                       </div>
