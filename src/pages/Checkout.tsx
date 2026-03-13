@@ -157,6 +157,7 @@ const Checkout = () => {
           />
         </AnimatedSection>
       </section>
+      <Footer />
     </div>
   );
 };

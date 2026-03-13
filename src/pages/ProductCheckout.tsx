@@ -595,6 +595,7 @@ const ProductCheckout = () => {
           <WhatsAppIcon className="w-7 h-7 text-white" />
         </a>
       }
+      <Footer />
     </div>);
 
 };

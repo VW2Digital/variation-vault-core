@@ -177,6 +177,7 @@ const CartCheckout = () => {
           />
         </AnimatedSection>
       </section>
+      <Footer />
     </div>
   );
 };
