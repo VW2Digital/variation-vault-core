@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
 import { fetchProduct, fetchTestimonials, fetchBanners, fetchSetting } from '@/lib/api';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
+import { getEffectivePrice, WholesaleTier } from '@/contexts/CartContext';
 import { useCart } from '@/contexts/CartContext';
 import Header from '@/components/Header';
 import { useLanguage } from '@/contexts/LanguageContext';
