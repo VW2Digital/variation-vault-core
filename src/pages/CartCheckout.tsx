@@ -12,6 +12,7 @@ const CartCheckout = () => {
   const navigate = useNavigate();
   const { items, totalPrice, clearCart, loading } = useCart();
   const [ready, setReady] = useState(false);
+  const [freeShippingInfo, setFreeShippingInfo] = useState<{ freeShipping: boolean; minValue: number }>({ freeShipping: false, minValue: 0 });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -30,6 +31,25 @@ const CartCheckout = () => {
       setReady(true);
     }
   }, [loading, items, navigate, ready]);
+
+  // Fetch free shipping info from products in cart
+  useEffect(() => {
+    if (items.length === 0) return;
+    const productIds = [...new Set(items.map(i => i.product_id))];
+    supabase
+      .from('products')
+      .select('id, free_shipping, free_shipping_min_value')
+      .in('id', productIds)
+      .then(({ data }) => {
+        if (!data) return;
+        // If any product offers free shipping and total meets the lowest min value
+        const freeShippingProducts = data.filter((p: any) => p.free_shipping);
+        if (freeShippingProducts.length > 0) {
+          const minValue = Math.min(...freeShippingProducts.map((p: any) => Number(p.free_shipping_min_value) || 0));
+          setFreeShippingInfo({ freeShipping: true, minValue });
+        }
+      });
+  }, [items]);
 
   if (!ready) {
     return (
@@ -151,6 +171,8 @@ const CartCheckout = () => {
             dosage=""
             quantity={1}
             unitPrice={totalPrice}
+            freeShipping={freeShippingInfo.freeShipping}
+            freeShippingMinValue={freeShippingInfo.minValue}
           />
         </AnimatedSection>
       </section>
