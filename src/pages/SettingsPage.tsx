@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Phone, CreditCard, Eye, EyeOff, Truck, MapPin, Mail, Link2, CheckCircle2 } from 'lucide-react';
+import { Phone, CreditCard, Eye, EyeOff, Truck, MapPin, Mail, Link2, CheckCircle2, Download, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Select,
@@ -36,6 +36,7 @@ const SettingsPage = () => {
   const [showResendKey, setShowResendKey] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [fetchingProfile, setFetchingProfile] = useState(false);
 
   // Sender address
   const [senderName, setSenderName] = useState('');
@@ -509,9 +510,47 @@ const SettingsPage = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Preencha com os dados de quem envia os produtos. Usado para gerar etiquetas de frete.
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Preencha com os dados de quem envia os produtos. Usado para gerar etiquetas de frete.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={fetchingProfile || !melhorEnvioToken}
+              onClick={async () => {
+                setFetchingProfile(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke('melhor-envio-shipment', {
+                    body: { action: 'fetch_profile' },
+                  });
+                  if (error || data?.error) throw new Error(data?.error || error?.message);
+                  const p = data.profile;
+                  if (p.name) setSenderName(p.name);
+                  if (p.phone) setSenderPhone(p.phone);
+                  if (p.email) setSenderEmail(p.email);
+                  if (p.document) setSenderDocument(p.document);
+                  if (p.postal_code) setSenderPostalCode(p.postal_code);
+                  if (p.address) setSenderAddress(p.address);
+                  if (p.number) setSenderNumber(p.number);
+                  if (p.complement) setSenderComplement(p.complement);
+                  if (p.district) setSenderDistrict(p.district);
+                  if (p.city) setSenderCity(p.city);
+                  if (p.state) setSenderState(p.state);
+                  toast({ title: 'Dados importados do Melhor Envio!' });
+                } catch (err: any) {
+                  toast({ title: 'Erro ao buscar perfil', description: err.message, variant: 'destructive' });
+                } finally {
+                  setFetchingProfile(false);
+                }
+              }}
+              className="flex items-center gap-2 shrink-0"
+            >
+              {fetchingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {fetchingProfile ? 'Importando...' : 'Importar do Melhor Envio'}
+            </Button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Nome / Razão Social</Label>
