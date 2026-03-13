@@ -145,6 +145,22 @@ const ProductCheckout = () => {
     }).finally(() => setLoading(false));
   }, [id, searchParams]);
 
+  // Fetch wholesale tiers when variation changes
+  useEffect(() => {
+    if (!product) return;
+    const variations = product.product_variations || [];
+    const variation = variations[selectedVariation];
+    if (!variation?.id) { setWholesaleTiers([]); return; }
+    supabase
+      .from('wholesale_prices')
+      .select('*')
+      .eq('variation_id', variation.id)
+      .order('min_quantity', { ascending: true })
+      .then(({ data }) => {
+        setWholesaleTiers((data || []).map((w: any) => ({ min_quantity: w.min_quantity, price: Number(w.price) })));
+      });
+  }, [product, selectedVariation]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
