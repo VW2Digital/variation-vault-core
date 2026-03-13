@@ -280,9 +280,26 @@ const Catalog = () => {
                           )}
                         </div>
                         {hasWholesale && (
-                          <div className="absolute top-3 right-3">
+                          <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
                             <Badge className="bg-primary/90 text-primary-foreground text-[10px] font-bold gap-1">
                               <Layers className="w-3 h-3" /> Atacado
+                            </Badge>
+                          </div>
+                        )}
+                        {!hasWholesale && product.free_shipping && (
+                          <div className="absolute top-3 right-3">
+                            <Badge className="bg-success/90 text-white text-[10px] font-bold gap-1">
+                              <Truck className="w-3 h-3" /> Frete Grátis
+                            </Badge>
+                          </div>
+                        )}
+                        {hasWholesale && product.free_shipping && (
+                          <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
+                            <Badge className="bg-primary/90 text-primary-foreground text-[10px] font-bold gap-1">
+                              <Layers className="w-3 h-3" /> Atacado
+                            </Badge>
+                            <Badge className="bg-success/90 text-white text-[10px] font-bold gap-1">
+                              <Truck className="w-3 h-3" /> Frete Grátis
                             </Badge>
                           </div>
                         )}
