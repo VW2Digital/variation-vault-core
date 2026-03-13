@@ -68,11 +68,14 @@ const ProductList = () => {
             <Card key={product.id} className="border-border/50 hover:shadow-md transition-shadow">
               <CardContent className="p-5 flex items-center gap-5">
                 <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-                  {product.images?.[0] ? (
-                    <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <Package className="w-8 h-8 text-muted-foreground/40" />
-                  )}
+                  {(() => {
+                    const img = product.product_variations?.[0]?.images?.[0] || product.product_variations?.[0]?.image_url || product.images?.[0];
+                    return img ? (
+                      <img src={img} alt={product.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <Package className="w-8 h-8 text-muted-foreground/40" />
+                    );
+                  })()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-foreground truncate">{product.name}</h3>
