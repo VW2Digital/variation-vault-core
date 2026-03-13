@@ -67,7 +67,7 @@ const BannerCarousel = () => {
 
   return (
     <div className="relative w-full overflow-hidden bg-muted/30">
-      <div className="relative aspect-[16/5] sm:aspect-[16/6] md:aspect-[16/5]">
+      <div className="relative aspect-[9/12] sm:aspect-[4/3] md:aspect-[16/5]">
         <AnimatePresence initial={false} custom={direction} mode="popLayout">
           <motion.div
             key={current}
