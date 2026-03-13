@@ -231,6 +231,19 @@ const ProductForm = () => {
         </Card>
 
         <Card className="border-border/50">
+          <CardHeader><CardTitle className="text-lg">Destaques</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Mais Vendido</Label>
+                <p className="text-xs text-muted-foreground">Destacar este produto como mais vendido no catálogo</p>
+              </div>
+              <Switch checked={isBestseller} onCheckedChange={setIsBestseller} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50">
           <CardHeader><CardTitle className="text-lg">Frete Grátis</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">

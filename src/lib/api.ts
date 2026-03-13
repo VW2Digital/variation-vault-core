@@ -92,6 +92,7 @@ export const updateProduct = async (
     images?: string[];
     free_shipping?: boolean;
     free_shipping_min_value?: number;
+    is_bestseller?: boolean;
     variations?: { id?: string; dosage: string; price: number; offer_price?: number; in_stock: boolean; is_offer: boolean; image_url?: string; images?: string[] }[];
   }
 ) => {

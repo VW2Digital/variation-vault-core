@@ -280,8 +280,13 @@ const Catalog = () => {
                             <Badge variant="secondary" className="text-[10px]">{t('outOfStock')}</Badge>
                           )}
                         </div>
-                        {(hasWholesale || product.free_shipping) && (
+                        {(hasWholesale || product.free_shipping || product.is_bestseller) && (
                           <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
+                            {product.is_bestseller && (
+                              <Badge className="bg-accent text-accent-foreground text-[10px] font-bold gap-1">
+                                <Star className="w-3 h-3 fill-current" /> Mais Vendido
+                              </Badge>
+                            )}
                             {hasWholesale && (
                               <Badge className="bg-primary/90 text-primary-foreground text-[10px] font-bold gap-1">
                                 <Layers className="w-3 h-3" /> Atacado
