@@ -254,7 +254,7 @@ const Catalog = () => {
 
               return (
                 <StaggerItem key={variation?.id || `${product.id}-${idx}`}>
-                  <div className="group rounded-xl border border-border/50 bg-card overflow-hidden hover:shadow-lg hover:border-primary/30 transition-all duration-300">
+                  <div className={`group rounded-xl border overflow-hidden hover:shadow-lg transition-all duration-300 ${product.is_bestseller ? 'border-primary bg-primary/5 ring-1 ring-primary/20 hover:border-primary/60' : 'border-border/50 bg-card hover:border-primary/30'}`}>
                     <Link
                       to={`/produto/${product.id}${variation ? `?v=${variation.id}` : ''}`}
                       className="block"
