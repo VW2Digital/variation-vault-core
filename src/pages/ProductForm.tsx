@@ -55,6 +55,7 @@ const ProductForm = () => {
   const [frequency, setFrequency] = useState('');
   const [freeShipping, setFreeShipping] = useState(false);
   const [freeShippingMinValue, setFreeShippingMinValue] = useState(0);
+  const [isBestseller, setIsBestseller] = useState(false);
   const [variations, setVariations] = useState<Variation[]>([emptyVariation()]);
   const [saving, setSaving] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
