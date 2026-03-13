@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ShoppingCart, CircleCheck, ArrowRight, Flame, Sparkles } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import BannerCarousel from '@/components/BannerCarousel';
 import CountdownTimer from '@/components/CountdownTimer';
 import productHeroImg from '@/assets/product-hero.png';
