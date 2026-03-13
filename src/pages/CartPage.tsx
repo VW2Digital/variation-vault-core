@@ -48,7 +48,7 @@ const CartPage = () => {
                       className="w-20 h-20 object-contain rounded-lg border border-border/50 bg-muted p-1 shrink-0"
                     />
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-foreground text-sm truncate">{item.product_name}</h3>
+                      <h3 className="font-bold text-foreground text-sm truncate" style={{ fontFamily: 'Georgia, serif' }}>{item.product_name}</h3>
                       <p className="text-xs text-muted-foreground">{item.dosage}</p>
                       {item.is_offer && (
                         <p className="text-xs text-muted-foreground line-through">
