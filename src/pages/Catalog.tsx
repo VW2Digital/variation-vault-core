@@ -254,7 +254,7 @@ const Catalog = () => {
 
               return (
                 <StaggerItem key={variation?.id || `${product.id}-${idx}`}>
-                  <div className="group rounded-xl border border-border/50 bg-card overflow-hidden hover:shadow-lg hover:border-primary/30 transition-all duration-300">
+                  <div className={`group rounded-xl border overflow-hidden hover:shadow-lg transition-all duration-300 ${product.is_bestseller ? 'border-primary bg-primary/5 ring-1 ring-primary/20 hover:border-primary/60' : 'border-border/50 bg-card hover:border-primary/30'}`}>
                     <Link
                       to={`/produto/${product.id}${variation ? `?v=${variation.id}` : ''}`}
                       className="block"
@@ -280,8 +280,13 @@ const Catalog = () => {
                             <Badge variant="secondary" className="text-[10px]">{t('outOfStock')}</Badge>
                           )}
                         </div>
-                        {(hasWholesale || product.free_shipping) && (
+                        {(hasWholesale || product.free_shipping || product.is_bestseller) && (
                           <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
+                            {product.is_bestseller && (
+                              <Badge className="bg-accent text-accent-foreground text-[10px] font-bold gap-1">
+                                <Star className="w-3 h-3 fill-current" /> Mais Vendido
+                              </Badge>
+                            )}
                             {hasWholesale && (
                               <Badge className="bg-primary/90 text-primary-foreground text-[10px] font-bold gap-1">
                                 <Layers className="w-3 h-3" /> Atacado

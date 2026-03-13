@@ -55,6 +55,7 @@ const ProductForm = () => {
   const [frequency, setFrequency] = useState('');
   const [freeShipping, setFreeShipping] = useState(false);
   const [freeShippingMinValue, setFreeShippingMinValue] = useState(0);
+  const [isBestseller, setIsBestseller] = useState(false);
   const [variations, setVariations] = useState<Variation[]>([emptyVariation()]);
   const [saving, setSaving] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
@@ -72,6 +73,7 @@ const ProductForm = () => {
         setFrequency(p.frequency || '');
         setFreeShipping(p.free_shipping || false);
         setFreeShippingMinValue(Number(p.free_shipping_min_value) || 0);
+        setIsBestseller(p.is_bestseller || false);
         // Fetch wholesale prices for all variations
         const varIds = (p.product_variations || []).map((v: any) => v.id);
         let wholesaleMap: Record<string, WholesaleTier[]> = {};
@@ -123,6 +125,7 @@ const ProductForm = () => {
         frequency,
         free_shipping: freeShipping,
         free_shipping_min_value: freeShippingMinValue,
+        is_bestseller: isBestseller,
         variations: variations.filter((v) => v.dosage.trim() !== ''),
       };
 
@@ -223,6 +226,19 @@ const ProductForm = () => {
                 <Label>Frequência</Label>
                 <Input value={frequency} onChange={(e) => setFrequency(e.target.value)} placeholder="Semanal" />
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50">
+          <CardHeader><CardTitle className="text-lg">Destaques</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Mais Vendido</Label>
+                <p className="text-xs text-muted-foreground">Destacar este produto como mais vendido no catálogo</p>
+              </div>
+              <Switch checked={isBestseller} onCheckedChange={setIsBestseller} />
             </div>
           </CardContent>
         </Card>

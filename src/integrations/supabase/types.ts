@@ -353,6 +353,7 @@ export type Database = {
           frequency: string | null
           id: string
           images: string[] | null
+          is_bestseller: boolean
           name: string
           pharma_form: string | null
           subtitle: string | null
@@ -369,6 +370,7 @@ export type Database = {
           frequency?: string | null
           id?: string
           images?: string[] | null
+          is_bestseller?: boolean
           name: string
           pharma_form?: string | null
           subtitle?: string | null
@@ -385,6 +387,7 @@ export type Database = {
           frequency?: string | null
           id?: string
           images?: string[] | null
+          is_bestseller?: boolean
           name?: string
           pharma_form?: string | null
           subtitle?: string | null
