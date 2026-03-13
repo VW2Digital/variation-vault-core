@@ -125,6 +125,7 @@ const ProductForm = () => {
         frequency,
         free_shipping: freeShipping,
         free_shipping_min_value: freeShippingMinValue,
+        is_bestseller: isBestseller,
         variations: variations.filter((v) => v.dosage.trim() !== ''),
       };
 
