@@ -752,6 +752,7 @@ const CustomerDashboard = () => {
           </>
         )}
       </main>
+      <Footer />
     </div>
   );
 };
