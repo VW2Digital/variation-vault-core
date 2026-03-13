@@ -19,6 +19,7 @@ import CountdownTimer from '@/components/CountdownTimer';
 import { useCart } from '@/contexts/CartContext';
 import productHeroImg from '@/assets/product-hero.png';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import BannerCarousel from '@/components/BannerCarousel';
 import { useLanguage } from '@/contexts/LanguageContext';
 

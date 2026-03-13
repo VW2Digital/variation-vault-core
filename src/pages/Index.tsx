@@ -144,12 +144,7 @@ const Index = () => {
 
 
 
-      {/* Footer */}
-      <footer className="border-t border-border/50 bg-card">
-        <div className="max-w-7xl mx-auto px-4 py-8 text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} Liberty Pharma — Todos os direitos reservados.</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };
