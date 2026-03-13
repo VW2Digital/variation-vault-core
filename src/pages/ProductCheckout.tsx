@@ -158,7 +158,11 @@ const ProductCheckout = () => {
       .eq('variation_id', variation.id)
       .order('min_quantity', { ascending: true })
       .then(({ data }) => {
-        setWholesaleTiers((data || []).map((w: any) => ({ min_quantity: w.min_quantity, price: Number(w.price) })));
+        const tiers = (data || []).map((w: any) => ({ min_quantity: w.min_quantity, price: Number(w.price) }));
+        setWholesaleTiers(tiers);
+        if (tiers.length > 0) {
+          setQuantity(tiers[0].min_quantity);
+        }
       });
   }, [product, selectedVariation]);
 
