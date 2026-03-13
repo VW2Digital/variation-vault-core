@@ -19,6 +19,7 @@ import CountdownTimer from '@/components/CountdownTimer';
 import { useCart } from '@/contexts/CartContext';
 import productHeroImg from '@/assets/product-hero.png';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import BannerCarousel from '@/components/BannerCarousel';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -386,12 +387,7 @@ const Catalog = () => {
         )}
       </div>
 
-      {/* Footer */}
-      <footer className="border-t border-border/50 bg-card mt-12">
-        <div className="max-w-7xl mx-auto px-4 py-8 text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} Liberty Pharma — {t('allRights')}</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

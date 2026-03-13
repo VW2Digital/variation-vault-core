@@ -5,6 +5,7 @@ import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/Ani
 import { fetchProduct, fetchTestimonials, fetchBanners, fetchSetting } from '@/lib/api';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
 import { getEffectivePrice, WholesaleTier } from '@/contexts/CartContext';
+import Footer from '@/components/Footer';
 import { useCart } from '@/contexts/CartContext';
 import Header from '@/components/Header';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -594,6 +595,7 @@ const ProductCheckout = () => {
           <WhatsAppIcon className="w-7 h-7 text-white" />
         </a>
       }
+      <Footer />
     </div>);
 
 };

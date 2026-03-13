@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Minus, Plus, Trash2, ShoppingCart, ArrowLeft, Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import productHeroImg from '@/assets/product-hero.png';
 
 const CartPage = () => {
@@ -133,6 +134,7 @@ const CartPage = () => {
           </div>
         )}
       </main>
+      <Footer />
     </div>
   );
 };

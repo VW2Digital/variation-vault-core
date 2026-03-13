@@ -6,6 +6,7 @@ import { AnimatedSection } from '@/components/AnimatedSection';
 import CheckoutForm from '@/components/CheckoutForm';
 import Header from '@/components/Header';
 import { getEffectivePrice, WholesaleTier } from '@/contexts/CartContext';
+import Footer from '@/components/Footer';
 import productHeroImg from '@/assets/product-hero.png';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -156,6 +157,7 @@ const Checkout = () => {
           />
         </AnimatedSection>
       </section>
+      <Footer />
     </div>
   );
 };

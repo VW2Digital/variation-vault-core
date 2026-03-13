@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ShoppingCart, CircleCheck, ArrowRight, Flame, Sparkles } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import BannerCarousel from '@/components/BannerCarousel';
 import CountdownTimer from '@/components/CountdownTimer';
 import productHeroImg from '@/assets/product-hero.png';
@@ -144,12 +145,7 @@ const Index = () => {
 
 
 
-      {/* Footer */}
-      <footer className="border-t border-border/50 bg-card">
-        <div className="max-w-7xl mx-auto px-4 py-8 text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} Liberty Pharma — Todos os direitos reservados.</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };
