@@ -243,23 +243,53 @@ serve(async (req) => {
       const { token, baseUrl } = await getMelhorEnvioConfig(supabase);
       const profileData = await melhorEnvioFetch(baseUrl, token, '/api/v2/me', 'GET');
       
+      console.log('[ME] Profile raw data keys:', JSON.stringify(Object.keys(profileData || {})));
+      console.log('[ME] Profile phone:', JSON.stringify(profileData?.phone));
+      console.log('[ME] Profile address:', JSON.stringify(profileData?.address));
+      
       // Extract address from the first company or user data
       const company = profileData?.companies?.[0] || {};
-      const address = company?.address || profileData?.address || {};
+      const companyAddress = company?.address || {};
+      const userAddress = profileData?.address || {};
+      const address = companyAddress?.postal_code ? companyAddress : userAddress;
       
+      console.log('[ME] Company:', JSON.stringify({ name: company?.name, document: company?.document, phone: company?.phone }));
+      console.log('[ME] Company address:', JSON.stringify(companyAddress));
+      
+      // Phone: try company phone first, then user phone
+      let phone = '';
+      const companyPhone = company?.phone;
+      const userPhone = profileData?.phone;
+      if (companyPhone?.phone) {
+        phone = (companyPhone.area_code || '') + companyPhone.phone;
+      } else if (typeof companyPhone === 'string' && companyPhone) {
+        phone = companyPhone;
+      } else if (userPhone?.phone) {
+        phone = (userPhone.area_code || '') + userPhone.phone;
+      } else if (typeof userPhone === 'string' && userPhone) {
+        phone = userPhone;
+      }
+
+      // City and state may be nested objects or strings
+      const cityObj = address?.city;
+      const cityName = typeof cityObj === 'object' ? (cityObj?.city || cityObj?.name || '') : (cityObj || '');
+      const stateAbbr = typeof cityObj === 'object' ? (cityObj?.state?.state_abbr || cityObj?.state?.uf || '') : (address?.state_abbr || address?.state || '');
+
       const result = {
-        name: company?.name || profileData?.firstname + ' ' + (profileData?.lastname || ''),
-        phone: company?.phone?.phone ? (company.phone.area_code || '') + company.phone.phone : (profileData?.phone?.phone ? (profileData.phone.area_code || '') + profileData.phone.phone : ''),
+        name: company?.name || ((profileData?.firstname || '') + ' ' + (profileData?.lastname || '')).trim(),
+        phone,
         email: profileData?.email || '',
         document: company?.document || profileData?.document || '',
         postal_code: address?.postal_code || '',
-        address: address?.address || '',
+        address: address?.address || address?.street || '',
         number: address?.number || '',
         complement: address?.complement || '',
         district: address?.district || '',
-        city: address?.city?.city || address?.city || '',
-        state: address?.city?.state?.state_abbr || address?.state_abbr || '',
+        city: cityName,
+        state: stateAbbr,
       };
+
+      console.log('[ME] Mapped profile result:', JSON.stringify(result));
 
       return new Response(JSON.stringify({ success: true, profile: result }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
