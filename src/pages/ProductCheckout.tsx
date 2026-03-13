@@ -342,19 +342,88 @@ const ProductCheckout = () => {
               </div>
             </div>
 
+            {/* Wholesale Tiers */}
+            {wholesaleTiers.length > 0 && (
+              <div className="border border-primary/20 rounded-xl p-4 bg-primary/5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-primary/90 text-primary-foreground text-xs font-bold gap-1">
+                    Atacado
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">Compre mais, pague menos</span>
+                </div>
+                <div className="grid gap-2">
+                  {wholesaleTiers.map((tier, idx) => {
+                    const nextTier = wholesaleTiers[idx + 1];
+                    const isActive = quantity >= tier.min_quantity && (!nextTier || quantity < nextTier.min_quantity);
+                    const basePrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : Number(variation?.price || 0);
+                    const discount = basePrice > 0 ? Math.round(((basePrice - tier.price) / basePrice) * 100) : 0;
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+                          isActive
+                            ? 'border-primary bg-primary/10 shadow-sm'
+                            : 'border-border/50 bg-card'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {isActive && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
+                          <span className="text-sm font-medium text-foreground">
+                            {tier.min_quantity}+ unidades
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-primary">
+                            R$ {tier.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                          {discount > 0 && (
+                            <Badge variant="secondary" className="text-[10px] text-destructive bg-destructive/10 border-destructive/20">
+                              -{discount}%
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  💡 Qualquer quantidade acima do mínimo recebe o desconto. Ex: 4, 5, 7 unidades — o desconto é aplicado!
+                </p>
+              </div>
+            )}
+
             {/* Price Box */}
             <div className="border border-border/50 rounded-xl p-5 space-y-3 bg-card">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">{t('price')}</p>
                 {variation?.in_stock ?
                 <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/10">{t('inStock')}</Badge> :
-
                 <Badge variant="destructive">{t('unavailable')}</Badge>
                 }
               </div>
-              <p className="text-3xl font-bold text-primary">
-                R$ {(Number(variation?.price || 0) * quantity).toLocaleString('pt-BR')}
-              </p>
+              {(() => {
+                const basePrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : Number(variation?.price || 0);
+                const effectiveUnit = getEffectivePrice(basePrice, quantity, wholesaleTiers);
+                const total = effectiveUnit * quantity;
+                const hasWholesaleDiscount = effectiveUnit < basePrice;
+                return (
+                  <>
+                    {hasWholesaleDiscount && (
+                      <p className="text-sm text-muted-foreground line-through">
+                        R$ {(basePrice * quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    )}
+                    <p className="text-3xl font-bold text-primary">
+                      R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                    {hasWholesaleDiscount && (
+                      <p className="text-xs text-success font-medium">
+                        Você economiza R$ {((basePrice - effectiveUnit) * quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}!
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
               <div className="text-xs text-muted-foreground space-y-1">
                 <p className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5" /> {t('upTo6x')}</p>
                 <p className="text-success font-medium flex items-center gap-1"><CircleDollarSign className="w-3.5 h-3.5" /> {t('pixAvailable')}</p>
