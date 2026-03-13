@@ -122,6 +122,7 @@ const ProductCheckout = () => {
   const [currentImage, setCurrentImage] = useState(0);
   const [productReviews, setProductReviews] = useState<any[]>([]);
   const [wholesaleTiers, setWholesaleTiers] = useState<WholesaleTier[]>([]);
+  const [isWholesale, setIsWholesale] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -320,14 +321,39 @@ const ProductCheckout = () => {
               Caneta de {variation?.dosage}: contém um total de 20mg, dividida em 4 doses de {variation?.dosage}.
             </div>
 
-            {/* Quantity */}
+            {/* Wholesale Toggle + Quantity */}
+            {wholesaleTiers.length > 0 && (
+              <div className="flex gap-3">
+                <Button
+                  variant={!isWholesale ? 'default' : 'outline'}
+                  className="flex-1 h-11"
+                  onClick={() => { setIsWholesale(false); setQuantity(1); }}
+                >
+                  Varejo
+                </Button>
+                <Button
+                  variant={isWholesale ? 'default' : 'outline'}
+                  className="flex-1 h-11"
+                  onClick={() => {
+                    setIsWholesale(true);
+                    const minQty = wholesaleTiers[0]?.min_quantity || 3;
+                    setQuantity(minQty);
+                  }}
+                >
+                  Atacado
+                </Button>
+              </div>
+            )}
+
             <div className="space-y-2">
               <p className="text-sm font-medium text-primary">{t('quantity')}</p>
               <div className="flex items-center gap-0">
                 <button
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  onClick={() => {
+                    const minQty = isWholesale ? (wholesaleTiers[0]?.min_quantity || 1) : 1;
+                    setQuantity((q) => Math.max(minQty, q - 1));
+                  }}
                   className="w-10 h-10 border border-border rounded-l-lg flex items-center justify-center hover:bg-muted transition-colors">
-                  
                   <Minus className="w-4 h-4 text-foreground" />
                 </button>
                 <div className="w-14 h-10 border-y border-border flex items-center justify-center text-foreground font-medium">
@@ -336,14 +362,18 @@ const ProductCheckout = () => {
                 <button
                   onClick={() => setQuantity((q) => q + 1)}
                   className="w-10 h-10 border border-border rounded-r-lg flex items-center justify-center hover:bg-muted transition-colors">
-                  
                   <Plus className="w-4 h-4 text-foreground" />
                 </button>
               </div>
+              {isWholesale && (
+                <p className="text-[11px] text-muted-foreground">
+                  Mínimo de {wholesaleTiers[0]?.min_quantity || 3} unidades no atacado
+                </p>
+              )}
             </div>
 
             {/* Wholesale Tiers */}
-            {wholesaleTiers.length > 0 && (
+            {wholesaleTiers.length > 0 && isWholesale && (
               <div className="border border-primary/20 rounded-xl p-4 bg-primary/5 space-y-3">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-primary/90 text-primary-foreground text-xs font-bold gap-1">
@@ -358,12 +388,13 @@ const ProductCheckout = () => {
                     const basePrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : Number(variation?.price || 0);
                     const discount = basePrice > 0 ? Math.round(((basePrice - tier.price) / basePrice) * 100) : 0;
                     return (
-                      <div
+                      <button
                         key={idx}
-                        className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+                        onClick={() => setQuantity(tier.min_quantity)}
+                        className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer ${
                           isActive
                             ? 'border-primary bg-primary/10 shadow-sm'
-                            : 'border-border/50 bg-card'
+                            : 'border-border/50 bg-card hover:border-primary/30'
                         }`}
                       >
                         <div className="flex items-center gap-2">
@@ -374,7 +405,7 @@ const ProductCheckout = () => {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-bold text-primary">
-                            R$ {tier.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            R$ {tier.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} /un
                           </span>
                           {discount > 0 && (
                             <Badge variant="secondary" className="text-[10px] text-destructive bg-destructive/10 border-destructive/20">
@@ -382,20 +413,19 @@ const ProductCheckout = () => {
                             </Badge>
                           )}
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  💡 Qualquer quantidade acima do mínimo recebe o desconto. Ex: 4, 5, 7 unidades — o desconto é aplicado!
-                </p>
               </div>
             )}
 
             {/* Price Box */}
             <div className="border border-border/50 rounded-xl p-5 space-y-3 bg-card">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{t('price')}</p>
+                <p className="text-sm text-muted-foreground font-medium">
+                  {isWholesale ? 'Total Atacado' : t('price')}
+                </p>
                 {variation?.in_stock ?
                 <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/10">{t('inStock')}</Badge> :
                 <Badge variant="destructive">{t('unavailable')}</Badge>
@@ -405,21 +435,25 @@ const ProductCheckout = () => {
                 const basePrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : Number(variation?.price || 0);
                 const effectiveUnit = getEffectivePrice(basePrice, quantity, wholesaleTiers);
                 const total = effectiveUnit * quantity;
+                const regularTotal = basePrice * quantity;
                 const hasWholesaleDiscount = effectiveUnit < basePrice;
                 return (
                   <>
-                    {hasWholesaleDiscount && (
-                      <p className="text-sm text-muted-foreground line-through">
-                        R$ {(basePrice * quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </p>
-                    )}
                     <p className="text-3xl font-bold text-primary">
                       R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                     {hasWholesaleDiscount && (
-                      <p className="text-xs text-success font-medium">
-                        Você economiza R$ {((basePrice - effectiveUnit) * quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}!
-                      </p>
+                      <>
+                        <p className="text-sm font-semibold text-foreground">
+                          {quantity}x R$ {effectiveUnit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (por unidade)
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Preço regular: <span className="line-through">R$ {regularTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                        </p>
+                        <p className="text-xs text-success font-semibold">
+                          Você economiza R$ {(regularTotal - total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}!
+                        </p>
+                      </>
                     )}
                   </>
                 );
