@@ -171,6 +171,8 @@ const CartCheckout = () => {
             dosage=""
             quantity={1}
             unitPrice={totalPrice}
+            freeShipping={freeShippingInfo.freeShipping}
+            freeShippingMinValue={freeShippingInfo.minValue}
           />
         </AnimatedSection>
       </section>
