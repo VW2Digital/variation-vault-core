@@ -302,7 +302,7 @@ const Catalog = () => {
                       </div>
 
                       <div className="p-4 space-y-2">
-                        <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                        <h3 className="font-bold text-foreground text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors" style={{ fontFamily: 'Georgia, serif' }}>
                           {product.name}
                         </h3>
                         {variation?.dosage && (
