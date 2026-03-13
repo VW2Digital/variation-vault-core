@@ -157,7 +157,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
   const [loadingShipping, setLoadingShipping] = useState(false);
 
-  const shippingCost = selectedShipping?.price || 0;
+  const shippingCost = qualifiesForFreeShipping ? 0 : (selectedShipping?.price || 0);
   const totalValue = baseProductTotal + shippingCost;
 
   // Load saved profile + addresses on mount
@@ -1028,10 +1028,17 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
               <span>Produtos</span>
               <span>R$ {baseProductTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
             </div>
-            {shippingCost > 0 && (
+            {selectedShipping && (
               <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Frete ({selectedShipping?.company})</span>
-                <span>R$ {shippingCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                <span>Frete ({selectedShipping.company})</span>
+                {qualifiesForFreeShipping ? (
+                  <span className="text-primary font-medium">
+                    <span className="line-through text-muted-foreground mr-1">R$ {(selectedShipping.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    Grátis
+                  </span>
+                ) : (
+                  <span>R$ {shippingCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                )}
               </div>
             )}
             <div className="flex justify-between items-center pt-1">
