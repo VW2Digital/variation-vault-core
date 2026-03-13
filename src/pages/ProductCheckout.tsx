@@ -122,7 +122,6 @@ const ProductCheckout = () => {
   const [currentImage, setCurrentImage] = useState(0);
   const [productReviews, setProductReviews] = useState<any[]>([]);
   const [wholesaleTiers, setWholesaleTiers] = useState<WholesaleTier[]>([]);
-  const [isWholesale, setIsWholesale] = useState(false);
 
   useEffect(() => {
     if (!id) return;
