@@ -799,6 +799,7 @@ const SettingsPage = () => {
         </CardContent>
       </Card>
 
+      <Button onClick={handleSave} disabled={saving} className="px-8">
         {saving ? 'Salvando...' : 'Salvar Configurações'}
       </Button>
     </div>
