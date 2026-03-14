@@ -49,7 +49,17 @@ const isValidCpf = (cpf: string): boolean => {
 };
 
 const isValidEmail = (email: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-const isValidPhone = (phone: string): boolean => phone.replace(/\D/g, '').length >= 10;
+const isValidPhone = (phone: string): boolean => {
+  const digits = phone.replace(/\D/g, '');
+  // Must be 10 (fixo) or 11 (celular) digits
+  if (digits.length < 10 || digits.length > 11) return false;
+  // DDD must be between 11 and 99
+  const ddd = parseInt(digits.slice(0, 2));
+  if (ddd < 11 || ddd > 99) return false;
+  // Cell phones (11 digits) must start with 9 after DDD
+  if (digits.length === 11 && digits[2] !== '9') return false;
+  return true;
+};
 
 interface FieldError { name?: string; email?: string; cpf?: string; phone?: string; }
 interface AddressError { postalCode?: string; address?: string; number?: string; district?: string; city?: string; state?: string; }
