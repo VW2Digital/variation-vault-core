@@ -437,15 +437,37 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
 
   const validateCard = (): boolean => {
     if (paymentMethod === 'pix') return true;
+
     const errors: CardError = {};
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
     const num = cardNumber.replace(/\s/g, '');
+    const expMonth = parseInt(cardExpMonth, 10);
+    const expYear = parseInt(cardExpYear, 10);
+
     if (num.length < 13) errors.cardNumber = 'Número do cartão inválido';
     if (!cardName.trim()) errors.cardName = 'Nome é obrigatório';
-    if (!cardExpMonth || parseInt(cardExpMonth) < 1 || parseInt(cardExpMonth) > 12) errors.cardExpMonth = 'Mês inválido';
-    if (!cardExpYear || cardExpYear.length !== 4) errors.cardExpYear = 'Ano inválido';
+
+    if (!cardExpMonth || Number.isNaN(expMonth) || expMonth < 1 || expMonth > 12) {
+      errors.cardExpMonth = 'Mês inválido';
+    }
+
+    if (!cardExpYear || cardExpYear.length !== 4 || Number.isNaN(expYear)) {
+      errors.cardExpYear = 'Ano inválido';
+    } else if (expYear < currentYear || (expYear === currentYear && expMonth < currentMonth)) {
+      errors.cardExpYear = 'Cartão vencido';
+    }
+
     if (!cardCcv || cardCcv.length < 3) errors.cardCcv = 'CVV inválido';
-    if (!holderPostalCode.replace(/\D/g, '') || holderPostalCode.replace(/\D/g, '').length < 8) errors.holderPostalCode = 'CEP inválido';
+
+    if (!holderPostalCode.replace(/\D/g, '') || holderPostalCode.replace(/\D/g, '').length < 8) {
+      errors.holderPostalCode = 'CEP inválido';
+    }
+
     if (!holderAddressNumber.trim()) errors.holderAddressNumber = 'Número é obrigatório';
+
     setCardErrors(errors);
     return Object.keys(errors).length === 0;
   };
