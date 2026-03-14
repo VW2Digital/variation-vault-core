@@ -229,20 +229,30 @@ const TestimonialList = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {testimonials.map((t) => (
             <Card key={t.id} className="border-border/50 overflow-hidden">
-              <div className="relative aspect-[9/16] max-h-[300px] bg-muted">
+              <div className="relative aspect-[9/16] bg-muted">
                 {t.thumbnail_url ? (
                   <img src={t.thumbnail_url} alt={t.name} className="w-full h-full object-cover" />
+                ) : t.video_url ? (
+                  <video
+                    src={`${t.video_url}#t=0.5`}
+                    className="w-full h-full object-cover"
+                    muted
+                    preload="metadata"
+                    playsInline
+                  />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center"><Video className="w-12 h-12 text-muted-foreground/30" /></div>
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Video className="w-10 h-10 text-muted-foreground/30" />
+                  </div>
                 )}
                 <Dialog>
                   <DialogTrigger asChild>
                     <button className="absolute inset-0 flex items-center justify-center bg-foreground/10 hover:bg-foreground/20 transition-colors">
-                      <div className="w-12 h-12 rounded-full bg-card/90 flex items-center justify-center shadow-lg">
-                        <Play className="w-5 h-5 text-foreground ml-0.5" />
+                      <div className="w-10 h-10 rounded-full bg-card/90 flex items-center justify-center shadow-lg">
+                        <Play className="w-4 h-4 text-foreground ml-0.5" />
                       </div>
                     </button>
                   </DialogTrigger>
@@ -252,14 +262,16 @@ const TestimonialList = () => {
                   </DialogContent>
                 </Dialog>
               </div>
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-foreground">{t.name}</p>
+              <CardContent className="p-3 flex items-center justify-between">
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground text-sm truncate">{t.name}</p>
                   <p className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString('pt-BR')}</p>
                 </div>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive shrink-0 h-8 w-8">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
