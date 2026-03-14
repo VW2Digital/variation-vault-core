@@ -304,7 +304,7 @@ const OrdersPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOrders.map((order) => {
+                {paginatedOrders.map((order) => {
                   const status = statusMap[order.status] || { label: order.status, variant: 'outline' as const };
                   const delivery = deliveryStatuses.find(d => d.value === order.delivery_status);
                   return (
