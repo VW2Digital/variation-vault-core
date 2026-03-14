@@ -908,12 +908,29 @@ const OrdersPage = () => {
                 </p>
               </div>
               <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Templates</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {whatsappTemplates.map(tpl => (
+                    <Button
+                      key={tpl.id}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => applyTemplate(tpl.id)}
+                    >
+                      {tpl.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
                 <Label>Mensagem</Label>
                 <Textarea
                   value={whatsappMessage}
                   onChange={(e) => setWhatsappMessage(e.target.value)}
                   rows={5}
-                  placeholder="Digite a mensagem..."
+                  placeholder="Selecione um template ou digite a mensagem..."
                 />
               </div>
               <div className="flex justify-end gap-2">
