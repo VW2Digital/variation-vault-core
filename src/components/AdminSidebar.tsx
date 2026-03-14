@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, LogOut, LayoutDashboard, Video, Megaphone, Settings, ShoppingBag, Users, MessageCircle, Star, MousePointerClick } from 'lucide-react';
+import { Package, LogOut, LayoutDashboard, Video, Megaphone, Settings, ShoppingBag, Users, MessageCircle, Star, MousePointerClick, AlertTriangle } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
   Sidebar,
@@ -26,6 +26,7 @@ const items = [
   { title: 'Usuários', url: '/admin/usuarios', icon: Users },
   { title: 'Avaliações', url: '/admin/avaliacoes', icon: Star },
   { title: 'Suporte', url: '/admin/suporte', icon: MessageCircle },
+  { title: 'Falhas Pgto', url: '/admin/falhas-pagamento', icon: AlertTriangle },
   { title: 'Configurações', url: '/admin/configuracoes', icon: Settings },
 ];
 
