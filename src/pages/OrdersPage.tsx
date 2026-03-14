@@ -354,6 +354,50 @@ const OrdersPage = () => {
         </Select>
       </div>
 
+      {/* Batch action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+          <span className="text-sm font-medium text-foreground">
+            <CheckSquare className="inline h-4 w-4 mr-1" />
+            {selectedIds.size} selecionado(s)
+          </span>
+          <Separator orientation="vertical" className="h-6" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Pagamento:</span>
+            <Select onValueChange={(v) => batchUpdateStatus('status', v)}>
+              <SelectTrigger className="h-8 w-[140px] text-xs">
+                <SelectValue placeholder="Alterar status" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(statusMap).slice(0, 6).map(([key, val]) => (
+                  <SelectItem key={key} value={key}>{val.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Entrega:</span>
+            <Select onValueChange={(v) => batchUpdateStatus('delivery_status', v)}>
+              <SelectTrigger className="h-8 w-[150px] text-xs">
+                <SelectValue placeholder="Alterar entrega" />
+              </SelectTrigger>
+              <SelectContent>
+                {deliveryStatuses.map(s => (
+                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={() => setShowBatchDelete(true)} disabled={batchDeleting}>
+            <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
+          </Button>
+          <Button variant="ghost" size="sm" className="h-8 text-xs ml-auto" onClick={() => setSelectedIds(new Set())}>
+            <X className="h-3.5 w-3.5 mr-1" /> Limpar
+          </Button>
+          {batchUpdating && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
