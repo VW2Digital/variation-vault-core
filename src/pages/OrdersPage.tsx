@@ -224,6 +224,12 @@ const OrdersPage = () => {
   const filteredOrders = orders.filter(order => {
     if (filterPayment !== 'ALL' && order.status !== filterPayment) return false;
     if (filterDelivery !== 'ALL' && (order.delivery_status || 'PROCESSING') !== filterDelivery) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const nameMatch = (order.customer_name || '').toLowerCase().includes(q);
+      const productMatch = (order.product_name || '').toLowerCase().includes(q);
+      if (!nameMatch && !productMatch) return false;
+    }
     return true;
   });
 
