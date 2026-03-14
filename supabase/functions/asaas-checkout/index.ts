@@ -33,6 +33,23 @@ async function getAsaasConfig(supabaseUrl: string, supabaseKey: string) {
   return { apiKey, baseUrl };
 }
 
+function getRemoteIp(req: Request) {
+  const candidates = [
+    req.headers.get('cf-connecting-ip'),
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim(),
+    req.headers.get('x-real-ip'),
+    req.headers.get('x-client-ip'),
+    req.headers.get('fly-client-ip'),
+  ];
+
+  const validIp = candidates.find((ip) => typeof ip === 'string' && ip.length > 0 && ip.toLowerCase() !== 'unknown');
+  return validIp ?? '127.0.0.1';
+}
+
+function toCurrencyNumber(value: number) {
+  return Number(Number(value).toFixed(2));
+}
+
 async function asaasFetch(baseUrl: string, apiKey: string, path: string, method: string, body?: any) {
   const res = await fetch(`${baseUrl}${path}`, {
     method,
@@ -44,11 +61,19 @@ async function asaasFetch(baseUrl: string, apiKey: string, path: string, method:
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
 
-  const data = await res.json();
+  const raw = await res.text();
+  const data = raw ? JSON.parse(raw) : {};
+
   if (!res.ok) {
     console.error('Asaas API error:', JSON.stringify(data));
-    throw new Error(data.errors?.[0]?.description || `Asaas error [${res.status}]`);
+
+    const joinedErrors = Array.isArray(data?.errors)
+      ? data.errors.map((item: any) => item?.description).filter(Boolean).join(' | ')
+      : '';
+
+    throw new Error(joinedErrors || data?.message || `Asaas error [${res.status}]`);
   }
+
   return data;
 }
 
