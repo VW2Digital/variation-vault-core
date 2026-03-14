@@ -95,6 +95,7 @@ const OrdersPage = () => {
   // WhatsApp message dialog
   const [whatsappOrder, setWhatsappOrder] = useState<any>(null);
   const [whatsappMessage, setWhatsappMessage] = useState('');
+  const [whatsappNumber, setWhatsappNumber] = useState('');
   const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
 
   // Edit form state
@@ -352,13 +353,14 @@ const OrdersPage = () => {
   };
 
   const handleSendWhatsapp = async () => {
-    if (!whatsappOrder || !whatsappMessage.trim()) return;
+    if (!whatsappOrder || !whatsappMessage.trim() || !whatsappNumber.trim()) return;
     setSendingWhatsapp(true);
     try {
-      await sendWhatsappMessage(whatsappOrder.customer_phone, whatsappMessage);
+      await sendWhatsappMessage(whatsappNumber, whatsappMessage);
       toast({ title: 'Mensagem enviada via WhatsApp!' });
       setWhatsappOrder(null);
       setWhatsappMessage('');
+      setWhatsappNumber('');
     } catch (err: any) {
       toast({ title: 'Erro ao enviar WhatsApp', description: err.message, variant: 'destructive' });
     } finally {
@@ -368,6 +370,10 @@ const OrdersPage = () => {
 
   const openWhatsappDialog = (order: any) => {
     setWhatsappOrder(order);
+    // Ensure number has country code - if it doesn't start with a valid prefix, prepend 55 (Brazil)
+    const rawPhone = (order.customer_phone || '').replace(/\D/g, '');
+    const formattedPhone = rawPhone.length <= 11 ? `55${rawPhone.replace(/^0+/, '')}` : rawPhone;
+    setWhatsappNumber(formattedPhone);
     setWhatsappMessage('');
   };
 
@@ -901,10 +907,17 @@ const OrdersPage = () => {
           </DialogHeader>
           {whatsappOrder && (
             <div className="space-y-4">
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Destinatário</Label>
-                <p className="text-sm font-medium text-foreground">
-                  {whatsappOrder.customer_name} — {whatsappOrder.customer_phone}
+              <div className="space-y-2">
+                <Label>Destinatário</Label>
+                <p className="text-xs text-muted-foreground mb-1">{whatsappOrder.customer_name}</p>
+                <Input
+                  value={whatsappNumber}
+                  onChange={(e) => setWhatsappNumber(e.target.value.replace(/\D/g, ''))}
+                  placeholder="5511999999999"
+                  inputMode="numeric"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Número com código do país (ex: 55 para Brasil). Ajuste se necessário.
                 </p>
               </div>
               <div className="space-y-2">
@@ -935,7 +948,7 @@ const OrdersPage = () => {
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setWhatsappOrder(null)}>Cancelar</Button>
-                <Button onClick={handleSendWhatsapp} disabled={sendingWhatsapp || !whatsappMessage.trim()}>
+                <Button onClick={handleSendWhatsapp} disabled={sendingWhatsapp || !whatsappMessage.trim() || !whatsappNumber.trim()}>
                   {sendingWhatsapp ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
                   Enviar
                 </Button>
