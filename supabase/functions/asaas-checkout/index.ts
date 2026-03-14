@@ -167,28 +167,18 @@ serve(async (req) => {
         break;
       }
 
-      // ─── 3. CREDIT CARD PAYMENT (direct — no tokenization needed) ───
+      // ─── 3. CREDIT CARD PAYMENT (UNDEFINED — Asaas manages method choice) ───
       case 'create_card_payment': {
-        const { customer, value, description, creditCard, creditCardHolderInfo, installmentCount, orderId, creditCardToken } = payload;
-        const remoteIp = getRemoteIp(req);
+        const { customer, value, description, installmentCount, orderId } = payload;
 
         const paymentBody: any = {
           customer,
-          billingType: 'CREDIT_CARD',
+          billingType: 'UNDEFINED',
           value: toCurrencyNumber(value),
           description,
           dueDate: new Date().toISOString().split('T')[0],
-          creditCardHolderInfo,
-          remoteIp,
           externalReference: orderId || undefined,
         };
-
-        // Support both direct card data and token-based payment
-        if (creditCardToken) {
-          paymentBody.creditCardToken = creditCardToken;
-        } else if (creditCard) {
-          paymentBody.creditCard = creditCard;
-        }
 
         if (installmentCount && Number(installmentCount) > 1) {
           paymentBody.installmentCount = Number(installmentCount);
