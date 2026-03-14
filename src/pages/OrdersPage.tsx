@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw, MoreVertical, Eye, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, CheckSquare } from 'lucide-react';
+import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw, MoreVertical, Eye, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, CheckSquare, MessageSquare, Send } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 
 const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   PENDING: { label: 'Pendente', variant: 'outline' },
@@ -79,6 +80,11 @@ const OrdersPage = () => {
   const [batchDeleting, setBatchDeleting] = useState(false);
   const [batchUpdating, setBatchUpdating] = useState(false);
   const [showBatchDelete, setShowBatchDelete] = useState(false);
+
+  // WhatsApp message dialog
+  const [whatsappOrder, setWhatsappOrder] = useState<any>(null);
+  const [whatsappMessage, setWhatsappMessage] = useState('');
+  const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
 
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -185,6 +191,28 @@ const OrdersPage = () => {
         .eq('id', editOrder.id);
       if (error) throw error;
       toast({ title: 'Pedido atualizado!' });
+
+      // Auto-send WhatsApp on status change
+      const phone = editForm.customer_phone;
+      if (phone) {
+        const statusChanged = editOrder.status !== editForm.status;
+        const deliveryChanged = (editOrder.delivery_status || 'PROCESSING') !== editForm.delivery_status;
+        try {
+          if (deliveryChanged) {
+            const msg = getStatusChangeMessage(editForm.customer_name, editForm.product_name, 'delivery_status', editForm.delivery_status);
+            await sendWhatsappMessage(phone, msg);
+            toast({ title: 'Notificação WhatsApp enviada (entrega)!' });
+          }
+          if (statusChanged) {
+            const msg = getStatusChangeMessage(editForm.customer_name, editForm.product_name, 'status', editForm.status);
+            await sendWhatsappMessage(phone, msg);
+            toast({ title: 'Notificação WhatsApp enviada (pagamento)!' });
+          }
+        } catch (whatsErr: any) {
+          toast({ title: 'Pedido salvo, mas falha no WhatsApp', description: whatsErr.message, variant: 'destructive' });
+        }
+      }
+
       setEditOrder(null);
       fetchOrders();
     } catch (err: any) {
@@ -280,6 +308,56 @@ const OrdersPage = () => {
     } finally {
       setRefreshingTracking(null);
     }
+  };
+
+  const getStatusChangeMessage = (orderName: string, productName: string, field: string, newValue: string) => {
+    const deliveryLabels: Record<string, string> = {
+      PROCESSING: 'Em Processamento',
+      SHIPPED: 'Enviado',
+      IN_TRANSIT: 'Em Trânsito',
+      DELIVERED: 'Entregue',
+      RETURNED: 'Devolvido',
+    };
+    const paymentLabels: Record<string, string> = Object.fromEntries(
+      Object.entries(statusMap).map(([k, v]) => [k, v.label])
+    );
+
+    if (field === 'delivery_status') {
+      const label = deliveryLabels[newValue] || newValue;
+      return `Olá ${orderName}! 📦 Seu pedido "${productName}" teve o status de entrega atualizado para: *${label}*. Obrigado por comprar conosco!`;
+    }
+    const label = paymentLabels[newValue] || newValue;
+    return `Olá ${orderName}! 💳 Seu pedido "${productName}" teve o status de pagamento atualizado para: *${label}*. Obrigado!`;
+  };
+
+  const sendWhatsappMessage = async (number: string, text: string) => {
+    if (!number || !text) return;
+    const { data, error } = await supabase.functions.invoke('evolution-send-message', {
+      body: { number: number.replace(/\D/g, ''), text },
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    return data;
+  };
+
+  const handleSendWhatsapp = async () => {
+    if (!whatsappOrder || !whatsappMessage.trim()) return;
+    setSendingWhatsapp(true);
+    try {
+      await sendWhatsappMessage(whatsappOrder.customer_phone, whatsappMessage);
+      toast({ title: 'Mensagem enviada via WhatsApp!' });
+      setWhatsappOrder(null);
+      setWhatsappMessage('');
+    } catch (err: any) {
+      toast({ title: 'Erro ao enviar WhatsApp', description: err.message, variant: 'destructive' });
+    } finally {
+      setSendingWhatsapp(false);
+    }
+  };
+
+  const openWhatsappDialog = (order: any) => {
+    setWhatsappOrder(order);
+    setWhatsappMessage(`Olá ${order.customer_name}! Tudo bem? Entramos em contato sobre o seu pedido "${order.product_name}".`);
   };
 
   const filteredOrders = orders.filter(order => {
@@ -498,6 +576,11 @@ const OrdersPage = () => {
                               <DropdownMenuItem onClick={() => openEdit(order)}>
                                 <Pencil className="mr-2 h-4 w-4" /> Editar
                               </DropdownMenuItem>
+                              {order.customer_phone && (
+                                <DropdownMenuItem onClick={() => openWhatsappDialog(order)}>
+                                  <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
                                 onClick={() => setDeleteTarget(order)}
@@ -788,6 +871,43 @@ const OrdersPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* WhatsApp message dialog */}
+      <Dialog open={!!whatsappOrder} onOpenChange={(open) => !open && setWhatsappOrder(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" /> Enviar WhatsApp
+            </DialogTitle>
+          </DialogHeader>
+          {whatsappOrder && (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Destinatário</Label>
+                <p className="text-sm font-medium text-foreground">
+                  {whatsappOrder.customer_name} — {whatsappOrder.customer_phone}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Mensagem</Label>
+                <Textarea
+                  value={whatsappMessage}
+                  onChange={(e) => setWhatsappMessage(e.target.value)}
+                  rows={5}
+                  placeholder="Digite a mensagem..."
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setWhatsappOrder(null)}>Cancelar</Button>
+                <Button onClick={handleSendWhatsapp} disabled={sendingWhatsapp || !whatsappMessage.trim()}>
+                  {sendingWhatsapp ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                  Enviar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
