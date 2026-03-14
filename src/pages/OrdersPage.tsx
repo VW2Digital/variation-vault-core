@@ -191,6 +191,28 @@ const OrdersPage = () => {
         .eq('id', editOrder.id);
       if (error) throw error;
       toast({ title: 'Pedido atualizado!' });
+
+      // Auto-send WhatsApp on status change
+      const phone = editForm.customer_phone;
+      if (phone) {
+        const statusChanged = editOrder.status !== editForm.status;
+        const deliveryChanged = (editOrder.delivery_status || 'PROCESSING') !== editForm.delivery_status;
+        try {
+          if (deliveryChanged) {
+            const msg = getStatusChangeMessage(editForm.customer_name, editForm.product_name, 'delivery_status', editForm.delivery_status);
+            await sendWhatsappMessage(phone, msg);
+            toast({ title: 'Notificação WhatsApp enviada (entrega)!' });
+          }
+          if (statusChanged) {
+            const msg = getStatusChangeMessage(editForm.customer_name, editForm.product_name, 'status', editForm.status);
+            await sendWhatsappMessage(phone, msg);
+            toast({ title: 'Notificação WhatsApp enviada (pagamento)!' });
+          }
+        } catch (whatsErr: any) {
+          toast({ title: 'Pedido salvo, mas falha no WhatsApp', description: whatsErr.message, variant: 'destructive' });
+        }
+      }
+
       setEditOrder(null);
       fetchOrders();
     } catch (err: any) {
