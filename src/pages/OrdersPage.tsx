@@ -777,6 +777,23 @@ const OrdersPage = () => {
                 <InfoRow label="Estado" value={viewOrder.customer_state} />
                 <InfoRow label="CEP" value={viewOrder.customer_postal_code} />
               </div>
+              {viewOrder.status === 'PAID' && !viewOrder.tracking_code && viewOrder.customer_postal_code && (
+                <>
+                  <Separator />
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      window.open('https://melhorenvio.com.br/app/carrinho', '_blank');
+                      const addr = `${viewOrder.customer_name}\n${viewOrder.customer_address}, ${viewOrder.customer_number}${viewOrder.customer_complement ? ` - ${viewOrder.customer_complement}` : ''}\n${viewOrder.customer_district}\n${viewOrder.customer_city} - ${viewOrder.customer_state}\nCEP: ${viewOrder.customer_postal_code}`;
+                      navigator.clipboard.writeText(addr).then(() => {
+                        toast({ title: 'Endereço copiado!', description: 'Cole os dados no Melhor Envio.' });
+                      });
+                    }}
+                  >
+                    <Truck className="mr-2 h-4 w-4" /> Gerar Etiqueta Manual
+                  </Button>
+                </>
+              )}
               <Separator />
               <InfoRow label="Criado em" value={new Date(viewOrder.created_at).toLocaleString('pt-BR')} />
               <InfoRow label="Atualizado em" value={new Date(viewOrder.updated_at).toLocaleString('pt-BR')} />
