@@ -148,6 +148,31 @@ const OrdersPage = () => {
 
   useEffect(() => { fetchOrders(); }, []);
 
+  const fetchShippingLogs = async (orderId: string) => {
+    setLoadingLogs(true);
+    try {
+      const { data, error } = await supabase
+        .from('shipping_logs')
+        .select('*')
+        .eq('order_id', orderId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      setShippingLogs(data || []);
+    } catch (err: any) {
+      console.error('Error fetching shipping logs:', err);
+      setShippingLogs([]);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
+  const openViewOrder = (order: any) => {
+    setViewOrder(order);
+    setShowLogs(false);
+    setShippingLogs([]);
+  };
+
   const openEdit = (order: any) => {
     setEditForm({
       customer_name: order.customer_name || '',
