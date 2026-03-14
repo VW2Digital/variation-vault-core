@@ -37,7 +37,7 @@ function filterByPeriod<T extends { created_at: string }>(items: T[], days: Peri
 }
 
 function buildChartData(orders: RawOrder[], days: PeriodKey) {
-  const confirmedStatuses = ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH'];
+  const confirmedStatuses = ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH', 'PAID'];
   const now = new Date();
   const numDays = days === 'all' ? 90 : Number(days);
   const map = new Map<string, { vendas: number; receita: number }>();
@@ -102,12 +102,12 @@ const Dashboard = () => {
     const logs = filterByPeriod(allLogs, period);
 
     const totalOrders = orders.length;
-    const confirmed = orders.filter(o => ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH'].includes(o.status)).length;
+    const confirmed = orders.filter(o => ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH', 'PAID'].includes(o.status)).length;
     const pending = orders.filter(o => o.status === 'PENDING').length;
     const pixOrders = orders.filter(o => o.payment_method === 'pix').length;
     const cardOrders = orders.filter(o => o.payment_method === 'credit_card').length;
     const totalRevenue = orders
-      .filter(o => ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH'].includes(o.status))
+      .filter(o => ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH', 'PAID'].includes(o.status))
       .reduce((sum, o) => sum + Number(o.total_value || 0), 0);
 
     const failedPayments = logs.length;
