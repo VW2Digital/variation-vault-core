@@ -654,7 +654,7 @@ const OrdersPage = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => setViewOrder(order)}>
+                              <DropdownMenuItem onClick={() => openViewOrder(order)}>
                                 <Eye className="mr-2 h-4 w-4" /> Visualizar
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openEdit(order)}>
