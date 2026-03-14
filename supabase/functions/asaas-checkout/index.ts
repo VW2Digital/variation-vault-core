@@ -62,7 +62,15 @@ async function asaasFetch(baseUrl: string, apiKey: string, path: string, method:
   });
 
   const raw = await res.text();
-  const data = raw ? JSON.parse(raw) : {};
+  let data: any = {};
+
+  if (raw) {
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      data = { message: raw };
+    }
+  }
 
   if (!res.ok) {
     console.error('Asaas API error:', JSON.stringify(data));
