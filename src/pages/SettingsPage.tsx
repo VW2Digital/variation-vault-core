@@ -279,6 +279,8 @@ const SettingsPage = () => {
         upsertSetting('evolution_api_url', evolutionApiUrl),
         upsertSetting('evolution_api_key', evolutionApiKey),
         upsertSetting('evolution_instance_name', evolutionInstanceName),
+        upsertSetting('pix_discount_percent', pixDiscountPercent),
+        upsertSetting('max_installments', maxInstallments),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
