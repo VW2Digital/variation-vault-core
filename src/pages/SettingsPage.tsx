@@ -130,13 +130,15 @@ const SettingsPage = () => {
       fetchSetting('resend_from_email'),
       fetchSetting('pix_discount_percent'),
       fetchSetting('max_installments'),
-    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pixDisc, maxInst]) => {
+      fetchSetting('installments_interest'),
+    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pixDisc, maxInst, instInterest]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
       setAsaasWebhookToken(webhookToken || '');
       setPixDiscountPercent(pixDisc || '19');
       setMaxInstallments(maxInst || '6');
+      setInstallmentsInterest(instInterest || 'sem_juros');
       const currentMeEnv = meEnv || 'sandbox';
       setMelhorEnvioEnv(currentMeEnv);
 
