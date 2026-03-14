@@ -558,7 +558,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
     }
   };
 
-  const maxInstallments = Math.min(6, Math.floor(totalValue / 5) || 1);
+  const maxInstallments = Math.min(maxInstallmentsSetting, Math.floor(totalValue / 5) || 1);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
