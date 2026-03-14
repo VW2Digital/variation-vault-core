@@ -284,6 +284,7 @@ const SettingsPage = () => {
         upsertSetting('evolution_instance_name', evolutionInstanceName),
         upsertSetting('pix_discount_percent', pixDiscountPercent),
         upsertSetting('max_installments', maxInstallments),
+        upsertSetting('installments_interest', installmentsInterest),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
