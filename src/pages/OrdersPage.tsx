@@ -360,6 +360,7 @@ const OrdersPage = () => {
       toast({ title: 'Mensagem enviada via WhatsApp!' });
       setWhatsappOrder(null);
       setWhatsappMessage('');
+      setWhatsappNumber('');
     } catch (err: any) {
       toast({ title: 'Erro ao enviar WhatsApp', description: err.message, variant: 'destructive' });
     } finally {
