@@ -92,7 +92,9 @@ const CartCheckout = () => {
                         />
                         <div className="flex-1">
                           <p className="font-bold text-foreground text-sm" style={{ fontFamily: 'Georgia, serif' }}>{item.product_name}</p>
-                          <p className="text-xs text-muted-foreground">{item.dosage}</p>
+                          {item.dosage && !item.product_name.toLowerCase().includes(item.dosage.toLowerCase()) && (
+                            <p className="text-xs text-muted-foreground">{item.dosage}</p>
+                          )}
                         </div>
                       </div>
 
