@@ -601,7 +601,38 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
         });
         setPaymentResult(result);
       } else {
-...
+        const holderCpfDigits = (holderCpf || cpf).replace(/\D/g, '');
+        const holderPhoneDigits = (holderPhone || phone).replace(/\D/g, '');
+        const holderEmailValue = (holderEmail || email).trim();
+
+        if (!holderCpfDigits || !holderPhoneDigits || !holderEmailValue) {
+          throw new Error('Dados do titular incompletos. Revise CPF, telefone e e-mail.');
+        }
+
+        const holderInfo = {
+          name: cardName.trim() || name.trim(),
+          email: holderEmailValue,
+          cpfCnpj: holderCpfDigits,
+          postalCode: holderPostalCode.replace(/\D/g, ''),
+          addressNumber: holderAddressNumber.trim(),
+          phone: holderPhoneDigits,
+          mobilePhone: holderPhoneDigits,
+        };
+
+        const tokenResult = await invokeAsaasWithRetry('tokenize_credit_card', {
+          customer: asaasCustomerId,
+          creditCard: {
+            holderName: cardName.trim() || name.trim(),
+            number: cardNumber.replace(/\s/g, ''),
+            expiryMonth: cardExpMonth,
+            expiryYear: cardExpYear,
+            ccv: cardCcv,
+          },
+          creditCardHolderInfo: holderInfo,
+        });
+
+        if (!tokenResult?.creditCardToken) throw new Error('Falha ao tokenizar cartão');
+
         const orderId = await createOrder(paymentMethod, asaasCustomerId);
         const result = await invokeAsaas('create_card_payment', {
           customer: asaasCustomerId,
