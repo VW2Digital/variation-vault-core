@@ -414,7 +414,52 @@ serve(async (req) => {
       const { data: order, error: orderError } = await supabase
         .from('orders').select('*').eq('id', orderId).single();
       if (orderError || !order) throw new Error('Pedido não encontrado');
-      if (!order.shipment_id) throw new Error('Pedido sem envio registrado');
+      // If no shipment_id, try to search recent ME orders by customer info
+      if (!order.shipment_id) {
+        console.log('[ME] No shipment_id, searching recent ME orders...');
+        try {
+          // Search ME orders to find a matching shipment
+          const searchData = await melhorEnvioFetch(baseUrl, token, '/api/v2/me/orders?status=posted,released,delivered&limit=50', 'GET');
+          const meOrders = searchData?.data || (Array.isArray(searchData) ? searchData : []);
+          
+          // Try to match by customer name or address
+          const customerName = (order.customer_name || '').toLowerCase().trim();
+          const customerPostal = (order.customer_postal_code || '').replace(/\D/g, '');
+          
+          let matchedOrder = null;
+          for (const meOrder of meOrders) {
+            const toName = (meOrder?.to?.name || '').toLowerCase().trim();
+            const toPostal = (meOrder?.to?.postal_code || '').replace(/\D/g, '');
+            if ((customerName && toName.includes(customerName)) || 
+                (customerPostal && toPostal === customerPostal && customerPostal.length >= 8)) {
+              matchedOrder = meOrder;
+              break;
+            }
+          }
+          
+          if (matchedOrder) {
+            console.log(`[ME] Found matching ME order: ${matchedOrder.id}`);
+            // Save shipment_id to order
+            await supabase.from('orders').update({ 
+              shipment_id: String(matchedOrder.id),
+              updated_at: new Date().toISOString()
+            }).eq('id', orderId);
+            order.shipment_id = String(matchedOrder.id);
+          } else {
+            // If no match found, return what we have
+            return new Response(JSON.stringify({ 
+              success: false, 
+              error: 'Nenhum envio encontrado no Melhor Envio para este pedido. Verifique se a etiqueta foi gerada.',
+              searched: meOrders.length,
+            }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        } catch (searchErr: any) {
+          console.error('[ME] Search error:', searchErr.message);
+          throw new Error('Pedido sem envio registrado e não foi possível buscar no Melhor Envio: ' + searchErr.message);
+        }
+      }
 
       // Fetch shipment details from ME
       const shipmentDetails = await fetchShipmentDetails(baseUrl, token, order.shipment_id);
