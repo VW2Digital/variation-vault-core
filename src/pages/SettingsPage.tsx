@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchSetting, upsertSetting } from '@/lib/api';
+import { fetchSetting, upsertSetting, getCurrentUser } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
