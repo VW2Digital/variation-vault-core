@@ -36,6 +36,7 @@ const SettingsPage = () => {
   const [showResendKey, setShowResendKey] = useState(false);
   const [pixDiscountPercent, setPixDiscountPercent] = useState('19');
   const [maxInstallments, setMaxInstallments] = useState('6');
+  const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fetchingProfile, setFetchingProfile] = useState(false);
