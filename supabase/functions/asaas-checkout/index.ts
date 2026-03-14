@@ -167,17 +167,21 @@ serve(async (req) => {
         break;
       }
 
-      // ─── 3. CREDIT CARD PAYMENT (UNDEFINED — Asaas manages method choice) ───
+      // ─── 3. CREDIT CARD PAYMENT (transparent — card data sent directly) ───
       case 'create_card_payment': {
-        const { customer, value, description, installmentCount, orderId } = payload;
+        const { customer, value, description, creditCard, creditCardHolderInfo, installmentCount, orderId } = payload;
+        const remoteIp = getRemoteIp(req);
 
         const paymentBody: any = {
           customer,
-          billingType: 'UNDEFINED',
+          billingType: 'CREDIT_CARD',
           value: toCurrencyNumber(value),
           description,
           dueDate: new Date().toISOString().split('T')[0],
           externalReference: orderId || undefined,
+          creditCard,
+          creditCardHolderInfo,
+          remoteIp,
         };
 
         if (installmentCount && Number(installmentCount) > 1) {
