@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw, MoreVertical, Eye, Pencil, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw, MoreVertical, Eye, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -67,6 +67,7 @@ const OrdersPage = () => {
   const [refreshingTracking, setRefreshingTracking] = useState<string | null>(null);
   const [filterPayment, setFilterPayment] = useState('ALL');
   const [filterDelivery, setFilterDelivery] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 15;
   // Dialog states
@@ -223,6 +224,12 @@ const OrdersPage = () => {
   const filteredOrders = orders.filter(order => {
     if (filterPayment !== 'ALL' && order.status !== filterPayment) return false;
     if (filterDelivery !== 'ALL' && (order.delivery_status || 'PROCESSING') !== filterDelivery) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const nameMatch = (order.customer_name || '').toLowerCase().includes(q);
+      const productMatch = (order.product_name || '').toLowerCase().includes(q);
+      if (!nameMatch && !productMatch) return false;
+    }
     return true;
   });
 
@@ -230,8 +237,8 @@ const OrdersPage = () => {
   const safePage = Math.min(currentPage, totalPages);
   const paginatedOrders = filteredOrders.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
 
-  // Reset page when filters change
-  useEffect(() => { setCurrentPage(1); }, [filterPayment, filterDelivery]);
+  // Reset page when filters or search change
+  useEffect(() => { setCurrentPage(1); }, [filterPayment, filterDelivery, searchQuery]);
 
   const InfoRow = ({ label, value }: { label: string; value: string | number | null | undefined }) => (
     <div className="flex justify-between py-1.5">
@@ -249,7 +256,16 @@ const OrdersPage = () => {
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar cliente ou produto..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="pl-9 w-[250px]"
+          />
+        </div>
         <Select value={filterPayment} onValueChange={setFilterPayment}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Pagamento" />
