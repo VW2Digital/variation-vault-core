@@ -75,6 +75,10 @@ const OrdersPage = () => {
   const [viewOrder, setViewOrder] = useState<any>(null);
   const [editOrder, setEditOrder] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchDeleting, setBatchDeleting] = useState(false);
+  const [batchUpdating, setBatchUpdating] = useState(false);
+  const [showBatchDelete, setShowBatchDelete] = useState(false);
 
   // Edit form state
   const [editForm, setEditForm] = useState({
