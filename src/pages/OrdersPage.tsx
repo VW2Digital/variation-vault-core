@@ -61,6 +61,17 @@ const billingTypeMap: Record<string, string> = {
   pix: 'PIX',
 };
 
+const whatsappTemplates = [
+  { id: 'greeting', label: '👋 Saudação', getMessage: (name: string, product: string) => `Olá ${name}! Tudo bem? Entramos em contato sobre o seu pedido "${product}".` },
+  { id: 'confirmed', label: '✅ Pedido Confirmado', getMessage: (name: string, product: string) => `Olá ${name}! ✅ Seu pedido "${product}" foi *confirmado* com sucesso! Em breve iniciaremos o preparo para envio. Obrigado pela confiança!` },
+  { id: 'preparing', label: '📋 Em Preparação', getMessage: (name: string, product: string) => `Olá ${name}! 📋 Seu pedido "${product}" está sendo *preparado* para envio. Assim que for despachado, você receberá o código de rastreio. 😊` },
+  { id: 'shipped', label: '🚚 Pedido Enviado', getMessage: (name: string, product: string) => `Olá ${name}! 🚚 Ótima notícia! Seu pedido "${product}" foi *enviado*! Você receberá o código de rastreio em breve. Qualquer dúvida, estamos à disposição!` },
+  { id: 'tracking', label: '📦 Código de Rastreio', getMessage: (name: string, product: string, tracking?: string) => `Olá ${name}! 📦 Seu pedido "${product}" já está a caminho! Código de rastreio: *${tracking || '[código]'}*. Acompanhe pelo site dos Correios/transportadora. 😊` },
+  { id: 'delivered', label: '🎉 Entregue', getMessage: (name: string, product: string) => `Olá ${name}! 🎉 Seu pedido "${product}" foi *entregue*! Esperamos que goste. Se precisar de algo, estamos à disposição. Obrigado por comprar conosco! ⭐` },
+  { id: 'payment_pending', label: '💳 Pagamento Pendente', getMessage: (name: string, product: string) => `Olá ${name}! 💳 Notamos que o pagamento do seu pedido "${product}" ainda está *pendente*. Precisa de ajuda? Estamos aqui para te auxiliar!` },
+  { id: 'thanks', label: '🙏 Agradecimento', getMessage: (name: string, product: string) => `Olá ${name}! 🙏 Agradecemos pela sua compra de "${product}"! Sua satisfação é muito importante para nós. Qualquer dúvida, estamos à disposição!` },
+];
+
 const OrdersPage = () => {
   const { toast } = useToast();
   const [orders, setOrders] = useState<any[]>([]);
