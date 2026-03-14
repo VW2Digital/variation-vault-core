@@ -78,6 +78,7 @@ const OrdersPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [refreshingTracking, setRefreshingTracking] = useState<string | null>(null);
+  const [batchRefreshing, setBatchRefreshing] = useState(false);
   const [filterPayment, setFilterPayment] = useState('ALL');
   const [filterDelivery, setFilterDelivery] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
