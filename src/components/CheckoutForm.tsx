@@ -694,6 +694,14 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
     }
   };
 
+  const handleSwitchToPixFallback = () => {
+    setPaymentMethod('pix');
+    setShowPixFallback(false);
+    setCardFailMessage('');
+    // Trigger PIX payment immediately
+    handlePayment();
+  };
+
   const maxInstallments = Math.min(maxInstallmentsSetting, Math.floor(totalValue / 5) || 1);
 
   const copyToClipboard = (text: string) => {
