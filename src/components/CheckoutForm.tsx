@@ -292,6 +292,9 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
     if (normalized.includes('insufficient') || normalized.includes('saldo') || normalized.includes('funds')) {
       return 'Cartão sem limite/saldo suficiente para concluir a compra.';
     }
+    if (normalized.includes('não possui permissão para utilizar este recurso') || normalized.includes('nao possui permissao para utilizar este recurso') || normalized.includes('forbidden')) {
+      return 'Pagamento com cartão indisponível nesta conta no momento. Tente PIX ou contate o suporte.';
+    }
 
     return message;
   };
@@ -300,7 +303,28 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
     const { data, error } = await supabase.functions.invoke('asaas-checkout', {
       body: { action, ...payload },
     });
-    if (error) throw new Error(error.message || 'Falha de conexão com o pagamento');
+
+    if (error) {
+      let backendMessage = '';
+      const context = (error as any)?.context;
+
+      if (context) {
+        try {
+          const response = typeof context.clone === 'function' ? context.clone() : context;
+          const body = await response.json();
+          backendMessage = body?.error || body?.message || '';
+        } catch {
+          try {
+            backendMessage = await context.text();
+          } catch {
+            backendMessage = '';
+          }
+        }
+      }
+
+      throw new Error(backendMessage || error.message || 'Falha de conexão com o pagamento');
+    }
+
     if (data?.error) throw new Error(data.error);
     return data;
   };
