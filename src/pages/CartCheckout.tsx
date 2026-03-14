@@ -61,7 +61,10 @@ const CartCheckout = () => {
   }
 
   // Build a combined product name and total for CheckoutForm
-  const productName = items.map(i => `${i.product_name} ${i.dosage} x${i.quantity}`).join(', ');
+  const productName = items.map(i => {
+    const dosageSuffix = i.dosage && !i.product_name.toLowerCase().includes(i.dosage.toLowerCase()) ? ` ${i.dosage}` : '';
+    return `${i.product_name}${dosageSuffix} x${i.quantity}`;
+  }).join(', ');
   const totalQuantity = items.reduce((s, i) => s + i.quantity, 0);
 
   return (
