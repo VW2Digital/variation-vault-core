@@ -37,7 +37,7 @@ function filterByPeriod<T extends { created_at: string }>(items: T[], days: Peri
 }
 
 function buildChartData(orders: RawOrder[], days: PeriodKey) {
-  const confirmedStatuses = ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH'];
+  const confirmedStatuses = ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH', 'PAID'];
   const now = new Date();
   const numDays = days === 'all' ? 90 : Number(days);
   const map = new Map<string, { vendas: number; receita: number }>();
