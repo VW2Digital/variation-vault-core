@@ -526,7 +526,7 @@ const ProductCheckout = () => {
         <p className="text-muted-foreground mb-8">
           {t('testimonialSubtitle')}
         </p>
-        <StaggerContainer className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StaggerContainer className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 max-w-4xl mx-auto">
           {dynamicTestimonials.map((t) =>
           <StaggerItem key={t.id}>
               <VideoTestimonialCard thumbnail={t.thumbnail_url} name={t.name} videoUrl={t.video_url} />
