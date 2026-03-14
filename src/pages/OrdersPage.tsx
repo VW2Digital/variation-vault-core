@@ -368,7 +368,15 @@ const OrdersPage = () => {
 
   const openWhatsappDialog = (order: any) => {
     setWhatsappOrder(order);
-    setWhatsappMessage(`Olá ${order.customer_name}! Tudo bem? Entramos em contato sobre o seu pedido "${order.product_name}".`);
+    setWhatsappMessage('');
+  };
+
+  const applyTemplate = (templateId: string) => {
+    if (!whatsappOrder) return;
+    const tpl = whatsappTemplates.find(t => t.id === templateId);
+    if (tpl) {
+      setWhatsappMessage(tpl.getMessage(whatsappOrder.customer_name, whatsappOrder.product_name, whatsappOrder.tracking_code));
+    }
   };
 
   const filteredOrders = orders.filter(order => {
