@@ -371,7 +371,8 @@ const Catalog = () => {
                                   {(() => {
                                     const maxInst = Math.min(maxInstallmentsSetting, Math.floor(displayPrice! / 5));
                                     const installmentValue = displayPrice! / Math.max(maxInst, 1);
-                                    return `${maxInst}x R$ ${installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} sem juros`;
+                                    const interestLabel = installmentsInterest === 'sem_juros' ? 'sem juros' : 'com juros';
+                                    return `${maxInst}x R$ ${installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ${interestLabel}`;
                                   })()}
                                 </span>
                               </p>
