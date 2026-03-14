@@ -237,8 +237,8 @@ const OrdersPage = () => {
   const safePage = Math.min(currentPage, totalPages);
   const paginatedOrders = filteredOrders.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
 
-  // Reset page when filters change
-  useEffect(() => { setCurrentPage(1); }, [filterPayment, filterDelivery]);
+  // Reset page when filters or search change
+  useEffect(() => { setCurrentPage(1); }, [filterPayment, filterDelivery, searchQuery]);
 
   const InfoRow = ({ label, value }: { label: string; value: string | number | null | undefined }) => (
     <div className="flex justify-between py-1.5">
