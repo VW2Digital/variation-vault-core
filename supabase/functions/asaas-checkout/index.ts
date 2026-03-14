@@ -172,14 +172,12 @@ serve(async (req) => {
       // ─── 4. CREDIT CARD PAYMENT (with token) ───
       case 'create_card_payment': {
         const { customer, value, description, creditCardToken, creditCardHolderInfo, installmentCount, orderId } = payload;
-        const remoteIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-          || req.headers.get('x-real-ip')
-          || '0.0.0.0';
+        const remoteIp = getRemoteIp(req);
 
         const paymentBody: any = {
           customer,
           billingType: 'CREDIT_CARD',
-          value,
+          value: toCurrencyNumber(value),
           description,
           dueDate: new Date().toISOString().split('T')[0],
           creditCardToken,
@@ -189,9 +187,8 @@ serve(async (req) => {
         };
 
         // Installments
-        if (installmentCount && installmentCount > 1) {
-          paymentBody.installmentCount = installmentCount;
-          paymentBody.installmentValue = +(value / installmentCount).toFixed(2);
+        if (installmentCount && Number(installmentCount) > 1) {
+          paymentBody.installmentCount = Number(installmentCount);
         }
 
         result = await asaasFetch(baseUrl, apiKey, '/payments', 'POST', paymentBody);
