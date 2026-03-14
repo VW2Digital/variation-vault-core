@@ -445,7 +445,8 @@ const OrdersPage = () => {
       const q = searchQuery.toLowerCase();
       const nameMatch = (order.customer_name || '').toLowerCase().includes(q);
       const productMatch = (order.product_name || '').toLowerCase().includes(q);
-      if (!nameMatch && !productMatch) return false;
+      const trackingMatch = (order.tracking_code || '').toLowerCase().includes(q);
+      if (!nameMatch && !productMatch && !trackingMatch) return false;
     }
     return true;
   });
@@ -483,7 +484,7 @@ const OrdersPage = () => {
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar cliente ou produto..."
+            placeholder="Buscar cliente, produto ou rastreio..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="pl-9 w-[250px]"
