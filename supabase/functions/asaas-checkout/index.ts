@@ -133,7 +133,7 @@ serve(async (req) => {
         result = await asaasFetch(baseUrl, apiKey, '/payments', 'POST', {
           customer,
           billingType: 'PIX',
-          value,
+          value: toCurrencyNumber(value),
           description,
           dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           externalReference: orderId || undefined,
