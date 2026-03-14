@@ -158,9 +158,7 @@ serve(async (req) => {
       // ─── 3. TOKENIZE CREDIT CARD ───
       case 'tokenize_credit_card': {
         const { customer, creditCard, creditCardHolderInfo } = payload;
-        const remoteIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-          || req.headers.get('x-real-ip')
-          || '0.0.0.0';
+        const remoteIp = getRemoteIp(req);
 
         result = await asaasFetch(baseUrl, apiKey, '/creditCard/tokenizeCreditCard', 'POST', {
           customer,
