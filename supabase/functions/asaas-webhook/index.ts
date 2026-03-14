@@ -128,7 +128,7 @@ serve(async (req) => {
             .eq('id', orderId)
             .maybeSingle();
 
-          if (orderData && !orderData.shipment_id && orderData.customer_postal_code && orderData.selected_service_id) {
+          if (orderData && !orderData.shipment_id && orderData.customer_postal_code) {
             shouldShip = true;
             selectedServiceId = orderData.selected_service_id;
           } else if (orderData?.shipment_id) {
@@ -147,7 +147,7 @@ serve(async (req) => {
             .eq('asaas_payment_id', payment.id)
             .maybeSingle();
 
-          if (orderData && !orderData.shipment_id && orderData.customer_postal_code && orderData.selected_service_id) {
+          if (orderData && !orderData.shipment_id && orderData.customer_postal_code) {
             orderId = orderData.id;
             shouldShip = true;
             selectedServiceId = orderData.selected_service_id;
@@ -172,7 +172,7 @@ serve(async (req) => {
                 body: JSON.stringify({
                   order_id: orderId,
                   action: 'full_flow',
-                  service_id: selectedServiceId,
+                  ...(selectedServiceId ? { service_id: selectedServiceId } : {}),
                 }),
               }
             );
