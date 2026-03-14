@@ -26,6 +26,8 @@ import CartCheckout from "./pages/CartCheckout";
 import ResetPassword from "./pages/ResetPassword";
 import AdminSupportPage from "./pages/AdminSupportPage";
 import AdminReviewsPage from "./pages/AdminReviewsPage";
+import PopupList from "./pages/PopupList";
+import PromoPopup from "./components/PromoPopup";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
@@ -41,6 +43,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <PromoPopup />
         <Routes>
           <Route path="/" element={<Catalog />} />
           <Route path="/catalogo" element={<Catalog />} />
@@ -62,6 +65,7 @@ const App = () => (
             <Route path="produtos/:id" element={<ProductForm />} />
             <Route path="depoimentos" element={<TestimonialList />} />
             <Route path="banners" element={<BannerList />} />
+            <Route path="popups" element={<PopupList />} />
             <Route path="pedidos" element={<OrdersPage />} />
             <Route path="usuarios" element={<UsersPage />} />
             <Route path="avaliacoes" element={<AdminReviewsPage />} />
