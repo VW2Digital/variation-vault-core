@@ -50,13 +50,12 @@ function buildChartData(orders: RawOrder[], days: PeriodKey) {
   }
 
   orders.forEach(o => {
+    if (!confirmedStatuses.includes(o.status)) return;
     const key = new Date(o.created_at).toISOString().slice(0, 10);
     const entry = map.get(key);
     if (entry) {
       entry.vendas++;
-      if (confirmedStatuses.includes(o.status)) {
-        entry.receita += Number(o.total_value || 0);
-      }
+      entry.receita += Number(o.total_value || 0);
     }
   });
 
