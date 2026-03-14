@@ -288,6 +288,56 @@ const OrdersPage = () => {
     }
   };
 
+  const getStatusChangeMessage = (orderName: string, productName: string, field: string, newValue: string) => {
+    const deliveryLabels: Record<string, string> = {
+      PROCESSING: 'Em Processamento',
+      SHIPPED: 'Enviado',
+      IN_TRANSIT: 'Em Trânsito',
+      DELIVERED: 'Entregue',
+      RETURNED: 'Devolvido',
+    };
+    const paymentLabels: Record<string, string> = Object.fromEntries(
+      Object.entries(statusMap).map(([k, v]) => [k, v.label])
+    );
+
+    if (field === 'delivery_status') {
+      const label = deliveryLabels[newValue] || newValue;
+      return `Olá ${orderName}! 📦 Seu pedido "${productName}" teve o status de entrega atualizado para: *${label}*. Obrigado por comprar conosco!`;
+    }
+    const label = paymentLabels[newValue] || newValue;
+    return `Olá ${orderName}! 💳 Seu pedido "${productName}" teve o status de pagamento atualizado para: *${label}*. Obrigado!`;
+  };
+
+  const sendWhatsappMessage = async (number: string, text: string) => {
+    if (!number || !text) return;
+    const { data, error } = await supabase.functions.invoke('evolution-send-message', {
+      body: { number: number.replace(/\D/g, ''), text },
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    return data;
+  };
+
+  const handleSendWhatsapp = async () => {
+    if (!whatsappOrder || !whatsappMessage.trim()) return;
+    setSendingWhatsapp(true);
+    try {
+      await sendWhatsappMessage(whatsappOrder.customer_phone, whatsappMessage);
+      toast({ title: 'Mensagem enviada via WhatsApp!' });
+      setWhatsappOrder(null);
+      setWhatsappMessage('');
+    } catch (err: any) {
+      toast({ title: 'Erro ao enviar WhatsApp', description: err.message, variant: 'destructive' });
+    } finally {
+      setSendingWhatsapp(false);
+    }
+  };
+
+  const openWhatsappDialog = (order: any) => {
+    setWhatsappOrder(order);
+    setWhatsappMessage(`Olá ${order.customer_name}! Tudo bem? Entramos em contato sobre o seu pedido "${order.product_name}".`);
+  };
+
   const filteredOrders = orders.filter(order => {
     if (filterPayment !== 'ALL' && order.status !== filterPayment) return false;
     if (filterDelivery !== 'ALL' && (order.delivery_status || 'PROCESSING') !== filterDelivery) return false;
