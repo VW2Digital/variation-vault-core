@@ -651,18 +651,17 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
           value: totalValue,
           description,
           installmentCount: installments,
+          creditCard: {
+            holderName: cardName.trim() || name.trim(),
+            number: cardNumber.replace(/\s/g, ''),
+            expiryMonth: cardExpMonth,
+            expiryYear: cardExpYear,
+            ccv: cardCcv,
+          },
+          creditCardHolderInfo: holderInfo,
           orderId,
         });
         setPaymentResult(result);
-
-        // Redirect to Asaas payment page if invoiceUrl is returned
-        if (result?.invoiceUrl) {
-          await clearCart();
-          window.open(result.invoiceUrl, '_blank');
-          setStep('success');
-          onSuccess?.();
-          return;
-        }
       }
 
       setStep('success');
