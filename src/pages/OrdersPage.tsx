@@ -4,8 +4,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw, MoreVertical, Eye, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw, MoreVertical, Eye, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, CheckSquare } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -74,6 +75,10 @@ const OrdersPage = () => {
   const [viewOrder, setViewOrder] = useState<any>(null);
   const [editOrder, setEditOrder] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchDeleting, setBatchDeleting] = useState(false);
+  const [batchUpdating, setBatchUpdating] = useState(false);
+  const [showBatchDelete, setShowBatchDelete] = useState(false);
 
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -200,6 +205,62 @@ const OrdersPage = () => {
     }
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const pageIds = paginatedOrders.map(o => o.id);
+    const allSelected = pageIds.every(id => selectedIds.has(id));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      pageIds.forEach(id => allSelected ? next.delete(id) : next.add(id));
+      return next;
+    });
+  };
+
+  const batchUpdateStatus = async (field: 'status' | 'delivery_status', value: string) => {
+    if (selectedIds.size === 0) return;
+    setBatchUpdating(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const { error } = await supabase
+        .from('orders')
+        .update({ [field]: value } as any)
+        .in('id', ids);
+      if (error) throw error;
+      toast({ title: `${ids.length} pedido(s) atualizado(s)!` });
+      setSelectedIds(new Set());
+      fetchOrders();
+    } catch (err: any) {
+      toast({ title: 'Erro ao atualizar em lote', description: err.message, variant: 'destructive' });
+    } finally {
+      setBatchUpdating(false);
+    }
+  };
+
+  const batchDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBatchDeleting(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const { error } = await supabase.from('orders').delete().in('id', ids);
+      if (error) throw error;
+      toast({ title: `${ids.length} pedido(s) excluído(s)!` });
+      setSelectedIds(new Set());
+      setShowBatchDelete(false);
+      fetchOrders();
+    } catch (err: any) {
+      toast({ title: 'Erro ao excluir em lote', description: err.message, variant: 'destructive' });
+    } finally {
+      setBatchDeleting(false);
+    }
+  };
+
   const refreshTracking = async (orderId: string) => {
     setRefreshingTracking(orderId);
     try {
@@ -293,6 +354,50 @@ const OrdersPage = () => {
         </Select>
       </div>
 
+      {/* Batch action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+          <span className="text-sm font-medium text-foreground">
+            <CheckSquare className="inline h-4 w-4 mr-1" />
+            {selectedIds.size} selecionado(s)
+          </span>
+          <Separator orientation="vertical" className="h-6" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Pagamento:</span>
+            <Select onValueChange={(v) => batchUpdateStatus('status', v)}>
+              <SelectTrigger className="h-8 w-[140px] text-xs">
+                <SelectValue placeholder="Alterar status" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(statusMap).slice(0, 6).map(([key, val]) => (
+                  <SelectItem key={key} value={key}>{val.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Entrega:</span>
+            <Select onValueChange={(v) => batchUpdateStatus('delivery_status', v)}>
+              <SelectTrigger className="h-8 w-[150px] text-xs">
+                <SelectValue placeholder="Alterar entrega" />
+              </SelectTrigger>
+              <SelectContent>
+                {deliveryStatuses.map(s => (
+                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={() => setShowBatchDelete(true)} disabled={batchDeleting}>
+            <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
+          </Button>
+          <Button variant="ghost" size="sm" className="h-8 text-xs ml-auto" onClick={() => setSelectedIds(new Set())}>
+            <X className="h-3.5 w-3.5 mr-1" /> Limpar
+          </Button>
+          {batchUpdating && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -309,6 +414,12 @@ const OrdersPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[40px]">
+                      <Checkbox
+                        checked={paginatedOrders.length > 0 && paginatedOrders.every(o => selectedIds.has(o.id))}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
                     <TableHead>Data</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Produto</TableHead>
@@ -325,7 +436,13 @@ const OrdersPage = () => {
                     const status = statusMap[order.status] || { label: order.status, variant: 'outline' as const };
                     const delivery = deliveryStatuses.find(d => d.value === order.delivery_status);
                     return (
-                      <TableRow key={order.id}>
+                      <TableRow key={order.id} className={selectedIds.has(order.id) ? 'bg-primary/5' : ''}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedIds.has(order.id)}
+                            onCheckedChange={() => toggleSelect(order.id)}
+                          />
+                        </TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                           {new Date(order.created_at).toLocaleDateString('pt-BR')}
                         </TableCell>
@@ -648,6 +765,25 @@ const OrdersPage = () => {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={() => { if (deleteTarget) handleDelete(deleteTarget.id); setDeleteTarget(null); }}>
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Batch delete confirmation */}
+      <AlertDialog open={showBatchDelete} onOpenChange={setShowBatchDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {selectedIds.size} pedido(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Todos os pedidos selecionados serão removidos permanentemente. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={batchDelete} disabled={batchDeleting}>
+              {batchDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Excluir {selectedIds.size} pedido(s)
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
