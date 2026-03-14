@@ -16,18 +16,43 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 
-const items = [
-  { title: 'Dashboard', url: '/admin', icon: LayoutDashboard },
-  { title: 'Produtos', url: '/admin/produtos', icon: Package },
-  { title: 'Depoimentos', url: '/admin/depoimentos', icon: Video },
-  { title: 'Pedidos', url: '/admin/pedidos', icon: ShoppingBag },
-  { title: 'Banners', url: '/admin/banners', icon: Megaphone },
-  { title: 'Popups', url: '/admin/popups', icon: MousePointerClick },
-  { title: 'Usuários', url: '/admin/usuarios', icon: Users },
-  { title: 'Avaliações', url: '/admin/avaliacoes', icon: Star },
-  { title: 'Suporte', url: '/admin/suporte', icon: MessageCircle },
-  { title: 'Falhas Pgto', url: '/admin/falhas-pagamento', icon: AlertTriangle },
-  { title: 'Configurações', url: '/admin/configuracoes', icon: Settings },
+const menuCategories = [
+  {
+    label: 'Geral',
+    items: [
+      { title: 'Dashboard', url: '/admin', icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: 'Catálogo',
+    items: [
+      { title: 'Produtos', url: '/admin/produtos', icon: Package },
+      { title: 'Banners', url: '/admin/banners', icon: Megaphone },
+      { title: 'Popups', url: '/admin/popups', icon: MousePointerClick },
+      { title: 'Depoimentos', url: '/admin/depoimentos', icon: Video },
+    ],
+  },
+  {
+    label: 'Vendas',
+    items: [
+      { title: 'Pedidos', url: '/admin/pedidos', icon: ShoppingBag },
+      { title: 'Falhas Pgto', url: '/admin/falhas-pagamento', icon: AlertTriangle },
+    ],
+  },
+  {
+    label: 'Clientes',
+    items: [
+      { title: 'Usuários', url: '/admin/usuarios', icon: Users },
+      { title: 'Avaliações', url: '/admin/avaliacoes', icon: Star },
+      { title: 'Suporte', url: '/admin/suporte', icon: MessageCircle },
+    ],
+  },
+  {
+    label: 'Sistema',
+    items: [
+      { title: 'Configurações', url: '/admin/configuracoes', icon: Settings },
+    ],
+  },
 ];
 
 export function AdminSidebar() {
@@ -43,30 +68,32 @@ export function AdminSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r-0">
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-foreground/60 uppercase tracking-wider text-xs">
-            {!collapsed && 'Menu'}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      end
-                      className="hover:bg-sidebar-accent/50"
-                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                    >
-                      <item.icon className="mr-2 h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {menuCategories.map((category) => (
+          <SidebarGroup key={category.label}>
+            <SidebarGroupLabel className="text-sidebar-foreground/60 uppercase tracking-wider text-xs">
+              {!collapsed && category.label}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {category.items.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to={item.url}
+                        end
+                        className="hover:bg-sidebar-accent/50"
+                        activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                      >
+                        <item.icon className="mr-2 h-4 w-4" />
+                        {!collapsed && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
       <SidebarFooter>
         <Button
