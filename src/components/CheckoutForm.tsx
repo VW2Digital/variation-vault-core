@@ -650,7 +650,21 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
       await clearCart();
       onSuccess?.();
     } catch (err: any) {
-      const message = mapPaymentErrorMessage(err?.message || 'Não foi possível processar o pagamento');
+      const rawMessage = err?.message || 'Não foi possível processar o pagamento';
+      const message = mapPaymentErrorMessage(rawMessage);
+
+      // Log payment failure for admin diagnostics
+      try {
+        await supabase.from('payment_logs' as any).insert({
+          customer_email: email.trim(),
+          customer_name: name.trim(),
+          payment_method: paymentMethod,
+          error_message: rawMessage,
+          error_source: 'frontend',
+          request_payload: { productName, dosage, quantity, totalValue, installments },
+        });
+      } catch { /* non-blocking */ }
+
       toast({ title: 'Erro no pagamento', description: message, variant: 'destructive' });
     } finally {
       setProcessing(false);
