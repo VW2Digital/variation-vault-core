@@ -304,7 +304,7 @@ const Catalog = () => {
 
                       {/* Content */}
                       <div className="p-4 pt-2 space-y-1.5">
-                        <h3 className="font-bold text-foreground text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors" style={{ fontFamily: 'Georgia, serif' }}>
+                        <h3 className="font-bold text-foreground text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
                           {variation?.dosage && !product.name.toLowerCase().includes(variation.dosage.toLowerCase())
                             ? `${product.name} ${variation.dosage}`
                             : product.name}

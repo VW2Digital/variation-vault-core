@@ -275,7 +275,7 @@ const ProductCheckout = () => {
           {/* Product Info */}
           <AnimatedSection variant="fadeUp" delay={0.2} className="space-y-6">
             <div>
-              <h1 className="text-3xl font-bold text-foreground" style={{ fontFamily: 'Georgia, serif', fontWeight: 700 }}>{product.name}</h1>
+              <h1 className="text-3xl font-bold text-foreground">{product.name}</h1>
               
             </div>
 

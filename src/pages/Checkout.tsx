@@ -98,7 +98,7 @@ const Checkout = () => {
                 className="w-20 h-20 object-contain rounded-lg border border-border/50 bg-muted p-1"
               />
               <div className="flex-1">
-                <p className="font-bold text-foreground" style={{ fontFamily: 'Georgia, serif' }}>{product.name}</p>
+                <p className="font-bold text-foreground">{product.name}</p>
                 {variation?.dosage && !product.name.toLowerCase().includes(variation.dosage.toLowerCase()) && (
                   <p className="text-sm text-muted-foreground">{variation.dosage}</p>
                 )}

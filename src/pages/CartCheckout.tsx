@@ -94,7 +94,7 @@ const CartCheckout = () => {
                           className="w-14 h-14 object-contain rounded-lg border border-border/50 bg-muted p-1"
                         />
                         <div className="flex-1">
-                          <p className="font-bold text-foreground text-sm" style={{ fontFamily: 'Georgia, serif' }}>{item.product_name}</p>
+                          <p className="font-bold text-foreground text-sm">{item.product_name}</p>
                           {item.dosage && !item.product_name.toLowerCase().includes(item.dosage.toLowerCase()) && (
                             <p className="text-xs text-muted-foreground">{item.dosage}</p>
                           )}
