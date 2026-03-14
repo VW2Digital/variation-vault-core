@@ -576,6 +576,11 @@ const OrdersPage = () => {
                               <DropdownMenuItem onClick={() => openEdit(order)}>
                                 <Pencil className="mr-2 h-4 w-4" /> Editar
                               </DropdownMenuItem>
+                              {order.customer_phone && (
+                                <DropdownMenuItem onClick={() => openWhatsappDialog(order)}>
+                                  <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
                                 onClick={() => setDeleteTarget(order)}
