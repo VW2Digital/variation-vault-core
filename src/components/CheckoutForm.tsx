@@ -140,6 +140,8 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const [processing, setProcessing] = useState(false);
   const [customerId, setCustomerId] = useState('');
   const [paymentResult, setPaymentResult] = useState<any>(null);
+  const [showPixFallback, setShowPixFallback] = useState(false);
+  const [cardFailMessage, setCardFailMessage] = useState('');
 
   // Customer fields
   const [name, setName] = useState('');
