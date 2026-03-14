@@ -170,7 +170,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
   const [loadingShipping, setLoadingShipping] = useState(false);
   const [maxInstallmentsSetting, setMaxInstallmentsSetting] = useState(6);
-  const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
+  const [installmentsInterest, setInstallmentsInterest] = useState('com_juros');
 
   const shippingCost = qualifiesForFreeShipping ? 0 : (selectedShipping?.price || 0);
   const totalValue = baseProductTotal + shippingCost;
