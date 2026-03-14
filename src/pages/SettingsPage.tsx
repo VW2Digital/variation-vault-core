@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchSetting, upsertSetting } from '@/lib/api';
+import { fetchSetting, upsertSetting, getCurrentUser } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -250,6 +250,10 @@ const SettingsPage = () => {
     if (!validateSenderFields()) return;
     setSaving(true);
     try {
+      const user = await getCurrentUser();
+      if (!user) throw new Error('Not authenticated');
+      const uid = user.id;
+
       const senderData = JSON.stringify({
         name: senderName,
         phone: senderPhone.replace(/\D/g, ''),
@@ -269,23 +273,23 @@ const SettingsPage = () => {
       });
 
       await Promise.all([
-        upsertSetting('whatsapp_number', whatsapp),
-        upsertSetting('asaas_api_key', asaasApiKey),
-        upsertSetting('asaas_environment', asaasEnv),
-        upsertSetting('asaas_webhook_token', asaasWebhookToken),
-        upsertSetting(`melhor_envio_token_${melhorEnvioEnv}`, melhorEnvioToken),
-        upsertSetting(`melhor_envio_client_id_${melhorEnvioEnv}`, melhorEnvioClientId),
-        upsertSetting(`melhor_envio_client_secret_${melhorEnvioEnv}`, melhorEnvioClientSecret),
-        upsertSetting('melhor_envio_environment', melhorEnvioEnv),
-        upsertSetting('melhor_envio_sender', senderData),
-        upsertSetting('resend_api_key', resendApiKey),
-        upsertSetting('resend_from_email', resendFromEmail),
-        upsertSetting('evolution_api_url', evolutionApiUrl),
-        upsertSetting('evolution_api_key', evolutionApiKey),
-        upsertSetting('evolution_instance_name', evolutionInstanceName),
-        upsertSetting('pix_discount_percent', pixDiscountPercent),
-        upsertSetting('max_installments', maxInstallments),
-        upsertSetting('installments_interest', installmentsInterest),
+        upsertSetting('whatsapp_number', whatsapp, uid),
+        upsertSetting('asaas_api_key', asaasApiKey, uid),
+        upsertSetting('asaas_environment', asaasEnv, uid),
+        upsertSetting('asaas_webhook_token', asaasWebhookToken, uid),
+        upsertSetting(`melhor_envio_token_${melhorEnvioEnv}`, melhorEnvioToken, uid),
+        upsertSetting(`melhor_envio_client_id_${melhorEnvioEnv}`, melhorEnvioClientId, uid),
+        upsertSetting(`melhor_envio_client_secret_${melhorEnvioEnv}`, melhorEnvioClientSecret, uid),
+        upsertSetting('melhor_envio_environment', melhorEnvioEnv, uid),
+        upsertSetting('melhor_envio_sender', senderData, uid),
+        upsertSetting('resend_api_key', resendApiKey, uid),
+        upsertSetting('resend_from_email', resendFromEmail, uid),
+        upsertSetting('evolution_api_url', evolutionApiUrl, uid),
+        upsertSetting('evolution_api_key', evolutionApiKey, uid),
+        upsertSetting('evolution_instance_name', evolutionInstanceName, uid),
+        upsertSetting('pix_discount_percent', pixDiscountPercent, uid),
+        upsertSetting('max_installments', maxInstallments, uid),
+        upsertSetting('installments_interest', installmentsInterest, uid),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {

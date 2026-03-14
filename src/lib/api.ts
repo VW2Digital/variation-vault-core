@@ -251,9 +251,13 @@ export const fetchSetting = async (key: string) => {
   return (data as any)?.value || '';
 };
 
-export const upsertSetting = async (key: string, value: string) => {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('Not authenticated');
+export const upsertSetting = async (key: string, value: string, userId?: string) => {
+  let uid = userId;
+  if (!uid) {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('Not authenticated');
+    uid = user.id;
+  }
   
   const { data: existing, error: selectError } = await supabase
     .from('site_settings' as any)
@@ -266,13 +270,13 @@ export const upsertSetting = async (key: string, value: string) => {
   if ((existing as any)?.id) {
     const { error } = await supabase
       .from('site_settings' as any)
-      .update({ value, user_id: user.id } as any)
+      .update({ value, user_id: uid } as any)
       .eq('id', (existing as any).id);
     if (error) throw error;
   } else {
     const { error } = await supabase
       .from('site_settings' as any)
-      .insert({ key, value, user_id: user.id } as any);
+      .insert({ key, value, user_id: uid } as any);
     if (error) throw error;
   }
 };
