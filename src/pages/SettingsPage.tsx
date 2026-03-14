@@ -34,6 +34,8 @@ const SettingsPage = () => {
   const [resendApiKey, setResendApiKey] = useState('');
   const [resendFromEmail, setResendFromEmail] = useState('');
   const [showResendKey, setShowResendKey] = useState(false);
+  const [pixDiscountPercent, setPixDiscountPercent] = useState('19');
+  const [maxInstallments, setMaxInstallments] = useState('6');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fetchingProfile, setFetchingProfile] = useState(false);
