@@ -323,6 +323,28 @@ const OrdersPage = () => {
     }
   };
 
+  const batchRefreshTracking = async () => {
+    setBatchRefreshing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('melhor-envio-shipment', {
+        body: { action: 'batch_refresh_tracking' },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const found = (data?.results || []).filter((r: any) => r.tracking_code).length;
+      const total = data?.processed || 0;
+      toast({ 
+        title: 'Busca em lote concluída', 
+        description: `${total} pedido(s) verificado(s), ${found} rastreio(s) encontrado(s).` 
+      });
+      if (found > 0) fetchOrders();
+    } catch (err: any) {
+      toast({ title: 'Erro na busca em lote', description: err.message, variant: 'destructive' });
+    } finally {
+      setBatchRefreshing(false);
+    }
+  };
+
   const getStatusChangeMessage = (orderName: string, productName: string, field: string, newValue: string) => {
     const deliveryLabels: Record<string, string> = {
       PROCESSING: 'Em Processamento',
