@@ -667,6 +667,27 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
         });
       } catch { /* non-blocking */ }
 
+      // Notify admin via WhatsApp + email (non-blocking)
+      try {
+        await supabase.functions.invoke('notify-payment-failure', {
+          body: {
+            customerName: name.trim(),
+            customerEmail: email.trim(),
+            customerPhone: phone.replace(/\D/g, ''),
+            paymentMethod,
+            errorMessage: rawMessage,
+            productName: `${productName} ${dosage} x${quantity}`,
+            totalValue,
+          },
+        });
+      } catch { /* non-blocking */ }
+
+      // Show PIX fallback if card payment failed
+      if (paymentMethod === 'credit_card') {
+        setCardFailMessage(message);
+        setShowPixFallback(true);
+      }
+
       toast({ title: 'Erro no pagamento', description: message, variant: 'destructive' });
     } finally {
       setProcessing(false);
