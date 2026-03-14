@@ -871,6 +871,43 @@ const OrdersPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* WhatsApp message dialog */}
+      <Dialog open={!!whatsappOrder} onOpenChange={(open) => !open && setWhatsappOrder(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" /> Enviar WhatsApp
+            </DialogTitle>
+          </DialogHeader>
+          {whatsappOrder && (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Destinatário</Label>
+                <p className="text-sm font-medium text-foreground">
+                  {whatsappOrder.customer_name} — {whatsappOrder.customer_phone}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Mensagem</Label>
+                <Textarea
+                  value={whatsappMessage}
+                  onChange={(e) => setWhatsappMessage(e.target.value)}
+                  rows={5}
+                  placeholder="Digite a mensagem..."
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setWhatsappOrder(null)}>Cancelar</Button>
+                <Button onClick={handleSendWhatsapp} disabled={sendingWhatsapp || !whatsappMessage.trim()}>
+                  {sendingWhatsapp ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                  Enviar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
