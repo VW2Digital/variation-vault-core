@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { fetchProducts } from '@/lib/api';
+import { fetchProducts, fetchSetting } from '@/lib/api';
 import { WholesaleTier } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
@@ -36,8 +36,16 @@ const Catalog = () => {
   const [sortBy, setSortBy] = useState('newest');
   const [stockFilter, setStockFilter] = useState('all');
   const [reviewsMap, setReviewsMap] = useState<Record<string, { avg: number; count: number }>>({});
+  const [pixPercentSetting, setPixPercentSetting] = useState(19);
+  const [maxInstallmentsSetting, setMaxInstallmentsSetting] = useState(6);
 
   useEffect(() => {
+    // Load payment display settings
+    Promise.all([fetchSetting('pix_discount_percent'), fetchSetting('max_installments')]).then(([pixDisc, maxInst]) => {
+      if (pixDisc) setPixPercentSetting(Number(pixDisc));
+      if (maxInst) setMaxInstallmentsSetting(Number(maxInst));
+    });
+
     fetchProducts()
       .then(async (prods) => {
         setProducts(prods);
@@ -253,8 +261,8 @@ const Catalog = () => {
                 : product.name;
 
               const displayPrice = offerPrice || price;
-              const pixDiscount = displayPrice ? Math.round(displayPrice * 0.81 * 100) / 100 : null;
-              const pixPercent = 19;
+              const pixDiscount = displayPrice && pixPercentSetting > 0 ? Math.round(displayPrice * (1 - pixPercentSetting / 100) * 100) / 100 : null;
+              const pixPercent = pixPercentSetting;
               const formatPriceParts = (val: number) => {
                 const [intPart, decPart] = val.toFixed(2).split('.');
                 return { intPart: Number(intPart).toLocaleString('pt-BR'), decPart };
@@ -354,14 +362,14 @@ const Catalog = () => {
                               </>
                             )}
                             {/* Installments */}
-                            {displayPrice && displayPrice > 10 && (
+                            {displayPrice && displayPrice > 10 && maxInstallmentsSetting > 1 && (
                               <p className="text-muted-foreground text-[11px]">
                                 ou R$ {displayPrice!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em{' '}
                                 <span className="text-primary font-medium">
                                   {(() => {
-                                    const maxInstallments = Math.min(6, Math.floor(displayPrice! / 5));
-                                    const installmentValue = displayPrice! / Math.max(maxInstallments, 1);
-                                    return `${maxInstallments}x R$ ${installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} sem juros`;
+                                    const maxInst = Math.min(maxInstallmentsSetting, Math.floor(displayPrice! / 5));
+                                    const installmentValue = displayPrice! / Math.max(maxInst, 1);
+                                    return `${maxInst}x R$ ${installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} sem juros`;
                                   })()}
                                 </span>
                               </p>

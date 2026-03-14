@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { fetchSetting } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -166,9 +167,17 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
   const [loadingShipping, setLoadingShipping] = useState(false);
+  const [maxInstallmentsSetting, setMaxInstallmentsSetting] = useState(6);
 
   const shippingCost = qualifiesForFreeShipping ? 0 : (selectedShipping?.price || 0);
   const totalValue = baseProductTotal + shippingCost;
+
+  // Load payment settings
+  useEffect(() => {
+    fetchSetting('max_installments').then(val => {
+      if (val) setMaxInstallmentsSetting(Number(val));
+    });
+  }, []);
 
   // Load saved profile + addresses on mount
   useEffect(() => {
@@ -549,7 +558,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
     }
   };
 
-  const maxInstallments = Math.min(6, Math.floor(totalValue / 5) || 1);
+  const maxInstallments = Math.min(maxInstallmentsSetting, Math.floor(totalValue / 5) || 1);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
