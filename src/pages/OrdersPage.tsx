@@ -353,10 +353,10 @@ const OrdersPage = () => {
   };
 
   const handleSendWhatsapp = async () => {
-    if (!whatsappOrder || !whatsappMessage.trim()) return;
+    if (!whatsappOrder || !whatsappMessage.trim() || !whatsappNumber.trim()) return;
     setSendingWhatsapp(true);
     try {
-      await sendWhatsappMessage(whatsappOrder.customer_phone, whatsappMessage);
+      await sendWhatsappMessage(whatsappNumber, whatsappMessage);
       toast({ title: 'Mensagem enviada via WhatsApp!' });
       setWhatsappOrder(null);
       setWhatsappMessage('');
