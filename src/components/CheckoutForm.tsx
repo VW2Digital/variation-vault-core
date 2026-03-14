@@ -1119,6 +1119,30 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        {/* PIX Fallback Banner */}
+        {showPixFallback && (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">Pagamento com cartão não aprovado</p>
+                <p className="text-xs text-muted-foreground">{cardFailMessage}</p>
+              </div>
+            </div>
+            <Button
+              onClick={handleSwitchToPixFallback}
+              disabled={processing}
+              className="w-full gap-2"
+              variant="default"
+            >
+              {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
+              Pagar com PIX em 1 clique
+            </Button>
+            <p className="text-[10px] text-center text-muted-foreground">
+              PIX é instantâneo e seguro • Mesmo valor: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </p>
+          </div>
+        )}
         {paymentMethod === 'credit_card' && (
           <>
             <div className="space-y-1.5">
