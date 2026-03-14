@@ -136,6 +136,16 @@ const SettingsPage = () => {
       // Load env-specific credentials
       await loadMelhorEnvioCredentials(currentMeEnv);
 
+      // Load Evolution API settings
+      const [evoUrl, evoKey, evoInstance] = await Promise.all([
+        fetchSetting('evolution_api_url'),
+        fetchSetting('evolution_api_key'),
+        fetchSetting('evolution_instance_name'),
+      ]);
+      setEvolutionApiUrl(evoUrl || '');
+      setEvolutionApiKey(evoKey || '');
+      setEvolutionInstanceName(evoInstance || '');
+
       if (senderJson) {
         try {
           const s = JSON.parse(senderJson);
