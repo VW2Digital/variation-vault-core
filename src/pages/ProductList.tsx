@@ -83,7 +83,7 @@ const ProductList = () => {
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {product.product_variations?.map((v: any) => (
                       <Badge key={v.id} variant={v.in_stock ? 'default' : 'destructive'} className="text-xs">
-                        {v.dosage && !product.name.toLowerCase().includes(v.dosage.toLowerCase()) ? v.dosage : v.dosage} — R$ {Number(v.price).toLocaleString('pt-BR')}
+                        {v.dosage && !product.name.toLowerCase().includes(v.dosage.toLowerCase()) ? `${v.dosage} — ` : ''}R$ {Number(v.price).toLocaleString('pt-BR')}
                       </Badge>
                     ))}
                   </div>
