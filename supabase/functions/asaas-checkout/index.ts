@@ -123,23 +123,19 @@ serve(async (req) => {
       // ─── 1. CREATE OR FIND CUSTOMER ───
       case 'create_customer': {
         const { name, email, cpfCnpj, phone } = payload;
+        const sanitizedPhone = sanitizePhone(phone);
 
         // Try to find existing customer by CPF (prevents duplicates)
         const existing = await asaasFetch(baseUrl, apiKey, `/customers?cpfCnpj=${cpfCnpj}`, 'GET');
         if (existing?.data?.length > 0) {
           const customerId = existing.data[0].id;
-          result = await asaasFetch(baseUrl, apiKey, `/customers/${customerId}`, 'PUT', {
-            name,
-            email,
-            mobilePhone: phone,
-          });
+          const updateBody: any = { name, email };
+          if (sanitizedPhone) updateBody.mobilePhone = sanitizedPhone;
+          result = await asaasFetch(baseUrl, apiKey, `/customers/${customerId}`, 'PUT', updateBody);
         } else {
-          result = await asaasFetch(baseUrl, apiKey, '/customers', 'POST', {
-            name,
-            email,
-            cpfCnpj,
-            mobilePhone: phone,
-          });
+          const createBody: any = { name, email, cpfCnpj };
+          if (sanitizedPhone) createBody.mobilePhone = sanitizedPhone;
+          result = await asaasFetch(baseUrl, apiKey, '/customers', 'POST', createBody);
         }
         break;
       }
