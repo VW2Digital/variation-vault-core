@@ -36,6 +36,8 @@ const Catalog = () => {
   const [sortBy, setSortBy] = useState('newest');
   const [stockFilter, setStockFilter] = useState('all');
   const [reviewsMap, setReviewsMap] = useState<Record<string, { avg: number; count: number }>>({});
+  const [pixPercentSetting, setPixPercentSetting] = useState(19);
+  const [maxInstallmentsSetting, setMaxInstallmentsSetting] = useState(6);
 
   useEffect(() => {
     fetchProducts()
