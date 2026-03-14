@@ -95,6 +95,7 @@ const OrdersPage = () => {
   // WhatsApp message dialog
   const [whatsappOrder, setWhatsappOrder] = useState<any>(null);
   const [whatsappMessage, setWhatsappMessage] = useState('');
+  const [whatsappNumber, setWhatsappNumber] = useState('');
   const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
 
   // Edit form state
