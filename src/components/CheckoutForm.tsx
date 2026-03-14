@@ -265,13 +265,62 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const [holderAddressNumber, setHolderAddressNumber] = useState('');
   const [holderPhone, setHolderPhone] = useState('');
 
+  const SAFE_RETRY_ACTIONS = new Set(['create_customer', 'tokenize_credit_card', 'get_payment_status', 'list_payments']);
+
+  const isTransientCheckoutError = (message: string) => {
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes('failed to fetch') ||
+      normalized.includes('networkerror') ||
+      normalized.includes('network request failed') ||
+      normalized.includes('fetch failed') ||
+      normalized.includes("lock broken by another request") ||
+      normalized.includes('gateway timeout') ||
+      normalized.includes('timeout')
+    );
+  };
+
+  const mapPaymentErrorMessage = (message: string) => {
+    const normalized = message.toLowerCase();
+
+    if (normalized.includes('cpf')) return 'CPF inválido. Revise os dados do titular e tente novamente.';
+    if (normalized.includes('credit card') || normalized.includes('cartão') || normalized.includes('ccv') || normalized.includes('cvv')) {
+      return 'Dados do cartão inválidos. Confira número, validade e CVV.';
+    }
+    if (normalized.includes('insufficient') || normalized.includes('saldo') || normalized.includes('funds')) {
+      return 'Cartão sem limite/saldo suficiente para concluir a compra.';
+    }
+
+    return message;
+  };
+
   const invokeAsaas = async (action: string, payload: any) => {
     const { data, error } = await supabase.functions.invoke('asaas-checkout', {
       body: { action, ...payload },
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(error.message || 'Falha de conexão com o pagamento');
     if (data?.error) throw new Error(data.error);
     return data;
+  };
+
+  const invokeAsaasWithRetry = async (action: string, payload: any, maxRetries = 2) => {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+      try {
+        return await invokeAsaas(action, payload);
+      } catch (err: any) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        const shouldRetry = SAFE_RETRY_ACTIONS.has(action) && isTransientCheckoutError(lastError.message) && attempt < maxRetries;
+
+        if (!shouldRetry) throw lastError;
+
+        const waitMs = (attempt + 1) * 500;
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+      }
+    }
+
+    throw lastError ?? new Error('Erro inesperado no checkout');
   };
 
   const createOrder = async (paymentMethodType: string): Promise<string> => {
