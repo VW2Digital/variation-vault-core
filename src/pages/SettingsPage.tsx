@@ -379,7 +379,7 @@ const SettingsPage = () => {
           <div className="bg-muted rounded-lg p-3 text-sm text-muted-foreground">
             <p className="font-medium text-foreground mb-1">Preview:</p>
             <p className="text-success text-xs font-semibold">{pixDiscountPercent}% OFF no Pix</p>
-            <p className="text-[11px]">ou R$ 100,00 em {maxInstallments}x R$ {(100 / Number(maxInstallments || 1)).toFixed(2).replace('.', ',')} {installmentsInterest === 'sem_juros' ? 'sem juros' : 'com juros'}</p>
+            <p className="text-[11px]">ou R$ 100,00 em {maxInstallments}x R$ {(100 / Number(maxInstallments || 1)).toFixed(2).replace('.', ',')}{installmentsInterest === 'sem_juros' ? ' sem juros' : ''}</p>
           </div>
         </CardContent>
       </Card>
