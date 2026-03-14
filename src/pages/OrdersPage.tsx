@@ -370,6 +370,10 @@ const OrdersPage = () => {
 
   const openWhatsappDialog = (order: any) => {
     setWhatsappOrder(order);
+    // Ensure number has country code - if it doesn't start with a valid prefix, prepend 55 (Brazil)
+    const rawPhone = (order.customer_phone || '').replace(/\D/g, '');
+    const formattedPhone = rawPhone.length <= 11 ? `55${rawPhone.replace(/^0+/, '')}` : rawPhone;
+    setWhatsappNumber(formattedPhone);
     setWhatsappMessage('');
   };
 
