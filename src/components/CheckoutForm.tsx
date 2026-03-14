@@ -172,6 +172,13 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const shippingCost = qualifiesForFreeShipping ? 0 : (selectedShipping?.price || 0);
   const totalValue = baseProductTotal + shippingCost;
 
+  // Load payment settings
+  useEffect(() => {
+    fetchSetting('max_installments').then(val => {
+      if (val) setMaxInstallmentsSetting(Number(val));
+    });
+  }, []);
+
   // Load saved profile + addresses on mount
   useEffect(() => {
     const loadUserData = async () => {
