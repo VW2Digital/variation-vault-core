@@ -287,150 +287,133 @@ const OrdersPage = () => {
           <p className="text-muted-foreground">Nenhum pedido encontrado.</p>
         </div>
       ) : (
-        <Card className="border-border/50">
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Produto</TableHead>
-                  <TableHead>Forma</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Pagamento</TableHead>
-                  <TableHead>Entrega</TableHead>
-                  <TableHead>Rastreio</TableHead>
-                  <TableHead className="w-[60px]">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedOrders.map((order) => {
-                  const status = statusMap[order.status] || { label: order.status, variant: 'outline' as const };
-                  const delivery = deliveryStatuses.find(d => d.value === order.delivery_status);
-                  return (
-                    <TableRow key={order.id}>
-                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                        {new Date(order.created_at).toLocaleDateString('pt-BR')}
-                      </TableCell>
-                      <TableCell className="text-sm font-medium max-w-[150px] truncate">
-                        {order.customer_name || '-'}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
-                        {order.product_name} {order.dosage ? `- ${order.dosage}` : ''}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {billingTypeMap[order.payment_method] || order.payment_method}
-                      </TableCell>
-                      <TableCell className="font-semibold whitespace-nowrap">
-                        R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={status.variant} className="text-[10px]">{status.label}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'} className="text-[10px]">
-                          {delivery?.label || 'Processando'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          {order.tracking_code ? (
-                            <span className="font-mono text-xs text-foreground">{order.tracking_code}</span>
-                          ) : order.shipment_id ? (
-                            <span className="text-xs text-muted-foreground italic">Pendente</span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
-                          )}
-                          {order.shipment_id && !order.tracking_code && (
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0"
-                              onClick={() => refreshTracking(order.id)}
-                              disabled={refreshingTracking === order.id}>
-                              <RotateCw className={`w-3 h-3 ${refreshingTracking === order.id ? 'animate-spin' : ''}`} />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setViewOrder(order)}>
-                              <Eye className="mr-2 h-4 w-4" /> Visualizar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openEdit(order)}>
-                              <Pencil className="mr-2 h-4 w-4" /> Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => setDeleteTarget(order)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <>
+          <Card className="border-border/50">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Produto</TableHead>
+                    <TableHead>Forma</TableHead>
+                    <TableHead>Valor</TableHead>
+                    <TableHead>Pagamento</TableHead>
+                    <TableHead>Entrega</TableHead>
+                    <TableHead>Rastreio</TableHead>
+                    <TableHead className="w-[60px]">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedOrders.map((order) => {
+                    const status = statusMap[order.status] || { label: order.status, variant: 'outline' as const };
+                    const delivery = deliveryStatuses.find(d => d.value === order.delivery_status);
+                    return (
+                      <TableRow key={order.id}>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          {new Date(order.created_at).toLocaleDateString('pt-BR')}
+                        </TableCell>
+                        <TableCell className="text-sm font-medium max-w-[150px] truncate">
+                          {order.customer_name || '-'}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                          {order.product_name} {order.dosage ? `- ${order.dosage}` : ''}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {billingTypeMap[order.payment_method] || order.payment_method}
+                        </TableCell>
+                        <TableCell className="font-semibold whitespace-nowrap">
+                          R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={status.variant} className="text-[10px]">{status.label}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'} className="text-[10px]">
+                            {delivery?.label || 'Processando'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            {order.tracking_code ? (
+                              <span className="font-mono text-xs text-foreground">{order.tracking_code}</span>
+                            ) : order.shipment_id ? (
+                              <span className="text-xs text-muted-foreground italic">Pendente</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                            {order.shipment_id && !order.tracking_code && (
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0"
+                                onClick={() => refreshTracking(order.id)}
+                                disabled={refreshingTracking === order.id}>
+                                <RotateCw className={`w-3 h-3 ${refreshingTracking === order.id ? 'animate-spin' : ''}`} />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setViewOrder(order)}>
+                                <Eye className="mr-2 h-4 w-4" /> Visualizar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEdit(order)}>
+                                <Pencil className="mr-2 h-4 w-4" /> Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setDeleteTarget(order)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-4">
-            <p className="text-sm text-muted-foreground">
-              Mostrando {((safePage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(safePage * ITEMS_PER_PAGE, filteredOrders.length)} de {filteredOrders.length} pedidos
-            </p>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                disabled={safePage <= 1}
-                onClick={() => setCurrentPage(p => p - 1)}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
-                .reduce<(number | string)[]>((acc, p, idx, arr) => {
-                  if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('...');
-                  acc.push(p);
-                  return acc;
-                }, [])
-                .map((p, i) =>
-                  typeof p === 'string' ? (
-                    <span key={`dots-${i}`} className="px-1 text-muted-foreground text-sm">…</span>
-                  ) : (
-                    <Button
-                      key={p}
-                      variant={p === safePage ? 'default' : 'outline'}
-                      size="icon"
-                      className="h-8 w-8 text-xs"
-                      onClick={() => setCurrentPage(p)}
-                    >
-                      {p}
-                    </Button>
-                  )
-                )}
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                disabled={safePage >= totalPages}
-                onClick={() => setCurrentPage(p => p + 1)}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Mostrando {((safePage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(safePage * ITEMS_PER_PAGE, filteredOrders.length)} de {filteredOrders.length} pedidos
+              </p>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="icon" className="h-8 w-8" disabled={safePage <= 1} onClick={() => setCurrentPage(p => p - 1)}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                  .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('...');
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, i) =>
+                    typeof p === 'string' ? (
+                      <span key={`dots-${i}`} className="px-1 text-muted-foreground text-sm">…</span>
+                    ) : (
+                      <Button key={p} variant={p === safePage ? 'default' : 'outline'} size="icon" className="h-8 w-8 text-xs" onClick={() => setCurrentPage(p)}>
+                        {p}
+                      </Button>
+                    )
+                  )}
+                <Button variant="outline" size="icon" className="h-8 w-8" disabled={safePage >= totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </>
       )}
 
       {/* View Order Dialog */}
