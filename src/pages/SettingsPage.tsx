@@ -49,6 +49,7 @@ const SettingsPage = () => {
   const [testNumber, setTestNumber] = useState('');
   const [testMessage, setTestMessage] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
+  const [testingAsaas, setTestingAsaas] = useState(false);
 
   // Sender address
   const [senderName, setSenderName] = useState('');
@@ -460,6 +461,29 @@ const SettingsPage = () => {
               }}
             />
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={testingAsaas || !asaasApiKey}
+            onClick={async () => {
+              setTestingAsaas(true);
+              try {
+                const { data, error } = await supabase.functions.invoke('asaas-checkout', {
+                  body: { action: 'test_connection', environment: asaasEnv, api_key: asaasApiKey },
+                });
+                if (error) throw new Error(error.message);
+                if (data?.error) throw new Error(data.error);
+                toast({ title: '✅ Conexão com Asaas OK!', description: `Ambiente: ${asaasEnv === 'production' ? 'Produção' : 'Sandbox'}. Carteira ID: ${data?.walletId || 'N/A'}` });
+              } catch (err: any) {
+                toast({ title: 'Falha na conexão', description: err.message, variant: 'destructive' });
+              } finally {
+                setTestingAsaas(false);
+              }
+            }}
+          >
+            {testingAsaas ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+            Testar Conexão
+          </Button>
         </CardContent>
       </Card>
 
