@@ -172,7 +172,7 @@ serve(async (req) => {
                 body: JSON.stringify({
                   order_id: orderId,
                   action: 'full_flow',
-                  service_id: selectedServiceId,
+                  ...(selectedServiceId ? { service_id: selectedServiceId } : {}),
                 }),
               }
             );
