@@ -285,11 +285,6 @@ const Catalog = () => {
                           )}
                         </div>
                         <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
-                          {product.is_bestseller && (
-                            <Badge className="bg-accent text-accent-foreground text-[10px] font-bold gap-1">
-                              <Star className="w-3 h-3 fill-current" /> Mais Vendido
-                            </Badge>
-                          )}
                           {hasWholesale && (
                             <Badge className="bg-primary/90 text-primary-foreground text-[10px] font-bold gap-1">
                               <Layers className="w-3 h-3" /> Atacado
@@ -298,8 +293,17 @@ const Catalog = () => {
                         </div>
                       </div>
 
+                      {/* Mais Vendido badge below image */}
+                      {product.is_bestseller && (
+                        <div className="px-4 pt-3">
+                          <Badge className="bg-success text-white text-[10px] font-bold uppercase tracking-wide px-2 py-0.5">
+                            Mais Vendido
+                          </Badge>
+                        </div>
+                      )}
+
                       {/* Content */}
-                      <div className="p-4 space-y-1.5">
+                      <div className="p-4 pt-2 space-y-1.5">
                         <h3 className="font-bold text-foreground text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors" style={{ fontFamily: 'Georgia, serif' }}>
                           {product.name} {variation?.dosage ? variation.dosage : ''}
                         </h3>
@@ -346,6 +350,19 @@ const Catalog = () => {
                                   ou R$ {displayPrice!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em outros meios
                                 </p>
                               </>
+                            )}
+                            {/* Installments */}
+                            {displayPrice && displayPrice > 10 && (
+                              <p className="text-muted-foreground text-[11px]">
+                                ou R$ {displayPrice!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em{' '}
+                                <span className="text-primary font-medium">
+                                  {(() => {
+                                    const maxInstallments = Math.min(6, Math.floor(displayPrice! / 5));
+                                    const installmentValue = displayPrice! / Math.max(maxInstallments, 1);
+                                    return `${maxInstallments}x R$ ${installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} sem juros`;
+                                  })()}
+                                </span>
+                              </p>
                             )}
                             {offerPrice && <CountdownTimer variant="compact" />}
                           </div>
