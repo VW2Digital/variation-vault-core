@@ -574,11 +574,12 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const handlePayment = async () => {
     if (!validateCard()) return;
     setProcessing(true);
+
     try {
-      // Ensure Asaas customer exists (may not have been created if profile auto-skipped)
+      // Ensure customer exists (may not have been created if profile auto-skipped)
       let asaasCustomerId = customerId;
       if (!asaasCustomerId) {
-        const customer = await invokeAsaas('create_customer', {
+        const customer = await invokeAsaasWithRetry('create_customer', {
           name: name.trim(),
           email: email.trim(),
           cpfCnpj: cpf.replace(/\D/g, ''),
@@ -589,43 +590,68 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
       }
 
       const description = `${productName} ${dosage} x${quantity}`;
-      const orderId = await createOrder(paymentMethod);
 
       if (paymentMethod === 'pix') {
+        const orderId = await createOrder(paymentMethod);
         const result = await invokeAsaas('create_pix_payment', {
-          customer: asaasCustomerId, value: totalValue, description, orderId,
+          customer: asaasCustomerId,
+          value: totalValue,
+          description,
+          orderId,
         });
         setPaymentResult(result);
       } else {
+        const holderCpfDigits = (holderCpf || cpf).replace(/\D/g, '');
+        const holderPhoneDigits = (holderPhone || phone).replace(/\D/g, '');
+        const holderEmailValue = (holderEmail || email).trim();
+
+        if (!holderCpfDigits || !holderPhoneDigits || !holderEmailValue) {
+          throw new Error('Dados do titular incompletos. Revise CPF, telefone e e-mail.');
+        }
+
         const holderInfo = {
-          name: name.trim(), email: holderEmail.trim(),
-          cpfCnpj: holderCpf.replace(/\D/g, ''),
+          name: cardName.trim() || name.trim(),
+          email: holderEmailValue,
+          cpfCnpj: holderCpfDigits,
           postalCode: holderPostalCode.replace(/\D/g, ''),
           addressNumber: holderAddressNumber.trim(),
-          phone: holderPhone.replace(/\D/g, ''),
-          mobilePhone: holderPhone.replace(/\D/g, ''),
+          phone: holderPhoneDigits,
+          mobilePhone: holderPhoneDigits,
         };
-        const tokenResult = await invokeAsaas('tokenize_credit_card', {
+
+        const tokenResult = await invokeAsaasWithRetry('tokenize_credit_card', {
           customer: asaasCustomerId,
           creditCard: {
-            holderName: cardName.trim(), number: cardNumber.replace(/\s/g, ''),
-            expiryMonth: cardExpMonth, expiryYear: cardExpYear, ccv: cardCcv,
+            holderName: cardName.trim() || name.trim(),
+            number: cardNumber.replace(/\s/g, ''),
+            expiryMonth: cardExpMonth,
+            expiryYear: cardExpYear,
+            ccv: cardCcv,
           },
           creditCardHolderInfo: holderInfo,
         });
+
         if (!tokenResult?.creditCardToken) throw new Error('Falha ao tokenizar cartão');
+
+        const orderId = await createOrder(paymentMethod);
         const result = await invokeAsaas('create_card_payment', {
-          customer: asaasCustomerId, value: totalValue, description,
-          installmentCount: installments, creditCardToken: tokenResult.creditCardToken,
-          creditCardHolderInfo: holderInfo, orderId,
+          customer: asaasCustomerId,
+          value: totalValue,
+          description,
+          installmentCount: installments,
+          creditCardToken: tokenResult.creditCardToken,
+          creditCardHolderInfo: holderInfo,
+          orderId,
         });
         setPaymentResult(result);
       }
+
       setStep('success');
       await clearCart();
       onSuccess?.();
     } catch (err: any) {
-      toast({ title: 'Erro no pagamento', description: err.message, variant: 'destructive' });
+      const message = mapPaymentErrorMessage(err?.message || 'Não foi possível processar o pagamento');
+      toast({ title: 'Erro no pagamento', description: message, variant: 'destructive' });
     } finally {
       setProcessing(false);
     }
