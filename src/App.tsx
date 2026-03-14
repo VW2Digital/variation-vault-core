@@ -26,6 +26,8 @@ import CartCheckout from "./pages/CartCheckout";
 import ResetPassword from "./pages/ResetPassword";
 import AdminSupportPage from "./pages/AdminSupportPage";
 import AdminReviewsPage from "./pages/AdminReviewsPage";
+import PopupList from "./pages/PopupList";
+import PromoPopup from "./components/PromoPopup";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
