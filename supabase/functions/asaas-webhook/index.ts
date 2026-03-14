@@ -16,18 +16,29 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Validate webhook token
-    const incomingToken = req.headers.get('asaas-access-token') || new URL(req.url).searchParams.get('access_token');
+    // ─── TOKEN VALIDATION ───
+    // Check multiple sources: header (asaas-access-token), query param, or URL token
+    const url = new URL(req.url);
+    const incomingToken =
+      req.headers.get('asaas-access-token') ||
+      url.searchParams.get('access_token') ||
+      url.searchParams.get('token') ||
+      '';
+
     const { data: tokenSetting } = await supabase
       .from('site_settings')
       .select('value')
       .eq('key', 'asaas_webhook_token')
       .maybeSingle();
 
-    if (tokenSetting?.value && incomingToken !== tokenSetting.value) {
-      console.error('[Webhook] Invalid token');
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
+    const expectedToken = tokenSetting?.value || '';
+
+    // Only validate if a token is configured; if empty, accept all (for initial setup)
+    if (expectedToken && incomingToken !== expectedToken) {
+      console.error(`[Webhook] Invalid token. Got: "${incomingToken?.slice(0, 8)}..." Expected: "${expectedToken?.slice(0, 8)}..."`);
+      // Return 200 to avoid Asaas penalization, but log the rejection
+      return new Response(JSON.stringify({ received: true, warning: 'token_mismatch' }), {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -35,7 +46,7 @@ serve(async (req) => {
     const body = await req.json();
     const { event, payment } = body;
 
-    console.log(`[Webhook] Event: ${event}, Payment ID: ${payment?.id}`);
+    console.log(`[Webhook] Event: ${event}, Payment ID: ${payment?.id}, Status: ${payment?.status}`);
 
     if (!payment?.id) {
       return new Response(JSON.stringify({ received: true }), {
@@ -44,13 +55,16 @@ serve(async (req) => {
       });
     }
 
-    // Map Asaas events to our order status
+    // ─── EVENT → STATUS MAPPING ───
     let newStatus: string | null = null;
 
     switch (event) {
       case 'PAYMENT_RECEIVED':
       case 'PAYMENT_CONFIRMED':
         newStatus = 'PAID';
+        break;
+      case 'PAYMENT_CREATED':
+        newStatus = 'PENDING';
         break;
       case 'PAYMENT_OVERDUE':
         newStatus = 'OVERDUE';
@@ -61,6 +75,18 @@ serve(async (req) => {
         break;
       case 'PAYMENT_UPDATED':
         newStatus = payment.status || null;
+        break;
+      case 'PAYMENT_AWAITING_RISK_ANALYSIS':
+        newStatus = 'AWAITING_RISK_ANALYSIS';
+        break;
+      case 'PAYMENT_APPROVED_BY_RISK_ANALYSIS':
+        newStatus = 'PAID';
+        break;
+      case 'PAYMENT_REPROVED_BY_RISK_ANALYSIS':
+        newStatus = 'REPROVED';
+        break;
+      case 'PAYMENT_CREDIT_CARD_CAPTURE_REFUSED':
+        newStatus = 'REFUSED';
         break;
       default:
         console.log(`[Webhook] Unhandled event: ${event}`);
@@ -91,18 +117,16 @@ serve(async (req) => {
       if (newStatus === 'PAID') {
         console.log('[Webhook] Payment confirmed, triggering shipping flow...');
 
-        // Find the order to trigger shipping
         let orderId = payment.externalReference || null;
         let shouldShip = false;
         let selectedServiceId: number | null = null;
 
         if (orderId) {
-          // Check if this order needs shipping
           const { data: orderData } = await supabase
             .from('orders')
             .select('id, customer_postal_code, shipment_id, selected_service_id')
             .eq('id', orderId)
-            .single();
+            .maybeSingle();
 
           if (orderData && !orderData.shipment_id && orderData.customer_postal_code && orderData.selected_service_id) {
             shouldShip = true;
@@ -117,12 +141,11 @@ serve(async (req) => {
         }
 
         if (!orderId) {
-          // Find order by asaas_payment_id
           const { data: orderData } = await supabase
             .from('orders')
             .select('id, customer_postal_code, shipment_id, selected_service_id')
             .eq('asaas_payment_id', payment.id)
-            .single();
+            .maybeSingle();
 
           if (orderData && !orderData.shipment_id && orderData.customer_postal_code && orderData.selected_service_id) {
             orderId = orderData.id;
@@ -138,7 +161,6 @@ serve(async (req) => {
         if (orderId && shouldShip) {
           console.log(`[Webhook] Auto-shipping order ${orderId}`);
           try {
-            // Call melhor-envio-shipment function
             const shipmentResponse = await fetch(
               `${supabaseUrl}/functions/v1/melhor-envio-shipment`,
               {
@@ -159,7 +181,6 @@ serve(async (req) => {
             console.log(`[Webhook] Shipping result: ${shipmentResult}`);
           } catch (shipErr: any) {
             console.error('[Webhook] Shipping trigger error:', shipErr.message);
-            // Don't fail the webhook because of shipping error
           }
         }
       }
@@ -171,7 +192,7 @@ serve(async (req) => {
     });
   } catch (error: any) {
     console.error('[Webhook] Error:', error.message);
-    // Always return 200 to Asaas to avoid retries
+    // Always return 200 to Asaas to avoid retries/penalties
     return new Response(JSON.stringify({ received: true, error: error.message }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

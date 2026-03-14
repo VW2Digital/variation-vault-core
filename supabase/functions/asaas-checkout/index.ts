@@ -30,7 +30,7 @@ async function getAsaasConfig(supabaseUrl: string, supabaseKey: string) {
     ? 'https://api.asaas.com/v3'
     : 'https://sandbox.asaas.com/api/v3';
 
-  return { apiKey, baseUrl };
+  return { apiKey, baseUrl, environment };
 }
 
 function getRemoteIp(req: Request) {
@@ -112,10 +112,9 @@ serve(async (req) => {
       case 'create_customer': {
         const { name, email, cpfCnpj, phone } = payload;
 
-        // Try to find existing customer by CPF
+        // Try to find existing customer by CPF (prevents duplicates)
         const existing = await asaasFetch(baseUrl, apiKey, `/customers?cpfCnpj=${cpfCnpj}`, 'GET');
         if (existing?.data?.length > 0) {
-          // Update existing customer
           const customerId = existing.data[0].id;
           result = await asaasFetch(baseUrl, apiKey, `/customers/${customerId}`, 'PUT', {
             name,
@@ -123,7 +122,6 @@ serve(async (req) => {
             mobilePhone: phone,
           });
         } else {
-          // Create new customer
           result = await asaasFetch(baseUrl, apiKey, '/customers', 'POST', {
             name,
             email,
@@ -151,7 +149,6 @@ serve(async (req) => {
           const pixData = await asaasFetch(baseUrl, apiKey, `/payments/${result.id}/pixQrCode`, 'GET');
           result.pixQrCode = pixData;
 
-          // Update order with payment ID
           if (orderId) {
             await supabase
               .from('orders')
@@ -162,23 +159,9 @@ serve(async (req) => {
         break;
       }
 
-      // ─── 3. TOKENIZE CREDIT CARD ───
-      case 'tokenize_credit_card': {
-        const { customer, creditCard, creditCardHolderInfo } = payload;
-        const remoteIp = getRemoteIp(req);
-
-        result = await asaasFetch(baseUrl, apiKey, '/creditCard/tokenizeCreditCard', 'POST', {
-          customer,
-          creditCard,
-          creditCardHolderInfo,
-          remoteIp,
-        });
-        break;
-      }
-
-      // ─── 4. CREDIT CARD PAYMENT (with token) ───
+      // ─── 3. CREDIT CARD PAYMENT (direct — no tokenization needed) ───
       case 'create_card_payment': {
-        const { customer, value, description, creditCardToken, creditCardHolderInfo, installmentCount, orderId } = payload;
+        const { customer, value, description, creditCard, creditCardHolderInfo, installmentCount, orderId, creditCardToken } = payload;
         const remoteIp = getRemoteIp(req);
 
         const paymentBody: any = {
@@ -187,13 +170,18 @@ serve(async (req) => {
           value: toCurrencyNumber(value),
           description,
           dueDate: new Date().toISOString().split('T')[0],
-          creditCardToken,
           creditCardHolderInfo,
           remoteIp,
           externalReference: orderId || undefined,
         };
 
-        // Installments
+        // Support both direct card data and token-based payment
+        if (creditCardToken) {
+          paymentBody.creditCardToken = creditCardToken;
+        } else if (creditCard) {
+          paymentBody.creditCard = creditCard;
+        }
+
         if (installmentCount && Number(installmentCount) > 1) {
           paymentBody.installmentCount = Number(installmentCount);
         }
@@ -207,6 +195,20 @@ serve(async (req) => {
             .update({ asaas_payment_id: result.id, status: result.status || 'PENDING' })
             .eq('id', orderId);
         }
+        break;
+      }
+
+      // ─── 4. TOKENIZE CREDIT CARD (kept for future use if permission is enabled) ───
+      case 'tokenize_credit_card': {
+        const { customer: tokenCustomer, creditCard: tokenCreditCard, creditCardHolderInfo: tokenHolderInfo } = payload;
+        const remoteIp = getRemoteIp(req);
+
+        result = await asaasFetch(baseUrl, apiKey, '/creditCard/tokenizeCreditCard', 'POST', {
+          customer: tokenCustomer,
+          creditCard: tokenCreditCard,
+          creditCardHolderInfo: tokenHolderInfo,
+          remoteIp,
+        });
         break;
       }
 

@@ -645,8 +645,12 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
           mobilePhone: holderPhoneDigits,
         };
 
-        const tokenResult = await invokeAsaasWithRetry('tokenize_credit_card', {
+        const orderId = await createOrder(paymentMethod, asaasCustomerId);
+        const result = await invokeAsaas('create_card_payment', {
           customer: asaasCustomerId,
+          value: totalValue,
+          description,
+          installmentCount: installments,
           creditCard: {
             holderName: cardName.trim() || name.trim(),
             number: cardNumber.replace(/\s/g, ''),
@@ -654,18 +658,6 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
             expiryYear: cardExpYear,
             ccv: cardCcv,
           },
-          creditCardHolderInfo: holderInfo,
-        });
-
-        if (!tokenResult?.creditCardToken) throw new Error('Falha ao tokenizar cartão');
-
-        const orderId = await createOrder(paymentMethod, asaasCustomerId);
-        const result = await invokeAsaas('create_card_payment', {
-          customer: asaasCustomerId,
-          value: totalValue,
-          description,
-          installmentCount: installments,
-          creditCardToken: tokenResult.creditCardToken,
           creditCardHolderInfo: holderInfo,
           orderId,
         });
