@@ -270,6 +270,9 @@ const SettingsPage = () => {
         upsertSetting('melhor_envio_sender', senderData),
         upsertSetting('resend_api_key', resendApiKey),
         upsertSetting('resend_from_email', resendFromEmail),
+        upsertSetting('evolution_api_url', evolutionApiUrl),
+        upsertSetting('evolution_api_key', evolutionApiKey),
+        upsertSetting('evolution_instance_name', evolutionInstanceName),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
