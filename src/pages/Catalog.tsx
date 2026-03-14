@@ -362,14 +362,14 @@ const Catalog = () => {
                               </>
                             )}
                             {/* Installments */}
-                            {displayPrice && displayPrice > 10 && (
+                            {displayPrice && displayPrice > 10 && maxInstallmentsSetting > 1 && (
                               <p className="text-muted-foreground text-[11px]">
                                 ou R$ {displayPrice!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em{' '}
                                 <span className="text-primary font-medium">
                                   {(() => {
-                                    const maxInstallments = Math.min(6, Math.floor(displayPrice! / 5));
-                                    const installmentValue = displayPrice! / Math.max(maxInstallments, 1);
-                                    return `${maxInstallments}x R$ ${installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} sem juros`;
+                                    const maxInst = Math.min(maxInstallmentsSetting, Math.floor(displayPrice! / 5));
+                                    const installmentValue = displayPrice! / Math.max(maxInst, 1);
+                                    return `${maxInst}x R$ ${installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} sem juros`;
                                   })()}
                                 </span>
                               </p>
