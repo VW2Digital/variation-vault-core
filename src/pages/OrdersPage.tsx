@@ -445,7 +445,8 @@ const OrdersPage = () => {
       const q = searchQuery.toLowerCase();
       const nameMatch = (order.customer_name || '').toLowerCase().includes(q);
       const productMatch = (order.product_name || '').toLowerCase().includes(q);
-      if (!nameMatch && !productMatch) return false;
+      const trackingMatch = (order.tracking_code || '').toLowerCase().includes(q);
+      if (!nameMatch && !productMatch && !trackingMatch) return false;
     }
     return true;
   });
