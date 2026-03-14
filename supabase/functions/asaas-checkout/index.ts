@@ -33,6 +33,23 @@ async function getAsaasConfig(supabaseUrl: string, supabaseKey: string) {
   return { apiKey, baseUrl };
 }
 
+function getRemoteIp(req: Request) {
+  const candidates = [
+    req.headers.get('cf-connecting-ip'),
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim(),
+    req.headers.get('x-real-ip'),
+    req.headers.get('x-client-ip'),
+    req.headers.get('fly-client-ip'),
+  ];
+
+  const validIp = candidates.find((ip) => typeof ip === 'string' && ip.length > 0 && ip.toLowerCase() !== 'unknown');
+  return validIp ?? '127.0.0.1';
+}
+
+function toCurrencyNumber(value: number) {
+  return Number(Number(value).toFixed(2));
+}
+
 async function asaasFetch(baseUrl: string, apiKey: string, path: string, method: string, body?: any) {
   const res = await fetch(`${baseUrl}${path}`, {
     method,
@@ -44,11 +61,27 @@ async function asaasFetch(baseUrl: string, apiKey: string, path: string, method:
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
 
-  const data = await res.json();
+  const raw = await res.text();
+  let data: any = {};
+
+  if (raw) {
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      data = { message: raw };
+    }
+  }
+
   if (!res.ok) {
     console.error('Asaas API error:', JSON.stringify(data));
-    throw new Error(data.errors?.[0]?.description || `Asaas error [${res.status}]`);
+
+    const joinedErrors = Array.isArray(data?.errors)
+      ? data.errors.map((item: any) => item?.description).filter(Boolean).join(' | ')
+      : '';
+
+    throw new Error(joinedErrors || data?.message || `Asaas error [${res.status}]`);
   }
+
   return data;
 }
 
@@ -100,7 +133,7 @@ serve(async (req) => {
         result = await asaasFetch(baseUrl, apiKey, '/payments', 'POST', {
           customer,
           billingType: 'PIX',
-          value,
+          value: toCurrencyNumber(value),
           description,
           dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           externalReference: orderId || undefined,
@@ -125,9 +158,7 @@ serve(async (req) => {
       // ─── 3. TOKENIZE CREDIT CARD ───
       case 'tokenize_credit_card': {
         const { customer, creditCard, creditCardHolderInfo } = payload;
-        const remoteIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-          || req.headers.get('x-real-ip')
-          || '0.0.0.0';
+        const remoteIp = getRemoteIp(req);
 
         result = await asaasFetch(baseUrl, apiKey, '/creditCard/tokenizeCreditCard', 'POST', {
           customer,
@@ -141,14 +172,12 @@ serve(async (req) => {
       // ─── 4. CREDIT CARD PAYMENT (with token) ───
       case 'create_card_payment': {
         const { customer, value, description, creditCardToken, creditCardHolderInfo, installmentCount, orderId } = payload;
-        const remoteIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-          || req.headers.get('x-real-ip')
-          || '0.0.0.0';
+        const remoteIp = getRemoteIp(req);
 
         const paymentBody: any = {
           customer,
           billingType: 'CREDIT_CARD',
-          value,
+          value: toCurrencyNumber(value),
           description,
           dueDate: new Date().toISOString().split('T')[0],
           creditCardToken,
@@ -158,9 +187,8 @@ serve(async (req) => {
         };
 
         // Installments
-        if (installmentCount && installmentCount > 1) {
-          paymentBody.installmentCount = installmentCount;
-          paymentBody.installmentValue = +(value / installmentCount).toFixed(2);
+        if (installmentCount && Number(installmentCount) > 1) {
+          paymentBody.installmentCount = Number(installmentCount);
         }
 
         result = await asaasFetch(baseUrl, apiKey, '/payments', 'POST', paymentBody);

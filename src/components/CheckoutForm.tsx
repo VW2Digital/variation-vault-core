@@ -265,16 +265,65 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const [holderAddressNumber, setHolderAddressNumber] = useState('');
   const [holderPhone, setHolderPhone] = useState('');
 
+  const SAFE_RETRY_ACTIONS = new Set(['create_customer', 'tokenize_credit_card', 'get_payment_status', 'list_payments']);
+
+  const isTransientCheckoutError = (message: string) => {
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes('failed to fetch') ||
+      normalized.includes('networkerror') ||
+      normalized.includes('network request failed') ||
+      normalized.includes('fetch failed') ||
+      normalized.includes("lock broken by another request") ||
+      normalized.includes('gateway timeout') ||
+      normalized.includes('timeout')
+    );
+  };
+
+  const mapPaymentErrorMessage = (message: string) => {
+    const normalized = message.toLowerCase();
+
+    if (normalized.includes('cpf')) return 'CPF inválido. Revise os dados do titular e tente novamente.';
+    if (normalized.includes('credit card') || normalized.includes('cartão') || normalized.includes('ccv') || normalized.includes('cvv')) {
+      return 'Dados do cartão inválidos. Confira número, validade e CVV.';
+    }
+    if (normalized.includes('insufficient') || normalized.includes('saldo') || normalized.includes('funds')) {
+      return 'Cartão sem limite/saldo suficiente para concluir a compra.';
+    }
+
+    return message;
+  };
+
   const invokeAsaas = async (action: string, payload: any) => {
     const { data, error } = await supabase.functions.invoke('asaas-checkout', {
       body: { action, ...payload },
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(error.message || 'Falha de conexão com o pagamento');
     if (data?.error) throw new Error(data.error);
     return data;
   };
 
-  const createOrder = async (paymentMethodType: string): Promise<string> => {
+  const invokeAsaasWithRetry = async (action: string, payload: any, maxRetries = 2) => {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+      try {
+        return await invokeAsaas(action, payload);
+      } catch (err: any) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        const shouldRetry = SAFE_RETRY_ACTIONS.has(action) && isTransientCheckoutError(lastError.message) && attempt < maxRetries;
+
+        if (!shouldRetry) throw lastError;
+
+        const waitMs = (attempt + 1) * 500;
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+      }
+    }
+
+    throw lastError ?? new Error('Erro inesperado no checkout');
+  };
+
+  const createOrder = async (paymentMethodType: string, asaasCustomerIdValue = customerId): Promise<string> => {
     const { data: { session } } = await supabase.auth.getSession();
     const orderData: any = {
       customer_name: name.trim(),
@@ -288,7 +337,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
       customer_district: addrDistrict.trim(),
       customer_city: addrCity.trim(),
       customer_state: addrState.trim().toUpperCase(),
-      asaas_customer_id: customerId,
+      asaas_customer_id: asaasCustomerIdValue || null,
       product_name: productName,
       dosage,
       quantity,
@@ -388,15 +437,37 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
 
   const validateCard = (): boolean => {
     if (paymentMethod === 'pix') return true;
+
     const errors: CardError = {};
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
     const num = cardNumber.replace(/\s/g, '');
+    const expMonth = parseInt(cardExpMonth, 10);
+    const expYear = parseInt(cardExpYear, 10);
+
     if (num.length < 13) errors.cardNumber = 'Número do cartão inválido';
     if (!cardName.trim()) errors.cardName = 'Nome é obrigatório';
-    if (!cardExpMonth || parseInt(cardExpMonth) < 1 || parseInt(cardExpMonth) > 12) errors.cardExpMonth = 'Mês inválido';
-    if (!cardExpYear || cardExpYear.length !== 4) errors.cardExpYear = 'Ano inválido';
+
+    if (!cardExpMonth || Number.isNaN(expMonth) || expMonth < 1 || expMonth > 12) {
+      errors.cardExpMonth = 'Mês inválido';
+    }
+
+    if (!cardExpYear || cardExpYear.length !== 4 || Number.isNaN(expYear)) {
+      errors.cardExpYear = 'Ano inválido';
+    } else if (expYear < currentYear || (expYear === currentYear && expMonth < currentMonth)) {
+      errors.cardExpYear = 'Cartão vencido';
+    }
+
     if (!cardCcv || cardCcv.length < 3) errors.cardCcv = 'CVV inválido';
-    if (!holderPostalCode.replace(/\D/g, '') || holderPostalCode.replace(/\D/g, '').length < 8) errors.holderPostalCode = 'CEP inválido';
+
+    if (!holderPostalCode.replace(/\D/g, '') || holderPostalCode.replace(/\D/g, '').length < 8) {
+      errors.holderPostalCode = 'CEP inválido';
+    }
+
     if (!holderAddressNumber.trim()) errors.holderAddressNumber = 'Número é obrigatório';
+
     setCardErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -503,11 +574,12 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const handlePayment = async () => {
     if (!validateCard()) return;
     setProcessing(true);
+
     try {
-      // Ensure Asaas customer exists (may not have been created if profile auto-skipped)
+      // Ensure customer exists (may not have been created if profile auto-skipped)
       let asaasCustomerId = customerId;
       if (!asaasCustomerId) {
-        const customer = await invokeAsaas('create_customer', {
+        const customer = await invokeAsaasWithRetry('create_customer', {
           name: name.trim(),
           email: email.trim(),
           cpfCnpj: cpf.replace(/\D/g, ''),
@@ -518,43 +590,68 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
       }
 
       const description = `${productName} ${dosage} x${quantity}`;
-      const orderId = await createOrder(paymentMethod);
 
       if (paymentMethod === 'pix') {
+        const orderId = await createOrder(paymentMethod, asaasCustomerId);
         const result = await invokeAsaas('create_pix_payment', {
-          customer: asaasCustomerId, value: totalValue, description, orderId,
+          customer: asaasCustomerId,
+          value: totalValue,
+          description,
+          orderId,
         });
         setPaymentResult(result);
       } else {
+        const holderCpfDigits = (holderCpf || cpf).replace(/\D/g, '');
+        const holderPhoneDigits = (holderPhone || phone).replace(/\D/g, '');
+        const holderEmailValue = (holderEmail || email).trim();
+
+        if (!holderCpfDigits || !holderPhoneDigits || !holderEmailValue) {
+          throw new Error('Dados do titular incompletos. Revise CPF, telefone e e-mail.');
+        }
+
         const holderInfo = {
-          name: name.trim(), email: holderEmail.trim(),
-          cpfCnpj: holderCpf.replace(/\D/g, ''),
+          name: cardName.trim() || name.trim(),
+          email: holderEmailValue,
+          cpfCnpj: holderCpfDigits,
           postalCode: holderPostalCode.replace(/\D/g, ''),
           addressNumber: holderAddressNumber.trim(),
-          phone: holderPhone.replace(/\D/g, ''),
-          mobilePhone: holderPhone.replace(/\D/g, ''),
+          phone: holderPhoneDigits,
+          mobilePhone: holderPhoneDigits,
         };
-        const tokenResult = await invokeAsaas('tokenize_credit_card', {
+
+        const tokenResult = await invokeAsaasWithRetry('tokenize_credit_card', {
           customer: asaasCustomerId,
           creditCard: {
-            holderName: cardName.trim(), number: cardNumber.replace(/\s/g, ''),
-            expiryMonth: cardExpMonth, expiryYear: cardExpYear, ccv: cardCcv,
+            holderName: cardName.trim() || name.trim(),
+            number: cardNumber.replace(/\s/g, ''),
+            expiryMonth: cardExpMonth,
+            expiryYear: cardExpYear,
+            ccv: cardCcv,
           },
           creditCardHolderInfo: holderInfo,
         });
+
         if (!tokenResult?.creditCardToken) throw new Error('Falha ao tokenizar cartão');
+
+        const orderId = await createOrder(paymentMethod, asaasCustomerId);
         const result = await invokeAsaas('create_card_payment', {
-          customer: asaasCustomerId, value: totalValue, description,
-          installmentCount: installments, creditCardToken: tokenResult.creditCardToken,
-          creditCardHolderInfo: holderInfo, orderId,
+          customer: asaasCustomerId,
+          value: totalValue,
+          description,
+          installmentCount: installments,
+          creditCardToken: tokenResult.creditCardToken,
+          creditCardHolderInfo: holderInfo,
+          orderId,
         });
         setPaymentResult(result);
       }
+
       setStep('success');
       await clearCart();
       onSuccess?.();
     } catch (err: any) {
-      toast({ title: 'Erro no pagamento', description: err.message, variant: 'destructive' });
+      const message = mapPaymentErrorMessage(err?.message || 'Não foi possível processar o pagamento');
+      toast({ title: 'Erro no pagamento', description: message, variant: 'destructive' });
     } finally {
       setProcessing(false);
     }
