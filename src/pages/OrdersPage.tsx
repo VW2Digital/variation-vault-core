@@ -78,6 +78,7 @@ const OrdersPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [refreshingTracking, setRefreshingTracking] = useState<string | null>(null);
+  const [batchRefreshing, setBatchRefreshing] = useState(false);
   const [filterPayment, setFilterPayment] = useState('ALL');
   const [filterDelivery, setFilterDelivery] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -322,6 +323,28 @@ const OrdersPage = () => {
     }
   };
 
+  const batchRefreshTracking = async () => {
+    setBatchRefreshing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('melhor-envio-shipment', {
+        body: { action: 'batch_refresh_tracking' },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const found = (data?.results || []).filter((r: any) => r.tracking_code).length;
+      const total = data?.processed || 0;
+      toast({ 
+        title: 'Busca em lote concluída', 
+        description: `${total} pedido(s) verificado(s), ${found} rastreio(s) encontrado(s).` 
+      });
+      if (found > 0) fetchOrders();
+    } catch (err: any) {
+      toast({ title: 'Erro na busca em lote', description: err.message, variant: 'destructive' });
+    } finally {
+      setBatchRefreshing(false);
+    }
+  };
+
   const getStatusChangeMessage = (orderName: string, productName: string, field: string, newValue: string) => {
     const deliveryLabels: Record<string, string> = {
       PROCESSING: 'Em Processamento',
@@ -415,9 +438,15 @@ const OrdersPage = () => {
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Pedidos</h1>
-        <Button variant="outline" size="sm" onClick={fetchOrders} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Atualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={batchRefreshTracking} disabled={batchRefreshing}>
+            {batchRefreshing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Truck className="w-4 h-4 mr-1" />}
+            Buscar Rastreios
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchOrders} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3 items-center">
