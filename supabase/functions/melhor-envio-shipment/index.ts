@@ -552,6 +552,7 @@ serve(async (req) => {
 
     let shipmentId = order.shipment_id;
     let selectedServiceName = '';
+    let quoteFailureDetails = '';
 
     // ─── AUTO-DETECT SERVICE: Quote available carriers ───
     if (!serviceId && (action === 'full_flow' || action === 'create_shipment')) {
@@ -579,29 +580,26 @@ serve(async (req) => {
           .filter((s: any) => !s.error && s.id && s.price);
 
         if (available.length === 0) {
-          const errorDetails = (Array.isArray(quoteResult) ? quoteResult : [])
+          quoteFailureDetails = (Array.isArray(quoteResult) ? quoteResult : [])
             .filter((s: any) => s.error)
             .map((s: any) => `${s.company?.name || s.name || 'unknown'}: ${s.error}`)
             .join('; ');
-          throw new Error(`Nenhuma transportadora disponível para este trecho. Detalhes: ${errorDetails || 'sem resposta'}`);
+          console.warn(`[ME] Quote returned no available carrier. Details: ${quoteFailureDetails || 'sem resposta'}`);
+        } else {
+          available.sort((a: any, b: any) => Number(a.price) - Number(b.price));
+          serviceId = available[0].id;
+          const compName = available[0].company?.name || '';
+          const svcName = available[0].name || '';
+          selectedServiceName = compName && svcName ? `${compName} ${svcName}`.trim() : compName || svcName || `service_${serviceId}`;
+          console.log(`[ME] Auto-selected service: ${selectedServiceName} (id=${serviceId}, price=R$${available[0].price})`);
         }
-
-        available.sort((a: any, b: any) => Number(a.price) - Number(b.price));
-        serviceId = available[0].id;
-        // Store the real service name
-        const compName = available[0].company?.name || '';
-        const svcName = available[0].name || '';
-        selectedServiceName = compName && svcName ? `${compName} ${svcName}`.trim() : compName || svcName || `service_${serviceId}`;
-        console.log(`[ME] Auto-selected service: ${selectedServiceName} (id=${serviceId}, price=R$${available[0].price})`);
       } catch (quoteErr: any) {
-        if (quoteErr.message.includes('Nenhuma transportadora')) throw quoteErr;
-        console.error('[ME] Quote failed, falling back to service 1:', quoteErr.message);
-        serviceId = 1;
-        selectedServiceName = 'Correios PAC';
+        quoteFailureDetails = quoteErr?.message || 'falha na cotação';
+        console.error('[ME] Quote failed, will try fallback services on cart creation:', quoteFailureDetails);
       }
     }
 
-    if (!serviceId) serviceId = 1;
+    if (!serviceId) serviceId = null;
 
     // ─── STEP 1: ADD TO CART ───
     if (action === 'full_flow' || action === 'create_shipment') {
