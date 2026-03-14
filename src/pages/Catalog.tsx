@@ -38,12 +38,14 @@ const Catalog = () => {
   const [reviewsMap, setReviewsMap] = useState<Record<string, { avg: number; count: number }>>({});
   const [pixPercentSetting, setPixPercentSetting] = useState(19);
   const [maxInstallmentsSetting, setMaxInstallmentsSetting] = useState(6);
+  const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
 
   useEffect(() => {
     // Load payment display settings
-    Promise.all([fetchSetting('pix_discount_percent'), fetchSetting('max_installments')]).then(([pixDisc, maxInst]) => {
+    Promise.all([fetchSetting('pix_discount_percent'), fetchSetting('max_installments'), fetchSetting('installments_interest')]).then(([pixDisc, maxInst, instInterest]) => {
       if (pixDisc) setPixPercentSetting(Number(pixDisc));
       if (maxInst) setMaxInstallmentsSetting(Number(maxInst));
+      if (instInterest) setInstallmentsInterest(instInterest);
     });
 
     fetchProducts()
@@ -369,7 +371,8 @@ const Catalog = () => {
                                   {(() => {
                                     const maxInst = Math.min(maxInstallmentsSetting, Math.floor(displayPrice! / 5));
                                     const installmentValue = displayPrice! / Math.max(maxInst, 1);
-                                    return `${maxInst}x R$ ${installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} sem juros`;
+                                    const interestLabel = installmentsInterest === 'sem_juros' ? 'sem juros' : 'com juros';
+                                    return `${maxInst}x R$ ${installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ${interestLabel}`;
                                   })()}
                                 </span>
                               </p>
