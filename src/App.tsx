@@ -65,6 +65,7 @@ const App = () => (
             <Route path="produtos/:id" element={<ProductForm />} />
             <Route path="depoimentos" element={<TestimonialList />} />
             <Route path="banners" element={<BannerList />} />
+            <Route path="popups" element={<PopupList />} />
             <Route path="pedidos" element={<OrdersPage />} />
             <Route path="usuarios" element={<UsersPage />} />
             <Route path="avaliacoes" element={<AdminReviewsPage />} />

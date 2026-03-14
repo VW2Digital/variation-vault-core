@@ -22,6 +22,7 @@ const items = [
   { title: 'Depoimentos', url: '/admin/depoimentos', icon: Video },
   { title: 'Pedidos', url: '/admin/pedidos', icon: ShoppingBag },
   { title: 'Banners', url: '/admin/banners', icon: Megaphone },
+  { title: 'Popups', url: '/admin/popups', icon: MousePointerClick },
   { title: 'Usuários', url: '/admin/usuarios', icon: Users },
   { title: 'Avaliações', url: '/admin/avaliacoes', icon: Star },
   { title: 'Suporte', url: '/admin/suporte', icon: MessageCircle },
