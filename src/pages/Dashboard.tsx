@@ -102,7 +102,7 @@ const Dashboard = () => {
     const logs = filterByPeriod(allLogs, period);
 
     const totalOrders = orders.length;
-    const confirmed = orders.filter(o => ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH'].includes(o.status)).length;
+    const confirmed = orders.filter(o => ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH', 'PAID'].includes(o.status)).length;
     const pending = orders.filter(o => o.status === 'PENDING').length;
     const pixOrders = orders.filter(o => o.payment_method === 'pix').length;
     const cardOrders = orders.filter(o => o.payment_method === 'credit_card').length;
