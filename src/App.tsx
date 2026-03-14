@@ -27,6 +27,7 @@ import ResetPassword from "./pages/ResetPassword";
 import AdminSupportPage from "./pages/AdminSupportPage";
 import AdminReviewsPage from "./pages/AdminReviewsPage";
 import PopupList from "./pages/PopupList";
+import PaymentLogsPage from "./pages/PaymentLogsPage";
 import PromoPopup from "./components/PromoPopup";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
