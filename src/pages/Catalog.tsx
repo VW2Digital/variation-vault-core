@@ -248,7 +248,7 @@ const Catalog = () => {
               const img = variation?.images?.[0] || variation?.image_url || product.images?.[0] || productHeroImg;
               const hasWholesale = variation ? (variation.id in wholesaleMap) : false;
               const wholesaleMinQty = variation ? wholesaleMap[variation.id] : undefined;
-              const displayName = variation
+              const displayName = variation?.dosage && !product.name.toLowerCase().includes(variation.dosage.toLowerCase())
                 ? `${product.name} ${variation.dosage}`
                 : product.name;
 
