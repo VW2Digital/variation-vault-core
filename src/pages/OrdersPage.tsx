@@ -907,10 +907,17 @@ const OrdersPage = () => {
           </DialogHeader>
           {whatsappOrder && (
             <div className="space-y-4">
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Destinatário</Label>
-                <p className="text-sm font-medium text-foreground">
-                  {whatsappOrder.customer_name} — {whatsappOrder.customer_phone}
+              <div className="space-y-2">
+                <Label>Destinatário</Label>
+                <p className="text-xs text-muted-foreground mb-1">{whatsappOrder.customer_name}</p>
+                <Input
+                  value={whatsappNumber}
+                  onChange={(e) => setWhatsappNumber(e.target.value.replace(/\D/g, ''))}
+                  placeholder="5511999999999"
+                  inputMode="numeric"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Número com código do país (ex: 55 para Brasil). Ajuste se necessário.
                 </p>
               </div>
               <div className="space-y-2">
