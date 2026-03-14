@@ -827,6 +827,84 @@ const OrdersPage = () => {
               <Separator />
               <InfoRow label="Criado em" value={new Date(viewOrder.created_at).toLocaleString('pt-BR')} />
               <InfoRow label="Atualizado em" value={new Date(viewOrder.updated_at).toLocaleString('pt-BR')} />
+
+              {/* Shipping Logs Section */}
+              <Separator />
+              <div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-between"
+                  onClick={() => {
+                    if (!showLogs) {
+                      setShowLogs(true);
+                      fetchShippingLogs(viewOrder.id);
+                    } else {
+                      setShowLogs(false);
+                    }
+                  }}
+                >
+                  <span className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Histórico Técnico do Frete
+                  </span>
+                  {showLogs ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </Button>
+
+                {showLogs && (
+                  <div className="mt-3 space-y-2 max-h-[300px] overflow-y-auto">
+                    {loadingLogs ? (
+                      <div className="flex justify-center py-4">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : shippingLogs.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-3">Nenhum registro de frete encontrado.</p>
+                    ) : (
+                      shippingLogs.map((log) => (
+                        <div
+                          key={log.id}
+                          className={`rounded-md border p-2.5 text-xs space-y-1 ${
+                            log.event_type === 'error' || log.error_message
+                              ? 'border-destructive/30 bg-destructive/5'
+                              : 'border-border/50 bg-muted/30'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-foreground flex items-center gap-1">
+                              {(log.event_type === 'error' || log.error_message) && (
+                                <AlertCircle className="h-3 w-3 text-destructive" />
+                              )}
+                              {log.event_type || 'evento'}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {new Date(log.created_at).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit' })}
+                            </span>
+                          </div>
+                          {log.error_message && (
+                            <p className="text-destructive break-words">{log.error_message}</p>
+                          )}
+                          {log.request_payload && (
+                            <details className="text-muted-foreground">
+                              <summary className="cursor-pointer hover:text-foreground">Request</summary>
+                              <pre className="mt-1 whitespace-pre-wrap break-all text-[10px] bg-background rounded p-1.5 max-h-[120px] overflow-auto">
+                                {JSON.stringify(log.request_payload, null, 2)}
+                              </pre>
+                            </details>
+                          )}
+                          {log.response_payload && (
+                            <details className="text-muted-foreground">
+                              <summary className="cursor-pointer hover:text-foreground">Response</summary>
+                              <pre className="mt-1 whitespace-pre-wrap break-all text-[10px] bg-background rounded p-1.5 max-h-[120px] overflow-auto">
+                                {JSON.stringify(log.response_payload, null, 2)}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>
