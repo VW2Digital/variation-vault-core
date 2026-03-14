@@ -50,6 +50,18 @@ function toCurrencyNumber(value: number) {
   return Number(Number(value).toFixed(2));
 }
 
+function sanitizePhone(phone?: string): string | undefined {
+  if (!phone) return undefined;
+  let digits = phone.replace(/\D/g, '');
+  // Remove country code 55 if present (13 digits: 55 + DDD + 9XXXX-XXXX)
+  if (digits.length === 13 && digits.startsWith('55')) {
+    digits = digits.slice(2);
+  }
+  // Must be 10 or 11 digits (DDD + number)
+  if (digits.length < 10 || digits.length > 11) return undefined;
+  return digits;
+}
+
 async function asaasFetch(baseUrl: string, apiKey: string, path: string, method: string, body?: any) {
   const res = await fetch(`${baseUrl}${path}`, {
     method,
