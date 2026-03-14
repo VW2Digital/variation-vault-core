@@ -603,50 +603,81 @@ serve(async (req) => {
 
     // ─── STEP 1: ADD TO CART ───
     if (action === 'full_flow' || action === 'create_shipment') {
-      const cartPayload = {
-        service: serviceId,
-        from: {
-          name: sender.name, phone: sender.phone, email: sender.email,
-          document: sender.document, address: sender.address,
-          number: sender.number || 'S/N', complement: sender.complement || '',
-          district: sender.district, city: sender.city, state_abbr: sender.state,
-          country_id: 'BR', postal_code: sender.postal_code?.replace(/\D/g, ''),
-        },
-        to: {
-          name: order.customer_name, phone: order.customer_phone || '',
-          email: order.customer_email, document: order.customer_cpf,
-          address: order.customer_address || '', number: order.customer_number || 'S/N',
-          complement: order.customer_complement || '', district: order.customer_district || '',
-          city: order.customer_city || '', state_abbr: order.customer_state || '',
-          country_id: 'BR', postal_code: order.customer_postal_code?.replace(/\D/g, ''),
-        },
-        products: [{ name: order.product_name, quantity: order.quantity, unitary_value: Number(order.unit_price) }],
-        volumes: [{
-          height: sender.package_height || 4, width: sender.package_width || 12,
-          length: sender.package_length || 17, weight: sender.package_weight || 0.1,
-        }],
-        options: { insurance_value: Number(order.total_value), receipt: false, own_hand: false },
-      };
+      const fallbackServiceIds = [1, 2, 17, 3, 4, 9, 10, 11, 12, 13, 16];
+      const candidateServices = Array.from(new Set([
+        ...(serviceId ? [Number(serviceId)] : []),
+        ...fallbackServiceIds,
+      ])).filter((id) => Number.isFinite(id) && id > 0);
 
-      await logShipping(supabase, orderId, 'cart_add_request', cartPayload);
-      const cartResult = await melhorEnvioFetch(baseUrl, token, '/api/v2/me/cart', 'POST', cartPayload);
-      await logShipping(supabase, orderId, 'cart_add_response', cartResult);
+      let lastCartError = '';
+      let cartResult: any = null;
 
-      shipmentId = cartResult.id;
-      
-      // Extract service name from cart result if we don't have it yet
-      if (!selectedServiceName) {
-        const svc = cartResult.service;
-        if (svc) {
-          const compName = svc.company?.name || '';
-          const svcName = svc.name || '';
-          selectedServiceName = compName && svcName ? `${compName} ${svcName}`.trim() : compName || svcName || `service_${serviceId}`;
+      for (const candidateServiceId of candidateServices) {
+        const cartPayload = {
+          service: candidateServiceId,
+          from: {
+            name: sender.name, phone: sender.phone, email: sender.email,
+            document: sender.document, address: sender.address,
+            number: sender.number || 'S/N', complement: sender.complement || '',
+            district: sender.district, city: sender.city, state_abbr: sender.state,
+            country_id: 'BR', postal_code: sender.postal_code?.replace(/\D/g, ''),
+          },
+          to: {
+            name: order.customer_name, phone: order.customer_phone || '',
+            email: order.customer_email, document: order.customer_cpf,
+            address: order.customer_address || '', number: order.customer_number || 'S/N',
+            complement: order.customer_complement || '', district: order.customer_district || '',
+            city: order.customer_city || '', state_abbr: order.customer_state || '',
+            country_id: 'BR', postal_code: order.customer_postal_code?.replace(/\D/g, ''),
+          },
+          products: [{ name: order.product_name, quantity: order.quantity, unitary_value: Number(order.unit_price) }],
+          volumes: [{
+            height: sender.package_height || 4, width: sender.package_width || 12,
+            length: sender.package_length || 17, weight: sender.package_weight || 0.1,
+          }],
+          options: { insurance_value: Number(order.total_value), receipt: false, own_hand: false },
+        };
+
+        await logShipping(supabase, orderId, 'cart_add_request', { ...cartPayload, attempted_service: candidateServiceId });
+
+        try {
+          cartResult = await melhorEnvioFetch(baseUrl, token, '/api/v2/me/cart', 'POST', cartPayload);
+          await logShipping(supabase, orderId, 'cart_add_response', cartResult);
+
+          shipmentId = cartResult.id;
+          serviceId = candidateServiceId;
+
+          if (!selectedServiceName) {
+            const svc = cartResult.service;
+            if (svc) {
+              const compName = svc.company?.name || '';
+              const svcName = svc.name || '';
+              selectedServiceName = compName && svcName ? `${compName} ${svcName}`.trim() : compName || svcName || `service_${candidateServiceId}`;
+            } else {
+              selectedServiceName = `service_${candidateServiceId}`;
+            }
+          }
+
+          console.log(`[ME] Cart created with service ${candidateServiceId}, shipment_id=${shipmentId}`);
+          break;
+        } catch (cartErr: any) {
+          lastCartError = cartErr?.message || 'erro ao adicionar no carrinho';
+          await logShipping(supabase, orderId, 'cart_add_error', {
+            attempted_service: candidateServiceId,
+            error: lastCartError,
+          });
+          console.warn(`[ME] Cart attempt failed for service ${candidateServiceId}: ${lastCartError}`);
         }
       }
 
+      if (!shipmentId) {
+        const quoteHint = quoteFailureDetails ? ` Cotação: ${quoteFailureDetails}.` : '';
+        throw new Error(`Não foi possível criar envio com os serviços testados.${quoteHint} Último erro: ${lastCartError || 'sem detalhes'}`);
+      }
+
       await supabase.from('orders').update({
-        shipment_id: shipmentId, 
-        shipping_status: 'cart', 
+        shipment_id: shipmentId,
+        shipping_status: 'cart',
         shipping_service: selectedServiceName || `service_${serviceId}`,
       }).eq('id', orderId);
 
