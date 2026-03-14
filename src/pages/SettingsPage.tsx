@@ -49,6 +49,7 @@ const SettingsPage = () => {
   const [testNumber, setTestNumber] = useState('');
   const [testMessage, setTestMessage] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
+  const [testingAsaas, setTestingAsaas] = useState(false);
 
   // Sender address
   const [senderName, setSenderName] = useState('');
