@@ -168,14 +168,16 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
   const [loadingShipping, setLoadingShipping] = useState(false);
   const [maxInstallmentsSetting, setMaxInstallmentsSetting] = useState(6);
+  const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
 
   const shippingCost = qualifiesForFreeShipping ? 0 : (selectedShipping?.price || 0);
   const totalValue = baseProductTotal + shippingCost;
 
   // Load payment settings
   useEffect(() => {
-    fetchSetting('max_installments').then(val => {
+    Promise.all([fetchSetting('max_installments'), fetchSetting('installments_interest')]).then(([val, instInterest]) => {
       if (val) setMaxInstallmentsSetting(Number(val));
+      if (instInterest) setInstallmentsInterest(instInterest);
     });
   }, []);
 
