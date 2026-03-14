@@ -295,6 +295,50 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_logs: {
+        Row: {
+          created_at: string
+          customer_email: string | null
+          customer_name: string | null
+          error_message: string
+          error_source: string
+          id: string
+          order_id: string | null
+          payment_method: string | null
+          request_payload: Json | null
+        }
+        Insert: {
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          error_message: string
+          error_source?: string
+          id?: string
+          order_id?: string | null
+          payment_method?: string | null
+          request_payload?: Json | null
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          error_message?: string
+          error_source?: string
+          id?: string
+          order_id?: string | null
+          payment_method?: string | null
+          request_payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       popups: {
         Row: {
           active: boolean
