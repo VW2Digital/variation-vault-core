@@ -261,8 +261,8 @@ const Catalog = () => {
                 : product.name;
 
               const displayPrice = offerPrice || price;
-              const pixDiscount = displayPrice ? Math.round(displayPrice * 0.81 * 100) / 100 : null;
-              const pixPercent = 19;
+              const pixDiscount = displayPrice && pixPercentSetting > 0 ? Math.round(displayPrice * (1 - pixPercentSetting / 100) * 100) / 100 : null;
+              const pixPercent = pixPercentSetting;
               const formatPriceParts = (val: number) => {
                 const [intPart, decPart] = val.toFixed(2).split('.');
                 return { intPart: Number(intPart).toLocaleString('pt-BR'), decPart };
