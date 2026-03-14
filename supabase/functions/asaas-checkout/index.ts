@@ -50,6 +50,18 @@ function toCurrencyNumber(value: number) {
   return Number(Number(value).toFixed(2));
 }
 
+function sanitizePhone(phone?: string): string | undefined {
+  if (!phone) return undefined;
+  let digits = phone.replace(/\D/g, '');
+  // Remove country code 55 if present (13 digits: 55 + DDD + 9XXXX-XXXX)
+  if (digits.length === 13 && digits.startsWith('55')) {
+    digits = digits.slice(2);
+  }
+  // Must be 10 or 11 digits (DDD + number)
+  if (digits.length < 10 || digits.length > 11) return undefined;
+  return digits;
+}
+
 async function asaasFetch(baseUrl: string, apiKey: string, path: string, method: string, body?: any) {
   const res = await fetch(`${baseUrl}${path}`, {
     method,
@@ -111,23 +123,19 @@ serve(async (req) => {
       // ─── 1. CREATE OR FIND CUSTOMER ───
       case 'create_customer': {
         const { name, email, cpfCnpj, phone } = payload;
+        const sanitizedPhone = sanitizePhone(phone);
 
         // Try to find existing customer by CPF (prevents duplicates)
         const existing = await asaasFetch(baseUrl, apiKey, `/customers?cpfCnpj=${cpfCnpj}`, 'GET');
         if (existing?.data?.length > 0) {
           const customerId = existing.data[0].id;
-          result = await asaasFetch(baseUrl, apiKey, `/customers/${customerId}`, 'PUT', {
-            name,
-            email,
-            mobilePhone: phone,
-          });
+          const updateBody: any = { name, email };
+          if (sanitizedPhone) updateBody.mobilePhone = sanitizedPhone;
+          result = await asaasFetch(baseUrl, apiKey, `/customers/${customerId}`, 'PUT', updateBody);
         } else {
-          result = await asaasFetch(baseUrl, apiKey, '/customers', 'POST', {
-            name,
-            email,
-            cpfCnpj,
-            mobilePhone: phone,
-          });
+          const createBody: any = { name, email, cpfCnpj };
+          if (sanitizedPhone) createBody.mobilePhone = sanitizedPhone;
+          result = await asaasFetch(baseUrl, apiKey, '/customers', 'POST', createBody);
         }
         break;
       }
