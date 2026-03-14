@@ -38,6 +38,15 @@ const SettingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [fetchingProfile, setFetchingProfile] = useState(false);
 
+  // Evolution API
+  const [evolutionApiUrl, setEvolutionApiUrl] = useState('');
+  const [evolutionApiKey, setEvolutionApiKey] = useState('');
+  const [evolutionInstanceName, setEvolutionInstanceName] = useState('');
+  const [showEvolutionKey, setShowEvolutionKey] = useState(false);
+  const [testNumber, setTestNumber] = useState('');
+  const [testMessage, setTestMessage] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
+
   // Sender address
   const [senderName, setSenderName] = useState('');
   const [senderPhone, setSenderPhone] = useState('');
