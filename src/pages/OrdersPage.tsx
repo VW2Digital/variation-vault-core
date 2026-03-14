@@ -99,6 +99,11 @@ const OrdersPage = () => {
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
 
+  // Shipping logs
+  const [shippingLogs, setShippingLogs] = useState<any[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
+
   // Edit form state
   const [editForm, setEditForm] = useState({
     customer_name: '',
