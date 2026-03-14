@@ -205,6 +205,62 @@ const OrdersPage = () => {
     }
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const pageIds = paginatedOrders.map(o => o.id);
+    const allSelected = pageIds.every(id => selectedIds.has(id));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      pageIds.forEach(id => allSelected ? next.delete(id) : next.add(id));
+      return next;
+    });
+  };
+
+  const batchUpdateStatus = async (field: 'status' | 'delivery_status', value: string) => {
+    if (selectedIds.size === 0) return;
+    setBatchUpdating(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const { error } = await supabase
+        .from('orders')
+        .update({ [field]: value } as any)
+        .in('id', ids);
+      if (error) throw error;
+      toast({ title: `${ids.length} pedido(s) atualizado(s)!` });
+      setSelectedIds(new Set());
+      fetchOrders();
+    } catch (err: any) {
+      toast({ title: 'Erro ao atualizar em lote', description: err.message, variant: 'destructive' });
+    } finally {
+      setBatchUpdating(false);
+    }
+  };
+
+  const batchDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBatchDeleting(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const { error } = await supabase.from('orders').delete().in('id', ids);
+      if (error) throw error;
+      toast({ title: `${ids.length} pedido(s) excluído(s)!` });
+      setSelectedIds(new Set());
+      setShowBatchDelete(false);
+      fetchOrders();
+    } catch (err: any) {
+      toast({ title: 'Erro ao excluir em lote', description: err.message, variant: 'destructive' });
+    } finally {
+      setBatchDeleting(false);
+    }
+  };
+
   const refreshTracking = async (orderId: string) => {
     setRefreshingTracking(orderId);
     try {
