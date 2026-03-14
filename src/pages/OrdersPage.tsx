@@ -769,6 +769,25 @@ const OrdersPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Batch delete confirmation */}
+      <AlertDialog open={showBatchDelete} onOpenChange={setShowBatchDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {selectedIds.size} pedido(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Todos os pedidos selecionados serão removidos permanentemente. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={batchDelete} disabled={batchDeleting}>
+              {batchDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Excluir {selectedIds.size} pedido(s)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
