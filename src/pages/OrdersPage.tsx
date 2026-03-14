@@ -601,6 +601,17 @@ const OrdersPage = () => {
                               <DropdownMenuItem onClick={() => openEdit(order)}>
                                 <Pencil className="mr-2 h-4 w-4" /> Editar
                               </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => refreshTracking(order.id)}
+                                disabled={refreshingTracking === order.id}
+                              >
+                                {refreshingTracking === order.id ? (
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Truck className="mr-2 h-4 w-4" />
+                                )}
+                                Buscar Rastreio
+                              </DropdownMenuItem>
                               {order.customer_phone && (
                                 <DropdownMenuItem onClick={() => openWhatsappDialog(order)}>
                                   <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
