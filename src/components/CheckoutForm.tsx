@@ -140,6 +140,8 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const [processing, setProcessing] = useState(false);
   const [customerId, setCustomerId] = useState('');
   const [paymentResult, setPaymentResult] = useState<any>(null);
+  const [showPixFallback, setShowPixFallback] = useState(false);
+  const [cardFailMessage, setCardFailMessage] = useState('');
 
   // Customer fields
   const [name, setName] = useState('');
@@ -665,10 +667,39 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
         });
       } catch { /* non-blocking */ }
 
+      // Notify admin via WhatsApp + email (non-blocking)
+      try {
+        await supabase.functions.invoke('notify-payment-failure', {
+          body: {
+            customerName: name.trim(),
+            customerEmail: email.trim(),
+            customerPhone: phone.replace(/\D/g, ''),
+            paymentMethod,
+            errorMessage: rawMessage,
+            productName: `${productName} ${dosage} x${quantity}`,
+            totalValue,
+          },
+        });
+      } catch { /* non-blocking */ }
+
+      // Show PIX fallback if card payment failed
+      if (paymentMethod === 'credit_card') {
+        setCardFailMessage(message);
+        setShowPixFallback(true);
+      }
+
       toast({ title: 'Erro no pagamento', description: message, variant: 'destructive' });
     } finally {
       setProcessing(false);
     }
+  };
+
+  const handleSwitchToPixFallback = () => {
+    setPaymentMethod('pix');
+    setShowPixFallback(false);
+    setCardFailMessage('');
+    // Trigger PIX payment immediately
+    handlePayment();
   };
 
   const maxInstallments = Math.min(maxInstallmentsSetting, Math.floor(totalValue / 5) || 1);
@@ -1088,6 +1119,30 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        {/* PIX Fallback Banner */}
+        {showPixFallback && (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">Pagamento com cartão não aprovado</p>
+                <p className="text-xs text-muted-foreground">{cardFailMessage}</p>
+              </div>
+            </div>
+            <Button
+              onClick={handleSwitchToPixFallback}
+              disabled={processing}
+              className="w-full gap-2"
+              variant="default"
+            >
+              {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
+              Pagar com PIX em 1 clique
+            </Button>
+            <p className="text-[10px] text-center text-muted-foreground">
+              PIX é instantâneo e seguro • Mesmo valor: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </p>
+          </div>
+        )}
         {paymentMethod === 'credit_card' && (
           <>
             <div className="space-y-1.5">
