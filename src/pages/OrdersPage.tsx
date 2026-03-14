@@ -414,6 +414,12 @@ const OrdersPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[40px]">
+                      <Checkbox
+                        checked={paginatedOrders.length > 0 && paginatedOrders.every(o => selectedIds.has(o.id))}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
                     <TableHead>Data</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Produto</TableHead>
@@ -430,7 +436,13 @@ const OrdersPage = () => {
                     const status = statusMap[order.status] || { label: order.status, variant: 'outline' as const };
                     const delivery = deliveryStatuses.find(d => d.value === order.delivery_status);
                     return (
-                      <TableRow key={order.id}>
+                      <TableRow key={order.id} className={selectedIds.has(order.id) ? 'bg-primary/5' : ''}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedIds.has(order.id)}
+                            onCheckedChange={() => toggleSelect(order.id)}
+                          />
+                        </TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                           {new Date(order.created_at).toLocaleDateString('pt-BR')}
                         </TableCell>
