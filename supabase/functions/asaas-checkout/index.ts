@@ -101,6 +101,13 @@ serve(async (req) => {
     let result;
 
     switch (action) {
+      // ─── TEST CONNECTION ───
+      case 'test_connection': {
+        const data = await asaasFetch(baseUrl, apiKey, '/finance/getCurrentBalance', 'GET');
+        result = { success: true, walletId: data?.walletId || null, balance: data?.totalBalance ?? null };
+        break;
+      }
+
       // ─── 1. CREATE OR FIND CUSTOMER ───
       case 'create_customer': {
         const { name, email, cpfCnpj, phone } = payload;
