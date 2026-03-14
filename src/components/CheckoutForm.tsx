@@ -121,7 +121,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const { clearCart } = useCart();
   const navigate = useNavigate();
   const baseProductTotal = unitPrice * quantity;
-  const qualifiesForFreeShipping = freeShipping && baseProductTotal >= (freeShippingMinValue || 0);
+  const qualifiesForFreeShipping = freeShipping && (freeShippingMinValue ? baseProductTotal <= freeShippingMinValue : true);
 
   const [step, setStep] = useState<CheckoutStep>('customer');
   const [editingAddress, setEditingAddress] = useState(false);
@@ -847,7 +847,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
                 <span className="font-bold text-sm">Frete Grátis!</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Este produto possui frete grátis{freeShippingMinValue && freeShippingMinValue > 0 ? ` para compras acima de R$ ${freeShippingMinValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''}.
+                Este produto possui frete grátis{freeShippingMinValue && freeShippingMinValue > 0 ? ` para compras até R$ ${freeShippingMinValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''}.
               </p>
               <div className="border-t border-border/50 pt-3 space-y-1">
                 <div className="flex justify-between text-xs text-muted-foreground">

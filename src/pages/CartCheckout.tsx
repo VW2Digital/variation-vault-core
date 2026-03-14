@@ -46,7 +46,7 @@ const CartCheckout = () => {
         // If any product offers free shipping and total meets the lowest min value
         const freeShippingProducts = data.filter((p: any) => p.free_shipping);
         if (freeShippingProducts.length > 0) {
-          const minValue = Math.min(...freeShippingProducts.map((p: any) => Number(p.free_shipping_min_value) || 0));
+          const minValue = Math.max(...freeShippingProducts.map((p: any) => Number(p.free_shipping_min_value) || 0));
           setFreeShippingInfo({ freeShipping: true, minValue });
         }
       });

@@ -264,7 +264,7 @@ const ProductForm = () => {
                 />
                 <p className="text-xs text-muted-foreground">
                   {freeShippingMinValue > 0
-                    ? `Frete grátis para compras acima de R$ ${freeShippingMinValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                    ? `Frete grátis para compras até R$ ${freeShippingMinValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
                     : 'Frete grátis para qualquer valor de compra'}
                 </p>
               </div>
