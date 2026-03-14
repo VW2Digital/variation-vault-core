@@ -948,7 +948,7 @@ const OrdersPage = () => {
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setWhatsappOrder(null)}>Cancelar</Button>
-                <Button onClick={handleSendWhatsapp} disabled={sendingWhatsapp || !whatsappMessage.trim()}>
+                <Button onClick={handleSendWhatsapp} disabled={sendingWhatsapp || !whatsappMessage.trim() || !whatsappNumber.trim()}>
                   {sendingWhatsapp ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
                   Enviar
                 </Button>
