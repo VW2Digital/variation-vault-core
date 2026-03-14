@@ -40,6 +40,12 @@ const Catalog = () => {
   const [maxInstallmentsSetting, setMaxInstallmentsSetting] = useState(6);
 
   useEffect(() => {
+    // Load payment display settings
+    Promise.all([fetchSetting('pix_discount_percent'), fetchSetting('max_installments')]).then(([pixDisc, maxInst]) => {
+      if (pixDisc) setPixPercentSetting(Number(pixDisc));
+      if (maxInst) setMaxInstallmentsSetting(Number(maxInst));
+    });
+
     fetchProducts()
       .then(async (prods) => {
         setProducts(prods);
