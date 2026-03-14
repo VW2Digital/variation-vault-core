@@ -5,30 +5,25 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw } from 'lucide-react';
+import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw, MoreVertical, Eye, Pencil, Trash2, X } from 'lucide-react';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 
 const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   PENDING: { label: 'Pendente', variant: 'outline' },
@@ -68,13 +63,41 @@ const OrdersPage = () => {
   const { toast } = useToast();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingOrder, setEditingOrder] = useState<any>(null);
-  const [trackingCode, setTrackingCode] = useState('');
-  const [deliveryStatus, setDeliveryStatus] = useState('PROCESSING');
   const [saving, setSaving] = useState(false);
   const [refreshingTracking, setRefreshingTracking] = useState<string | null>(null);
   const [filterPayment, setFilterPayment] = useState('ALL');
   const [filterDelivery, setFilterDelivery] = useState('ALL');
+
+  // Dialog states
+  const [viewOrder, setViewOrder] = useState<any>(null);
+  const [editOrder, setEditOrder] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    customer_name: '',
+    customer_email: '',
+    customer_phone: '',
+    customer_cpf: '',
+    product_name: '',
+    dosage: '',
+    quantity: 1,
+    unit_price: 0,
+    total_value: 0,
+    payment_method: 'pix',
+    status: 'PENDING',
+    delivery_status: 'PROCESSING',
+    tracking_code: '',
+    customer_address: '',
+    customer_number: '',
+    customer_complement: '',
+    customer_district: '',
+    customer_city: '',
+    customer_state: '',
+    customer_postal_code: '',
+    shipping_cost: 0,
+    shipping_service: '',
+  });
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -92,35 +115,86 @@ const OrdersPage = () => {
     }
   };
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
+  useEffect(() => { fetchOrders(); }, []);
 
-  const openTrackingDialog = (order: any) => {
-    setEditingOrder(order);
-    setTrackingCode(order.tracking_code || '');
-    setDeliveryStatus(order.delivery_status || 'PROCESSING');
+  const openEdit = (order: any) => {
+    setEditForm({
+      customer_name: order.customer_name || '',
+      customer_email: order.customer_email || '',
+      customer_phone: order.customer_phone || '',
+      customer_cpf: order.customer_cpf || '',
+      product_name: order.product_name || '',
+      dosage: order.dosage || '',
+      quantity: order.quantity || 1,
+      unit_price: Number(order.unit_price) || 0,
+      total_value: Number(order.total_value) || 0,
+      payment_method: order.payment_method || 'pix',
+      status: order.status || 'PENDING',
+      delivery_status: order.delivery_status || 'PROCESSING',
+      tracking_code: order.tracking_code || '',
+      customer_address: order.customer_address || '',
+      customer_number: order.customer_number || '',
+      customer_complement: order.customer_complement || '',
+      customer_district: order.customer_district || '',
+      customer_city: order.customer_city || '',
+      customer_state: order.customer_state || '',
+      customer_postal_code: order.customer_postal_code || '',
+      shipping_cost: Number(order.shipping_cost) || 0,
+      shipping_service: order.shipping_service || '',
+    });
+    setEditOrder(order);
   };
 
-  const saveTracking = async () => {
-    if (!editingOrder) return;
+  const saveEdit = async () => {
+    if (!editOrder) return;
     setSaving(true);
     try {
       const { error } = await supabase
         .from('orders')
         .update({
-          tracking_code: trackingCode || null,
-          delivery_status: deliveryStatus,
+          customer_name: editForm.customer_name,
+          customer_email: editForm.customer_email,
+          customer_phone: editForm.customer_phone,
+          customer_cpf: editForm.customer_cpf,
+          product_name: editForm.product_name,
+          dosage: editForm.dosage || null,
+          quantity: editForm.quantity,
+          unit_price: editForm.unit_price,
+          total_value: editForm.total_value,
+          payment_method: editForm.payment_method,
+          status: editForm.status,
+          delivery_status: editForm.delivery_status,
+          tracking_code: editForm.tracking_code || null,
+          customer_address: editForm.customer_address || null,
+          customer_number: editForm.customer_number || null,
+          customer_complement: editForm.customer_complement || null,
+          customer_district: editForm.customer_district || null,
+          customer_city: editForm.customer_city || null,
+          customer_state: editForm.customer_state || null,
+          customer_postal_code: editForm.customer_postal_code || null,
+          shipping_cost: editForm.shipping_cost,
+          shipping_service: editForm.shipping_service || null,
         } as any)
-        .eq('id', editingOrder.id);
+        .eq('id', editOrder.id);
       if (error) throw error;
-      toast({ title: 'Rastreio atualizado!' });
-      setEditingOrder(null);
+      toast({ title: 'Pedido atualizado!' });
+      setEditOrder(null);
       fetchOrders();
     } catch (err: any) {
       toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase.from('orders').delete().eq('id', id);
+      if (error) throw error;
+      toast({ title: 'Pedido excluído!' });
+      fetchOrders();
+    } catch (err: any) {
+      toast({ title: 'Erro ao excluir', description: err.message, variant: 'destructive' });
     }
   };
 
@@ -132,19 +206,12 @@ const OrdersPage = () => {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
       if (data?.tracking_code) {
         toast({ title: 'Rastreio atualizado!', description: `Código: ${data.tracking_code}` });
       } else {
-        toast({ 
-          title: 'Rastreio consultado', 
-          description: `Status: ${data?.status || 'desconhecido'}. Código ainda não disponível.` 
-        });
+        toast({ title: 'Rastreio consultado', description: `Status: ${data?.status || 'desconhecido'}` });
       }
-
-      if (data?.updated) {
-        fetchOrders();
-      }
+      if (data?.updated) fetchOrders();
     } catch (err: any) {
       toast({ title: 'Erro ao atualizar rastreio', description: err.message, variant: 'destructive' });
     } finally {
@@ -157,6 +224,13 @@ const OrdersPage = () => {
     if (filterDelivery !== 'ALL' && (order.delivery_status || 'PROCESSING') !== filterDelivery) return false;
     return true;
   });
+
+  const InfoRow = ({ label, value }: { label: string; value: string | number | null | undefined }) => (
+    <div className="flex justify-between py-1.5">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium text-foreground text-right max-w-[60%] break-words">{value || '-'}</span>
+    </div>
+  );
 
   return (
     <div className="space-y-6 w-full">
@@ -218,7 +292,7 @@ const OrdersPage = () => {
                   <TableHead>Pagamento</TableHead>
                   <TableHead>Entrega</TableHead>
                   <TableHead>Rastreio</TableHead>
-                  <TableHead>Ações</TableHead>
+                  <TableHead className="w-[60px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -243,15 +317,10 @@ const OrdersPage = () => {
                         R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={status.variant} className="text-[10px]">
-                          {status.label}
-                        </Badge>
+                        <Badge variant={status.variant} className="text-[10px]">{status.label}</Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'}
-                          className="text-[10px]"
-                        >
+                        <Badge variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'} className="text-[10px]">
                           {delivery?.label || 'Processando'}
                         </Badge>
                       </TableCell>
@@ -265,88 +334,36 @@ const OrdersPage = () => {
                             <span className="text-xs text-muted-foreground">-</span>
                           )}
                           {order.shipment_id && !order.tracking_code && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0"
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0"
                               onClick={() => refreshTracking(order.id)}
-                              disabled={refreshingTracking === order.id}
-                            >
+                              disabled={refreshingTracking === order.id}>
                               <RotateCw className={`w-3 h-3 ${refreshingTracking === order.id ? 'animate-spin' : ''}`} />
                             </Button>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="ghost" size="sm" onClick={() => openTrackingDialog(order)}>
-                              <Truck className="w-4 h-4" />
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
                             </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Rastreio & Entrega</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4 pt-2">
-                              <div className="text-sm text-muted-foreground">
-                                <strong>{order.customer_name}</strong> — {order.product_name}
-                              </div>
-                              {order.shipping_service && (
-                                <div className="text-xs text-muted-foreground">
-                                  Transportadora: <strong>{order.shipping_service}</strong>
-                                </div>
-                              )}
-                              {order.shipment_id && (
-                                <div className="text-xs text-muted-foreground">
-                                  Envio: <span className="font-mono">{order.shipment_id.slice(0, 8)}</span> — Status: {order.shipping_status || 'N/A'}
-                                </div>
-                              )}
-                              <div className="space-y-2">
-                                <Label>Código de Rastreio</Label>
-                                <Input
-                                  placeholder="Ex: BR123456789BR"
-                                  value={trackingCode}
-                                  onChange={(e) => setTrackingCode(e.target.value)}
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>Status da Entrega</Label>
-                                <Select value={deliveryStatus} onValueChange={setDeliveryStatus}>
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {deliveryStatuses.map(s => (
-                                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="flex gap-2">
-                                {order.shipment_id && (
-                                  <Button 
-                                    variant="outline" 
-                                    onClick={() => refreshTracking(order.id)} 
-                                    disabled={refreshingTracking === order.id}
-                                    className="flex-1"
-                                  >
-                                    {refreshingTracking === order.id ? (
-                                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                    ) : (
-                                      <RotateCw className="w-4 h-4 mr-2" />
-                                    )}
-                                    Buscar Rastreio
-                                  </Button>
-                                )}
-                                <Button onClick={saveTracking} disabled={saving} className="flex-1">
-                                  {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                                  Salvar
-                                </Button>
-                              </div>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setViewOrder(order)}>
+                              <Eye className="mr-2 h-4 w-4" /> Visualizar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEdit(order)}>
+                              <Pencil className="mr-2 h-4 w-4" /> Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDeleteTarget(order)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   );
@@ -356,6 +373,227 @@ const OrdersPage = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* View Order Dialog */}
+      <Dialog open={!!viewOrder} onOpenChange={(open) => !open && setViewOrder(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Pedido</DialogTitle>
+          </DialogHeader>
+          {viewOrder && (
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-sm font-semibold text-foreground mb-1">Cliente</h4>
+                <InfoRow label="Nome" value={viewOrder.customer_name} />
+                <InfoRow label="E-mail" value={viewOrder.customer_email} />
+                <InfoRow label="Telefone" value={viewOrder.customer_phone} />
+                <InfoRow label="CPF" value={viewOrder.customer_cpf} />
+              </div>
+              <Separator />
+              <div>
+                <h4 className="text-sm font-semibold text-foreground mb-1">Produto</h4>
+                <InfoRow label="Produto" value={viewOrder.product_name} />
+                <InfoRow label="Dosagem" value={viewOrder.dosage} />
+                <InfoRow label="Quantidade" value={viewOrder.quantity} />
+                <InfoRow label="Preço unitário" value={`R$ ${Number(viewOrder.unit_price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
+                <InfoRow label="Valor total" value={`R$ ${Number(viewOrder.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
+                <InfoRow label="Parcelas" value={viewOrder.installments} />
+              </div>
+              <Separator />
+              <div>
+                <h4 className="text-sm font-semibold text-foreground mb-1">Pagamento</h4>
+                <InfoRow label="Forma" value={billingTypeMap[viewOrder.payment_method] || viewOrder.payment_method} />
+                <InfoRow label="Status" value={(statusMap[viewOrder.status] || { label: viewOrder.status }).label} />
+                {viewOrder.asaas_payment_id && <InfoRow label="ID Asaas" value={viewOrder.asaas_payment_id} />}
+              </div>
+              <Separator />
+              <div>
+                <h4 className="text-sm font-semibold text-foreground mb-1">Entrega</h4>
+                <InfoRow label="Status" value={deliveryStatuses.find(d => d.value === viewOrder.delivery_status)?.label || 'Processando'} />
+                <InfoRow label="Transportadora" value={viewOrder.shipping_service} />
+                <InfoRow label="Frete" value={viewOrder.shipping_cost ? `R$ ${Number(viewOrder.shipping_cost).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '-'} />
+                <InfoRow label="Rastreio" value={viewOrder.tracking_code} />
+                {viewOrder.tracking_url && (
+                  <div className="flex justify-between py-1.5">
+                    <span className="text-sm text-muted-foreground">Link</span>
+                    <a href={viewOrder.tracking_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline">
+                      Rastrear
+                    </a>
+                  </div>
+                )}
+              </div>
+              <Separator />
+              <div>
+                <h4 className="text-sm font-semibold text-foreground mb-1">Endereço</h4>
+                <InfoRow label="Rua" value={viewOrder.customer_address} />
+                <InfoRow label="Número" value={viewOrder.customer_number} />
+                <InfoRow label="Complemento" value={viewOrder.customer_complement} />
+                <InfoRow label="Bairro" value={viewOrder.customer_district} />
+                <InfoRow label="Cidade" value={viewOrder.customer_city} />
+                <InfoRow label="Estado" value={viewOrder.customer_state} />
+                <InfoRow label="CEP" value={viewOrder.customer_postal_code} />
+              </div>
+              <Separator />
+              <InfoRow label="Criado em" value={new Date(viewOrder.created_at).toLocaleString('pt-BR')} />
+              <InfoRow label="Atualizado em" value={new Date(viewOrder.updated_at).toLocaleString('pt-BR')} />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Order Dialog */}
+      <Dialog open={!!editOrder} onOpenChange={(open) => !open && setEditOrder(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Pedido</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label className="text-xs">Nome do Cliente</Label>
+              <Input value={editForm.customer_name} onChange={(e) => setEditForm(f => ({ ...f, customer_name: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">E-mail</Label>
+              <Input value={editForm.customer_email} onChange={(e) => setEditForm(f => ({ ...f, customer_email: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Telefone</Label>
+              <Input value={editForm.customer_phone} onChange={(e) => setEditForm(f => ({ ...f, customer_phone: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">CPF</Label>
+              <Input value={editForm.customer_cpf} onChange={(e) => setEditForm(f => ({ ...f, customer_cpf: e.target.value }))} />
+            </div>
+
+            <Separator className="col-span-full" />
+
+            <div className="space-y-1">
+              <Label className="text-xs">Produto</Label>
+              <Input value={editForm.product_name} onChange={(e) => setEditForm(f => ({ ...f, product_name: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Dosagem</Label>
+              <Input value={editForm.dosage} onChange={(e) => setEditForm(f => ({ ...f, dosage: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Quantidade</Label>
+              <Input type="number" min={1} value={editForm.quantity} onChange={(e) => setEditForm(f => ({ ...f, quantity: Number(e.target.value) }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Preço Unitário</Label>
+              <Input type="number" step="0.01" value={editForm.unit_price} onChange={(e) => setEditForm(f => ({ ...f, unit_price: Number(e.target.value) }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Valor Total</Label>
+              <Input type="number" step="0.01" value={editForm.total_value} onChange={(e) => setEditForm(f => ({ ...f, total_value: Number(e.target.value) }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Frete</Label>
+              <Input type="number" step="0.01" value={editForm.shipping_cost} onChange={(e) => setEditForm(f => ({ ...f, shipping_cost: Number(e.target.value) }))} />
+            </div>
+
+            <Separator className="col-span-full" />
+
+            <div className="space-y-1">
+              <Label className="text-xs">Forma de Pagamento</Label>
+              <Select value={editForm.payment_method} onValueChange={(v) => setEditForm(f => ({ ...f, payment_method: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pix">PIX</SelectItem>
+                  <SelectItem value="credit_card">Cartão de Crédito</SelectItem>
+                  <SelectItem value="BOLETO">Boleto</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Status Pagamento</Label>
+              <Select value={editForm.status} onValueChange={(v) => setEditForm(f => ({ ...f, status: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(statusMap).map(([key, val]) => (
+                    <SelectItem key={key} value={key}>{val.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Status Entrega</Label>
+              <Select value={editForm.delivery_status} onValueChange={(v) => setEditForm(f => ({ ...f, delivery_status: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {deliveryStatuses.map(s => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Código de Rastreio</Label>
+              <Input value={editForm.tracking_code} onChange={(e) => setEditForm(f => ({ ...f, tracking_code: e.target.value }))} placeholder="Ex: BR123456789BR" />
+            </div>
+
+            <Separator className="col-span-full" />
+
+            <div className="space-y-1">
+              <Label className="text-xs">Rua</Label>
+              <Input value={editForm.customer_address} onChange={(e) => setEditForm(f => ({ ...f, customer_address: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Número</Label>
+              <Input value={editForm.customer_number} onChange={(e) => setEditForm(f => ({ ...f, customer_number: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Complemento</Label>
+              <Input value={editForm.customer_complement} onChange={(e) => setEditForm(f => ({ ...f, customer_complement: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Bairro</Label>
+              <Input value={editForm.customer_district} onChange={(e) => setEditForm(f => ({ ...f, customer_district: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Cidade</Label>
+              <Input value={editForm.customer_city} onChange={(e) => setEditForm(f => ({ ...f, customer_city: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Estado</Label>
+              <Input value={editForm.customer_state} onChange={(e) => setEditForm(f => ({ ...f, customer_state: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">CEP</Label>
+              <Input value={editForm.customer_postal_code} onChange={(e) => setEditForm(f => ({ ...f, customer_postal_code: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Transportadora</Label>
+              <Input value={editForm.shipping_service} onChange={(e) => setEditForm(f => ({ ...f, shipping_service: e.target.value }))} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setEditOrder(null)}>Cancelar</Button>
+            <Button onClick={saveEdit} disabled={saving}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+              Salvar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir pedido?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O pedido de "{deleteTarget?.customer_name}" ({deleteTarget?.product_name}) será removido permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteTarget) handleDelete(deleteTarget.id); setDeleteTarget(null); }}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
