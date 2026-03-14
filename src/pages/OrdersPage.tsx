@@ -646,6 +646,27 @@ const OrdersPage = () => {
                                   <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
                                 </DropdownMenuItem>
                               )}
+                              {order.status === 'PAID' && !order.tracking_code && (
+                                <DropdownMenuItem onClick={() => {
+                                  const params = new URLSearchParams();
+                                  if (order.customer_name) params.set('name', order.customer_name);
+                                  if (order.customer_postal_code) params.set('to_postal_code', order.customer_postal_code);
+                                  if (order.customer_address) params.set('to_address', order.customer_address);
+                                  if (order.customer_number) params.set('to_number', order.customer_number);
+                                  if (order.customer_complement) params.set('to_complement', order.customer_complement);
+                                  if (order.customer_district) params.set('to_district', order.customer_district);
+                                  if (order.customer_city) params.set('to_city', order.customer_city);
+                                  if (order.customer_state) params.set('to_state', order.customer_state);
+                                  window.open(`https://melhorenvio.com.br/app/carrinho`, '_blank');
+                                  // Copy address to clipboard for easy paste
+                                  const addr = `${order.customer_name}\n${order.customer_address}, ${order.customer_number}${order.customer_complement ? ` - ${order.customer_complement}` : ''}\n${order.customer_district}\n${order.customer_city} - ${order.customer_state}\nCEP: ${order.customer_postal_code}`;
+                                  navigator.clipboard.writeText(addr).then(() => {
+                                    toast({ title: 'Endereço copiado!', description: 'Cole os dados no Melhor Envio.' });
+                                  });
+                                }}>
+                                  <Truck className="mr-2 h-4 w-4" /> Gerar Etiqueta Manual
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
                                 onClick={() => setDeleteTarget(order)}
