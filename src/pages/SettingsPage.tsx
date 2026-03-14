@@ -357,14 +357,29 @@ const SettingsPage = () => {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Máximo de parcelas sem juros no catálogo e checkout
+                Máximo de parcelas no catálogo e checkout
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo de Parcelas</Label>
+              <Select value={installmentsInterest} onValueChange={setInstallmentsInterest}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sem_juros">Sem juros</SelectItem>
+                  <SelectItem value="com_juros">Com juros</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Define se as parcelas são exibidas como "sem juros" ou "com juros"
               </p>
             </div>
           </div>
           <div className="bg-muted rounded-lg p-3 text-sm text-muted-foreground">
             <p className="font-medium text-foreground mb-1">Preview:</p>
             <p className="text-success text-xs font-semibold">{pixDiscountPercent}% OFF no Pix</p>
-            <p className="text-[11px]">ou R$ 100,00 em {maxInstallments}x R$ {(100 / Number(maxInstallments || 1)).toFixed(2).replace('.', ',')} sem juros</p>
+            <p className="text-[11px]">ou R$ 100,00 em {maxInstallments}x R$ {(100 / Number(maxInstallments || 1)).toFixed(2).replace('.', ',')} {installmentsInterest === 'sem_juros' ? 'sem juros' : 'com juros'}</p>
           </div>
         </CardContent>
       </Card>
