@@ -186,7 +186,7 @@ const ProductForm = () => {
         <Button variant="ghost" size="icon" onClick={() => navigate('/admin/produtos')}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-2xl font-bold text-foreground">
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">
           {isEditing ? 'Editar Produto' : 'Novo Produto'}
         </h1>
       </div>
