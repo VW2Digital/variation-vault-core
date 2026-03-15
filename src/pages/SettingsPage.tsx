@@ -303,7 +303,7 @@ const SettingsPage = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
+      <h1 className="text-xl sm:text-2xl font-bold text-foreground">Configurações</h1>
 
       <Card className="border-border/50">
         <CardHeader>
