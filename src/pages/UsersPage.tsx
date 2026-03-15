@@ -293,9 +293,71 @@ const UsersPage = () => {
         </div>
       ) : (
         <>
-          <Card className="border-border/50 overflow-hidden">
+          {/* Mobile card view */}
+          <div className="space-y-3 md:hidden">
+            {paginatedUsers.map((u) => {
+              const isAdmin = u.roles.includes('admin');
+              return (
+                <Card key={u.id} className={`border-border/50 ${selectedIds.has(u.id) ? 'ring-1 ring-primary' : ''}`}>
+                  <CardContent className="p-4 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Checkbox checked={selectedIds.has(u.id)} onCheckedChange={() => toggleSelect(u.id)} />
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm text-foreground truncate">{u.full_name || 'Sem nome'}</p>
+                          <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                        </div>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setViewUser(u)}>
+                            <Eye className="mr-2 h-4 w-4" /> Visualizar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEdit(u)}>
+                            <Pencil className="mr-2 h-4 w-4" /> Editar
+                          </DropdownMenuItem>
+                          {isAdmin ? (
+                            <DropdownMenuItem onClick={() => handleRoleAction(u.id, 'admin', 'remove_role')}>
+                              <ShieldX className="mr-2 h-4 w-4" /> Remover Admin
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => handleRoleAction(u.id, 'admin', 'add_role')}>
+                              <ShieldCheck className="mr-2 h-4 w-4" /> Tornar Admin
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(u)}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{u.phone || 'Sem telefone'}</span>
+                      <span>{new Date(u.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {u.roles.length === 0 && <Badge variant="outline" className="text-xs">cliente</Badge>}
+                      {u.roles.map(r => (
+                        <Badge key={r} variant={r === 'admin' ? 'default' : 'secondary'} className="text-xs flex items-center gap-1">
+                          {r === 'admin' ? <ShieldCheck className="w-3 h-3" /> : null}{r}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Desktop table view */}
+          <Card className="border-border/50 overflow-hidden hidden md:block">
             <CardContent className="p-0 overflow-x-auto">
-              <Table className="min-w-[700px]">
+              <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[40px]">
@@ -318,10 +380,7 @@ const UsersPage = () => {
                     return (
                       <TableRow key={u.id} className={selectedIds.has(u.id) ? 'bg-primary/5' : ''}>
                         <TableCell>
-                          <Checkbox
-                            checked={selectedIds.has(u.id)}
-                            onCheckedChange={() => toggleSelect(u.id)}
-                          />
+                          <Checkbox checked={selectedIds.has(u.id)} onCheckedChange={() => toggleSelect(u.id)} />
                         </TableCell>
                         <TableCell>
                           <div>
@@ -329,31 +388,19 @@ const UsersPage = () => {
                             <p className="text-xs text-muted-foreground">{u.email}</p>
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {u.phone || '-'}
-                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{u.phone || '-'}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
-                            {u.roles.length === 0 && (
-                              <Badge variant="outline" className="text-xs">cliente</Badge>
-                            )}
+                            {u.roles.length === 0 && <Badge variant="outline" className="text-xs">cliente</Badge>}
                             {u.roles.map(r => (
-                              <Badge
-                                key={r}
-                                variant={r === 'admin' ? 'default' : 'secondary'}
-                                className="text-xs flex items-center gap-1"
-                              >
-                                {r === 'admin' ? <ShieldCheck className="w-3 h-3" /> : null}
-                                {r}
+                              <Badge key={r} variant={r === 'admin' ? 'default' : 'secondary'} className="text-xs flex items-center gap-1">
+                                {r === 'admin' ? <ShieldCheck className="w-3 h-3" /> : null}{r}
                               </Badge>
                             ))}
                           </div>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {u.last_sign_in_at
-                            ? new Date(u.last_sign_in_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
-                            : 'Nunca'
-                          }
+                          {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Nunca'}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {new Date(u.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -381,10 +428,7 @@ const UsersPage = () => {
                                   <ShieldCheck className="mr-2 h-4 w-4" /> Tornar Admin
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => setDeleteTarget(u)}
-                              >
+                              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(u)}>
                                 <Trash2 className="mr-2 h-4 w-4" /> Excluir
                               </DropdownMenuItem>
                             </DropdownMenuContent>
