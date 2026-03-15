@@ -481,34 +481,21 @@ const OrdersPage = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center">
+        <div className="relative flex-1 sm:flex-none">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar cliente, produto ou rastreio..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="pl-9 w-[250px]"
+            className="pl-9 w-full sm:w-[250px]"
           />
         </div>
-        <Select value={filterPayment} onValueChange={setFilterPayment}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Pagamento" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Todos os pagamentos</SelectItem>
-            <SelectItem value="PENDING">Pendente</SelectItem>
-            <SelectItem value="PAID">Pago</SelectItem>
-            <SelectItem value="CONFIRMED">Confirmado</SelectItem>
-            <SelectItem value="RECEIVED">Recebido</SelectItem>
-            <SelectItem value="OVERDUE">Vencido</SelectItem>
-            <SelectItem value="REFUNDED">Estornado</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterDelivery} onValueChange={setFilterDelivery}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Entrega" />
-          </SelectTrigger>
+        <div className="flex gap-2">
+          <Select value={filterPayment} onValueChange={setFilterPayment}>
+            <SelectTrigger className="flex-1 sm:w-[180px]">
+              <SelectValue placeholder="Pagamento" />
+            </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">Todas as entregas</SelectItem>
             {deliveryStatuses.map(s => (
