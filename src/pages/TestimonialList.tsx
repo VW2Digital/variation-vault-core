@@ -229,7 +229,7 @@ const TestimonialList = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
           {testimonials.map((t) => (
             <Card key={t.id} className="border-border/50 overflow-hidden">
               <div className="relative aspect-[9/16] bg-muted">
