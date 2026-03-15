@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Star, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -59,62 +60,100 @@ const AdminReviewsPage = () => {
       ) : reviews.length === 0 ? (
         <p className="text-muted-foreground">Nenhuma avaliação encontrada.</p>
       ) : (
-        <div className="rounded-xl border border-border/50 overflow-hidden overflow-x-auto">
-          <Table className="min-w-[600px]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Produto</TableHead>
-                <TableHead>Nota</TableHead>
-                <TableHead>Comentário</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead className="w-[80px]">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {reviews.map((rev) => (
-                <TableRow key={rev.id}>
-                  <TableCell className="font-medium text-sm">{rev.product_name}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-0.5">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <Star key={s} className={`w-3.5 h-3.5 ${s <= rev.rating ? 'fill-primary text-primary' : 'text-muted-foreground/30'}`} />
-                      ))}
+        <>
+          {/* Mobile card view */}
+          <div className="space-y-3 md:hidden">
+            {reviews.map((rev) => (
+              <Card key={rev.id} className="border-border/50">
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm text-foreground truncate">{rev.product_name}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(rev.created_at).toLocaleDateString('pt-BR')}</p>
                     </div>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-[300px] truncate">
-                    {rev.comment || <span className="italic">Sem comentário</span>}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {new Date(rev.created_at).toLocaleDateString('pt-BR')}
-                  </TableCell>
-                  <TableCell>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive shrink-0 h-8 w-8">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Excluir avaliação?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Esta ação não pode ser desfeita. A avaliação será removida permanentemente.
-                          </AlertDialogDescription>
+                          <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(rev.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Excluir
-                          </AlertDialogAction>
+                          <AlertDialogAction onClick={() => handleDelete(rev.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
-                  </TableCell>
+                  </div>
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star key={s} className={`w-3.5 h-3.5 ${s <= rev.rating ? 'fill-primary text-primary' : 'text-muted-foreground/30'}`} />
+                    ))}
+                  </div>
+                  {rev.comment && <p className="text-sm text-muted-foreground line-clamp-3">{rev.comment}</p>}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Desktop table view */}
+          <div className="rounded-xl border border-border/50 overflow-hidden hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Produto</TableHead>
+                  <TableHead>Nota</TableHead>
+                  <TableHead>Comentário</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead className="w-[80px]">Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {reviews.map((rev) => (
+                  <TableRow key={rev.id}>
+                    <TableCell className="font-medium text-sm">{rev.product_name}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-0.5">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star key={s} className={`w-3.5 h-3.5 ${s <= rev.rating ? 'fill-primary text-primary' : 'text-muted-foreground/30'}`} />
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground max-w-[300px] truncate">
+                      {rev.comment || <span className="italic">Sem comentário</span>}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {new Date(rev.created_at).toLocaleDateString('pt-BR')}
+                    </TableCell>
+                    <TableCell>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir avaliação?</AlertDialogTitle>
+                            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(rev.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
     </div>
   );
