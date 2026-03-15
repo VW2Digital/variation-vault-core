@@ -197,53 +197,25 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
     const simulate = async () => {
       try {
         const results: Record<number, number> = {};
-        // Simulate with max installments — the API returns data for all counts
-        const { data, error } = await supabase.functions.invoke('asaas-checkout', {
-          body: { action: 'simulate_installments', value: totalValue, installmentCount: maxInst },
-        });
-        if (error || !data) throw new Error('Falha na simulação');
 
-        // Parse the response - Asaas returns creditCard.installmentCount with installmentValue
-        if (data?.creditCard?.installmentCount) {
-          // Response has installmentCount as a number and installmentValue
-          results[data.creditCard.installmentCount] = data.creditCard.installmentValue || (totalValue / data.creditCard.installmentCount);
-        }
-
-        // If we get a list of installments
-        if (Array.isArray(data?.creditCard)) {
-          for (const item of data.creditCard) {
-            if (item.installmentCount && item.installmentValue) {
-              results[item.installmentCount] = item.installmentValue;
+        // Asaas /payments/simulate returns one installment per call
+        // Fetch all in parallel for speed
+        const promises = Array.from({ length: maxInst - 1 }, (_, i) => i + 2).map(async (n) => {
+          try {
+            const { data } = await supabase.functions.invoke('asaas-checkout', {
+              body: { action: 'simulate_installments', value: totalValue, installmentCount: n },
+            });
+            const installmentValue = data?.creditCard?.installment?.paymentValue;
+            if (installmentValue) {
+              results[n] = Number(installmentValue);
             }
-          }
-        }
+          } catch { /* skip */ }
+        });
 
-        // If response has installments array or similar structure
-        if (data?.installments && Array.isArray(data.installments)) {
-          for (const item of data.installments) {
-            results[item.installmentCount] = item.installmentValue;
-          }
-        }
-
-        // Fallback: simulate each count individually if we didn't get grouped results
-        if (Object.keys(results).length === 0) {
-          for (let n = 2; n <= maxInst; n++) {
-            if (cancelled) return;
-            try {
-              const { data: simData } = await supabase.functions.invoke('asaas-checkout', {
-                body: { action: 'simulate_installments', value: totalValue, installmentCount: n },
-              });
-              if (simData?.creditCard) {
-                const cc = simData.creditCard;
-                results[n] = cc.installmentValue || cc.totalValue / n || totalValue / n;
-              }
-            } catch { /* skip */ }
-          }
-        }
-
+        await Promise.all(promises);
         if (!cancelled) setSimulatedInstallments(results);
       } catch {
-        // Silently fail — will show "com juros" without value
+        // Silently fail
       } finally {
         if (!cancelled) setLoadingSimulation(false);
       }
