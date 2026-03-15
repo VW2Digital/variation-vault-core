@@ -282,31 +282,33 @@ const ProductForm = () => {
           <CardContent className="space-y-4">
             {variations.map((v, i) => (
               <div key={i} className="p-4 rounded-lg bg-muted/50 border border-border/30 space-y-3">
-                <div className="flex items-end gap-3">
-                  <div className="flex-1 space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-2">
                     <Label>Dosagem</Label>
                     <Input value={v.dosage} onChange={(e) => updateVariation(i, 'dosage', e.target.value)} placeholder="5mg" />
                   </div>
-                  <div className="w-32 space-y-2">
+                  <div className="space-y-2">
                     <Label>{v.is_offer ? 'Preço Original (R$)' : 'Preço (R$)'}</Label>
                     <Input type="number" value={v.price || ''} onChange={(e) => updateVariation(i, 'price', Number(e.target.value))} />
                   </div>
                   {v.is_offer && (
-                    <div className="w-32 space-y-2">
+                    <div className="space-y-2">
                       <Label className="text-destructive">Preço Oferta (R$)</Label>
                       <Input type="number" value={v.offer_price || ''} onChange={(e) => updateVariation(i, 'offer_price', Number(e.target.value))} className="border-destructive/50" />
                     </div>
                   )}
-                  <div className="flex flex-col items-center gap-1">
-                    <Label className="text-xs">Estoque</Label>
+                </div>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-2">
                     <Switch checked={v.in_stock} onCheckedChange={(val) => updateVariation(i, 'in_stock', val)} />
+                    <Label className="text-xs">Estoque</Label>
                   </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <Label className="text-xs">Oferta</Label>
+                  <div className="flex items-center gap-2">
                     <Switch checked={v.is_offer} onCheckedChange={(val) => updateVariation(i, 'is_offer', val)} />
+                    <Label className="text-xs">Oferta</Label>
                   </div>
                   {variations.length > 1 && (
-                    <Button type="button" variant="ghost" size="icon" onClick={() => setVariations((p) => p.filter((_, j) => j !== i))} className="text-destructive">
+                    <Button type="button" variant="ghost" size="icon" onClick={() => setVariations((p) => p.filter((_, j) => j !== i))} className="text-destructive h-8 w-8">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   )}

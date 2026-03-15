@@ -67,26 +67,26 @@ const ProductList = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           {products.map((product) => (
             <Card key={product.id} className="border-border/50 hover:shadow-md transition-shadow">
-              <CardContent className="p-5 flex items-center gap-5">
-                <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+              <CardContent className="p-3 sm:p-5 flex items-center gap-3 sm:gap-5">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
                   {(() => {
                     const img = product.product_variations?.[0]?.images?.[0] || product.product_variations?.[0]?.image_url || product.images?.[0];
                     return img ? (
                       <img src={img} alt={product.name} className="w-full h-full object-cover" />
                     ) : (
-                      <Package className="w-8 h-8 text-muted-foreground/40" />
+                      <Package className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground/40" />
                     );
                   })()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-foreground truncate">{product.name}</h3>
-                  <p className="text-sm text-muted-foreground truncate">{product.subtitle}</p>
-                  <div className="flex gap-2 mt-2 flex-wrap">
+                  <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">{product.name}</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">{product.subtitle}</p>
+                  <div className="flex gap-1.5 mt-1.5 flex-wrap">
                     {product.product_variations?.map((v: any) => (
-                      <Badge key={v.id} variant={v.in_stock ? 'default' : 'destructive'} className="text-xs">
+                      <Badge key={v.id} variant={v.in_stock ? 'default' : 'destructive'} className="text-[10px] sm:text-xs">
                         {v.dosage && !product.name.toLowerCase().includes(v.dosage.toLowerCase()) ? `${v.dosage} — ` : ''}R$ {Number(v.price).toLocaleString('pt-BR')}
                       </Badge>
                     ))}
@@ -94,7 +94,7 @@ const ProductList = () => {
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="shrink-0">
+                    <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8">
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
