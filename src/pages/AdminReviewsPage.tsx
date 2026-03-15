@@ -50,7 +50,7 @@ const AdminReviewsPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Gerenciar Avaliações</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Gerenciar Avaliações</h1>
         <p className="text-muted-foreground text-sm">Modere e gerencie as avaliações dos clientes.</p>
       </div>
 
@@ -59,8 +59,8 @@ const AdminReviewsPage = () => {
       ) : reviews.length === 0 ? (
         <p className="text-muted-foreground">Nenhuma avaliação encontrada.</p>
       ) : (
-        <div className="rounded-xl border border-border/50 overflow-hidden">
-          <Table>
+        <div className="rounded-xl border border-border/50 overflow-hidden overflow-x-auto">
+          <Table className="min-w-[600px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Produto</TableHead>

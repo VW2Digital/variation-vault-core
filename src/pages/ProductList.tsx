@@ -49,8 +49,8 @@ const ProductList = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Produtos</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Produtos</h1>
         <Button onClick={() => navigate('/admin/produtos/novo')}>
           <Plus className="mr-2 h-4 w-4" /> Novo Produto
         </Button>
