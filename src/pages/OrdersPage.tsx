@@ -467,12 +467,13 @@ const OrdersPage = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Pedidos</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Pedidos</h1>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={batchRefreshTracking} disabled={batchRefreshing}>
             {batchRefreshing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Truck className="w-4 h-4 mr-1" />}
-            Buscar Rastreios
+            <span className="hidden sm:inline">Buscar Rastreios</span>
+            <span className="sm:hidden">Rastreios</span>
           </Button>
           <Button variant="outline" size="sm" onClick={fetchOrders} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Atualizar
