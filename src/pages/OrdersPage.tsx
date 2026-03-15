@@ -527,7 +527,7 @@ const OrdersPage = () => {
             <CheckSquare className="inline h-4 w-4 mr-1" />
             {selectedIds.size} selecionado(s)
           </span>
-          <Separator orientation="vertical" className="h-6" />
+          <Separator orientation="vertical" className="h-6 hidden sm:block" />
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Pagamento:</span>
             <Select onValueChange={(v) => batchUpdateStatus('status', v)}>
