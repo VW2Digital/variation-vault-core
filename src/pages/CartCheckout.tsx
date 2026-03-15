@@ -176,9 +176,9 @@ const CartCheckout = () => {
           {/* Checkout Form - uses total price as unit price with qty 1 */}
           <CheckoutForm
             productName={productName}
-            dosage=""
-            quantity={1}
-            unitPrice={totalPrice}
+            dosage={combinedDosage}
+            quantity={totalQuantity}
+            unitPrice={Math.round((totalPrice / totalQuantity) * 100) / 100}
             freeShipping={freeShippingInfo.freeShipping}
             freeShippingMinValue={freeShippingInfo.minValue}
           />
