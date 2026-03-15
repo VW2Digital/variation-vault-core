@@ -244,7 +244,7 @@ const Dashboard = () => {
                     <CheckCircle2 className="w-4 h-4 text-green-500" />
                     <span className="text-xs">Confirmados</span>
                   </div>
-                  <p className="text-2xl font-bold text-green-500">{metrics.confirmedOrders}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-green-500">{metrics.confirmedOrders}</p>
                 </div>
                 <div className="rounded-lg border border-border/50 p-4 space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground">
