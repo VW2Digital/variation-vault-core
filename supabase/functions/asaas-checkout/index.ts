@@ -236,12 +236,18 @@ serve(async (req) => {
       // ─── 7. SIMULATE INSTALLMENTS ───
       case 'simulate_installments': {
         const { value: simValue, installmentCount: simCount } = payload;
-        const body: any = {
-          value: toCurrencyNumber(simValue),
-          billingTypes: ['CREDIT_CARD'],
-        };
-        if (simCount) body.installmentCount = Number(simCount);
-        result = await asaasFetch(baseUrl, apiKey, '/payments/simulate', 'POST', body);
+        try {
+          const body: any = {
+            value: toCurrencyNumber(simValue),
+            billingTypes: ['CREDIT_CARD'],
+          };
+          if (simCount) body.installmentCount = Number(simCount);
+          result = await asaasFetch(baseUrl, apiKey, '/payments/simulate', 'POST', body);
+        } catch (simError: any) {
+          // Simulation failures are non-critical — return empty result instead of throwing
+          console.warn('Installment simulation failed:', simError.message);
+          result = { creditCard: null, simulated: false, error: simError.message };
+        }
         break;
       }
 
@@ -256,20 +262,25 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('Error:', error.message);
 
-    // Log failure to payment_logs table for admin diagnostics
+    // Log failure to payment_logs table for admin diagnostics (skip non-payment actions)
     try {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const sb = createClient(supabaseUrl, supabaseKey);
+      const bodyForLog = await req.clone().json().catch(() => ({}));
+      const actionName = bodyForLog?.action || '';
+      const isPaymentAction = actionName.includes('payment') || actionName.includes('card') || actionName.includes('pix');
 
-      const body = await req.clone().json().catch(() => ({}));
-      await sb.from('payment_logs').insert({
-        error_message: error.message,
-        error_source: 'backend',
-        payment_method: body?.action?.includes('card') ? 'credit_card' : body?.action?.includes('pix') ? 'pix' : body?.action || null,
-        order_id: body?.orderId || null,
-        request_payload: { action: body?.action, customer: body?.customer },
-      });
+      if (isPaymentAction) {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const sb = createClient(supabaseUrl, supabaseKey);
+
+        await sb.from('payment_logs').insert({
+          error_message: error.message,
+          error_source: 'backend',
+          payment_method: actionName.includes('card') ? 'credit_card' : actionName.includes('pix') ? 'pix' : actionName,
+          order_id: bodyForLog?.orderId || null,
+          request_payload: { action: actionName, customer: bodyForLog?.customer },
+        });
+      }
     } catch { /* non-blocking */ }
 
     return new Response(JSON.stringify({ error: error.message }), {
