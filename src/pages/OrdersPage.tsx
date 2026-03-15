@@ -522,12 +522,12 @@ const OrdersPage = () => {
 
       {/* Batch action bar */}
       {selectedIds.size > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2 sm:gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
           <span className="text-sm font-medium text-foreground">
             <CheckSquare className="inline h-4 w-4 mr-1" />
             {selectedIds.size} selecionado(s)
           </span>
-          <Separator orientation="vertical" className="h-6" />
+          <Separator orientation="vertical" className="h-6 hidden sm:block" />
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Pagamento:</span>
             <Select onValueChange={(v) => batchUpdateStatus('status', v)}>

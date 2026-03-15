@@ -231,50 +231,50 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <div className="rounded-lg border border-border/50 p-4 space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <ShoppingCart className="w-4 h-4" />
                     <span className="text-xs">Total Pedidos</span>
                   </div>
-                  <p className="text-2xl font-bold text-foreground">{metrics.totalOrders}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-foreground">{metrics.totalOrders}</p>
                 </div>
                 <div className="rounded-lg border border-border/50 p-4 space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <CheckCircle2 className="w-4 h-4 text-green-500" />
                     <span className="text-xs">Confirmados</span>
                   </div>
-                  <p className="text-2xl font-bold text-green-500">{metrics.confirmedOrders}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-green-500">{metrics.confirmedOrders}</p>
                 </div>
                 <div className="rounded-lg border border-border/50 p-4 space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <XCircle className="w-4 h-4 text-destructive" />
                     <span className="text-xs">Falhas</span>
                   </div>
-                  <p className="text-2xl font-bold text-destructive">{metrics.failedPayments}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-destructive">{metrics.failedPayments}</p>
                 </div>
                 <div className="rounded-lg border border-border/50 p-4 space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <TrendingUp className="w-4 h-4 text-primary" />
                     <span className="text-xs">Taxa Conversão</span>
                   </div>
-                  <p className="text-2xl font-bold text-primary">{metrics.conversionRate.toFixed(1)}%</p>
+                  <p className="text-xl sm:text-2xl font-bold text-primary">{metrics.conversionRate.toFixed(1)}%</p>
                 </div>
               </div>
 
-              <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
-                <div className="flex items-center justify-between">
+              <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-5 h-5 text-primary" />
                     <span className="text-sm font-medium text-foreground">Receita Confirmada</span>
                   </div>
-                  <span className="text-xl font-bold text-primary">
+                  <span className="text-lg sm:text-xl font-bold text-primary">
                     R$ {metrics.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div className="rounded-lg border border-border/50 p-4 space-y-3">
                   <div className="flex items-center gap-2">
                     <QrCode className="w-5 h-5 text-primary" />
@@ -309,8 +309,8 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              <div className="rounded-lg bg-green-500/5 border border-green-500/20 p-4">
-                <div className="flex items-center justify-between">
+              <div className="rounded-lg bg-green-500/5 border border-green-500/20 p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <ArrowRightLeft className="w-5 h-5 text-green-500" />
                     <div>
@@ -318,7 +318,7 @@ const Dashboard = () => {
                       <p className="text-xs text-muted-foreground">Clientes que falharam no cartão e pagaram via PIX</p>
                     </div>
                   </div>
-                  <span className="text-xl font-bold text-green-500">{metrics.pixRecoveries}</span>
+                  <span className="text-lg sm:text-xl font-bold text-green-500">{metrics.pixRecoveries}</span>
                 </div>
               </div>
             </div>
