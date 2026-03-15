@@ -258,7 +258,7 @@ const Dashboard = () => {
                     <TrendingUp className="w-4 h-4 text-primary" />
                     <span className="text-xs">Taxa Conversão</span>
                   </div>
-                  <p className="text-2xl font-bold text-primary">{metrics.conversionRate.toFixed(1)}%</p>
+                  <p className="text-xl sm:text-2xl font-bold text-primary">{metrics.conversionRate.toFixed(1)}%</p>
                 </div>
               </div>
 
