@@ -491,18 +491,33 @@ const OrdersPage = () => {
             className="pl-9 w-full sm:w-[250px]"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-1 sm:flex-none">
           <Select value={filterPayment} onValueChange={setFilterPayment}>
             <SelectTrigger className="flex-1 sm:w-[180px]">
               <SelectValue placeholder="Pagamento" />
             </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Todas as entregas</SelectItem>
-            {deliveryStatuses.map(s => (
-              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <SelectContent>
+              <SelectItem value="ALL">Todos os pagamentos</SelectItem>
+              <SelectItem value="PENDING">Pendente</SelectItem>
+              <SelectItem value="PAID">Pago</SelectItem>
+              <SelectItem value="CONFIRMED">Confirmado</SelectItem>
+              <SelectItem value="RECEIVED">Recebido</SelectItem>
+              <SelectItem value="OVERDUE">Vencido</SelectItem>
+              <SelectItem value="REFUNDED">Estornado</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterDelivery} onValueChange={setFilterDelivery}>
+            <SelectTrigger className="flex-1 sm:w-[180px]">
+              <SelectValue placeholder="Entrega" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todas as entregas</SelectItem>
+              {deliveryStatuses.map(s => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Batch action bar */}
