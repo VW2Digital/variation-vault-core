@@ -133,13 +133,14 @@ serve(async (req) => {
           console.log(`[Webhook] Order updated to ${newStatus} for payment ${payment.id}`);
         }
 
-      // Also try by externalReference (our order id)
-      if (payment.externalReference) {
-        await supabase
-          .from('orders')
-          .update({ status: newStatus, asaas_payment_id: payment.id })
-          .eq('id', payment.externalReference);
-      }
+        // Also try by externalReference (our order id)
+        if (payment.externalReference) {
+          await supabase
+            .from('orders')
+            .update({ status: newStatus, asaas_payment_id: payment.id })
+            .eq('id', payment.externalReference);
+        }
+      } // end of downgrade check
 
       // ─── AUTO-TRIGGER SHIPPING ON PAYMENT CONFIRMATION ───
       if (newStatus === 'PAID') {
