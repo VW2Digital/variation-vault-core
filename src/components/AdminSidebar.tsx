@@ -66,7 +66,7 @@ export function AdminSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r-0">
+    <Sidebar collapsible="offcanvas" className="border-r-0">
       <SidebarContent>
         {menuCategories.map((category) => (
           <SidebarGroup key={category.label}>

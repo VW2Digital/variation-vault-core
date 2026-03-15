@@ -303,7 +303,7 @@ const SettingsPage = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
+      <h1 className="text-xl sm:text-2xl font-bold text-foreground">Configurações</h1>
 
       <Card className="border-border/50">
         <CardHeader>
@@ -334,7 +334,7 @@ const SettingsPage = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Desconto PIX (%)</Label>
               <Input
@@ -685,7 +685,7 @@ const SettingsPage = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
               Preencha com os dados de quem envia os produtos. Usado para gerar etiquetas de frete.
             </p>
@@ -720,7 +720,7 @@ const SettingsPage = () => {
                   setFetchingProfile(false);
                 }
               }}
-              className="flex items-center gap-2 shrink-0"
+              className="flex items-center gap-2 shrink-0 w-full sm:w-auto"
             >
               {fetchingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               {fetchingProfile ? 'Importando...' : 'Importar do Melhor Envio'}
