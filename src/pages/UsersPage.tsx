@@ -239,21 +239,21 @@ const UsersPage = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Gerenciar Usuários</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Gerenciar Usuários</h1>
         <Button variant="outline" size="sm" onClick={fetchUsers} disabled={loading}>
           <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Atualizar
         </Button>
       </div>
 
       <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative">
+        <div className="relative flex-1 sm:flex-none">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar nome ou email..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="pl-9 w-[250px]"
+            className="pl-9 w-full sm:w-[250px]"
           />
         </div>
       </div>
@@ -293,9 +293,9 @@ const UsersPage = () => {
         </div>
       ) : (
         <>
-          <Card className="border-border/50">
-            <CardContent className="p-0">
-              <Table>
+          <Card className="border-border/50 overflow-hidden">
+            <CardContent className="p-0 overflow-x-auto">
+              <Table className="min-w-[700px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[40px]">
@@ -399,8 +399,8 @@ const UsersPage = () => {
           </Card>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Mostrando {((safePage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(safePage * ITEMS_PER_PAGE, filteredUsers.length)} de {filteredUsers.length} usuários
               </p>
               <div className="flex items-center gap-1">

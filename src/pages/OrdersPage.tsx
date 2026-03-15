@@ -467,12 +467,13 @@ const OrdersPage = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Pedidos</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Pedidos</h1>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={batchRefreshTracking} disabled={batchRefreshing}>
             {batchRefreshing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Truck className="w-4 h-4 mr-1" />}
-            Buscar Rastreios
+            <span className="hidden sm:inline">Buscar Rastreios</span>
+            <span className="sm:hidden">Rastreios</span>
           </Button>
           <Button variant="outline" size="sm" onClick={fetchOrders} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Atualizar
@@ -480,41 +481,43 @@ const OrdersPage = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center">
+        <div className="relative flex-1 sm:flex-none">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar cliente, produto ou rastreio..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="pl-9 w-[250px]"
+            className="pl-9 w-full sm:w-[250px]"
           />
         </div>
-        <Select value={filterPayment} onValueChange={setFilterPayment}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Pagamento" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Todos os pagamentos</SelectItem>
-            <SelectItem value="PENDING">Pendente</SelectItem>
-            <SelectItem value="PAID">Pago</SelectItem>
-            <SelectItem value="CONFIRMED">Confirmado</SelectItem>
-            <SelectItem value="RECEIVED">Recebido</SelectItem>
-            <SelectItem value="OVERDUE">Vencido</SelectItem>
-            <SelectItem value="REFUNDED">Estornado</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterDelivery} onValueChange={setFilterDelivery}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Entrega" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Todas as entregas</SelectItem>
-            {deliveryStatuses.map(s => (
-              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2 flex-1 sm:flex-none">
+          <Select value={filterPayment} onValueChange={setFilterPayment}>
+            <SelectTrigger className="flex-1 sm:w-[180px]">
+              <SelectValue placeholder="Pagamento" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todos os pagamentos</SelectItem>
+              <SelectItem value="PENDING">Pendente</SelectItem>
+              <SelectItem value="PAID">Pago</SelectItem>
+              <SelectItem value="CONFIRMED">Confirmado</SelectItem>
+              <SelectItem value="RECEIVED">Recebido</SelectItem>
+              <SelectItem value="OVERDUE">Vencido</SelectItem>
+              <SelectItem value="REFUNDED">Estornado</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterDelivery} onValueChange={setFilterDelivery}>
+            <SelectTrigger className="flex-1 sm:w-[180px]">
+              <SelectValue placeholder="Entrega" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todas as entregas</SelectItem>
+              {deliveryStatuses.map(s => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Batch action bar */}
@@ -572,9 +575,9 @@ const OrdersPage = () => {
         </div>
       ) : (
         <>
-          <Card className="border-border/50">
-            <CardContent className="p-0">
-              <Table>
+          <Card className="border-border/50 overflow-hidden">
+            <CardContent className="p-0 overflow-x-auto">
+              <Table className="min-w-[900px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[40px]">
@@ -716,8 +719,8 @@ const OrdersPage = () => {
           </Card>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Mostrando {((safePage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(safePage * ITEMS_PER_PAGE, filteredOrders.length)} de {filteredOrders.length} pedidos
               </p>
               <div className="flex items-center gap-1">

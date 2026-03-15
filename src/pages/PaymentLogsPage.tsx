@@ -68,11 +68,11 @@ const PaymentLogsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <AlertTriangle className="w-6 h-6 text-destructive" />
-            Logs de Falhas de Pagamento
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-destructive" />
+            Falhas de Pagamento
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
@@ -84,13 +84,13 @@ const PaymentLogsPage = () => {
           </Button>
           {logs.length > 0 && (
             <Button variant="destructive" size="sm" onClick={handleClearAll}>
-              <Trash2 className="w-4 h-4 mr-1" /> Limpar tudo
+              <Trash2 className="w-4 h-4 mr-1" /> Limpar
             </Button>
           )}
         </div>
       </div>
 
-      <div className="relative max-w-sm">
+      <div className="relative w-full sm:max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           placeholder="Buscar por email, nome, erro..."
