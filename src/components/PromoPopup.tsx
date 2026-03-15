@@ -63,7 +63,7 @@ const PromoPopup = () => {
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
-      <DialogContent className="p-0 border-0 bg-transparent shadow-none max-w-md sm:max-w-lg [&>button]:hidden">
+      <DialogContent className="p-0 border-0 bg-transparent shadow-none max-w-md sm:max-w-lg [&>button]:hidden mx-[10px]">
         <div className="relative">
           <button
             onClick={handleClose}
