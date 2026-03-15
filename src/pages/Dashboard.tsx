@@ -309,8 +309,8 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              <div className="rounded-lg bg-green-500/5 border border-green-500/20 p-4">
-                <div className="flex items-center justify-between">
+              <div className="rounded-lg bg-green-500/5 border border-green-500/20 p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <ArrowRightLeft className="w-5 h-5 text-green-500" />
                     <div>
@@ -318,7 +318,7 @@ const Dashboard = () => {
                       <p className="text-xs text-muted-foreground">Clientes que falharam no cartão e pagaram via PIX</p>
                     </div>
                   </div>
-                  <span className="text-xl font-bold text-green-500">{metrics.pixRecoveries}</span>
+                  <span className="text-lg sm:text-xl font-bold text-green-500">{metrics.pixRecoveries}</span>
                 </div>
               </div>
             </div>
