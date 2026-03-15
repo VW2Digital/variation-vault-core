@@ -237,7 +237,7 @@ const Dashboard = () => {
                     <ShoppingCart className="w-4 h-4" />
                     <span className="text-xs">Total Pedidos</span>
                   </div>
-                  <p className="text-2xl font-bold text-foreground">{metrics.totalOrders}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-foreground">{metrics.totalOrders}</p>
                 </div>
                 <div className="rounded-lg border border-border/50 p-4 space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground">
