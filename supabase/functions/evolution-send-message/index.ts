@@ -58,7 +58,11 @@ serve(async (req) => {
         'apikey': apiKey,
       },
       body: JSON.stringify({
-        number: number.replace(/\D/g, ''),
+        number: (() => {
+          const cleaned = number.replace(/\D/g, '');
+          // Add Brazil country code if not present
+          return cleaned.startsWith('55') ? cleaned : `55${cleaned}`;
+        })(),
         text,
       }),
     });
