@@ -293,9 +293,9 @@ const UsersPage = () => {
         </div>
       ) : (
         <>
-          <Card className="border-border/50">
-            <CardContent className="p-0">
-              <Table>
+          <Card className="border-border/50 overflow-hidden">
+            <CardContent className="p-0 overflow-x-auto">
+              <Table className="min-w-[700px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[40px]">
