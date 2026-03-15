@@ -171,6 +171,8 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const [loadingShipping, setLoadingShipping] = useState(false);
   const [maxInstallmentsSetting, setMaxInstallmentsSetting] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('com_juros');
+  const [simulatedInstallments, setSimulatedInstallments] = useState<Record<number, number>>({});
+  const [loadingSimulation, setLoadingSimulation] = useState(false);
 
   const shippingCost = qualifiesForFreeShipping ? 0 : (selectedShipping?.price || 0);
   const totalValue = baseProductTotal + shippingCost;
@@ -182,6 +184,46 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
       if (instInterest) setInstallmentsInterest(instInterest);
     });
   }, []);
+
+  // Simulate installments via gateway when total changes and interest mode is active
+  useEffect(() => {
+    if (installmentsInterest !== 'com_juros' || totalValue <= 0 || step !== 'payment' || paymentMethod !== 'credit_card') return;
+    const maxInst = Math.min(maxInstallmentsSetting, Math.floor(totalValue / 5) || 1);
+    if (maxInst <= 1) return;
+
+    let cancelled = false;
+    setLoadingSimulation(true);
+
+    const simulate = async () => {
+      try {
+        const results: Record<number, number> = {};
+
+        // Asaas /payments/simulate returns one installment per call
+        // Fetch all in parallel for speed
+        const promises = Array.from({ length: maxInst - 1 }, (_, i) => i + 2).map(async (n) => {
+          try {
+            const { data } = await supabase.functions.invoke('asaas-checkout', {
+              body: { action: 'simulate_installments', value: totalValue, installmentCount: n },
+            });
+            const installmentValue = data?.creditCard?.installment?.paymentValue;
+            if (installmentValue) {
+              results[n] = Number(installmentValue);
+            }
+          } catch { /* skip */ }
+        });
+
+        await Promise.all(promises);
+        if (!cancelled) setSimulatedInstallments(results);
+      } catch {
+        // Silently fail
+      } finally {
+        if (!cancelled) setLoadingSimulation(false);
+      }
+    };
+
+    simulate();
+    return () => { cancelled = true; };
+  }, [totalValue, installmentsInterest, maxInstallmentsSetting, step, paymentMethod]);
 
   // Load saved profile + addresses on mount
   useEffect(() => {
@@ -1189,18 +1231,23 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Parcelas</Label>
+              <Label className="text-xs">Parcelas {loadingSimulation && <span className="text-muted-foreground">(calculando...)</span>}</Label>
               <select value={installments} onChange={(e) => setInstallments(Number(e.target.value))} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>
-                    {n === 1
-                      ? `1x de R$ ${totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (à vista)`
-                      : installmentsInterest === 'sem_juros'
-                        ? `${n}x de R$ ${(totalValue / n).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (sem juros)`
-                        : `${n}x com juros`
-                    }
-                  </option>
-                ))}
+                {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((n) => {
+                  if (n === 1) {
+                    return <option key={n} value={n}>1x de R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (à vista)</option>;
+                  }
+                  if (installmentsInterest === 'sem_juros') {
+                    return <option key={n} value={n}>{n}x de R$ {(totalValue / n).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (sem juros)</option>;
+                  }
+                  // com juros — show simulated value if available
+                  const simValue = simulatedInstallments[n];
+                  if (simValue) {
+                    const totalWithInterest = simValue * n;
+                    return <option key={n} value={n}>{n}x de R$ {simValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (total: R$ {totalWithInterest.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</option>;
+                  }
+                  return <option key={n} value={n}>{n}x com juros</option>;
+                })}
               </select>
             </div>
             <div className="border-t border-border/50 pt-3 space-y-2">

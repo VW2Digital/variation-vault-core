@@ -233,6 +233,18 @@ serve(async (req) => {
         break;
       }
 
+      // ─── 7. SIMULATE INSTALLMENTS ───
+      case 'simulate_installments': {
+        const { value: simValue, installmentCount: simCount } = payload;
+        const body: any = {
+          value: toCurrencyNumber(simValue),
+          billingTypes: ['CREDIT_CARD'],
+        };
+        if (simCount) body.installmentCount = Number(simCount);
+        result = await asaasFetch(baseUrl, apiKey, '/payments/simulate', 'POST', body);
+        break;
+      }
+
       default:
         throw new Error(`Ação desconhecida: ${action}`);
     }
