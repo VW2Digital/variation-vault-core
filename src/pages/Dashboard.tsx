@@ -262,13 +262,13 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
-                <div className="flex items-center justify-between">
+              <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-5 h-5 text-primary" />
                     <span className="text-sm font-medium text-foreground">Receita Confirmada</span>
                   </div>
-                  <span className="text-xl font-bold text-primary">
+                  <span className="text-lg sm:text-xl font-bold text-primary">
                     R$ {metrics.totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
