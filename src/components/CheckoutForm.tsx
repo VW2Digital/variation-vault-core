@@ -1259,18 +1259,23 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Parcelas</Label>
+              <Label className="text-xs">Parcelas {loadingSimulation && <span className="text-muted-foreground">(calculando...)</span>}</Label>
               <select value={installments} onChange={(e) => setInstallments(Number(e.target.value))} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>
-                    {n === 1
-                      ? `1x de R$ ${totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (à vista)`
-                      : installmentsInterest === 'sem_juros'
-                        ? `${n}x de R$ ${(totalValue / n).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (sem juros)`
-                        : `${n}x com juros`
-                    }
-                  </option>
-                ))}
+                {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((n) => {
+                  if (n === 1) {
+                    return <option key={n} value={n}>1x de R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (à vista)</option>;
+                  }
+                  if (installmentsInterest === 'sem_juros') {
+                    return <option key={n} value={n}>{n}x de R$ {(totalValue / n).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (sem juros)</option>;
+                  }
+                  // com juros — show simulated value if available
+                  const simValue = simulatedInstallments[n];
+                  if (simValue) {
+                    const totalWithInterest = simValue * n;
+                    return <option key={n} value={n}>{n}x de R$ {simValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (total: R$ {totalWithInterest.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</option>;
+                  }
+                  return <option key={n} value={n}>{n}x com juros</option>;
+                })}
               </select>
             </div>
             <div className="border-t border-border/50 pt-3 space-y-2">
