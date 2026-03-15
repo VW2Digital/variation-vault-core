@@ -91,16 +91,16 @@ const AdminLayout = () => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="min-h-screen flex w-full overflow-x-hidden">
         <AdminSidebar />
-        <div className="flex-1 flex flex-col">
-          <header className="h-14 flex items-center border-b border-border/50 bg-card px-4 sticky top-0 z-30">
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="h-14 flex items-center border-b border-border/50 bg-card px-3 sm:px-4 sticky top-0 z-30">
             <SidebarTrigger />
-            <Link to="/admin" className="ml-4 flex items-center gap-2">
-              <img src={logoImg} alt="Liberty Pharma" className="h-8 object-contain" />
+            <Link to="/admin" className="ml-3 flex items-center gap-2">
+              <img src={logoImg} alt="Liberty Pharma" className="h-7 sm:h-8 object-contain" />
             </Link>
           </header>
-          <main className="flex-1 p-3 sm:p-6 overflow-auto">
+          <main className="flex-1 p-3 sm:p-6 overflow-x-auto min-w-0">
             <Outlet />
           </main>
         </div>
