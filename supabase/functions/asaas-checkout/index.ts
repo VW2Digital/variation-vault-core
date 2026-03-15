@@ -236,12 +236,18 @@ serve(async (req) => {
       // ─── 7. SIMULATE INSTALLMENTS ───
       case 'simulate_installments': {
         const { value: simValue, installmentCount: simCount } = payload;
-        const body: any = {
-          value: toCurrencyNumber(simValue),
-          billingTypes: ['CREDIT_CARD'],
-        };
-        if (simCount) body.installmentCount = Number(simCount);
-        result = await asaasFetch(baseUrl, apiKey, '/payments/simulate', 'POST', body);
+        try {
+          const body: any = {
+            value: toCurrencyNumber(simValue),
+            billingTypes: ['CREDIT_CARD'],
+          };
+          if (simCount) body.installmentCount = Number(simCount);
+          result = await asaasFetch(baseUrl, apiKey, '/payments/simulate', 'POST', body);
+        } catch (simError: any) {
+          // Simulation failures are non-critical — return empty result instead of throwing
+          console.warn('Installment simulation failed:', simError.message);
+          result = { creditCard: null, simulated: false, error: simError.message };
+        }
         break;
       }
 
