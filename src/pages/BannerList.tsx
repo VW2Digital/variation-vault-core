@@ -239,14 +239,15 @@ const BannerList = () => {
               <CardTitle className="text-lg">Novo Banner</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Input
                   value={newText}
                   onChange={(e) => setNewText(e.target.value)}
                   placeholder="Ex: 🔥 PROMOÇÃO ESPECIAL — FALE CONOSCO!"
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateBanner()}
+                  className="flex-1"
                 />
-                <Button onClick={handleCreateBanner} disabled={savingBanner || !newText.trim()}>
+                <Button onClick={handleCreateBanner} disabled={savingBanner || !newText.trim()} className="shrink-0">
                   <Plus className="mr-1 h-4 w-4" /> Adicionar
                 </Button>
               </div>
@@ -264,12 +265,12 @@ const BannerList = () => {
                 <p className="text-muted-foreground text-sm">Nenhum banner cadastrado.</p>
               ) : (
                 banners.map((b) => (
-                  <div key={b.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/30 bg-muted/30">
+                  <div key={b.id} className="flex items-center gap-2 p-3 rounded-lg border border-border/30 bg-muted/30">
                     <Switch checked={b.active} onCheckedChange={(val) => handleToggleBanner(b.id, val)} />
-                    <span className={`flex-1 text-sm ${b.active ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
+                    <span className={`flex-1 min-w-0 text-sm truncate ${b.active ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
                       {b.text}
                     </span>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteBanner(b.id)} className="text-destructive">
+                    <Button variant="ghost" size="icon" onClick={() => handleDeleteBanner(b.id)} className="text-destructive shrink-0 h-8 w-8">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -337,26 +338,30 @@ const BannerList = () => {
                 <p className="text-muted-foreground text-sm">Nenhum slide cadastrado.</p>
               ) : (
                 slides.map((slide) => (
-                  <div key={slide.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/30 bg-muted/30">
-                    <GripVertical className="w-4 h-4 text-muted-foreground/50 shrink-0" />
-                    <div className="w-16 h-10 rounded overflow-hidden bg-muted shrink-0">
-                      {slide.image_desktop ? (
-                        <img src={slide.image_desktop} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center"><Image className="w-4 h-4 text-muted-foreground" /></div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{slide.title || 'Sem título'}</p>
-                      <div className="flex gap-2 text-[10px] text-muted-foreground">
-                        {slide.image_desktop && <span className="flex items-center gap-0.5"><Monitor className="w-3 h-3" /> Desktop</span>}
-                        {slide.image_tablet && <span className="flex items-center gap-0.5"><Tablet className="w-3 h-3" /> Tablet</span>}
-                        {slide.image_mobile && <span className="flex items-center gap-0.5"><Smartphone className="w-3 h-3" /> Mobile</span>}
+                  <div key={slide.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 rounded-lg border border-border/30 bg-muted/30">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <GripVertical className="w-4 h-4 text-muted-foreground/50 shrink-0 hidden sm:block" />
+                      <div className="w-12 h-8 sm:w-16 sm:h-10 rounded overflow-hidden bg-muted shrink-0">
+                        {slide.image_desktop ? (
+                          <img src={slide.image_desktop} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center"><Image className="w-4 h-4 text-muted-foreground" /></div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{slide.title || 'Sem título'}</p>
+                        <div className="flex gap-2 text-[10px] text-muted-foreground">
+                          {slide.image_desktop && <span className="flex items-center gap-0.5"><Monitor className="w-3 h-3" /> Desktop</span>}
+                          {slide.image_tablet && <span className="flex items-center gap-0.5"><Tablet className="w-3 h-3" /> Tablet</span>}
+                          {slide.image_mobile && <span className="flex items-center gap-0.5"><Smartphone className="w-3 h-3" /> Mobile</span>}
+                        </div>
                       </div>
                     </div>
-                    <Switch checked={slide.active} onCheckedChange={(val) => handleToggleSlide(slide.id, val)} />
-                    <Button variant="ghost" size="icon" onClick={() => handleEditSlide(slide)}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteSlide(slide.id)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                    <div className="flex items-center gap-1 self-end sm:self-auto">
+                      <Switch checked={slide.active} onCheckedChange={(val) => handleToggleSlide(slide.id, val)} />
+                      <Button variant="ghost" size="icon" onClick={() => handleEditSlide(slide)} className="h-8 w-8"><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteSlide(slide.id)} className="text-destructive h-8 w-8"><Trash2 className="h-4 w-4" /></Button>
+                    </div>
                   </div>
                 ))
               )}
