@@ -107,65 +107,101 @@ const PaymentLogsPage = () => {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[140px]">Data/Hora</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead className="w-[100px]">Método</TableHead>
-                    <TableHead>Erro</TableHead>
-                    <TableHead className="w-[90px]">Origem</TableHead>
-                    <TableHead className="w-[60px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map(log => (
-                    <TableRow key={log.id}>
-                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                        {formatDate(log.created_at)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm font-medium">{log.customer_name || '—'}</div>
-                        <div className="text-xs text-muted-foreground">{log.customer_email || ''}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={log.payment_method === 'credit_card' ? 'default' : 'secondary'} className="text-xs">
-                          {log.payment_method === 'credit_card' ? 'Cartão' : log.payment_method === 'pix' ? 'PIX' : log.payment_method || '—'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <p className="text-sm text-destructive font-medium line-clamp-2">{log.error_message}</p>
-                        {log.request_payload && (
-                          <details className="mt-1">
-                            <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground">
-                              Ver payload
-                            </summary>
-                            <pre className="text-[10px] bg-muted p-2 rounded mt-1 max-h-24 overflow-auto whitespace-pre-wrap">
-                              {JSON.stringify(log.request_payload, null, 2)}
-                            </pre>
-                          </details>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-[10px]">
-                          {log.error_source}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(log.id)} className="h-7 w-7">
-                          <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
-                        </Button>
-                      </TableCell>
+        <>
+          {/* Mobile card view */}
+          <div className="space-y-3 md:hidden">
+            {filtered.map(log => (
+              <Card key={log.id} className="border-border/50">
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm text-foreground truncate">{log.customer_name || '—'}</p>
+                      <p className="text-xs text-muted-foreground truncate">{log.customer_email || ''}</p>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(log.id)} className="h-7 w-7 shrink-0">
+                      <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{formatDate(log.created_at)}</span>
+                    <div className="flex gap-1.5">
+                      <Badge variant={log.payment_method === 'credit_card' ? 'default' : 'secondary'} className="text-xs">
+                        {log.payment_method === 'credit_card' ? 'Cartão' : log.payment_method === 'pix' ? 'PIX' : log.payment_method || '—'}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px]">{log.error_source}</Badge>
+                    </div>
+                  </div>
+                  <p className="text-sm text-destructive font-medium line-clamp-2">{log.error_message}</p>
+                  {log.request_payload && (
+                    <details className="mt-1">
+                      <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground">Ver payload</summary>
+                      <pre className="text-[10px] bg-muted p-2 rounded mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all">
+                        {JSON.stringify(log.request_payload, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Desktop table view */}
+          <Card className="hidden md:block">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[140px]">Data/Hora</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead className="w-[100px]">Método</TableHead>
+                      <TableHead>Erro</TableHead>
+                      <TableHead className="w-[90px]">Origem</TableHead>
+                      <TableHead className="w-[60px]"></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map(log => (
+                      <TableRow key={log.id}>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          {formatDate(log.created_at)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm font-medium">{log.customer_name || '—'}</div>
+                          <div className="text-xs text-muted-foreground">{log.customer_email || ''}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={log.payment_method === 'credit_card' ? 'default' : 'secondary'} className="text-xs">
+                            {log.payment_method === 'credit_card' ? 'Cartão' : log.payment_method === 'pix' ? 'PIX' : log.payment_method || '—'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <p className="text-sm text-destructive font-medium line-clamp-2">{log.error_message}</p>
+                          {log.request_payload && (
+                            <details className="mt-1">
+                              <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground">Ver payload</summary>
+                              <pre className="text-[10px] bg-muted p-2 rounded mt-1 max-h-24 overflow-auto whitespace-pre-wrap">
+                                {JSON.stringify(log.request_payload, null, 2)}
+                              </pre>
+                            </details>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-[10px]">{log.error_source}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(log.id)} className="h-7 w-7">
+                            <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );

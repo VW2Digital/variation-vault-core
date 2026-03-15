@@ -575,9 +575,73 @@ const OrdersPage = () => {
         </div>
       ) : (
         <>
-          <Card className="border-border/50 overflow-hidden">
+          {/* Mobile card view */}
+          <div className="space-y-3 md:hidden">
+            {paginatedOrders.map((order) => {
+              const status = statusMap[order.status] || { label: order.status, variant: 'outline' as const };
+              const delivery = deliveryStatuses.find(d => d.value === order.delivery_status);
+              return (
+                <Card key={order.id} className={`border-border/50 ${selectedIds.has(order.id) ? 'ring-1 ring-primary' : ''}`}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Checkbox
+                          checked={selectedIds.has(order.id)}
+                          onCheckedChange={() => toggleSelect(order.id)}
+                        />
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm text-foreground truncate">{order.customer_name || '-'}</p>
+                          <p className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString('pt-BR')}</p>
+                        </div>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openViewOrder(order)}>
+                            <Eye className="mr-2 h-4 w-4" /> Visualizar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEdit(order)}>
+                            <Pencil className="mr-2 h-4 w-4" /> Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => refreshTracking(order.id)} disabled={refreshingTracking === order.id}>
+                            {refreshingTracking === order.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Truck className="mr-2 h-4 w-4" />}
+                            Buscar Rastreio
+                          </DropdownMenuItem>
+                          {order.customer_phone && (
+                            <DropdownMenuItem onClick={() => openWhatsappDialog(order)}>
+                              <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(order)}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{order.product_name}{order.dosage ? ` - ${order.dosage}` : ''}</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-sm text-foreground">R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <span className="text-xs text-muted-foreground">{billingTypeMap[order.payment_method] || order.payment_method}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge variant={status.variant} className="text-[10px]">{status.label}</Badge>
+                      <Badge variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'} className="text-[10px]">{delivery?.label || 'Processando'}</Badge>
+                      {order.tracking_code && <Badge variant="secondary" className="text-[10px] font-mono">{order.tracking_code}</Badge>}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Desktop table view */}
+          <Card className="border-border/50 overflow-hidden hidden md:block">
             <CardContent className="p-0 overflow-x-auto">
-              <Table className="min-w-[900px]">
+              <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[40px]">
@@ -682,21 +746,11 @@ const OrdersPage = () => {
                               )}
                               {order.status === 'PAID' && !order.tracking_code && (
                                 <DropdownMenuItem onClick={() => {
-                                  const params = new URLSearchParams();
-                                  if (order.customer_name) params.set('name', order.customer_name);
-                                  if (order.customer_postal_code) params.set('to_postal_code', order.customer_postal_code);
-                                  if (order.customer_address) params.set('to_address', order.customer_address);
-                                  if (order.customer_number) params.set('to_number', order.customer_number);
-                                  if (order.customer_complement) params.set('to_complement', order.customer_complement);
-                                  if (order.customer_district) params.set('to_district', order.customer_district);
-                                  if (order.customer_city) params.set('to_city', order.customer_city);
-                                  if (order.customer_state) params.set('to_state', order.customer_state);
-                                  window.open(`https://melhorenvio.com.br/app/carrinho`, '_blank');
-                                  // Copy address to clipboard for easy paste
                                   const addr = `${order.customer_name}\n${order.customer_address}, ${order.customer_number}${order.customer_complement ? ` - ${order.customer_complement}` : ''}\n${order.customer_district}\n${order.customer_city} - ${order.customer_state}\nCEP: ${order.customer_postal_code}`;
                                   navigator.clipboard.writeText(addr).then(() => {
                                     toast({ title: 'Endereço copiado!', description: 'Cole os dados no Melhor Envio.' });
                                   });
+                                  window.open(`https://melhorenvio.com.br/app/carrinho`, '_blank');
                                 }}>
                                   <Truck className="mr-2 h-4 w-4" /> Gerar Etiqueta Manual
                                 </DropdownMenuItem>
