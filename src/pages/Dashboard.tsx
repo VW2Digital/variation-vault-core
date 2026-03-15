@@ -251,7 +251,7 @@ const Dashboard = () => {
                     <XCircle className="w-4 h-4 text-destructive" />
                     <span className="text-xs">Falhas</span>
                   </div>
-                  <p className="text-2xl font-bold text-destructive">{metrics.failedPayments}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-destructive">{metrics.failedPayments}</p>
                 </div>
                 <div className="rounded-lg border border-border/50 p-4 space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground">
