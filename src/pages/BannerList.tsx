@@ -239,14 +239,15 @@ const BannerList = () => {
               <CardTitle className="text-lg">Novo Banner</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Input
                   value={newText}
                   onChange={(e) => setNewText(e.target.value)}
                   placeholder="Ex: 🔥 PROMOÇÃO ESPECIAL — FALE CONOSCO!"
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateBanner()}
+                  className="flex-1"
                 />
-                <Button onClick={handleCreateBanner} disabled={savingBanner || !newText.trim()}>
+                <Button onClick={handleCreateBanner} disabled={savingBanner || !newText.trim()} className="shrink-0">
                   <Plus className="mr-1 h-4 w-4" /> Adicionar
                 </Button>
               </div>
