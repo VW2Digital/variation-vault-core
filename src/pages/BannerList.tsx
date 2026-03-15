@@ -265,12 +265,12 @@ const BannerList = () => {
                 <p className="text-muted-foreground text-sm">Nenhum banner cadastrado.</p>
               ) : (
                 banners.map((b) => (
-                  <div key={b.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/30 bg-muted/30">
+                  <div key={b.id} className="flex items-center gap-2 p-3 rounded-lg border border-border/30 bg-muted/30">
                     <Switch checked={b.active} onCheckedChange={(val) => handleToggleBanner(b.id, val)} />
-                    <span className={`flex-1 text-sm ${b.active ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
+                    <span className={`flex-1 min-w-0 text-sm truncate ${b.active ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
                       {b.text}
                     </span>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteBanner(b.id)} className="text-destructive">
+                    <Button variant="ghost" size="icon" onClick={() => handleDeleteBanner(b.id)} className="text-destructive shrink-0 h-8 w-8">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
