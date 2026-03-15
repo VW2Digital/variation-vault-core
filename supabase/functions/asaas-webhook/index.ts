@@ -93,25 +93,54 @@ serve(async (req) => {
     }
 
     if (newStatus) {
-      // Update by asaas_payment_id
-      const { error } = await supabase
+      // ─── PREVENT STATUS DOWNGRADE ───
+      // Define status priority: higher = more advanced in lifecycle
+      const statusPriority: Record<string, number> = {
+        'PENDING': 1,
+        'AWAITING_RISK_ANALYSIS': 2,
+        'OVERDUE': 3,
+        'PAID': 10,
+        'CONFIRMED': 10,
+        'RECEIVED': 10,
+        'REFUNDED': 11,
+        'REFUSED': 5,
+        'REPROVED': 5,
+      };
+
+      const newPriority = statusPriority[newStatus] ?? 1;
+
+      // Check current status before updating to avoid downgrade
+      const { data: existingOrder } = await supabase
         .from('orders')
-        .update({ status: newStatus })
-        .eq('asaas_payment_id', payment.id);
+        .select('status')
+        .eq('asaas_payment_id', payment.id)
+        .maybeSingle();
 
-      if (error) {
-        console.error('[Webhook] DB update error:', error.message);
+      const currentPriority = statusPriority[existingOrder?.status || ''] ?? 0;
+
+      if (currentPriority >= newPriority && existingOrder?.status !== newStatus) {
+        console.log(`[Webhook] Skipping downgrade: ${existingOrder?.status} (${currentPriority}) → ${newStatus} (${newPriority})`);
       } else {
-        console.log(`[Webhook] Order updated to ${newStatus} for payment ${payment.id}`);
-      }
-
-      // Also try by externalReference (our order id)
-      if (payment.externalReference) {
-        await supabase
+        // Update by asaas_payment_id
+        const { error } = await supabase
           .from('orders')
-          .update({ status: newStatus, asaas_payment_id: payment.id })
-          .eq('id', payment.externalReference);
-      }
+          .update({ status: newStatus })
+          .eq('asaas_payment_id', payment.id);
+
+        if (error) {
+          console.error('[Webhook] DB update error:', error.message);
+        } else {
+          console.log(`[Webhook] Order updated to ${newStatus} for payment ${payment.id}`);
+        }
+
+        // Also try by externalReference (our order id)
+        if (payment.externalReference) {
+          await supabase
+            .from('orders')
+            .update({ status: newStatus, asaas_payment_id: payment.id })
+            .eq('id', payment.externalReference);
+        }
+      } // end of downgrade check
 
       // ─── AUTO-TRIGGER SHIPPING ON PAYMENT CONFIRMATION ───
       if (newStatus === 'PAID') {
