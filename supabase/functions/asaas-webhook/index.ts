@@ -93,17 +93,45 @@ serve(async (req) => {
     }
 
     if (newStatus) {
-      // Update by asaas_payment_id
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: newStatus })
-        .eq('asaas_payment_id', payment.id);
+      // ─── PREVENT STATUS DOWNGRADE ───
+      // Define status priority: higher = more advanced in lifecycle
+      const statusPriority: Record<string, number> = {
+        'PENDING': 1,
+        'AWAITING_RISK_ANALYSIS': 2,
+        'OVERDUE': 3,
+        'PAID': 10,
+        'CONFIRMED': 10,
+        'RECEIVED': 10,
+        'REFUNDED': 11,
+        'REFUSED': 5,
+        'REPROVED': 5,
+      };
 
-      if (error) {
-        console.error('[Webhook] DB update error:', error.message);
+      const newPriority = statusPriority[newStatus] ?? 1;
+
+      // Check current status before updating to avoid downgrade
+      const { data: existingOrder } = await supabase
+        .from('orders')
+        .select('status')
+        .eq('asaas_payment_id', payment.id)
+        .maybeSingle();
+
+      const currentPriority = statusPriority[existingOrder?.status || ''] ?? 0;
+
+      if (currentPriority >= newPriority && existingOrder?.status !== newStatus) {
+        console.log(`[Webhook] Skipping downgrade: ${existingOrder?.status} (${currentPriority}) → ${newStatus} (${newPriority})`);
       } else {
-        console.log(`[Webhook] Order updated to ${newStatus} for payment ${payment.id}`);
-      }
+        // Update by asaas_payment_id
+        const { error } = await supabase
+          .from('orders')
+          .update({ status: newStatus })
+          .eq('asaas_payment_id', payment.id);
+
+        if (error) {
+          console.error('[Webhook] DB update error:', error.message);
+        } else {
+          console.log(`[Webhook] Order updated to ${newStatus} for payment ${payment.id}`);
+        }
 
       // Also try by externalReference (our order id)
       if (payment.externalReference) {
