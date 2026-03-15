@@ -1235,22 +1235,20 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Parcelas {loadingSimulation && <span className="text-muted-foreground">(calculando...)</span>}</Label>
-              <select value={installments} onChange={(e) => setInstallments(Number(e.target.value))} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((n) => {
-                  if (n === 1) {
-                    return <option key={n} value={n}>1x de R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (à vista)</option>;
-                  }
-                  if (installmentsInterest === 'sem_juros') {
-                    return <option key={n} value={n}>{n}x de R$ {(totalValue / n).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (sem juros)</option>;
-                  }
-                  // com juros — show simulated value if available
-                  const simValue = simulatedInstallments[n];
-                  if (simValue) {
-                    const totalWithInterest = simValue * n;
-                    return <option key={n} value={n}>{n}x de R$ {simValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (total: R$ {totalWithInterest.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</option>;
-                  }
-                  return <option key={n} value={n}>{n}x com juros</option>;
-                })}
+              <select value={installments} onChange={(e) => setInstallments(Number(e.target.value))} disabled={loadingSimulation && installmentsInterest === 'com_juros'} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50">
+                <option key={1} value={1}>1x de R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (à vista)</option>
+                {installmentsInterest === 'sem_juros'
+                  ? Array.from({ length: maxInstallments - 1 }, (_, i) => i + 2).map((n) => (
+                      <option key={n} value={n}>{n}x de R$ {(totalValue / n).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (sem juros)</option>
+                    ))
+                  : Object.entries(simulatedInstallments)
+                      .sort(([a], [b]) => Number(a) - Number(b))
+                      .map(([nStr, simValue]) => {
+                        const n = Number(nStr);
+                        const totalWithInterest = simValue * n;
+                        return <option key={n} value={n}>{n}x de R$ {simValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (total: R$ {totalWithInterest.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</option>;
+                      })
+                }
               </select>
             </div>
             <div className="border-t border-border/50 pt-3 space-y-2">
