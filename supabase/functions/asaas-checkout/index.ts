@@ -172,10 +172,13 @@ serve(async (req) => {
         const { customer, value, description, creditCard, creditCardHolderInfo, installmentCount, orderId } = payload;
         const remoteIp = getRemoteIp(req);
 
+        const normalizedValue = toCurrencyNumber(value);
+        const parsedInstallmentCount = Number(installmentCount);
+
         const paymentBody: any = {
           customer,
           billingType: 'CREDIT_CARD',
-          value: toCurrencyNumber(value),
+          value: normalizedValue,
           description,
           dueDate: new Date().toISOString().split('T')[0],
           externalReference: orderId || undefined,
@@ -184,8 +187,9 @@ serve(async (req) => {
           remoteIp,
         };
 
-        if (installmentCount && Number(installmentCount) > 1) {
-          paymentBody.installmentCount = Number(installmentCount);
+        if (Number.isFinite(parsedInstallmentCount) && parsedInstallmentCount > 1) {
+          paymentBody.installmentCount = parsedInstallmentCount;
+          paymentBody.installmentValue = toCurrencyNumber(normalizedValue / parsedInstallmentCount);
         }
 
         result = await asaasFetch(baseUrl, apiKey, '/payments', 'POST', paymentBody);
