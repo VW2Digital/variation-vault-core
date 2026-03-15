@@ -171,6 +171,8 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const [loadingShipping, setLoadingShipping] = useState(false);
   const [maxInstallmentsSetting, setMaxInstallmentsSetting] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('com_juros');
+  const [simulatedInstallments, setSimulatedInstallments] = useState<Record<number, number>>({});
+  const [loadingSimulation, setLoadingSimulation] = useState(false);
 
   const shippingCost = qualifiesForFreeShipping ? 0 : (selectedShipping?.price || 0);
   const totalValue = baseProductTotal + shippingCost;
@@ -182,6 +184,74 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
       if (instInterest) setInstallmentsInterest(instInterest);
     });
   }, []);
+
+  // Simulate installments via gateway when total changes and interest mode is active
+  useEffect(() => {
+    if (installmentsInterest !== 'com_juros' || totalValue <= 0 || step !== 'payment' || paymentMethod !== 'credit_card') return;
+    const maxInst = Math.min(maxInstallmentsSetting, Math.floor(totalValue / 5) || 1);
+    if (maxInst <= 1) return;
+
+    let cancelled = false;
+    setLoadingSimulation(true);
+
+    const simulate = async () => {
+      try {
+        const results: Record<number, number> = {};
+        // Simulate with max installments — the API returns data for all counts
+        const { data, error } = await supabase.functions.invoke('asaas-checkout', {
+          body: { action: 'simulate_installments', value: totalValue, installmentCount: maxInst },
+        });
+        if (error || !data) throw new Error('Falha na simulação');
+
+        // Parse the response - Asaas returns creditCard.installmentCount with installmentValue
+        if (data?.creditCard?.installmentCount) {
+          // Response has installmentCount as a number and installmentValue
+          results[data.creditCard.installmentCount] = data.creditCard.installmentValue || (totalValue / data.creditCard.installmentCount);
+        }
+
+        // If we get a list of installments
+        if (Array.isArray(data?.creditCard)) {
+          for (const item of data.creditCard) {
+            if (item.installmentCount && item.installmentValue) {
+              results[item.installmentCount] = item.installmentValue;
+            }
+          }
+        }
+
+        // If response has installments array or similar structure
+        if (data?.installments && Array.isArray(data.installments)) {
+          for (const item of data.installments) {
+            results[item.installmentCount] = item.installmentValue;
+          }
+        }
+
+        // Fallback: simulate each count individually if we didn't get grouped results
+        if (Object.keys(results).length === 0) {
+          for (let n = 2; n <= maxInst; n++) {
+            if (cancelled) return;
+            try {
+              const { data: simData } = await supabase.functions.invoke('asaas-checkout', {
+                body: { action: 'simulate_installments', value: totalValue, installmentCount: n },
+              });
+              if (simData?.creditCard) {
+                const cc = simData.creditCard;
+                results[n] = cc.installmentValue || cc.totalValue / n || totalValue / n;
+              }
+            } catch { /* skip */ }
+          }
+        }
+
+        if (!cancelled) setSimulatedInstallments(results);
+      } catch {
+        // Silently fail — will show "com juros" without value
+      } finally {
+        if (!cancelled) setLoadingSimulation(false);
+      }
+    };
+
+    simulate();
+    return () => { cancelled = true; };
+  }, [totalValue, installmentsInterest, maxInstallmentsSetting, step, paymentMethod]);
 
   // Load saved profile + addresses on mount
   useEffect(() => {
