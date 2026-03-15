@@ -231,7 +231,7 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <div className="rounded-lg border border-border/50 p-4 space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <ShoppingCart className="w-4 h-4" />
