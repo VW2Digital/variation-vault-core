@@ -549,39 +549,66 @@ const ProductCheckout = () => {
               );
             })()}
 
-            {/* Shipping Preview */}
-            {(shippingOptions.length > 0 || loadingShipping) && (
-              <div className="border border-border/50 rounded-xl p-4 bg-card space-y-2">
-                <div className="flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-primary" />
-                  <p className="text-sm font-medium text-foreground">
-                    Frete para CEP {userPostalCode.replace(/(\d{5})(\d{3})/, '$1-$2')}
-                  </p>
-                </div>
-                {loadingShipping ? (
-                  <div className="flex items-center gap-2 py-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Calculando frete...</span>
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    {shippingOptions.map((opt) => (
-                      <div key={opt.id} className="flex justify-between items-center text-xs">
-                        <span className="text-foreground">{opt.company} — {opt.name} {opt.delivery_time ? `(${opt.delivery_time} dias)` : ''}</span>
-                        {qualifiesForFreeShipping ? (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-muted-foreground line-through">R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                            <span className="text-primary font-bold">Grátis</span>
-                          </div>
-                        ) : (
-                          <span className="font-medium text-foreground">R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+            {/* Shipping Preview — always visible */}
+            <div className="border border-border/50 rounded-xl p-4 bg-card space-y-3">
+              <div className="flex items-center gap-2">
+                <Truck className="w-4 h-4 text-primary" />
+                <p className="text-sm font-medium text-foreground">Calcular Frete</p>
               </div>
-            )}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={9}
+                  placeholder="Digite seu CEP"
+                  value={manualCep}
+                  onChange={(e) => {
+                    let v = e.target.value.replace(/\D/g, '');
+                    if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5, 8);
+                    setManualCep(v);
+                  }}
+                  className="flex-1 h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                <Button
+                  size="sm"
+                  className="h-9 px-4"
+                  disabled={manualCep.replace(/\D/g, '').length !== 8 || loadingShipping}
+                  onClick={() => {
+                    setCepSource('manual');
+                    fetchShippingByPostalCode(manualCep);
+                  }}
+                >
+                  {loadingShipping ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Calcular'}
+                </Button>
+              </div>
+              {userPostalCode && (
+                <p className="text-[11px] text-muted-foreground">
+                  Frete para CEP {userPostalCode.replace(/(\d{5})(\d{3})/, '$1-$2')}
+                </p>
+              )}
+              {loadingShipping && !shippingOptions.length ? (
+                <div className="flex items-center gap-2 py-1">
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Calculando frete...</span>
+                </div>
+              ) : shippingOptions.length > 0 ? (
+                <div className="space-y-1.5">
+                  {shippingOptions.map((opt) => (
+                    <div key={opt.id} className="flex justify-between items-center text-xs">
+                      <span className="text-foreground">{opt.company} — {opt.name} {opt.delivery_time ? `(${opt.delivery_time} dias)` : ''}</span>
+                      {qualifiesForFreeShipping ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-muted-foreground line-through">R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          <span className="text-primary font-bold">Grátis</span>
+                        </div>
+                      ) : (
+                        <span className="font-medium text-foreground">R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
 
             {/* Buy Buttons */}
             {variation?.in_stock ?
