@@ -88,7 +88,7 @@ const Index = () => {
                         to={`/produto/${product.id}?v=${variation.id}`}
                         className="block"
                       >
-                        <div className="relative aspect-square bg-muted/30 flex items-center justify-center p-6 overflow-hidden">
+                        <div className="relative aspect-[4/3] sm:aspect-square bg-muted/30 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
                           <img
                             src={img}
                             alt={displayName}
