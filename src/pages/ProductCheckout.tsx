@@ -178,56 +178,20 @@ const ProductCheckout = () => {
       });
   }, [product, selectedVariation]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Carregando...</p>
-      </div>);
-
-  }
-
-  if (!product) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Nenhum produto disponível.</p>
-      </div>);
-
-  }
-
-  const variations = product.product_variations || [];
-  const variation = variations[selectedVariation];
-
-  // Build images: only from the selected variation
-  const variationImages = variation?.images?.length > 0 ?
-  variation.images :
-  variation?.image_url ?
-  [variation.image_url] :
-  [];
-  const images = variationImages.length > 0 ? variationImages : [productHeroImg];
-
-  const trustBadges = [
-  { icon: ShieldCheck, title: t('certifiedProduct'), desc: t('certifiedDesc') },
-  { icon: Truck, title: t('fastDelivery'), desc: t('fastDeliveryDesc') },
-  { icon: Award, title: t('premiumQuality'), desc: t('premiumQualityDesc') },
-  { icon: CalendarClock, title: t('weeklyUse'), desc: t('weeklyUseDesc') }];
-
   // Simulate installments from gateway when showInstallments is toggled
   useEffect(() => {
     if (!showInstallments || maxInstallments < 2 || !product) return;
-    const variations = product?.product_variations || [];
-    const v = variations[selectedVariation];
+    const vars = product?.product_variations || [];
+    const v = vars[selectedVariation];
     if (!v) return;
     const bp = v?.is_offer && v?.offer_price ? Number(v.offer_price) : Number(v?.price || 0);
     const eu = getEffectivePrice(bp, quantity, wholesaleTiers);
     const tot = eu * quantity;
     if (tot <= 0) return;
-
     const cachedTotal = (simulatedInstallments as any).__total;
     if (cachedTotal === tot && Object.keys(simulatedInstallments).length > 1) return;
-
     let cancelled = false;
     setLoadingSimulation(true);
-
     const simulate = async () => {
       try {
         const results: Record<number, number> = { 1: tot };
@@ -248,10 +212,36 @@ const ProductCheckout = () => {
         if (!cancelled) { (results as any).__total = tot; setSimulatedInstallments(results); }
       } catch { /* silent */ } finally { if (!cancelled) setLoadingSimulation(false); }
     };
-
     simulate();
     return () => { cancelled = true; };
   }, [showInstallments, product, selectedVariation, quantity, wholesaleTiers, maxInstallments, installmentsInterest]);
+
+  if (loading) {
+    return (<div className="min-h-screen flex items-center justify-center bg-background"><p className="text-muted-foreground">Carregando...</p></div>);
+  }
+  if (!product) {
+    return (<div className="min-h-screen flex items-center justify-center bg-background"><p className="text-muted-foreground">Nenhum produto disponível.</p></div>);
+  }
+
+  const variations = product.product_variations || [];
+  const variation = variations[selectedVariation];
+  const variationImages = variation?.images?.length > 0 ? variation.images : variation?.image_url ? [variation.image_url] : [];
+  const images = variationImages.length > 0 ? variationImages : [productHeroImg];
+
+  const trustBadges = [
+    { icon: ShieldCheck, title: t('certifiedProduct'), desc: t('certifiedDesc') },
+    { icon: Truck, title: t('fastDelivery'), desc: t('fastDeliveryDesc') },
+    { icon: Award, title: t('premiumQuality'), desc: t('premiumQualityDesc') },
+    { icon: CalendarClock, title: t('weeklyUse'), desc: t('weeklyUseDesc') },
+  ];
+
+  const details = [
+    { label: t('activeIngredientLabel'), value: product.active_ingredient },
+    { label: t('dosageLabel'), value: variation?.dosage },
+    { label: t('pharmaForm'), value: product.pharma_form },
+    { label: t('adminRoute'), value: product.administration_route },
+    { label: t('frequency'), value: product.frequency },
+  ];
 
 
   return (
