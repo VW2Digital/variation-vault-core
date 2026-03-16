@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { X } from 'lucide-react';
@@ -15,10 +15,17 @@ interface PopupData {
 
 const PromoPopup = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [popup, setPopup] = useState<PopupData | null>(null);
+  const isCatalog = location.pathname === '/catalogo' || location.pathname === '/';
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    if (!isCatalog) {
+      setOpen(false);
+      return;
+    }
+
     const fetchPopup = async () => {
       const now = new Date().toISOString();
       const { data } = await supabase
@@ -31,7 +38,6 @@ const PromoPopup = () => {
 
       const popups = (data as PopupData[] | null) || [];
       if (popups.length > 0) {
-        // Check if user already dismissed this popup in this session
         const dismissedId = sessionStorage.getItem('dismissed_popup');
         if (dismissedId !== popups[0].id) {
           setPopup(popups[0]);
@@ -40,10 +46,9 @@ const PromoPopup = () => {
       }
     };
 
-    // Small delay so page loads first
     const timer = setTimeout(fetchPopup, 800);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isCatalog]);
 
   const handleClose = () => {
     setOpen(false);
