@@ -123,6 +123,10 @@ const ProductCheckout = () => {
   const [currentImage, setCurrentImage] = useState(0);
   const [productReviews, setProductReviews] = useState<any[]>([]);
   const [wholesaleTiers, setWholesaleTiers] = useState<WholesaleTier[]>([]);
+  const [pixDiscountPercent, setPixDiscountPercent] = useState(0);
+  const [maxInstallments, setMaxInstallments] = useState(6);
+  const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
+  const [showInstallments, setShowInstallments] = useState(false);
 
   useEffect(() => {
     if (!id) return;
