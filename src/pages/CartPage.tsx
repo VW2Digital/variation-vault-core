@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '@/contexts/CartContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Minus, Plus, Trash2, ShoppingCart, ArrowLeft, Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -62,6 +63,11 @@ const CartPage = () => {
                       </p>
                       {!item.in_stock && (
                         <p className="text-xs text-destructive font-medium mt-1">Fora de estoque</p>
+                      )}
+                      {item.wholesale_prices.length > 0 && (
+                        <Badge variant="outline" className="mt-1 text-[10px] border-primary/40 text-primary bg-primary/5 font-medium">
+                          Atacado · mín. {Math.min(...item.wholesale_prices.map(t => t.min_quantity))} unid.
+                        </Badge>
                       )}
                     </div>
 
