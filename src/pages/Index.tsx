@@ -107,8 +107,8 @@ const Index = () => {
                             <p className="text-muted-foreground text-xs line-through">
                               R$ {price.toLocaleString('pt-BR')}
                             </p>
-                            <p className="text-destructive font-bold text-xl">
-                              R$ {offerPrice.toLocaleString('pt-BR')}
+                            <p className="text-destructive font-bold text-lg sm:text-xl">
+                              R$ {offerPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </p>
                             <CountdownTimer variant="compact" />
                           </div>
