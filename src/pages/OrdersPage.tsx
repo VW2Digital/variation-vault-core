@@ -635,6 +635,13 @@ const OrdersPage = () => {
                               <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
                             </DropdownMenuItem>
                           )}
+                          <DropdownMenuItem onClick={() => {
+                            const url = `${window.location.origin}/minha-conta?tab=reviews&order=${order.id}`;
+                            navigator.clipboard.writeText(url);
+                            toast({ title: 'Link de avaliação copiado!' });
+                          }}>
+                            <Star className="mr-2 h-4 w-4" /> Link de Avaliação
+                          </DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(order)}>
                             <Trash2 className="mr-2 h-4 w-4" /> Excluir
                           </DropdownMenuItem>
