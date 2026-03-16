@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,7 +65,33 @@ const CustomerDashboard = () => {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSaving, setReviewSaving] = useState(false);
+  const [payNowLoading, setPayNowLoading] = useState<string | null>(null);
+  const [pixModal, setPixModal] = useState<{ orderId: string; qrCode: string; payload: string; value: number } | null>(null);
 
+  const handlePayNow = async (order: any) => {
+    setPayNowLoading(order.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('asaas-checkout', {
+        body: { action: 'get_pix_qrcode', paymentId: order.asaas_payment_id },
+      });
+      if (error || !data) throw new Error('Erro ao buscar QR Code');
+      setPixModal({
+        orderId: order.id,
+        qrCode: data.encodedImage,
+        payload: data.payload,
+        value: Number(order.total_value),
+      });
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message || 'Não foi possível gerar o QR Code', variant: 'destructive' });
+    } finally {
+      setPayNowLoading(null);
+    }
+  };
+
+  const copyPixCode = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: 'Código PIX copiado!' });
+  };
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -446,9 +473,23 @@ const CustomerDashboard = () => {
                                   {deliveryStatus.label}
                                 </Badge>
                               </div>
-                              <p className="font-bold text-primary">
-                                R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                              </p>
+                              <div className="flex items-center gap-2">
+                                {order.status === 'PENDING' && order.payment_method === 'pix' && order.asaas_payment_id && (
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    className="h-7 text-xs gap-1"
+                                    onClick={(e) => { e.stopPropagation(); handlePayNow(order); }}
+                                    disabled={payNowLoading === order.id}
+                                  >
+                                    {payNowLoading === order.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CreditCard className="w-3 h-3" />}
+                                    Pagar Agora
+                                  </Button>
+                                )}
+                                <p className="font-bold text-primary">
+                                  R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
+                              </div>
                             </div>
 
                             {/* Expanded Details */}
@@ -810,6 +851,33 @@ const CustomerDashboard = () => {
         )}
       </main>
       <Footer />
+
+      {/* PIX Payment Modal */}
+      <Dialog open={!!pixModal} onOpenChange={(open) => !open && setPixModal(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center">Pagar via PIX</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-center">
+            <p className="text-sm text-muted-foreground">Escaneie o QR Code ou copie o código abaixo</p>
+            {pixModal?.qrCode && (
+              <img src={`data:image/png;base64,${pixModal.qrCode}`} alt="QR Code PIX" className="w-48 h-48 mx-auto rounded-lg border border-border" />
+            )}
+            {pixModal?.payload && (
+              <div className="flex items-center gap-2">
+                <Input value={pixModal.payload} readOnly className="text-xs" />
+                <Button size="icon" variant="outline" onClick={() => copyPixCode(pixModal.payload)}>
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+            <p className="text-sm font-semibold text-foreground">
+              Valor: R$ {pixModal?.value?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-muted-foreground">Após o pagamento, o status será atualizado automaticamente.</p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

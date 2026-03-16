@@ -278,6 +278,13 @@ serve(async (req) => {
         break;
       }
 
+      case 'get_pix_qrcode': {
+        const { paymentId } = body;
+        if (!paymentId) throw new Error('paymentId obrigatório');
+        result = await asaasFetch(baseUrl, apiKey, `/payments/${paymentId}/pixQrCode`, 'GET');
+        break;
+      }
+
       default:
         throw new Error(`Ação desconhecida: ${action}`);
     }
