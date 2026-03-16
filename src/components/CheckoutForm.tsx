@@ -599,16 +599,11 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
     setHolderPostalCode(addrPostalCode);
     setHolderAddressNumber(addrNumber);
 
-    // If qualifies for free shipping, skip to payment directly
-    if (qualifiesForFreeShipping) {
-      setSelectedShipping({ id: 0, name: 'Frete Grátis', company: 'Grátis', price: 0, delivery_time: null });
-      setStep('shipping');
-      return;
-    }
-
-    // Fetch shipping options
+    // Always fetch shipping options so customer can choose the carrier
     setLoadingShipping(true);
     setStep('shipping');
+
+    // Fetch shipping options
     try {
       const { data, error } = await supabase.functions.invoke('melhor-envio-shipment', {
         body: {
@@ -1061,37 +1056,13 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Truck className="w-4 h-4" /> Escolha o Frete
+              {qualifiesForFreeShipping && (
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">Frete Grátis</span>
+              )}
             </CardTitle>
           </CardHeader>
         <CardContent className="space-y-3">
-          {qualifiesForFreeShipping ? (
-            <div className="text-center py-6 space-y-3">
-              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full">
-                <Truck className="w-5 h-5" />
-                <span className="font-bold text-sm">Frete Grátis!</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Este produto possui frete grátis{freeShippingMinValue && freeShippingMinValue > 0 ? ` para compras até R$ ${freeShippingMinValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''}.
-              </p>
-              <div className="border-t border-border/50 pt-3 space-y-1">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Produtos</span>
-                  <span>R$ {baseProductTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between text-xs text-primary font-medium">
-                  <span>Frete</span>
-                  <span>Grátis</span>
-                </div>
-                <div className="flex justify-between text-sm font-bold text-foreground pt-1">
-                  <span>Total</span>
-                  <span>R$ {baseProductTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                </div>
-              </div>
-              <Button onClick={handleShippingNext} className="w-full">
-                Continuar para Pagamento
-              </Button>
-            </div>
-          ) : loadingShipping ? (
+          {loadingShipping ? (
             <div className="flex items-center justify-center py-8 gap-2">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Buscando opções de frete...</span>
@@ -1105,6 +1076,11 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
             </div>
           ) : (
             <>
+              {qualifiesForFreeShipping && (
+                <p className="text-sm text-muted-foreground">
+                  Este produto possui frete grátis{freeShippingMinValue && freeShippingMinValue > 0 ? ` para compras até R$ ${freeShippingMinValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''}. Escolha a transportadora:
+                </p>
+              )}
               <div className="space-y-2">
                 {shippingOptions.map((opt) => (
                   <div
@@ -1125,9 +1101,18 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
                           </p>
                         )}
                       </div>
-                      <span className="text-sm font-bold text-foreground">
-                        R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </span>
+                      {qualifiesForFreeShipping ? (
+                        <div className="text-right">
+                          <span className="text-xs text-muted-foreground line-through">
+                            R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                          <span className="block text-sm font-bold text-primary">Grátis</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm font-bold text-foreground">
+                          R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1139,8 +1124,12 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
                 </div>
                 {selectedShipping && (
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Frete</span>
-                    <span>R$ {selectedShipping.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    <span>Frete ({selectedShipping.company})</span>
+                    {qualifiesForFreeShipping ? (
+                      <span className="text-primary font-medium">Grátis</span>
+                    ) : (
+                      <span>R$ {selectedShipping.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    )}
                   </div>
                 )}
                 <div className="flex justify-between text-sm font-bold text-foreground pt-1">
