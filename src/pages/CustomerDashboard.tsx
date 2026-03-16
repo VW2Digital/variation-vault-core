@@ -64,7 +64,33 @@ const CustomerDashboard = () => {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSaving, setReviewSaving] = useState(false);
+  const [payNowLoading, setPayNowLoading] = useState<string | null>(null);
+  const [pixModal, setPixModal] = useState<{ orderId: string; qrCode: string; payload: string; value: number } | null>(null);
 
+  const handlePayNow = async (order: any) => {
+    setPayNowLoading(order.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('asaas-checkout', {
+        body: { action: 'get_pix_qrcode', paymentId: order.asaas_payment_id },
+      });
+      if (error || !data) throw new Error('Erro ao buscar QR Code');
+      setPixModal({
+        orderId: order.id,
+        qrCode: data.encodedImage,
+        payload: data.payload,
+        value: Number(order.total_value),
+      });
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message || 'Não foi possível gerar o QR Code', variant: 'destructive' });
+    } finally {
+      setPayNowLoading(null);
+    }
+  };
+
+  const copyPixCode = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: 'Código PIX copiado!' });
+  };
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
