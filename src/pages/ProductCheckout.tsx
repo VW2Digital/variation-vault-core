@@ -211,68 +211,6 @@ const ProductCheckout = () => {
   { icon: Award, title: t('premiumQuality'), desc: t('premiumQualityDesc') },
   { icon: CalendarClock, title: t('weeklyUse'), desc: t('weeklyUseDesc') }];
 
-  // Simulate installments from gateway when showInstallments is toggled
-  useEffect(() => {
-    if (!showInstallments || maxInstallments < 2) return;
-    // Compute current total for simulation
-    const variations = product?.product_variations || [];
-    const variation = variations[selectedVariation];
-    if (!variation) return;
-    const basePrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : Number(variation?.price || 0);
-    const effectiveUnit = getEffectivePrice(basePrice, quantity, wholesaleTiers);
-    const total = effectiveUnit * quantity;
-    if (total <= 0) return;
-
-    // Skip if we already simulated for this total
-    const cachedTotal = (simulatedInstallments as any).__total;
-    if (cachedTotal === total && Object.keys(simulatedInstallments).length > 1) return;
-
-    let cancelled = false;
-    setLoadingSimulation(true);
-
-    const simulate = async () => {
-      try {
-        const results: Record<number, number> = { 1: total };
-        if (installmentsInterest === 'sem_juros') {
-          // No interest — just divide
-          for (let n = 2; n <= maxInstallments; n++) {
-            results[n] = total / n;
-          }
-        } else {
-          // Call Asaas simulate for each installment count
-          const promises = Array.from({ length: maxInstallments - 1 }, (_, i) => i + 2).map(async (n) => {
-            try {
-              const { data } = await supabase.functions.invoke('asaas-checkout', {
-                body: { action: 'simulate_installments', value: total, installmentCount: n },
-              });
-              const installmentValue = data?.creditCard?.installment?.paymentValue;
-              if (installmentValue && Number.isFinite(Number(installmentValue))) {
-                results[n] = Number(installmentValue);
-              }
-            } catch { /* skip */ }
-          });
-          await Promise.all(promises);
-        }
-        if (!cancelled) {
-          (results as any).__total = total;
-          setSimulatedInstallments(results);
-        }
-      } catch { /* silent */ } finally {
-        if (!cancelled) setLoadingSimulation(false);
-      }
-    };
-
-    simulate();
-    return () => { cancelled = true; };
-  }, [showInstallments, product, selectedVariation, quantity, wholesaleTiers, maxInstallments, installmentsInterest]);
-
-  const details = [
-  { label: t('activeIngredientLabel'), value: product.active_ingredient },
-  { label: t('dosageLabel'), value: variation?.dosage },
-  { label: t('pharmaForm'), value: product.pharma_form },
-  { label: t('adminRoute'), value: product.administration_route },
-  { label: t('frequency'), value: product.frequency }];
-
 
   return (
     <div className="min-h-screen bg-background">
