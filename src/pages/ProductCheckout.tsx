@@ -126,7 +126,8 @@ const ProductCheckout = () => {
   const [pixDiscountPercent, setPixDiscountPercent] = useState(0);
   const [maxInstallments, setMaxInstallments] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
-  const [showInstallments, setShowInstallments] = useState(false);
+  const [simulatedInstallments, setSimulatedInstallments] = useState<Record<number, number>>({});
+  const [loadingSimulation, setLoadingSimulation] = useState(false);
 
   useEffect(() => {
     if (!id) return;
