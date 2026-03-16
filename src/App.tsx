@@ -28,6 +28,7 @@ import AdminSupportPage from "./pages/AdminSupportPage";
 import AdminReviewsPage from "./pages/AdminReviewsPage";
 import PopupList from "./pages/PopupList";
 import PaymentLogsPage from "./pages/PaymentLogsPage";
+import CartAbandonmentLogsPage from "./pages/CartAbandonmentLogsPage";
 import PromoPopup from "./components/PromoPopup";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -74,6 +75,7 @@ const App = () => (
             <Route path="avaliacoes" element={<AdminReviewsPage />} />
             <Route path="suporte" element={<AdminSupportPage />} />
             <Route path="falhas-pagamento" element={<PaymentLogsPage />} />
+            <Route path="carrinho-abandonado" element={<CartAbandonmentLogsPage />} />
             <Route path="configuracoes" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
