@@ -130,6 +130,9 @@ const ProductCheckout = () => {
   const [showInstallments, setShowInstallments] = useState(false);
   const [simulatedInstallments, setSimulatedInstallments] = useState<Record<number, number>>({});
   const [loadingSimulation, setLoadingSimulation] = useState(false);
+  const [shippingOptions, setShippingOptions] = useState<{ id: number; name: string; company: string; price: number; delivery_time: number | null }[]>([]);
+  const [loadingShipping, setLoadingShipping] = useState(false);
+  const [userPostalCode, setUserPostalCode] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -217,6 +220,36 @@ const ProductCheckout = () => {
     return () => { cancelled = true; };
   }, [showInstallments, product, selectedVariation, quantity, wholesaleTiers, maxInstallments, installmentsInterest]);
 
+  // Fetch shipping options for logged-in users with saved address
+  useEffect(() => {
+    if (!product) return;
+    const fetchShipping = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data: addrs } = await supabase.from('addresses').select('postal_code').eq('user_id', session.user.id).eq('is_default', true).limit(1);
+      let postalCode = addrs?.[0]?.postal_code;
+      if (!postalCode) {
+        const { data: anyAddr } = await supabase.from('addresses').select('postal_code').eq('user_id', session.user.id).limit(1);
+        postalCode = anyAddr?.[0]?.postal_code;
+      }
+      if (!postalCode) return;
+      setUserPostalCode(postalCode.replace(/\D/g, ''));
+      setLoadingShipping(true);
+      const vars = product?.product_variations || [];
+      const v = vars[selectedVariation];
+      const bp = v?.is_offer && v?.offer_price ? Number(v.offer_price) : Number(v?.price || 0);
+      const eu = getEffectivePrice(bp, quantity, wholesaleTiers);
+      const tot = eu * quantity;
+      try {
+        const { data, error } = await supabase.functions.invoke('melhor-envio-shipment', {
+          body: { action: 'quote', postal_code: postalCode.replace(/\D/g, ''), insurance_value: tot, quantity },
+        });
+        if (!error && data?.services?.length > 0) setShippingOptions(data.services);
+      } catch { /* silent */ } finally { setLoadingShipping(false); }
+    };
+    fetchShipping();
+  }, [product, selectedVariation, quantity, wholesaleTiers]);
+
   if (loading) {
     return (<div className="min-h-screen flex items-center justify-center bg-background"><p className="text-muted-foreground">Carregando...</p></div>);
   }
@@ -228,6 +261,12 @@ const ProductCheckout = () => {
   const variation = variations[selectedVariation];
   const variationImages = variation?.images?.length > 0 ? variation.images : variation?.image_url ? [variation.image_url] : [];
   const images = variationImages.length > 0 ? variationImages : [productHeroImg];
+
+  const qualifiesForFreeShipping = product.free_shipping && (!product.free_shipping_min_value || product.free_shipping_min_value <= 0 || (() => {
+    const bp = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : Number(variation?.price || 0);
+    const eu = getEffectivePrice(bp, quantity, wholesaleTiers);
+    return eu * quantity <= product.free_shipping_min_value;
+  })());
 
   const trustBadges = [
     { icon: ShieldCheck, title: t('certifiedProduct'), desc: t('certifiedDesc') },
@@ -492,6 +531,40 @@ const ProductCheckout = () => {
                 </>
               );
             })()}
+
+            {/* Shipping Preview */}
+            {(shippingOptions.length > 0 || loadingShipping) && (
+              <div className="border border-border/50 rounded-xl p-4 bg-card space-y-2">
+                <div className="flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-primary" />
+                  <p className="text-sm font-medium text-foreground">
+                    Frete para CEP {userPostalCode.replace(/(\d{5})(\d{3})/, '$1-$2')}
+                  </p>
+                </div>
+                {loadingShipping ? (
+                  <div className="flex items-center gap-2 py-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Calculando frete...</span>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {shippingOptions.map((opt) => (
+                      <div key={opt.id} className="flex justify-between items-center text-xs">
+                        <span className="text-foreground">{opt.company} — {opt.name} {opt.delivery_time ? `(${opt.delivery_time} dias)` : ''}</span>
+                        {qualifiesForFreeShipping ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground line-through">R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            <span className="text-primary font-bold">Grátis</span>
+                          </div>
+                        ) : (
+                          <span className="font-medium text-foreground">R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Buy Buttons */}
             {variation?.in_stock ?
