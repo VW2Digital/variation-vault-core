@@ -133,6 +133,8 @@ const ProductCheckout = () => {
   const [shippingOptions, setShippingOptions] = useState<{ id: number; name: string; company: string; price: number; delivery_time: number | null }[]>([]);
   const [loadingShipping, setLoadingShipping] = useState(false);
   const [userPostalCode, setUserPostalCode] = useState('');
+  const [manualCep, setManualCep] = useState('');
+  const [cepSource, setCepSource] = useState<'auto' | 'manual'>('auto');
 
   useEffect(() => {
     if (!id) return;
