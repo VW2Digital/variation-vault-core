@@ -604,8 +604,6 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
     setStep('shipping');
 
     // Fetch shipping options
-    setLoadingShipping(true);
-    setStep('shipping');
     try {
       const { data, error } = await supabase.functions.invoke('melhor-envio-shipment', {
         body: {
