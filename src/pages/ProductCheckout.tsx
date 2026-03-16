@@ -532,6 +532,40 @@ const ProductCheckout = () => {
               );
             })()}
 
+            {/* Shipping Preview */}
+            {(shippingOptions.length > 0 || loadingShipping) && (
+              <div className="border border-border/50 rounded-xl p-4 bg-card space-y-2">
+                <div className="flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-primary" />
+                  <p className="text-sm font-medium text-foreground">
+                    Frete para CEP {userPostalCode.replace(/(\d{5})(\d{3})/, '$1-$2')}
+                  </p>
+                </div>
+                {loadingShipping ? (
+                  <div className="flex items-center gap-2 py-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Calculando frete...</span>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {shippingOptions.map((opt) => (
+                      <div key={opt.id} className="flex justify-between items-center text-xs">
+                        <span className="text-foreground">{opt.company} — {opt.name} {opt.delivery_time ? `(${opt.delivery_time} dias)` : ''}</span>
+                        {qualifiesForFreeShipping ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground line-through">R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            <span className="text-primary font-bold">Grátis</span>
+                          </div>
+                        ) : (
+                          <span className="font-medium text-foreground">R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Buy Buttons */}
             {variation?.in_stock ?
             <div className="space-y-3">
