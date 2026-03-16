@@ -33,6 +33,7 @@ import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
 import ContactPage from "./pages/ContactPage";
+import { SessionGuard } from "./components/SessionGuard";
 
 const queryClient = new QueryClient();
 
