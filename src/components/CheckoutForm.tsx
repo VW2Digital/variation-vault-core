@@ -664,7 +664,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
           description,
           orderId,
         });
-        setPaymentResult(result);
+        setPaymentResult({ ...result, orderId });
       } else {
         const holderCpfDigits = (holderCpf || cpf).replace(/\D/g, '');
         const holderPhoneDigits = (holderPhone || phone).replace(/\D/g, '');
@@ -768,16 +768,39 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   };
 
   // ─── SUCCESS ───
-  // Auto-redirect to customer dashboard after payment (delayed for PIX to allow scanning)
+  // Auto-redirect: for card payments redirect after 5s; for PIX, poll payment status and redirect only when paid
+  const [pixPaid, setPixPaid] = useState(false);
+
   useEffect(() => {
-    if (step === 'success') {
-      const delay = paymentMethod === 'pix' ? 30000 : 5000; // 30s for PIX, 5s for card
-      const timer = setTimeout(() => {
-        navigate('/minha-conta');
-      }, delay);
+    if (step !== 'success') return;
+
+    // Card payments: redirect after 5s
+    if (paymentMethod !== 'pix') {
+      const timer = setTimeout(() => navigate('/minha-conta'), 5000);
       return () => clearTimeout(timer);
     }
-  }, [step, paymentMethod, navigate]);
+
+    // PIX: poll order status every 5s until paid/confirmed
+    const orderId = paymentResult?.orderId;
+    if (!orderId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const { data } = await supabase
+          .from('orders')
+          .select('status')
+          .eq('id', orderId)
+          .maybeSingle();
+        if (data && ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(data.status)) {
+          setPixPaid(true);
+          clearInterval(interval);
+          setTimeout(() => navigate('/minha-conta'), 3000);
+        }
+      } catch { /* ignore polling errors */ }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [step, paymentMethod, navigate, paymentResult]);
 
   if (step === 'success') {
     return (
@@ -800,7 +823,11 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
                 </div>
               )}
               <p className="text-xs text-muted-foreground">Valor: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-              <p className="text-xs text-muted-foreground mt-2">Você será redirecionado em 30 segundos...</p>
+              {pixPaid ? (
+                <p className="text-xs text-green-600 font-semibold mt-2">✅ Pagamento confirmado! Redirecionando...</p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-2">Aguardando confirmação do pagamento...</p>
+              )}
             </>
           ) : (
             <>
