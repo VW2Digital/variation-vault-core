@@ -394,6 +394,7 @@ const OrdersPage = () => {
   };
 
 
+  const getStatusChangeMessage = (orderName: string, productName: string, field: string, newValue: string) => {
     const deliveryLabels: Record<string, string> = {
       PROCESSING: 'Em Processamento',
       SHIPPED: 'Enviado',
