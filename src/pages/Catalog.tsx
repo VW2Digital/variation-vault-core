@@ -365,7 +365,7 @@ const Catalog = () => {
                             )}
                             {/* Installments */}
                             {displayPrice && displayPrice > 10 && maxInstallmentsSetting > 1 && (
-                              <p className="text-muted-foreground text-[11px]">
+                              <p className="text-muted-foreground text-[10px] sm:text-[11px] hidden sm:block">
                                 ou R$ {displayPrice!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em{' '}
                                 <span className="text-primary font-medium">
                                   {(() => {
