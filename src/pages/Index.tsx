@@ -43,7 +43,7 @@ const Index = () => {
     .slice(0, 8);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <Header />
       <BannerCarousel />
 

@@ -141,7 +141,7 @@ const Catalog = () => {
   }, [filtered, sortBy]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <Header />
 
       {/* Banner Carousel */}
@@ -169,7 +169,7 @@ const Catalog = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 md:flex gap-2">
+            <div className="grid grid-cols-2 md:flex gap-2 w-full md:w-auto">
               <Select value={pharmaFilter} onValueChange={setPharmaFilter}>
                 <SelectTrigger className="md:w-[160px]">
                   <SelectValue placeholder={t('allForms')} />
