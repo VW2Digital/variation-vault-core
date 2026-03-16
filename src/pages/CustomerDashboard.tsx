@@ -451,6 +451,51 @@ const CustomerDashboard = () => {
                             {/* Expanded Details */}
                             {isExpanded && (
                               <div className="pt-3 border-t border-border/50 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                                {/* Delivery Timeline */}
+                                <div className="bg-muted/30 border border-border/30 rounded-lg p-4">
+                                  <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-4">Timeline do Pedido</p>
+                                  <div className="flex items-center justify-between relative">
+                                    {/* Progress line */}
+                                    <div className="absolute top-4 left-0 right-0 h-0.5 bg-border" />
+                                    <div
+                                      className="absolute top-4 left-0 h-0.5 bg-primary transition-all duration-500"
+                                      style={{
+                                        width: order.delivery_status === 'DELIVERED' ? '100%'
+                                          : order.delivery_status === 'IN_TRANSIT' ? '66%'
+                                          : order.delivery_status === 'SHIPPED' ? '33%'
+                                          : '0%'
+                                      }}
+                                    />
+                                    {[
+                                      { key: 'PROCESSING', label: 'Processando', icon: Clock },
+                                      { key: 'SHIPPED', label: 'Enviado', icon: Package },
+                                      { key: 'IN_TRANSIT', label: 'Em Trânsito', icon: Truck },
+                                      { key: 'DELIVERED', label: 'Entregue', icon: CheckCircle2 },
+                                    ].map((step, i) => {
+                                      const statusOrder = ['PROCESSING', 'SHIPPED', 'IN_TRANSIT', 'DELIVERED'];
+                                      const currentIdx = statusOrder.indexOf(order.delivery_status || 'PROCESSING');
+                                      const stepIdx = statusOrder.indexOf(step.key);
+                                      const isActive = stepIdx <= currentIdx;
+                                      const isCurrent = stepIdx === currentIdx;
+                                      const StepIcon = step.icon;
+                                      return (
+                                        <div key={step.key} className="flex flex-col items-center relative z-10">
+                                          <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                                            isCurrent ? 'bg-primary text-primary-foreground ring-4 ring-primary/20' :
+                                            isActive ? 'bg-primary text-primary-foreground' :
+                                            'bg-muted text-muted-foreground'
+                                          }`}>
+                                            <StepIcon className="w-4 h-4" />
+                                          </div>
+                                          <span className={`text-[10px] mt-1.5 font-medium text-center ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+                                            {step.label}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
                                 {/* Order Details Grid */}
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                                   <div>
@@ -497,10 +542,10 @@ const CustomerDashboard = () => {
                                   </div>
                                 )}
 
-                                {/* Shipping Info */}
+                                {/* Tracking & Shipping Info */}
                                 {(order.tracking_code || order.shipping_service) && (
-                                  <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-3">
-                                    <p className="text-xs font-semibold text-primary uppercase tracking-wider">Informações de Envio</p>
+                                  <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-3">
+                                    <p className="text-xs font-semibold text-primary uppercase tracking-wider">Rastreamento</p>
                                     {order.shipping_service && (
                                       <div className="flex items-center gap-2 text-sm">
                                         <Truck className="w-4 h-4 text-muted-foreground" />
@@ -509,30 +554,41 @@ const CustomerDashboard = () => {
                                       </div>
                                     )}
                                     {order.tracking_code && (
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                          <Package className="w-4 h-4 text-primary" />
-                                          <div>
-                                            <p className="text-xs text-muted-foreground">Código de Rastreio</p>
-                                            <p className="font-mono font-semibold text-foreground">{order.tracking_code}</p>
+                                      <div className="bg-background/80 border border-border/50 rounded-lg p-3">
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-2">
+                                            <Package className="w-5 h-5 text-primary" />
+                                            <div>
+                                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Código de Rastreio</p>
+                                              <p className="font-mono font-bold text-foreground text-lg tracking-widest">{order.tracking_code}</p>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                            <Button variant="outline" size="sm" onClick={() => copyTracking(order.tracking_code)} className="gap-1">
+                                              <Copy className="w-3.5 h-3.5" /> Copiar
+                                            </Button>
                                           </div>
                                         </div>
-                                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                          <Button variant="ghost" size="sm" onClick={() => copyTracking(order.tracking_code)}>
-                                            <Copy className="w-4 h-4" />
-                                          </Button>
-                                          {order.tracking_url && (
-                                            <Button variant="ghost" size="sm" asChild>
+                                        {order.tracking_url && (
+                                          <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+                                            <Button asChild className="w-full gap-2" size="sm">
                                               <a href={order.tracking_url} target="_blank" rel="noopener noreferrer">
-                                                <ExternalLink className="w-4 h-4" />
+                                                <ExternalLink className="w-4 h-4" /> Rastrear Encomenda
                                               </a>
                                             </Button>
-                                          )}
-                                        </div>
+                                          </div>
+                                        )}
                                       </div>
+                                    )}
+                                    {order.shipping_cost > 0 && (
+                                      <p className="text-xs text-muted-foreground">
+                                        Frete: R$ {Number(order.shipping_cost).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                      </p>
                                     )}
                                   </div>
                                 )}
+                              </div>
+                            )}
                               </div>
                             )}
                           </CardContent>
