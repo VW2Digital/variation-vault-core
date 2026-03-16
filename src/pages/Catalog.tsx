@@ -344,12 +344,12 @@ const Catalog = () => {
                                 R$ {price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                               </p>
                             ) : null}
-                            <div className="flex items-baseline">
-                              <span className="text-foreground text-sm font-medium">R$</span>
-                              <span className="text-foreground text-2xl font-extrabold ml-1 leading-none">
+                            <div className="flex items-baseline flex-wrap">
+                              <span className="text-foreground text-xs sm:text-sm font-medium">R$</span>
+                              <span className="text-foreground text-lg sm:text-2xl font-extrabold ml-1 leading-none">
                                 {formatPriceParts(displayPrice!).intPart}
                               </span>
-                              <span className="text-foreground text-xs font-bold align-super ml-[1px]">
+                              <span className="text-foreground text-[10px] sm:text-xs font-bold align-super ml-[1px]">
                                 {formatPriceParts(displayPrice!).decPart}
                               </span>
                             </div>
