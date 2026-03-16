@@ -316,7 +316,7 @@ const CustomerDashboard = () => {
             </div>
 
             {/* Tabs */}
-            <Tabs defaultValue="orders" className="space-y-4">
+            <Tabs defaultValue={defaultTab} className="space-y-4">
               <TabsList className="bg-muted/50">
                 <TabsTrigger value="orders" className="flex items-center gap-1.5">
                   <Package className="w-4 h-4" /> Pedidos
