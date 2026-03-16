@@ -222,7 +222,26 @@ const ProductCheckout = () => {
     return () => { cancelled = true; };
   }, [showInstallments, product, selectedVariation, quantity, wholesaleTiers, maxInstallments, installmentsInterest]);
 
-  // Fetch shipping options for logged-in users with saved address
+  const fetchShippingByPostalCode = async (postalCode: string) => {
+    if (!product || !postalCode || postalCode.replace(/\D/g, '').length !== 8) return;
+    const cleanCep = postalCode.replace(/\D/g, '');
+    setUserPostalCode(cleanCep);
+    setLoadingShipping(true);
+    setShippingOptions([]);
+    const vars = product?.product_variations || [];
+    const v = vars[selectedVariation];
+    const bp = v?.is_offer && v?.offer_price ? Number(v.offer_price) : Number(v?.price || 0);
+    const eu = getEffectivePrice(bp, quantity, wholesaleTiers);
+    const tot = eu * quantity;
+    try {
+      const { data, error } = await supabase.functions.invoke('melhor-envio-shipment', {
+        body: { action: 'quote', postal_code: cleanCep, insurance_value: tot, quantity },
+      });
+      if (!error && data?.services?.length > 0) setShippingOptions(data.services);
+    } catch { /* silent */ } finally { setLoadingShipping(false); }
+  };
+
+  // Auto-fetch shipping for logged-in users with saved address
   useEffect(() => {
     if (!product) return;
     const fetchShipping = async () => {
@@ -235,22 +254,18 @@ const ProductCheckout = () => {
         postalCode = anyAddr?.[0]?.postal_code;
       }
       if (!postalCode) return;
-      setUserPostalCode(postalCode.replace(/\D/g, ''));
-      setLoadingShipping(true);
-      const vars = product?.product_variations || [];
-      const v = vars[selectedVariation];
-      const bp = v?.is_offer && v?.offer_price ? Number(v.offer_price) : Number(v?.price || 0);
-      const eu = getEffectivePrice(bp, quantity, wholesaleTiers);
-      const tot = eu * quantity;
-      try {
-        const { data, error } = await supabase.functions.invoke('melhor-envio-shipment', {
-          body: { action: 'quote', postal_code: postalCode.replace(/\D/g, ''), insurance_value: tot, quantity },
-        });
-        if (!error && data?.services?.length > 0) setShippingOptions(data.services);
-      } catch { /* silent */ } finally { setLoadingShipping(false); }
+      setCepSource('auto');
+      fetchShippingByPostalCode(postalCode);
     };
     fetchShipping();
   }, [product, selectedVariation, quantity, wholesaleTiers]);
+
+  // Re-fetch shipping when quantity/variation changes and manual CEP is set
+  useEffect(() => {
+    if (cepSource === 'manual' && userPostalCode) {
+      fetchShippingByPostalCode(userPostalCode);
+    }
+  }, [selectedVariation, quantity, wholesaleTiers]);
 
   if (loading) {
     return (<div className="min-h-screen flex items-center justify-center bg-background"><p className="text-muted-foreground">Carregando...</p></div>);
