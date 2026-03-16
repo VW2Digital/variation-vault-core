@@ -83,12 +83,12 @@ const Header = () => {
                   <Button
                     variant={isActive('/minha-conta') ? 'default' : 'ghost'}
                     size="sm"
-                    className={`gap-1.5 ${isActive('/minha-conta') ? '' : 'text-foreground hover:text-primary'}`}
+                    className="gap-1.5"
                   >
                     <User className="w-4 h-4" /> Minha Conta
                   </Button>
                 </Link>
-                <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-1.5 text-muted-foreground hover:text-destructive">
+                <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
                   <LogOut className="w-4 h-4" /> Sair
                 </Button>
               </>
