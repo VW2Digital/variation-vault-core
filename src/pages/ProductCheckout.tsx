@@ -211,6 +211,48 @@ const ProductCheckout = () => {
   { icon: Award, title: t('premiumQuality'), desc: t('premiumQualityDesc') },
   { icon: CalendarClock, title: t('weeklyUse'), desc: t('weeklyUseDesc') }];
 
+  // Simulate installments from gateway when showInstallments is toggled
+  useEffect(() => {
+    if (!showInstallments || maxInstallments < 2 || !product) return;
+    const variations = product?.product_variations || [];
+    const v = variations[selectedVariation];
+    if (!v) return;
+    const bp = v?.is_offer && v?.offer_price ? Number(v.offer_price) : Number(v?.price || 0);
+    const eu = getEffectivePrice(bp, quantity, wholesaleTiers);
+    const tot = eu * quantity;
+    if (tot <= 0) return;
+
+    const cachedTotal = (simulatedInstallments as any).__total;
+    if (cachedTotal === tot && Object.keys(simulatedInstallments).length > 1) return;
+
+    let cancelled = false;
+    setLoadingSimulation(true);
+
+    const simulate = async () => {
+      try {
+        const results: Record<number, number> = { 1: tot };
+        if (installmentsInterest === 'sem_juros') {
+          for (let n = 2; n <= maxInstallments; n++) results[n] = tot / n;
+        } else {
+          const promises = Array.from({ length: maxInstallments - 1 }, (_, i) => i + 2).map(async (n) => {
+            try {
+              const { data } = await supabase.functions.invoke('asaas-checkout', {
+                body: { action: 'simulate_installments', value: tot, installmentCount: n },
+              });
+              const iv = data?.creditCard?.installment?.paymentValue;
+              if (iv && Number.isFinite(Number(iv))) results[n] = Number(iv);
+            } catch { /* skip */ }
+          });
+          await Promise.all(promises);
+        }
+        if (!cancelled) { (results as any).__total = tot; setSimulatedInstallments(results); }
+      } catch { /* silent */ } finally { if (!cancelled) setLoadingSimulation(false); }
+    };
+
+    simulate();
+    return () => { cancelled = true; };
+  }, [showInstallments, product, selectedVariation, quantity, wholesaleTiers, maxInstallments, installmentsInterest]);
+
 
   return (
     <div className="min-h-screen bg-background">
