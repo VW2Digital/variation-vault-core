@@ -130,6 +130,9 @@ const ProductCheckout = () => {
   const [showInstallments, setShowInstallments] = useState(false);
   const [simulatedInstallments, setSimulatedInstallments] = useState<Record<number, number>>({});
   const [loadingSimulation, setLoadingSimulation] = useState(false);
+  const [shippingOptions, setShippingOptions] = useState<{ id: number; name: string; company: string; price: number; delivery_time: number | null }[]>([]);
+  const [loadingShipping, setLoadingShipping] = useState(false);
+  const [userPostalCode, setUserPostalCode] = useState('');
 
   useEffect(() => {
     if (!id) return;
