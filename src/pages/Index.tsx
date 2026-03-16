@@ -68,7 +68,7 @@ const Index = () => {
               </div>
             </AnimatedSection>
 
-            <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <StaggerContainer className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
               {offerItems.map(({ product, variation }, idx) => {
                 const price = Number(variation.price);
                 const offerPrice = Number(variation.offer_price);
@@ -88,7 +88,7 @@ const Index = () => {
                         to={`/produto/${product.id}?v=${variation.id}`}
                         className="block"
                       >
-                        <div className="relative aspect-square bg-muted/30 flex items-center justify-center p-6 overflow-hidden">
+                        <div className="relative aspect-[4/3] sm:aspect-square bg-muted/30 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
                           <img
                             src={img}
                             alt={displayName}
@@ -96,8 +96,8 @@ const Index = () => {
                           />
                         </div>
 
-                        <div className="p-4 space-y-2">
-                          <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                        <div className="p-3 sm:p-4 space-y-1 sm:space-y-2">
+                          <h3 className="font-semibold text-foreground text-xs sm:text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
                             {displayName}
                           </h3>
                           {product.subtitle && (
@@ -107,15 +107,15 @@ const Index = () => {
                             <p className="text-muted-foreground text-xs line-through">
                               R$ {price.toLocaleString('pt-BR')}
                             </p>
-                            <p className="text-destructive font-bold text-xl">
-                              R$ {offerPrice.toLocaleString('pt-BR')}
+                            <p className="text-destructive font-bold text-lg sm:text-xl">
+                              R$ {offerPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </p>
                             <CountdownTimer variant="compact" />
                           </div>
                         </div>
                       </Link>
 
-                      <div className="px-4 pb-4">
+                      <div className="px-3 sm:px-4 pb-3 sm:pb-4">
                         <Button
                           variant="default"
                           size="sm"

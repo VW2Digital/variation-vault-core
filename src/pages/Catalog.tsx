@@ -249,7 +249,7 @@ const Catalog = () => {
             </Button>
           </div>
         ) : (
-          <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <StaggerContainer className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
             {flatItems.map(({ product, variation }, idx) => {
               const price = variation ? Number(variation.price) : null;
               const offerPrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : null;
@@ -278,7 +278,7 @@ const Catalog = () => {
                       className="block flex-1"
                     >
                       {/* Image */}
-                      <div className="relative aspect-square bg-white flex items-center justify-center p-6 overflow-hidden">
+                      <div className="relative aspect-[4/3] sm:aspect-square bg-white flex items-center justify-center p-4 sm:p-6 overflow-hidden">
                         <img
                           src={img}
                           alt={displayName}
@@ -313,8 +313,8 @@ const Catalog = () => {
                       )}
 
                       {/* Content */}
-                      <div className="p-4 pt-2 space-y-1.5">
-                        <h3 className="font-bold text-foreground text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                      <div className="p-3 sm:p-4 pt-2 space-y-1 sm:space-y-1.5">
+                        <h3 className="font-bold text-foreground text-xs sm:text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
                           {variation?.dosage && !product.name.toLowerCase().includes(variation.dosage.toLowerCase())
                             ? `${product.name} ${variation.dosage}`
                             : product.name}
@@ -344,28 +344,28 @@ const Catalog = () => {
                                 R$ {price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                               </p>
                             ) : null}
-                            <div className="flex items-baseline">
-                              <span className="text-foreground text-sm font-medium">R$</span>
-                              <span className="text-foreground text-2xl font-extrabold ml-1 leading-none">
+                            <div className="flex items-baseline flex-wrap">
+                              <span className="text-foreground text-xs sm:text-sm font-medium">R$</span>
+                              <span className="text-foreground text-lg sm:text-2xl font-extrabold ml-1 leading-none">
                                 {formatPriceParts(displayPrice!).intPart}
                               </span>
-                              <span className="text-foreground text-xs font-bold align-super ml-[1px]">
+                              <span className="text-foreground text-[10px] sm:text-xs font-bold align-super ml-[1px]">
                                 {formatPriceParts(displayPrice!).decPart}
                               </span>
                             </div>
                             {pixDiscount && (
                               <>
-                                <p className="text-success text-xs font-semibold mt-0.5">
+                                <p className="text-success text-[10px] sm:text-xs font-semibold mt-0.5">
                                   {pixPercent}% OFF no Pix
                                 </p>
-                                <p className="text-muted-foreground text-[11px]">
+                                <p className="text-muted-foreground text-[10px] sm:text-[11px] hidden sm:block">
                                   ou R$ {displayPrice!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em outros meios
                                 </p>
                               </>
                             )}
                             {/* Installments */}
                             {displayPrice && displayPrice > 10 && maxInstallmentsSetting > 1 && (
-                              <p className="text-muted-foreground text-[11px]">
+                              <p className="text-muted-foreground text-[10px] sm:text-[11px] hidden sm:block">
                                 ou R$ {displayPrice!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em{' '}
                                 <span className="text-primary font-medium">
                                   {(() => {
@@ -403,7 +403,7 @@ const Catalog = () => {
 
                     {/* Add to Cart Button */}
                     {variation && inStock && (
-                      <div className="px-4 pb-4 pt-1">
+                      <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-1">
                         <Button
                           variant="outline"
                           size="sm"
