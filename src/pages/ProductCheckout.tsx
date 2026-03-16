@@ -123,14 +123,24 @@ const ProductCheckout = () => {
   const [currentImage, setCurrentImage] = useState(0);
   const [productReviews, setProductReviews] = useState<any[]>([]);
   const [wholesaleTiers, setWholesaleTiers] = useState<WholesaleTier[]>([]);
+  const [pixDiscountPercent, setPixDiscountPercent] = useState(0);
+  const [maxInstallments, setMaxInstallments] = useState(6);
+  const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
+  const [showInstallments, setShowInstallments] = useState(false);
 
   useEffect(() => {
     if (!id) return;
-    Promise.all([fetchProduct(id), fetchTestimonials(), fetchBanners(), fetchSetting('whatsapp_number')]).then(async ([prod, tests, bans, wp]) => {
+    Promise.all([
+      fetchProduct(id), fetchTestimonials(), fetchBanners(), fetchSetting('whatsapp_number'),
+      fetchSetting('pix_discount_percent'), fetchSetting('max_installments'), fetchSetting('installments_interest'),
+    ]).then(async ([prod, tests, bans, wp, pixDisc, maxInst, instInterest]) => {
       setProduct(prod);
       setDynamicTestimonials(tests);
       setBanners(bans);
       setWhatsappNumber(wp);
+      if (pixDisc) setPixDiscountPercent(Number(pixDisc));
+      if (maxInst) setMaxInstallments(Number(maxInst));
+      if (instInterest) setInstallmentsInterest(instInterest);
       const vId = searchParams.get('v');
       if (vId && prod.product_variations) {
         const idx = prod.product_variations.findIndex((v: any) => v.id === vId);
@@ -409,9 +419,41 @@ const ProductCheckout = () => {
                         {quantity}x R$ {basePrice.toLocaleString('pt-BR', { minimumFractionDigits: 0 })} (por unidade)
                       </p>
                     )}
-                    <div className="text-xs text-muted-foreground space-y-1 pt-1">
-                      <p className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5" /> {t('upTo6x')}</p>
-                      <p className="text-success font-medium flex items-center gap-1"><CircleDollarSign className="w-3.5 h-3.5" /> {t('pixAvailable')}</p>
+                    <div className="pt-1 space-y-1">
+                      {pixDiscountPercent > 0 && (
+                        <p className="text-xs text-success font-medium flex items-center gap-1">
+                          <CircleDollarSign className="w-3.5 h-3.5" />
+                          {pixDiscountPercent}% de desconto no Pix: R$ {(total * (1 - pixDiscountPercent / 100)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowInstallments(!showInstallments)}
+                        className="text-xs text-primary flex items-center gap-1 hover:underline cursor-pointer"
+                      >
+                        <CreditCard className="w-3.5 h-3.5" />
+                        Até {maxInstallments}x {installmentsInterest === 'sem_juros' ? 'sem juros' : 'no cartão'} — ver parcelas
+                        <ChevronRight className={`w-3 h-3 transition-transform ${showInstallments ? 'rotate-90' : ''}`} />
+                      </button>
+                      {showInstallments && (
+                        <div className="bg-muted rounded-lg p-3 mt-1 space-y-1 animate-in slide-in-from-top-2 duration-200">
+                          {Array.from({ length: maxInstallments }, (_, i) => {
+                            const n = i + 1;
+                            const parcela = total / n;
+                            return (
+                              <div key={n} className="flex justify-between text-xs text-foreground">
+                                <span>{n}x {installmentsInterest === 'sem_juros' ? 'sem juros' : n === 1 ? '' : 'com juros'}</span>
+                                <span className="font-medium">
+                                  R$ {parcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            );
+                          })}
+                          {installmentsInterest !== 'sem_juros' && (
+                            <p className="text-[10px] text-muted-foreground pt-1">* Valores com juros serão calculados na finalização</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </>
