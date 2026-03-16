@@ -247,6 +247,61 @@ const ProductCheckout = () => {
     { label: t('frequency'), value: product.frequency },
   ];
 
+  // Fetch shipping options for logged-in users with saved address
+  useEffect(() => {
+    if (!product) return;
+    const fetchShipping = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Get user's default address
+      const { data: addresses } = await supabase
+        .from('addresses')
+        .select('postal_code')
+        .eq('user_id', session.user.id)
+        .eq('is_default', true)
+        .limit(1);
+
+      let postalCode = addresses?.[0]?.postal_code;
+      if (!postalCode) {
+        // Try any address
+        const { data: anyAddr } = await supabase
+          .from('addresses')
+          .select('postal_code')
+          .eq('user_id', session.user.id)
+          .limit(1);
+        postalCode = anyAddr?.[0]?.postal_code;
+      }
+      if (!postalCode) return;
+
+      setUserPostalCode(postalCode.replace(/\D/g, ''));
+      setLoadingShipping(true);
+
+      const variations = product?.product_variations || [];
+      const v = variations[selectedVariation];
+      const bp = v?.is_offer && v?.offer_price ? Number(v.offer_price) : Number(v?.price || 0);
+      const eu = getEffectivePrice(bp, quantity, wholesaleTiers);
+      const total = eu * quantity;
+
+      try {
+        const { data, error } = await supabase.functions.invoke('melhor-envio-shipment', {
+          body: {
+            action: 'quote',
+            postal_code: postalCode.replace(/\D/g, ''),
+            insurance_value: total,
+            quantity,
+          },
+        });
+        if (!error && data?.services?.length > 0) {
+          setShippingOptions(data.services);
+        }
+      } catch { /* silent */ } finally {
+        setLoadingShipping(false);
+      }
+    };
+    fetchShipping();
+  }, [product, selectedVariation, quantity, wholesaleTiers]);
+
 
   return (
     <div className="min-h-screen bg-background">
