@@ -44,7 +44,10 @@ type DeliveryFilter = 'all' | 'PROCESSING' | 'SHIPPED' | 'IN_TRANSIT' | 'DELIVER
 const CustomerDashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { totalItems } = useCart();
+  const defaultTab = searchParams.get('tab') || 'orders';
+  const defaultReviewOrder = searchParams.get('order') || null;
   const [user, setUser] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
