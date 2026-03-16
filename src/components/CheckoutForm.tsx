@@ -664,7 +664,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
           description,
           orderId,
         });
-        setPaymentResult(result);
+        setPaymentResult({ ...result, orderId });
       } else {
         const holderCpfDigits = (holderCpf || cpf).replace(/\D/g, '');
         const holderPhoneDigits = (holderPhone || phone).replace(/\D/g, '');
