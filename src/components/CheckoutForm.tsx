@@ -131,7 +131,9 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const { t } = useLanguage();
   const { clearCart } = useCart();
   const navigate = useNavigate();
-  const baseProductTotal = unitPrice * quantity;
+  const safeUnitPrice = Number(unitPrice) || 0;
+  const safeQuantity = Number(quantity) || 1;
+  const baseProductTotal = safeUnitPrice * safeQuantity;
   const qualifiesForFreeShipping = freeShipping && (freeShippingMinValue ? baseProductTotal <= freeShippingMinValue : true);
 
   const [step, setStep] = useState<CheckoutStep>('customer');
