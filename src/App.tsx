@@ -29,6 +29,8 @@ import AdminReviewsPage from "./pages/AdminReviewsPage";
 import PopupList from "./pages/PopupList";
 import PaymentLogsPage from "./pages/PaymentLogsPage";
 import CartAbandonmentLogsPage from "./pages/CartAbandonmentLogsPage";
+import PaymentLinksPage from "./pages/PaymentLinksPage";
+import PaymentLinkCheckout from "./pages/PaymentLinkCheckout";
 import PromoPopup from "./components/PromoPopup";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
