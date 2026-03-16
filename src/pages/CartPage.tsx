@@ -66,23 +66,31 @@ const CartPage = () => {
                     </div>
 
                     {/* Quantity */}
-                    <div className="flex items-center gap-0 shrink-0">
-                      <button
-                        onClick={() => updateQuantity(item.variation_id, Math.max(1, item.quantity - 1))}
-                        className="w-8 h-8 border border-border rounded-l-lg flex items-center justify-center hover:bg-muted transition-colors"
-                      >
-                        <Minus className="w-3 h-3 text-foreground" />
-                      </button>
-                      <div className="w-10 h-8 border-y border-border flex items-center justify-center text-foreground font-medium text-sm">
-                        {item.quantity}
-                      </div>
-                      <button
-                        onClick={() => updateQuantity(item.variation_id, item.quantity + 1)}
-                        className="w-8 h-8 border border-border rounded-r-lg flex items-center justify-center hover:bg-muted transition-colors"
-                      >
-                        <Plus className="w-3 h-3 text-foreground" />
-                      </button>
-                    </div>
+                    {(() => {
+                      const minQty = item.wholesale_prices.length > 0
+                        ? Math.min(...item.wholesale_prices.map(t => t.min_quantity))
+                        : 1;
+                      return (
+                        <div className="flex items-center gap-0 shrink-0">
+                          <button
+                            onClick={() => updateQuantity(item.variation_id, Math.max(minQty, item.quantity - 1))}
+                            disabled={item.quantity <= minQty}
+                            className="w-8 h-8 border border-border rounded-l-lg flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <Minus className="w-3 h-3 text-foreground" />
+                          </button>
+                          <div className="w-10 h-8 border-y border-border flex items-center justify-center text-foreground font-medium text-sm">
+                            {item.quantity}
+                          </div>
+                          <button
+                            onClick={() => updateQuantity(item.variation_id, item.quantity + 1)}
+                            className="w-8 h-8 border border-border rounded-r-lg flex items-center justify-center hover:bg-muted transition-colors"
+                          >
+                            <Plus className="w-3 h-3 text-foreground" />
+                          </button>
+                        </div>
+                      );
+                    })()}
 
                     {/* Subtotal + Remove */}
                     <div className="text-right shrink-0">
