@@ -45,6 +45,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <SessionGuard />
         <PromoPopup />
         <Routes>
           <Route path="/" element={<Catalog />} />
