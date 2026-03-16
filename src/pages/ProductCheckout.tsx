@@ -130,11 +130,17 @@ const ProductCheckout = () => {
 
   useEffect(() => {
     if (!id) return;
-    Promise.all([fetchProduct(id), fetchTestimonials(), fetchBanners(), fetchSetting('whatsapp_number')]).then(async ([prod, tests, bans, wp]) => {
+    Promise.all([
+      fetchProduct(id), fetchTestimonials(), fetchBanners(), fetchSetting('whatsapp_number'),
+      fetchSetting('pix_discount_percent'), fetchSetting('max_installments'), fetchSetting('installments_interest'),
+    ]).then(async ([prod, tests, bans, wp, pixDisc, maxInst, instInterest]) => {
       setProduct(prod);
       setDynamicTestimonials(tests);
       setBanners(bans);
       setWhatsappNumber(wp);
+      if (pixDisc) setPixDiscountPercent(Number(pixDisc));
+      if (maxInst) setMaxInstallments(Number(maxInst));
+      if (instInterest) setInstallmentsInterest(instInterest);
       const vId = searchParams.get('v');
       if (vId && prod.product_variations) {
         const idx = prod.product_variations.findIndex((v: any) => v.id === vId);
