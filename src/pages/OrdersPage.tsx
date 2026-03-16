@@ -631,6 +631,12 @@ const OrdersPage = () => {
                       <Badge variant={status.variant} className="text-[10px]">{status.label}</Badge>
                       <Badge variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'} className="text-[10px]">{delivery?.label || 'Processando'}</Badge>
                       {order.tracking_code && <Badge variant="secondary" className="text-[10px] font-mono">{order.tracking_code}</Badge>}
+                      {order.shipping_status === 'insufficient_balance' && (
+                        <Badge variant="destructive" className="text-[10px] animate-pulse">💰 Sem saldo ME</Badge>
+                      )}
+                      {order.shipping_status === 'checkout_error' && (
+                        <Badge variant="destructive" className="text-[10px]">⚠️ Erro etiqueta</Badge>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
