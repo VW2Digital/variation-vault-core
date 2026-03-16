@@ -358,9 +358,6 @@ const Catalog = () => {
                                 <p className="text-success text-[10px] sm:text-xs font-semibold mt-0.5">
                                   {pixPercent}% OFF no Pix
                                 </p>
-                                <p className="text-muted-foreground text-[10px] sm:text-[11px] hidden sm:block">
-                                  ou R$ {displayPrice!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em outros meios
-                                </p>
                               </>
                             )}
                             {/* Installments */}
