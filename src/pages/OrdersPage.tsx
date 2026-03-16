@@ -78,6 +78,7 @@ const OrdersPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [refreshingTracking, setRefreshingTracking] = useState<string | null>(null);
+  const [retryingShipping, setRetryingShipping] = useState<string | null>(null);
   const [batchRefreshing, setBatchRefreshing] = useState(false);
   const [filterPayment, setFilterPayment] = useState('ALL');
   const [filterDelivery, setFilterDelivery] = useState('ALL');
@@ -375,7 +376,24 @@ const OrdersPage = () => {
     }
   };
 
-  const getStatusChangeMessage = (orderName: string, productName: string, field: string, newValue: string) => {
+  const retryShipping = async (orderId: string) => {
+    setRetryingShipping(orderId);
+    try {
+      const { data, error } = await supabase.functions.invoke('melhor-envio-shipment', {
+        body: { action: 'full_flow', order_id: orderId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: 'Etiqueta gerada com sucesso!', description: data?.tracking_code ? `Rastreio: ${data.tracking_code}` : 'Rastreio será atualizado em breve.' });
+      fetchOrders();
+    } catch (err: any) {
+      toast({ title: 'Erro ao gerar etiqueta', description: err.message, variant: 'destructive' });
+    } finally {
+      setRetryingShipping(null);
+    }
+  };
+
+
     const deliveryLabels: Record<string, string> = {
       PROCESSING: 'Em Processamento',
       SHIPPED: 'Enviado',
@@ -631,6 +649,12 @@ const OrdersPage = () => {
                       <Badge variant={status.variant} className="text-[10px]">{status.label}</Badge>
                       <Badge variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'} className="text-[10px]">{delivery?.label || 'Processando'}</Badge>
                       {order.tracking_code && <Badge variant="secondary" className="text-[10px] font-mono">{order.tracking_code}</Badge>}
+                      {order.shipping_status === 'insufficient_balance' && (
+                        <Badge variant="destructive" className="text-[10px] animate-pulse">💰 Sem saldo ME</Badge>
+                      )}
+                      {order.shipping_status === 'checkout_error' && (
+                        <Badge variant="destructive" className="text-[10px]">⚠️ Erro etiqueta</Badge>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -692,9 +716,21 @@ const OrdersPage = () => {
                           <Badge variant={status.variant} className="text-[10px]">{status.label}</Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'} className="text-[10px]">
-                            {delivery?.label || 'Processando'}
-                          </Badge>
+                          <div className="flex flex-col gap-0.5">
+                            <Badge variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'} className="text-[10px] w-fit">
+                              {delivery?.label || 'Processando'}
+                            </Badge>
+                            {order.shipping_status === 'insufficient_balance' && (
+                              <Badge variant="destructive" className="text-[10px] w-fit animate-pulse">
+                                💰 Sem saldo ME
+                              </Badge>
+                            )}
+                            {order.shipping_status === 'checkout_error' && (
+                              <Badge variant="destructive" className="text-[10px] w-fit">
+                                ⚠️ Erro etiqueta
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
@@ -739,6 +775,20 @@ const OrdersPage = () => {
                                 )}
                                 Buscar Rastreio
                               </DropdownMenuItem>
+                              {order.status === 'PAID' && !order.tracking_code && (order.shipping_status === 'insufficient_balance' || order.shipping_status === 'checkout_error' || !order.shipment_id) && (
+                                <DropdownMenuItem
+                                  onClick={() => retryShipping(order.id)}
+                                  disabled={retryingShipping === order.id}
+                                  className="text-primary"
+                                >
+                                  {retryingShipping === order.id ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                  )}
+                                  Retentar Etiqueta
+                                </DropdownMenuItem>
+                              )}
                               {order.customer_phone && (
                                 <DropdownMenuItem onClick={() => openWhatsappDialog(order)}>
                                   <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
