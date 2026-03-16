@@ -692,9 +692,21 @@ const OrdersPage = () => {
                           <Badge variant={status.variant} className="text-[10px]">{status.label}</Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'} className="text-[10px]">
-                            {delivery?.label || 'Processando'}
-                          </Badge>
+                          <div className="flex flex-col gap-0.5">
+                            <Badge variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'} className="text-[10px] w-fit">
+                              {delivery?.label || 'Processando'}
+                            </Badge>
+                            {order.shipping_status === 'insufficient_balance' && (
+                              <Badge variant="destructive" className="text-[10px] w-fit animate-pulse">
+                                💰 Sem saldo ME
+                              </Badge>
+                            )}
+                            {order.shipping_status === 'checkout_error' && (
+                              <Badge variant="destructive" className="text-[10px] w-fit">
+                                ⚠️ Erro etiqueta
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
