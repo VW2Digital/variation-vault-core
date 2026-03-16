@@ -15,7 +15,9 @@ interface PopupData {
 
 const PromoPopup = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [popup, setPopup] = useState<PopupData | null>(null);
+  const isCatalog = location.pathname === '/catalogo' || location.pathname === '/';
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
