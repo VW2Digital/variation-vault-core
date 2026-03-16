@@ -823,7 +823,11 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
                 </div>
               )}
               <p className="text-xs text-muted-foreground">Valor: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-              <p className="text-xs text-muted-foreground mt-2">Você será redirecionado em 30 segundos...</p>
+              {pixPaid ? (
+                <p className="text-xs text-green-600 font-semibold mt-2">✅ Pagamento confirmado! Redirecionando...</p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-2">Aguardando confirmação do pagamento...</p>
+              )}
             </>
           ) : (
             <>
