@@ -775,6 +775,20 @@ const OrdersPage = () => {
                                 )}
                                 Buscar Rastreio
                               </DropdownMenuItem>
+                              {order.status === 'PAID' && !order.tracking_code && (order.shipping_status === 'insufficient_balance' || order.shipping_status === 'checkout_error' || !order.shipment_id) && (
+                                <DropdownMenuItem
+                                  onClick={() => retryShipping(order.id)}
+                                  disabled={retryingShipping === order.id}
+                                  className="text-primary"
+                                >
+                                  {retryingShipping === order.id ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                  )}
+                                  Retentar Etiqueta
+                                </DropdownMenuItem>
+                              )}
                               {order.customer_phone && (
                                 <DropdownMenuItem onClick={() => openWhatsappDialog(order)}>
                                   <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
