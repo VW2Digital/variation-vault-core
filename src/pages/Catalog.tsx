@@ -415,7 +415,8 @@ const Catalog = () => {
                               navigate(`/cliente/login?redirect=${encodeURIComponent('/catalogo')}`);
                               return;
                             }
-                            addToCart(product.id, variation.id, 1);
+                            const minQty = wholesaleMap[variation.id] || 1;
+                            addToCart(product.id, variation.id, minQty);
                           }}
                         >
                           <ShoppingCart className="w-3.5 h-3.5 mr-1.5" />
