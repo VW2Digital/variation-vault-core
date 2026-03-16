@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw, MoreVertical, Eye, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, CheckSquare, MessageSquare, Send, FileText, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw, MoreVertical, Eye, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, CheckSquare, MessageSquare, Send, FileText, AlertCircle, ChevronDown, ChevronUp, Star, Link as LinkIcon } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -635,6 +635,13 @@ const OrdersPage = () => {
                               <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
                             </DropdownMenuItem>
                           )}
+                          <DropdownMenuItem onClick={() => {
+                            const url = `${window.location.origin}/minha-conta?tab=reviews&order=${order.id}`;
+                            navigator.clipboard.writeText(url);
+                            toast({ title: 'Link de avaliação copiado!' });
+                          }}>
+                            <Star className="mr-2 h-4 w-4" /> Link de Avaliação
+                          </DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(order)}>
                             <Trash2 className="mr-2 h-4 w-4" /> Excluir
                           </DropdownMenuItem>
@@ -806,6 +813,13 @@ const OrdersPage = () => {
                                   <Truck className="mr-2 h-4 w-4" /> Gerar Etiqueta Manual
                                 </DropdownMenuItem>
                               )}
+                              <DropdownMenuItem onClick={() => {
+                                const url = `${window.location.origin}/minha-conta?tab=reviews&order=${order.id}`;
+                                navigator.clipboard.writeText(url);
+                                toast({ title: 'Link de avaliação copiado!' });
+                              }}>
+                                <Star className="mr-2 h-4 w-4" /> Link de Avaliação
+                              </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
                                 onClick={() => setDeleteTarget(order)}

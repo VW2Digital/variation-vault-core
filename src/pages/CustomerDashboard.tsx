@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -44,7 +44,10 @@ type DeliveryFilter = 'all' | 'PROCESSING' | 'SHIPPED' | 'IN_TRANSIT' | 'DELIVER
 const CustomerDashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { totalItems } = useCart();
+  const defaultTab = searchParams.get('tab') || 'orders';
+  const defaultReviewOrder = searchParams.get('order') || null;
   const [user, setUser] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,7 +60,7 @@ const CustomerDashboard = () => {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [reviews, setReviews] = useState<any[]>([]);
-  const [reviewingOrderId, setReviewingOrderId] = useState<string | null>(null);
+  const [reviewingOrderId, setReviewingOrderId] = useState<string | null>(defaultReviewOrder);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSaving, setReviewSaving] = useState(false);
@@ -313,7 +316,7 @@ const CustomerDashboard = () => {
             </div>
 
             {/* Tabs */}
-            <Tabs defaultValue="orders" className="space-y-4">
+            <Tabs defaultValue={defaultTab} className="space-y-4">
               <TabsList className="bg-muted/50">
                 <TabsTrigger value="orders" className="flex items-center gap-1.5">
                   <Package className="w-4 h-4" /> Pedidos
