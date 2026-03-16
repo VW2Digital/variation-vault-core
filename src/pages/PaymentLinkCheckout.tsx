@@ -78,41 +78,8 @@ export default function PaymentLinkCheckout() {
 
     setSubmitting(true);
     try {
-      const body: any = {
-        action: 'create_payment',
-        customer: {
-          name: name.trim(),
-          email: email.trim(),
-          cpfCnpj: cpf.replace(/\D/g, ''),
-          phone: phone.replace(/\D/g, '') || undefined,
-        },
-        payment: {
-          billingType: paymentMethod === 'pix' ? 'PIX' : 'CREDIT_CARD',
-          value: link.amount,
-          description: link.title,
-        },
-      };
-
-      if (paymentMethod === 'credit_card') {
-        const [expMonth, expYear] = cardExpiry.split('/');
-        body.payment.creditCard = {
-          holderName: cardName,
-          number: cardNumber.replace(/\s/g, ''),
-          expiryMonth: expMonth,
-          expiryYear: expYear?.length === 2 ? `20${expYear}` : expYear,
-          ccv: cardCvv,
-        };
-        body.payment.creditCardHolderInfo = {
-          name: name.trim(),
-          email: email.trim(),
-          cpfCnpj: cpf.replace(/\D/g, ''),
-          phone: phone.replace(/\D/g, '') || '00000000000',
-          postalCode: '00000000',
-        };
-      }
-
-      // Create order record
-      const { error: orderError } = await supabase.from('orders').insert({
+      // 1. Create order
+      const { data: orderData, error: orderError } = await supabase.from('orders').insert({
         customer_name: name.trim(),
         customer_email: email.trim(),
         customer_cpf: cpf.replace(/\D/g, ''),
@@ -123,17 +90,74 @@ export default function PaymentLinkCheckout() {
         total_value: link.amount,
         payment_method: paymentMethod,
         status: 'PENDING',
-      });
+      }).select('id').single();
 
       if (orderError) throw orderError;
+      const orderId = orderData.id;
 
-      const { data, error } = await supabase.functions.invoke('asaas-checkout', { body });
+      // 2. Create or find Asaas customer
+      const { data: customerData, error: customerError } = await supabase.functions.invoke('asaas-checkout', {
+        body: {
+          action: 'create_customer',
+          name: name.trim(),
+          email: email.trim(),
+          cpfCnpj: cpf.replace(/\D/g, ''),
+          phone: phone.replace(/\D/g, '') || undefined,
+        },
+      });
 
-      if (error) throw error;
+      if (customerError) throw customerError;
+      const asaasCustomerId = customerData.id;
 
-      if (paymentMethod === 'pix' && data?.pixQrCode) {
-        setPixData(data);
-      } else if (paymentMethod === 'credit_card') {
+      // Update order with Asaas customer ID
+      await supabase.from('orders').update({ asaas_customer_id: asaasCustomerId }).eq('id', orderId);
+
+      // 3. Create payment
+      if (paymentMethod === 'pix') {
+        const { data: pixResult, error: pixError } = await supabase.functions.invoke('asaas-checkout', {
+          body: {
+            action: 'create_pix_payment',
+            customer: asaasCustomerId,
+            value: link.amount,
+            description: link.title,
+            orderId,
+          },
+        });
+
+        if (pixError) throw pixError;
+        if (pixResult?.pixQrCode) {
+          setPixData({
+            pixQrCode: pixResult.pixQrCode.encodedImage,
+            pixCopiaECola: pixResult.pixQrCode.payload,
+          });
+        }
+      } else {
+        const [expMonth, expYear] = cardExpiry.split('/');
+        const { data: cardResult, error: cardError } = await supabase.functions.invoke('asaas-checkout', {
+          body: {
+            action: 'create_card_payment',
+            customer: asaasCustomerId,
+            value: link.amount,
+            description: link.title,
+            orderId,
+            creditCard: {
+              holderName: cardName,
+              number: cardNumber.replace(/\s/g, ''),
+              expiryMonth: expMonth,
+              expiryYear: expYear?.length === 2 ? `20${expYear}` : expYear,
+              ccv: cardCvv,
+            },
+            creditCardHolderInfo: {
+              name: name.trim(),
+              email: email.trim(),
+              cpfCnpj: cpf.replace(/\D/g, ''),
+              phone: phone.replace(/\D/g, '') || '00000000000',
+              postalCode: '00000000',
+            },
+          },
+        });
+
+        if (cardError) throw cardError;
         setSuccess(true);
       }
 
