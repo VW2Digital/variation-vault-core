@@ -589,8 +589,6 @@ const CustomerDashboard = () => {
                                 )}
                               </div>
                             )}
-                              </div>
-                            )}
                           </CardContent>
                         </Card>
                       );
