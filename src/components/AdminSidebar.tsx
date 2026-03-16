@@ -38,6 +38,7 @@ const menuCategories = [
       { title: 'Pedidos', url: '/admin/pedidos', icon: ShoppingBag },
       { title: 'Falhas Pgto', url: '/admin/falhas-pagamento', icon: AlertTriangle },
       { title: 'Carrinho Abandonado', url: '/admin/carrinho-abandonado', icon: Mail },
+      { title: 'Links de Pagamento', url: '/admin/links-pagamento', icon: LinkIcon },
     ],
   },
   {
