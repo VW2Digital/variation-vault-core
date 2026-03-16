@@ -75,6 +75,7 @@ const App = () => (
             <Route path="avaliacoes" element={<AdminReviewsPage />} />
             <Route path="suporte" element={<AdminSupportPage />} />
             <Route path="falhas-pagamento" element={<PaymentLogsPage />} />
+            <Route path="carrinho-abandonado" element={<CartAbandonmentLogsPage />} />
             <Route path="configuracoes" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
