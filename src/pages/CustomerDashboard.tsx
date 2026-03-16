@@ -446,9 +446,23 @@ const CustomerDashboard = () => {
                                   {deliveryStatus.label}
                                 </Badge>
                               </div>
-                              <p className="font-bold text-primary">
-                                R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                              </p>
+                              <div className="flex items-center gap-2">
+                                {order.status === 'PENDING' && order.payment_method === 'pix' && order.asaas_payment_id && (
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    className="h-7 text-xs gap-1"
+                                    onClick={(e) => { e.stopPropagation(); handlePayNow(order); }}
+                                    disabled={payNowLoading === order.id}
+                                  >
+                                    {payNowLoading === order.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CreditCard className="w-3 h-3" />}
+                                    Pagar Agora
+                                  </Button>
+                                )}
+                                <p className="font-bold text-primary">
+                                  R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
+                              </div>
                             </div>
 
                             {/* Expanded Details */}
