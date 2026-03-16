@@ -463,20 +463,26 @@ const ProductCheckout = () => {
                       </button>
                       {showInstallments && (
                         <div className="bg-muted rounded-lg p-3 mt-1 space-y-1 animate-in slide-in-from-top-2 duration-200">
-                          {Array.from({ length: maxInstallments }, (_, i) => {
-                            const n = i + 1;
-                            const parcela = total / n;
-                            return (
-                              <div key={n} className="flex justify-between text-xs text-foreground">
-                                <span>{n}x {installmentsInterest === 'sem_juros' ? 'sem juros' : n === 1 ? '' : 'com juros'}</span>
-                                <span className="font-medium">
-                                  R$ {parcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                </span>
-                              </div>
-                            );
-                          })}
-                          {installmentsInterest !== 'sem_juros' && (
-                            <p className="text-[10px] text-muted-foreground pt-1">* Valores com juros serão calculados na finalização</p>
+                          {loadingSimulation ? (
+                            <div className="flex items-center justify-center py-3 gap-2">
+                              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">Calculando parcelas...</span>
+                            </div>
+                          ) : (
+                            <>
+                              {Array.from({ length: maxInstallments }, (_, i) => {
+                                const n = i + 1;
+                                const parcela = simulatedInstallments[n] ?? (total / n);
+                                return (
+                                  <div key={n} className="flex justify-between text-xs text-foreground">
+                                    <span>{n}x {installmentsInterest === 'sem_juros' ? 'sem juros' : n === 1 ? '' : 'com juros'}</span>
+                                    <span className="font-medium text-primary">
+                                      R$ {parcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </>
                           )}
                         </div>
                       )}
