@@ -60,7 +60,7 @@ const CustomerDashboard = () => {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [reviews, setReviews] = useState<any[]>([]);
-  const [reviewingOrderId, setReviewingOrderId] = useState<string | null>(null);
+  const [reviewingOrderId, setReviewingOrderId] = useState<string | null>(defaultReviewOrder);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSaving, setReviewSaving] = useState(false);
