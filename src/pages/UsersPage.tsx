@@ -567,20 +567,27 @@ const UsersPage = () => {
       </AlertDialog>
 
       {/* Batch delete confirmation */}
-      <AlertDialog open={showBatchDelete} onOpenChange={setShowBatchDelete}>
+      <AlertDialog open={showBatchDelete} onOpenChange={(open) => { setShowBatchDelete(open); if (!open) setBatchDeleteConfirmText(''); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir {selectedIds.size} conta(s)?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Todas as contas selecionadas serão excluídas permanentemente, incluindo todos os dados associados. Esta ação não pode ser desfeita.
+            <AlertDialogTitle className="text-destructive">⚠️ Excluir {selectedIds.size} conta(s)?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <span className="block">Todas as contas selecionadas serão excluídas <strong>permanentemente</strong>, incluindo todos os dados associados. Esta ação <strong>não pode ser desfeita</strong>.</span>
+              <span className="block font-medium">Para confirmar, digite <strong className="text-destructive">EXCLUIR</strong> abaixo:</span>
+              <Input
+                value={batchDeleteConfirmText}
+                onChange={(e) => setBatchDeleteConfirmText(e.target.value)}
+                placeholder="Digite EXCLUIR para confirmar"
+                className="mt-2"
+              />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setBatchDeleteConfirmText('')}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={batchDelete}
-              disabled={batchDeleting}
+              disabled={batchDeleting || batchDeleteConfirmText !== 'EXCLUIR'}
             >
               {batchDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Excluir {selectedIds.size} conta(s)
