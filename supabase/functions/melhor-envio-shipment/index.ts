@@ -692,11 +692,57 @@ serve(async (req) => {
 
     // ─── STEP 2: CHECKOUT (PURCHASE) ───
     if (action === 'full_flow' || action === 'checkout') {
-      const checkoutResult = await melhorEnvioFetch(baseUrl, token, '/api/v2/me/shipment/checkout', 'POST', { orders: [shipmentId] });
-      await logShipping(supabase, orderId, 'checkout_response', checkoutResult);
-      await supabase.from('orders').update({ shipping_status: 'purchased' }).eq('id', orderId);
+      try {
+        const checkoutResult = await melhorEnvioFetch(baseUrl, token, '/api/v2/me/shipment/checkout', 'POST', { orders: [shipmentId] });
+        await logShipping(supabase, orderId, 'checkout_response', checkoutResult);
+        await supabase.from('orders').update({ shipping_status: 'purchased' }).eq('id', orderId);
+      } catch (checkoutErr: any) {
+        const errMsg = checkoutErr?.message || 'Erro no checkout';
+        const isInsufficientBalance = errMsg.toLowerCase().includes('saldo') 
+          || errMsg.toLowerCase().includes('balance') 
+          || errMsg.toLowerCase().includes('insufficient')
+          || errMsg.includes('422')
+          || errMsg.includes('402');
+
+        await logShipping(supabase, orderId, 'checkout_error', null, errMsg);
+        await supabase.from('orders').update({ 
+          shipping_status: isInsufficientBalance ? 'insufficient_balance' : 'checkout_error',
+          updated_at: new Date().toISOString(),
+        }).eq('id', orderId);
+
+        // ─── NOTIFY ADMIN ABOUT SHIPPING FAILURE ───
+        try {
+          const notifyBody = {
+            customerName: order.customer_name,
+            customerEmail: order.customer_email,
+            customerPhone: order.customer_phone || '',
+            paymentMethod: 'shipping_label',
+            productName: order.product_name,
+            totalValue: order.total_value,
+            errorMessage: isInsufficientBalance
+              ? `🚚 Saldo insuficiente no Melhor Envio para gerar etiqueta do pedido "${order.product_name}" (${order.customer_name}). Recarregue seu saldo para que a etiqueta seja gerada automaticamente.`
+              : `🚚 Erro ao gerar etiqueta: ${errMsg}`,
+          };
+
+          await fetch(`${supabaseUrl}/functions/v1/notify-payment-failure`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify(notifyBody),
+          });
+          console.log(`[ME] Admin notified about shipping checkout failure for order ${orderId}`);
+        } catch (notifyErr: any) {
+          console.error('[ME] Failed to notify admin:', notifyErr.message);
+        }
+
+        throw new Error(isInsufficientBalance
+          ? 'Saldo insuficiente no Melhor Envio. Recarregue o saldo e tente novamente. O administrador foi notificado.'
+          : `Erro no checkout da etiqueta: ${errMsg}`);
+      }
       if (action === 'checkout') {
-        return new Response(JSON.stringify({ success: true, checkout: checkoutResult }), {
+        return new Response(JSON.stringify({ success: true }), {
           status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
