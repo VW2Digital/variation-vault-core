@@ -93,6 +93,7 @@ const OrdersPage = () => {
   const [batchDeleting, setBatchDeleting] = useState(false);
   const [batchUpdating, setBatchUpdating] = useState(false);
   const [showBatchDelete, setShowBatchDelete] = useState(false);
+  const [batchDeleteConfirmText, setBatchDeleteConfirmText] = useState('');
 
   // WhatsApp message dialog
   const [whatsappOrder, setWhatsappOrder] = useState<any>(null);
@@ -1188,17 +1189,28 @@ const OrdersPage = () => {
       </AlertDialog>
 
       {/* Batch delete confirmation */}
-      <AlertDialog open={showBatchDelete} onOpenChange={setShowBatchDelete}>
+      <AlertDialog open={showBatchDelete} onOpenChange={(open) => { setShowBatchDelete(open); if (!open) setBatchDeleteConfirmText(''); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir {selectedIds.size} pedido(s)?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Todos os pedidos selecionados serão removidos permanentemente. Esta ação não pode ser desfeita.
+            <AlertDialogTitle className="text-destructive">⚠️ Excluir {selectedIds.size} pedido(s)?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <span className="block">Todos os pedidos selecionados serão removidos <strong>permanentemente</strong>. Esta ação <strong>não pode ser desfeita</strong>.</span>
+              <span className="block font-medium">Para confirmar, digite <strong className="text-destructive">EXCLUIR</strong> abaixo:</span>
+              <Input
+                value={batchDeleteConfirmText}
+                onChange={(e) => setBatchDeleteConfirmText(e.target.value)}
+                placeholder="Digite EXCLUIR para confirmar"
+                className="mt-2"
+              />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={batchDelete} disabled={batchDeleting}>
+            <AlertDialogCancel onClick={() => setBatchDeleteConfirmText('')}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={batchDelete} 
+              disabled={batchDeleting || batchDeleteConfirmText !== 'EXCLUIR'}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               {batchDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Excluir {selectedIds.size} pedido(s)
             </AlertDialogAction>
