@@ -278,7 +278,7 @@ const Catalog = () => {
                       className="block flex-1"
                     >
                       {/* Image */}
-                      <div className="relative aspect-square bg-white flex items-center justify-center p-6 overflow-hidden">
+                      <div className="relative aspect-[4/3] sm:aspect-square bg-white flex items-center justify-center p-4 sm:p-6 overflow-hidden">
                         <img
                           src={img}
                           alt={displayName}
