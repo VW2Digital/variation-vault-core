@@ -49,6 +49,7 @@ const UsersPage = () => {
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBatchDelete, setShowBatchDelete] = useState(false);
+  const [batchDeleteConfirmText, setBatchDeleteConfirmText] = useState('');
   const [batchDeleting, setBatchDeleting] = useState(false);
   const [batchUpdating, setBatchUpdating] = useState(false);
 

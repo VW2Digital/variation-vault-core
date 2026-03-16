@@ -93,6 +93,7 @@ const OrdersPage = () => {
   const [batchDeleting, setBatchDeleting] = useState(false);
   const [batchUpdating, setBatchUpdating] = useState(false);
   const [showBatchDelete, setShowBatchDelete] = useState(false);
+  const [batchDeleteConfirmText, setBatchDeleteConfirmText] = useState('');
 
   // WhatsApp message dialog
   const [whatsappOrder, setWhatsappOrder] = useState<any>(null);
