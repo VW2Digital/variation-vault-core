@@ -376,7 +376,24 @@ const OrdersPage = () => {
     }
   };
 
-  const getStatusChangeMessage = (orderName: string, productName: string, field: string, newValue: string) => {
+  const retryShipping = async (orderId: string) => {
+    setRetryingShipping(orderId);
+    try {
+      const { data, error } = await supabase.functions.invoke('melhor-envio-shipment', {
+        body: { action: 'full_flow', order_id: orderId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: 'Etiqueta gerada com sucesso!', description: data?.tracking_code ? `Rastreio: ${data.tracking_code}` : 'Rastreio será atualizado em breve.' });
+      fetchOrders();
+    } catch (err: any) {
+      toast({ title: 'Erro ao gerar etiqueta', description: err.message, variant: 'destructive' });
+    } finally {
+      setRetryingShipping(null);
+    }
+  };
+
+
     const deliveryLabels: Record<string, string> = {
       PROCESSING: 'Em Processamento',
       SHIPPED: 'Enviado',
