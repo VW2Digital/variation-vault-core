@@ -35,6 +35,7 @@ import {
   CreditCard,
   CircleDollarSign,
   ShoppingCart,
+  Loader2,
   Star } from
 'lucide-react';
 
