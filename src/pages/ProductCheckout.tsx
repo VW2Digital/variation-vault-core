@@ -661,11 +661,11 @@ const ProductCheckout = () => {
           <StaggerContainer className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {trustBadges.map((badge) =>
             <StaggerItem key={badge.title}>
-                <div className="flex items-start gap-3 p-3 rounded-lg border border-border/50 bg-card">
-                  <badge.icon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{badge.title}</p>
-                    <p className="text-xs text-muted-foreground">{badge.desc}</p>
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card min-h-[60px]">
+                  <badge.icon className="w-5 h-5 text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-foreground leading-tight">{badge.title}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight mt-0.5">{badge.desc}</p>
                   </div>
                 </div>
               </StaggerItem>
