@@ -64,6 +64,11 @@ const CartPage = () => {
                       {!item.in_stock && (
                         <p className="text-xs text-destructive font-medium mt-1">Fora de estoque</p>
                       )}
+                      {item.wholesale_prices.length > 0 && (
+                        <Badge variant="outline" className="mt-1 text-[10px] border-primary/40 text-primary bg-primary/5 font-medium">
+                          Atacado · mín. {Math.min(...item.wholesale_prices.map(t => t.min_quantity))} unid.
+                        </Badge>
+                      )}
                     </div>
 
                     {/* Quantity */}
