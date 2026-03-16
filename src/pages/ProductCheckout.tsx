@@ -133,6 +133,8 @@ const ProductCheckout = () => {
   const [shippingOptions, setShippingOptions] = useState<{ id: number; name: string; company: string; price: number; delivery_time: number | null }[]>([]);
   const [loadingShipping, setLoadingShipping] = useState(false);
   const [userPostalCode, setUserPostalCode] = useState('');
+  const [manualCep, setManualCep] = useState('');
+  const [cepSource, setCepSource] = useState<'auto' | 'manual'>('auto');
 
   useEffect(() => {
     if (!id) return;
@@ -220,7 +222,26 @@ const ProductCheckout = () => {
     return () => { cancelled = true; };
   }, [showInstallments, product, selectedVariation, quantity, wholesaleTiers, maxInstallments, installmentsInterest]);
 
-  // Fetch shipping options for logged-in users with saved address
+  const fetchShippingByPostalCode = async (postalCode: string) => {
+    if (!product || !postalCode || postalCode.replace(/\D/g, '').length !== 8) return;
+    const cleanCep = postalCode.replace(/\D/g, '');
+    setUserPostalCode(cleanCep);
+    setLoadingShipping(true);
+    setShippingOptions([]);
+    const vars = product?.product_variations || [];
+    const v = vars[selectedVariation];
+    const bp = v?.is_offer && v?.offer_price ? Number(v.offer_price) : Number(v?.price || 0);
+    const eu = getEffectivePrice(bp, quantity, wholesaleTiers);
+    const tot = eu * quantity;
+    try {
+      const { data, error } = await supabase.functions.invoke('melhor-envio-shipment', {
+        body: { action: 'quote', postal_code: cleanCep, insurance_value: tot, quantity },
+      });
+      if (!error && data?.services?.length > 0) setShippingOptions(data.services);
+    } catch { /* silent */ } finally { setLoadingShipping(false); }
+  };
+
+  // Auto-fetch shipping for logged-in users with saved address
   useEffect(() => {
     if (!product) return;
     const fetchShipping = async () => {
@@ -233,22 +254,18 @@ const ProductCheckout = () => {
         postalCode = anyAddr?.[0]?.postal_code;
       }
       if (!postalCode) return;
-      setUserPostalCode(postalCode.replace(/\D/g, ''));
-      setLoadingShipping(true);
-      const vars = product?.product_variations || [];
-      const v = vars[selectedVariation];
-      const bp = v?.is_offer && v?.offer_price ? Number(v.offer_price) : Number(v?.price || 0);
-      const eu = getEffectivePrice(bp, quantity, wholesaleTiers);
-      const tot = eu * quantity;
-      try {
-        const { data, error } = await supabase.functions.invoke('melhor-envio-shipment', {
-          body: { action: 'quote', postal_code: postalCode.replace(/\D/g, ''), insurance_value: tot, quantity },
-        });
-        if (!error && data?.services?.length > 0) setShippingOptions(data.services);
-      } catch { /* silent */ } finally { setLoadingShipping(false); }
+      setCepSource('auto');
+      fetchShippingByPostalCode(postalCode);
     };
     fetchShipping();
   }, [product, selectedVariation, quantity, wholesaleTiers]);
+
+  // Re-fetch shipping when quantity/variation changes and manual CEP is set
+  useEffect(() => {
+    if (cepSource === 'manual' && userPostalCode) {
+      fetchShippingByPostalCode(userPostalCode);
+    }
+  }, [selectedVariation, quantity, wholesaleTiers]);
 
   if (loading) {
     return (<div className="min-h-screen flex items-center justify-center bg-background"><p className="text-muted-foreground">Carregando...</p></div>);
@@ -532,39 +549,66 @@ const ProductCheckout = () => {
               );
             })()}
 
-            {/* Shipping Preview */}
-            {(shippingOptions.length > 0 || loadingShipping) && (
-              <div className="border border-border/50 rounded-xl p-4 bg-card space-y-2">
-                <div className="flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-primary" />
-                  <p className="text-sm font-medium text-foreground">
-                    Frete para CEP {userPostalCode.replace(/(\d{5})(\d{3})/, '$1-$2')}
-                  </p>
-                </div>
-                {loadingShipping ? (
-                  <div className="flex items-center gap-2 py-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Calculando frete...</span>
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    {shippingOptions.map((opt) => (
-                      <div key={opt.id} className="flex justify-between items-center text-xs">
-                        <span className="text-foreground">{opt.company} — {opt.name} {opt.delivery_time ? `(${opt.delivery_time} dias)` : ''}</span>
-                        {qualifiesForFreeShipping ? (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-muted-foreground line-through">R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                            <span className="text-primary font-bold">Grátis</span>
-                          </div>
-                        ) : (
-                          <span className="font-medium text-foreground">R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+            {/* Shipping Preview — always visible */}
+            <div className="border border-border/50 rounded-xl p-4 bg-card space-y-3">
+              <div className="flex items-center gap-2">
+                <Truck className="w-4 h-4 text-primary" />
+                <p className="text-sm font-medium text-foreground">Calcular Frete</p>
               </div>
-            )}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={9}
+                  placeholder="Digite seu CEP"
+                  value={manualCep}
+                  onChange={(e) => {
+                    let v = e.target.value.replace(/\D/g, '');
+                    if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5, 8);
+                    setManualCep(v);
+                  }}
+                  className="flex-1 h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                <Button
+                  size="sm"
+                  className="h-9 px-4"
+                  disabled={manualCep.replace(/\D/g, '').length !== 8 || loadingShipping}
+                  onClick={() => {
+                    setCepSource('manual');
+                    fetchShippingByPostalCode(manualCep);
+                  }}
+                >
+                  {loadingShipping ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Calcular'}
+                </Button>
+              </div>
+              {userPostalCode && (
+                <p className="text-[11px] text-muted-foreground">
+                  Frete para CEP {userPostalCode.replace(/(\d{5})(\d{3})/, '$1-$2')}
+                </p>
+              )}
+              {loadingShipping && !shippingOptions.length ? (
+                <div className="flex items-center gap-2 py-1">
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Calculando frete...</span>
+                </div>
+              ) : shippingOptions.length > 0 ? (
+                <div className="space-y-1.5">
+                  {shippingOptions.map((opt) => (
+                    <div key={opt.id} className="flex justify-between items-center text-xs">
+                      <span className="text-foreground">{opt.company} — {opt.name} {opt.delivery_time ? `(${opt.delivery_time} dias)` : ''}</span>
+                      {qualifiesForFreeShipping ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-muted-foreground line-through">R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          <span className="text-primary font-bold">Grátis</span>
+                        </div>
+                      ) : (
+                        <span className="font-medium text-foreground">R$ {opt.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
 
             {/* Buy Buttons */}
             {variation?.in_stock ?

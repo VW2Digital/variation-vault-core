@@ -139,6 +139,27 @@ export type Database = {
         }
         Relationships: []
       }
+      cart_abandonment_logs: {
+        Row: {
+          cart_item_count: number
+          email_sent_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          cart_item_count?: number
+          email_sent_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          cart_item_count?: number
+          email_sent_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       cart_items: {
         Row: {
           created_at: string
