@@ -599,12 +599,9 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
     setHolderPostalCode(addrPostalCode);
     setHolderAddressNumber(addrNumber);
 
-    // If qualifies for free shipping, skip to payment directly
-    if (qualifiesForFreeShipping) {
-      setSelectedShipping({ id: 0, name: 'Frete Grátis', company: 'Grátis', price: 0, delivery_time: null });
-      setStep('shipping');
-      return;
-    }
+    // Always fetch shipping options so customer can choose the carrier
+    setLoadingShipping(true);
+    setStep('shipping');
 
     // Fetch shipping options
     setLoadingShipping(true);
