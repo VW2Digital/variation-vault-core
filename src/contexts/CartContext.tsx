@@ -179,6 +179,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const updateQuantity = async (variationId: string, quantity: number) => {
     if (!userId || quantity < 1) return;
+    // Enforce wholesale minimum
+    const item = items.find(i => i.variation_id === variationId);
+    if (item && item.wholesale_prices.length > 0) {
+      const minQty = Math.min(...item.wholesale_prices.map(t => t.min_quantity));
+      if (quantity < minQty) return;
+    }
     try {
       const { error } = await supabase
         .from('cart_items')
