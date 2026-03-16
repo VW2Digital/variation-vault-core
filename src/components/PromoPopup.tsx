@@ -21,6 +21,11 @@ const PromoPopup = () => {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    if (!isCatalog) {
+      setOpen(false);
+      return;
+    }
+
     const fetchPopup = async () => {
       const now = new Date().toISOString();
       const { data } = await supabase
@@ -33,7 +38,6 @@ const PromoPopup = () => {
 
       const popups = (data as PopupData[] | null) || [];
       if (popups.length > 0) {
-        // Check if user already dismissed this popup in this session
         const dismissedId = sessionStorage.getItem('dismissed_popup');
         if (dismissedId !== popups[0].id) {
           setPopup(popups[0]);
@@ -42,10 +46,9 @@ const PromoPopup = () => {
       }
     };
 
-    // Small delay so page loads first
     const timer = setTimeout(fetchPopup, 800);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isCatalog]);
 
   const handleClose = () => {
     setOpen(false);
