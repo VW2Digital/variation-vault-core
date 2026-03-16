@@ -851,6 +851,33 @@ const CustomerDashboard = () => {
         )}
       </main>
       <Footer />
+
+      {/* PIX Payment Modal */}
+      <Dialog open={!!pixModal} onOpenChange={(open) => !open && setPixModal(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center">Pagar via PIX</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-center">
+            <p className="text-sm text-muted-foreground">Escaneie o QR Code ou copie o código abaixo</p>
+            {pixModal?.qrCode && (
+              <img src={`data:image/png;base64,${pixModal.qrCode}`} alt="QR Code PIX" className="w-48 h-48 mx-auto rounded-lg border border-border" />
+            )}
+            {pixModal?.payload && (
+              <div className="flex items-center gap-2">
+                <Input value={pixModal.payload} readOnly className="text-xs" />
+                <Button size="icon" variant="outline" onClick={() => copyPixCode(pixModal.payload)}>
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+            <p className="text-sm font-semibold text-foreground">
+              Valor: R$ {pixModal?.value?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-muted-foreground">Após o pagamento, o status será atualizado automaticamente.</p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
