@@ -48,45 +48,46 @@ const ProductList = () => {
   if (loading) return <p className="text-muted-foreground">Carregando...</p>;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Produtos</h1>
-        <Button onClick={() => navigate('/admin/produtos/novo')}>
-          <Plus className="mr-2 h-4 w-4" /> Novo Produto
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-foreground">Produtos</h1>
+        <Button size="sm" onClick={() => navigate('/admin/produtos/novo')}>
+          <Plus className="mr-1.5 h-4 w-4" /> Novo Produto
         </Button>
       </div>
 
       {products.length === 0 ? (
         <Card className="border-dashed border-2 border-border">
-          <CardContent className="p-12 text-center">
-            <Package className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
-            <p className="text-muted-foreground">Nenhum produto cadastrado</p>
-            <Button variant="outline" className="mt-4" onClick={() => navigate('/admin/produtos/novo')}>
+          <CardContent className="p-8 text-center">
+            <Package className="mx-auto h-10 w-10 text-muted-foreground/50 mb-3" />
+            <p className="text-muted-foreground text-sm">Nenhum produto cadastrado</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate('/admin/produtos/novo')}>
               Cadastrar primeiro produto
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3">
-          {products.map((product) => (
-            <Card key={product.id} className="border-border/50 hover:shadow-md transition-shadow">
-              <CardContent className="p-3 sm:p-5 flex items-center gap-3 sm:gap-5">
-                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-                  {(() => {
-                    const img = product.product_variations?.[0]?.images?.[0] || product.product_variations?.[0]?.image_url || product.images?.[0];
-                    return img ? (
-                      <img src={img} alt={product.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <Package className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground/40" />
-                    );
-                  })()}
+        <div className="border border-border/50 rounded-lg overflow-hidden divide-y divide-border/40">
+          {products.map((product) => {
+            const img = product.product_variations?.[0]?.images?.[0] || product.product_variations?.[0]?.image_url || product.images?.[0];
+            return (
+              <div
+                key={product.id}
+                className="flex items-center gap-3 px-3 py-2.5 bg-card hover:bg-muted/30 transition-colors cursor-pointer"
+                onClick={() => navigate(`/admin/produtos/${product.id}`)}
+              >
+                <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+                  {img ? (
+                    <img src={img} alt={product.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <Package className="w-5 h-5 text-muted-foreground/40" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">{product.name}</h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground truncate">{product.subtitle}</p>
-                  <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                  <h3 className="font-semibold text-foreground text-sm truncate">{product.name}</h3>
+                  <div className="flex gap-1 mt-0.5 flex-wrap">
                     {product.product_variations?.map((v: any) => (
-                      <Badge key={v.id} variant={v.in_stock ? 'default' : 'destructive'} className="text-[10px] sm:text-xs">
+                      <Badge key={v.id} variant={v.in_stock ? 'default' : 'destructive'} className="text-[9px] px-1.5 py-0 h-[18px]">
                         {v.dosage && !product.name.toLowerCase().includes(v.dosage.toLowerCase()) ? `${v.dosage} — ` : ''}R$ {Number(v.price).toLocaleString('pt-BR')}
                       </Badge>
                     ))}
@@ -94,27 +95,27 @@ const ProductList = () => {
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8">
-                      <MoreVertical className="h-4 w-4" />
+                    <Button variant="ghost" size="icon" className="shrink-0 h-7 w-7" onClick={(e) => e.stopPropagation()}>
+                      <MoreVertical className="h-3.5 w-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => navigate(`/admin/produtos/${product.id}`)}>
-                      <Pencil className="mr-2 h-4 w-4" />
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/admin/produtos/${product.id}`); }}>
+                      <Pencil className="mr-2 h-3.5 w-3.5" />
                       Editar
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive"
-                      onClick={() => setDeleteTarget({ id: product.id, name: product.name })}
+                      onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: product.id, name: product.name }); }}
                     >
-                      <Trash2 className="mr-2 h-4 w-4" />
+                      <Trash2 className="mr-2 h-3.5 w-3.5" />
                       Excluir
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            );
+          })}
         </div>
       )}
 
