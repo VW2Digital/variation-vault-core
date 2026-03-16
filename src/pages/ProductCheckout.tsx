@@ -220,6 +220,36 @@ const ProductCheckout = () => {
     return () => { cancelled = true; };
   }, [showInstallments, product, selectedVariation, quantity, wholesaleTiers, maxInstallments, installmentsInterest]);
 
+  // Fetch shipping options for logged-in users with saved address
+  useEffect(() => {
+    if (!product) return;
+    const fetchShipping = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data: addrs } = await supabase.from('addresses').select('postal_code').eq('user_id', session.user.id).eq('is_default', true).limit(1);
+      let postalCode = addrs?.[0]?.postal_code;
+      if (!postalCode) {
+        const { data: anyAddr } = await supabase.from('addresses').select('postal_code').eq('user_id', session.user.id).limit(1);
+        postalCode = anyAddr?.[0]?.postal_code;
+      }
+      if (!postalCode) return;
+      setUserPostalCode(postalCode.replace(/\D/g, ''));
+      setLoadingShipping(true);
+      const vars = product?.product_variations || [];
+      const v = vars[selectedVariation];
+      const bp = v?.is_offer && v?.offer_price ? Number(v.offer_price) : Number(v?.price || 0);
+      const eu = getEffectivePrice(bp, quantity, wholesaleTiers);
+      const tot = eu * quantity;
+      try {
+        const { data, error } = await supabase.functions.invoke('melhor-envio-shipment', {
+          body: { action: 'quote', postal_code: postalCode.replace(/\D/g, ''), insurance_value: tot, quantity },
+        });
+        if (!error && data?.services?.length > 0) setShippingOptions(data.services);
+      } catch { /* silent */ } finally { setLoadingShipping(false); }
+    };
+    fetchShipping();
+  }, [product, selectedVariation, quantity, wholesaleTiers]);
+
   if (loading) {
     return (<div className="min-h-screen flex items-center justify-center bg-background"><p className="text-muted-foreground">Carregando...</p></div>);
   }
@@ -231,6 +261,12 @@ const ProductCheckout = () => {
   const variation = variations[selectedVariation];
   const variationImages = variation?.images?.length > 0 ? variation.images : variation?.image_url ? [variation.image_url] : [];
   const images = variationImages.length > 0 ? variationImages : [productHeroImg];
+
+  const qualifiesForFreeShipping = product.free_shipping && (!product.free_shipping_min_value || product.free_shipping_min_value <= 0 || (() => {
+    const bp = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : Number(variation?.price || 0);
+    const eu = getEffectivePrice(bp, quantity, wholesaleTiers);
+    return eu * quantity <= product.free_shipping_min_value;
+  })());
 
   const trustBadges = [
     { icon: ShieldCheck, title: t('certifiedProduct'), desc: t('certifiedDesc') },
@@ -247,8 +283,6 @@ const ProductCheckout = () => {
     { label: t('frequency'), value: product.frequency },
   ];
 
-  // Fetch shipping options for logged-in users with saved address
-  useEffect(() => {
     if (!product) return;
     const fetchShipping = async () => {
       const { data: { session } } = await supabase.auth.getSession();
