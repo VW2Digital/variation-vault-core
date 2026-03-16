@@ -29,6 +29,8 @@ import AdminReviewsPage from "./pages/AdminReviewsPage";
 import PopupList from "./pages/PopupList";
 import PaymentLogsPage from "./pages/PaymentLogsPage";
 import CartAbandonmentLogsPage from "./pages/CartAbandonmentLogsPage";
+import PaymentLinksPage from "./pages/PaymentLinksPage";
+import PaymentLinkCheckout from "./pages/PaymentLinkCheckout";
 import PromoPopup from "./components/PromoPopup";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -61,6 +63,7 @@ const App = () => (
           <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
           <Route path="/termos-de-uso" element={<TermsOfUse />} />
           <Route path="/contato" element={<ContactPage />} />
+          <Route path="/pagar/:slug" element={<PaymentLinkCheckout />} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Dashboard />} />
@@ -76,6 +79,7 @@ const App = () => (
             <Route path="suporte" element={<AdminSupportPage />} />
             <Route path="falhas-pagamento" element={<PaymentLogsPage />} />
             <Route path="carrinho-abandonado" element={<CartAbandonmentLogsPage />} />
+            <Route path="links-pagamento" element={<PaymentLinksPage />} />
             <Route path="configuracoes" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
