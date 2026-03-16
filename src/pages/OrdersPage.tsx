@@ -601,22 +601,22 @@ const OrdersPage = () => {
               const delivery = deliveryStatuses.find(d => d.value === order.delivery_status);
               return (
                 <Card key={order.id} className={`border-border/50 ${selectedIds.has(order.id) ? 'ring-1 ring-primary' : ''}`}>
-                  <CardContent className="p-4 space-y-3">
+                  <CardContent className="p-3.5 space-y-2">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         <Checkbox
                           checked={selectedIds.has(order.id)}
                           onCheckedChange={() => toggleSelect(order.id)}
                         />
                         <div className="min-w-0">
-                          <p className="font-medium text-sm text-foreground truncate">{order.customer_name || '-'}</p>
-                          <p className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString('pt-BR')}</p>
+                          <p className="font-bold text-sm text-foreground truncate uppercase">{order.customer_name || '-'}</p>
+                          <p className="text-[11px] text-muted-foreground">{new Date(order.created_at).toLocaleDateString('pt-BR')}</p>
                         </div>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                            <MoreVertical className="h-4 w-4" />
+                          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                            <MoreVertical className="h-3.5 w-3.5" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -648,12 +648,12 @@ const OrdersPage = () => {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{order.product_name}{order.dosage ? ` - ${order.dosage}` : ''}</p>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-sm text-foreground">R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    <p className="text-xs text-muted-foreground truncate pl-7">{order.product_name}{order.dosage ? ` - ${order.dosage}` : ''}</p>
+                    <div className="flex items-center justify-between gap-2 pl-7">
+                      <span className="font-bold text-base text-primary">R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                       <span className="text-xs text-muted-foreground">{billingTypeMap[order.payment_method] || order.payment_method}</span>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-1.5 pl-7">
                       <Badge variant={status.variant} className="text-[10px]">{status.label}</Badge>
                       <Badge variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'} className="text-[10px]">{delivery?.label || 'Processando'}</Badge>
                       {order.tracking_code && <Badge variant="secondary" className="text-[10px] font-mono">{order.tracking_code}</Badge>}
