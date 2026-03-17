@@ -61,6 +61,13 @@ const billingTypeMap: Record<string, string> = {
   pix: 'PIX',
 };
 
+const PaymentIcon = ({ method, size = 16 }: { method: string; size?: number }) => {
+  const m = method?.toLowerCase();
+  if (m === 'pix') return <QrCode className="text-teal-600" size={size} />;
+  if (m === 'credit_card') return <CreditCard className="text-amber-600" size={size} />;
+  return <span className="text-xs text-muted-foreground">{billingTypeMap[method] || method}</span>;
+};
+
 const whatsappTemplates = [
   { id: 'greeting', label: '👋 Saudação', getMessage: (name: string, product: string) => `Olá ${name}! Tudo bem? Entramos em contato sobre o seu pedido "${product}".` },
   { id: 'confirmed', label: '✅ Pedido Confirmado', getMessage: (name: string, product: string) => `Olá ${name}! ✅ Seu pedido "${product}" foi *confirmado* com sucesso! Em breve iniciaremos o preparo para envio. Obrigado pela confiança!` },
