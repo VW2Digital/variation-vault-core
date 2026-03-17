@@ -679,7 +679,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
         const valorFinalCartao = selectedOpt ? selectedOpt.valorFinal : totalValue;
         const valorParcelaCartao = selectedOpt ? selectedOpt.valorParcela : totalValue;
 
-        const orderId = await createOrder(paymentMethod, asaasCustomerId);
+        const orderId = await createOrder(paymentMethod, asaasCustomerId, valorFinalCartao);
 
         const result = await invokeAsaas('create_card_payment', {
           customer: asaasCustomerId,
