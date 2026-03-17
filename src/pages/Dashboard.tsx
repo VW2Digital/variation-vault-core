@@ -153,6 +153,18 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
+      {paidWithoutLabel > 0 && (
+        <Alert variant="destructive" className="border-amber-500 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 cursor-pointer" onClick={() => navigate('/admin/pedidos')}>
+          <Tag className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="font-semibold">Etiquetas pendentes</AlertTitle>
+          <AlertDescription>
+            {paidWithoutLabel === 1
+              ? 'Há 1 pedido pago aguardando geração de etiqueta de envio.'
+              : `Há ${paidWithoutLabel} pedidos pagos aguardando geração de etiqueta de envio.`}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
         <Tabs value={period} onValueChange={(v) => setPeriod(v as PeriodKey)}>
