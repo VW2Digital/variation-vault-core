@@ -665,7 +665,7 @@ const OrdersPage = () => {
                     </div>
                     <div className="flex flex-wrap gap-1.5 pl-7">
                       <Badge variant={status.variant} className={`text-[10px] ${status.badgeClass || ''}`}>{status.label}</Badge>
-                      <Badge variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'} className="text-[10px]">{delivery?.label || 'Processando'}</Badge>
+                      <Badge variant="outline" className={`text-[10px] ${delivery?.badgeClass || ''}`}>{delivery?.label || 'Processando'}</Badge>
                       {order.tracking_code && <Badge variant="secondary" className="text-[10px] font-mono">{order.tracking_code}</Badge>}
                       {order.shipping_status === 'insufficient_balance' && (
                         <Badge variant="destructive" className="text-[10px] animate-pulse">💰 Sem saldo ME</Badge>
