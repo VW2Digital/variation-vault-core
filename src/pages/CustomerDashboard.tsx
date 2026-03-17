@@ -584,8 +584,13 @@ const CustomerDashboard = () => {
                                     <p className="font-medium text-foreground capitalize flex items-center gap-1">
                                       <CreditCard className="w-3.5 h-3.5 text-muted-foreground" />
                                       {order.payment_method === 'credit_card' ? 'Cartão' : order.payment_method?.toUpperCase()}
-                                      {order.installments > 1 && ` (${order.installments}x)`}
+                                      {order.installments > 1 && ` (${order.installments}x de R$ ${(Number(order.total_value) / order.installments).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`}
                                     </p>
+                                    {order.installments > 1 && order.payment_method === 'credit_card' && (
+                                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                                        Total c/ juros: R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                      </p>
+                                    )}
                                   </div>
                                   <div>
                                     <p className="text-muted-foreground text-xs">Pedido</p>
