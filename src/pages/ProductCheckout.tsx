@@ -200,7 +200,7 @@ const ProductCheckout = () => {
     supabase.functions.invoke('asaas-checkout', {
       body: { action: 'simulate_installments', value: simTotal, installmentCount: maxInstallments },
     }).then(({ data }) => {
-      if (data?.creditCard?.installments) {
+      if (data?.creditCard?.installments && Array.isArray(data.creditCard.installments) && data.creditCard.installments.length > 0) {
         const opts: InstallmentResult[] = data.creditCard.installments.map((inst: any) => ({
           parcelas: inst.installmentCount,
           percentualJuros: inst.installmentCount === 1 ? 0 : Number(((inst.totalValue / simTotal - 1)).toFixed(4)),
@@ -208,9 +208,13 @@ const ProductCheckout = () => {
           valorParcela: Number(inst.installmentValue),
         }));
         setSimulatedInstallments(opts);
+      } else {
+        // Fallback: cálculo local
+        setSimulatedInstallments(gerarOpcoesParcelamento(simTotal, maxInstallments));
       }
     }).catch(() => {
-      setSimulatedInstallments([]);
+      // Fallback: cálculo local quando a API falha
+      setSimulatedInstallments(gerarOpcoesParcelamento(simTotal, maxInstallments));
     }).finally(() => setLoadingSimulation(false));
   }, [product, selectedVariation, quantity, wholesaleTiers, maxInstallments]);
 
