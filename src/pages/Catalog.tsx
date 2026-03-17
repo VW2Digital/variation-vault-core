@@ -272,19 +272,19 @@ const Catalog = () => {
 
               return (
                 <StaggerItem key={variation?.id || `${product.id}-${idx}`}>
-                  <div className={`group rounded-xl border overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col ${product.is_bestseller ? 'border-success/30 bg-success/[0.08] hover:border-success/50' : 'border-border/50 bg-card hover:border-primary/30'}`}>
+                  <div className={`group rounded-xl border overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col h-full ${product.is_bestseller ? 'border-success/30 bg-success/[0.08] hover:border-success/50' : 'border-border/50 bg-card hover:border-primary/30'}`}>
                     <Link
                       to={`/produto/${product.id}${variation ? `?v=${variation.id}` : ''}`}
                       className="block flex-1"
                     >
                       {/* Image */}
-                      <div className="relative aspect-[4/3] sm:aspect-square bg-white flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+                      <div className="relative aspect-square bg-white flex items-center justify-center p-3 sm:p-4 overflow-hidden">
                         <img
                           src={img}
                           alt={displayName}
                           className="max-w-[80%] max-h-[80%] object-contain group-hover:scale-105 transition-transform duration-500"
                         />
-                        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+                        <div className="absolute top-2 left-2 flex flex-col gap-1">
                           {offer && offerPrice && price && (
                             <Badge className="bg-destructive text-destructive-foreground text-[10px] font-bold">
                               -{Math.round(((price - offerPrice) / price) * 100)}%
@@ -294,7 +294,7 @@ const Catalog = () => {
                             <Badge variant="secondary" className="text-[10px]">{t('outOfStock')}</Badge>
                           )}
                         </div>
-                        <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
+                        <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
                           {hasWholesale && (
                             <Badge className="bg-primary/90 text-primary-foreground text-[10px] font-bold gap-1">
                               <Layers className="w-3 h-3" /> Atacado
@@ -305,15 +305,15 @@ const Catalog = () => {
 
                       {/* Mais Vendido badge below image */}
                       {product.is_bestseller && (
-                        <div className="px-4 pt-3">
-                          <Badge className="bg-success text-white text-[10px] font-bold uppercase tracking-wide px-2 py-0.5">
+                        <div className="px-3 pt-2">
+                          <Badge className="bg-success text-white text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5">
                             Mais Vendido
                           </Badge>
                         </div>
                       )}
 
                       {/* Content */}
-                      <div className="p-3 sm:p-4 pt-2 space-y-1 sm:space-y-1.5">
+                      <div className="p-3 pt-1.5 space-y-1 flex-1 flex flex-col">
                         <h3 className="font-bold text-foreground text-xs sm:text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
                           {variation?.dosage && !product.name.toLowerCase().includes(variation.dosage.toLowerCase())
                             ? `${product.name} ${variation.dosage}`
@@ -382,25 +382,26 @@ const Catalog = () => {
 
                         {hasWholesale && wholesaleMinQty && (
                           <div className="pt-0.5">
-                            <Badge variant="outline" className="text-[10px] text-primary border-primary/30 font-bold gap-1">
-                              <Layers className="w-3 h-3" /> Atacado a partir de {wholesaleMinQty} unid.
+                            <Badge variant="outline" className="text-[9px] text-primary border-primary/30 font-bold gap-0.5 px-1.5">
+                              <Layers className="w-2.5 h-2.5" /> Atacado a partir de {wholesaleMinQty} unid.
                             </Badge>
                           </div>
                         )}
+                        <div className="flex-1" /> {/* Spacer to push buttons down */}
                       </div>
                     </Link>
 
                     {/* Free Shipping Banner */}
                     {product.free_shipping && (
-                      <div className="mx-4 mb-2 rounded-md bg-success/10 border border-success/20 px-3 py-1.5 flex items-center gap-1.5">
-                        <Truck className="w-3.5 h-3.5 text-success flex-shrink-0" />
-                        <span className="text-success text-[11px] font-semibold">Frete Grátis</span>
+                      <div className="mx-3 mb-1.5 rounded-md bg-success/10 border border-success/20 px-2 py-1 flex items-center gap-1">
+                        <Truck className="w-3 h-3 text-success flex-shrink-0" />
+                        <span className="text-success text-[10px] font-semibold">Frete Grátis</span>
                       </div>
                     )}
 
                     {/* Add to Cart Button */}
                     {variation && inStock && (
-                      <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-1">
+                      <div className="px-3 pb-3 pt-0.5 mt-auto">
                         <Button
                           variant="outline"
                           size="sm"
