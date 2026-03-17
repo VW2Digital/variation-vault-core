@@ -142,35 +142,9 @@ serve(async (req) => {
         }
       } // end of downgrade check
 
-      // ─── AUTO-TRIGGER SHIPPING ON PAYMENT CONFIRMATION ───
+      // Auto-shipping disabled — labels are created manually via admin panel
       if (newStatus === 'PAID') {
-        console.log('[Webhook] Payment confirmed, triggering shipping flow...');
-
-        let orderId = payment.externalReference || null;
-        let shouldShip = false;
-        let selectedServiceId: number | null = null;
-
-        if (orderId) {
-          const { data: orderData } = await supabase
-            .from('orders')
-            .select('id, customer_postal_code, shipment_id, selected_service_id')
-            .eq('id', orderId)
-            .maybeSingle();
-
-          if (orderData && !orderData.shipment_id && orderData.customer_postal_code) {
-            shouldShip = true;
-            selectedServiceId = orderData.selected_service_id;
-          } else if (orderData?.shipment_id) {
-            console.log(`[Webhook] Skipping auto-shipping: shipment already exists for order ${orderId}`);
-            orderId = null;
-          } else if (orderData && !orderData.customer_postal_code) {
-            console.log(`[Webhook] Skipping auto-shipping: no postal code for order ${orderId}`);
-            orderId = null;
-          }
-        }
-
-        // Auto-shipping disabled — labels are created manually via admin panel
-        console.log(`[Webhook] Auto-shipping disabled. Label must be created manually.`);
+        console.log('[Webhook] Payment confirmed. Auto-shipping disabled — label must be created manually.');
       }
     }
 
