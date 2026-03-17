@@ -91,6 +91,14 @@ const Dashboard = () => {
         .select('status, payment_method, total_value, customer_email, created_at');
       setAllOrders((orders as RawOrder[]) || []);
 
+      // Count paid orders without shipping label
+      const { count } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['PAID', 'CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH'])
+        .is('label_url', null);
+      setPaidWithoutLabel(count || 0);
+
       const { data: logs } = await supabase
         .from('payment_logs')
         .select('payment_method, customer_email, created_at');
