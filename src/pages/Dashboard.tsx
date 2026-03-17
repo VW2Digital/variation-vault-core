@@ -3,8 +3,10 @@ import { fetchProducts } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, DollarSign, AlertTriangle, TrendingUp, CreditCard, QrCode, RefreshCw, ShoppingCart, CheckCircle2, XCircle, ArrowRightLeft, BarChart3 } from 'lucide-react';
+import { Package, DollarSign, AlertTriangle, TrendingUp, CreditCard, QrCode, RefreshCw, ShoppingCart, CheckCircle2, XCircle, ArrowRightLeft, BarChart3, Tag } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useNavigate } from 'react-router-dom';
 
 type PeriodKey = '7' | '30' | '90' | 'all';
 
@@ -71,6 +73,8 @@ const Dashboard = () => {
   const [allLogs, setAllLogs] = useState<RawLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodKey>('30');
+  const [paidWithoutLabel, setPaidWithoutLabel] = useState(0);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
@@ -86,6 +90,14 @@ const Dashboard = () => {
         .from('orders')
         .select('status, payment_method, total_value, customer_email, created_at');
       setAllOrders((orders as RawOrder[]) || []);
+
+      // Count paid orders without shipping label
+      const { count } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['PAID', 'CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH'])
+        .is('label_url', null);
+      setPaidWithoutLabel(count || 0);
 
       const { data: logs } = await supabase
         .from('payment_logs')
@@ -141,6 +153,18 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
+      {paidWithoutLabel > 0 && (
+        <Alert variant="destructive" className="border-amber-500 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 cursor-pointer" onClick={() => navigate('/admin/pedidos')}>
+          <Tag className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="font-semibold">Etiquetas pendentes</AlertTitle>
+          <AlertDescription>
+            {paidWithoutLabel === 1
+              ? 'Há 1 pedido pago aguardando geração de etiqueta de envio.'
+              : `Há ${paidWithoutLabel} pedidos pagos aguardando geração de etiqueta de envio.`}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
         <Tabs value={period} onValueChange={(v) => setPeriod(v as PeriodKey)}>
