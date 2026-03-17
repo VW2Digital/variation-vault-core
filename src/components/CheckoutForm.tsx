@@ -187,45 +187,12 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
     });
   }, []);
 
-  // Simulate installments via gateway when total changes and interest mode is active
+  // Gerar opções de parcelamento localmente quando total ou configurações mudam
   useEffect(() => {
-    if (installmentsInterest !== 'com_juros' || totalValue <= 0 || step !== 'payment' || paymentMethod !== 'credit_card') return;
-    const maxInst = Math.min(maxInstallmentsSetting, Math.floor(totalValue / 5) || 1);
-    if (maxInst <= 1) return;
-
-    let cancelled = false;
-    setLoadingSimulation(true);
-
-    const simulate = async () => {
-      try {
-        const results: Record<number, number> = {};
-
-        // Asaas /payments/simulate returns one installment per call
-        // Fetch all in parallel for speed
-        const promises = Array.from({ length: maxInst - 1 }, (_, i) => i + 2).map(async (n) => {
-          try {
-            const { data } = await supabase.functions.invoke('asaas-checkout', {
-              body: { action: 'simulate_installments', value: totalValue, installmentCount: n },
-            });
-            const installmentValue = data?.creditCard?.installment?.paymentValue;
-            if (installmentValue) {
-              results[n] = Number(installmentValue);
-            }
-          } catch { /* skip */ }
-        });
-
-        await Promise.all(promises);
-        if (!cancelled) setSimulatedInstallments(results);
-      } catch {
-        // Silently fail
-      } finally {
-        if (!cancelled) setLoadingSimulation(false);
-      }
-    };
-
-    simulate();
-    return () => { cancelled = true; };
-  }, [totalValue, installmentsInterest, maxInstallmentsSetting, step, paymentMethod]);
+    if (totalValue <= 0) return;
+    const opcoes = gerarOpcoesParcelamento(totalValue, maxInstallmentsSetting);
+    setInstallmentOptions(opcoes);
+  }, [totalValue, maxInstallmentsSetting]);
 
   // Load saved profile + addresses on mount
   useEffect(() => {
