@@ -249,7 +249,7 @@ const Catalog = () => {
             </Button>
           </div>
         ) : (
-          <StaggerContainer className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
+          <StaggerContainer className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3.5">
             {flatItems.map(({ product, variation }, idx) => {
               const price = variation ? Number(variation.price) : null;
               const offerPrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : null;
@@ -416,8 +416,8 @@ const Catalog = () => {
                             addToCart(product.id, variation.id, minQty);
                           }}
                         >
-                          <ShoppingCart className="w-3.5 h-3.5 mr-1.5" />
-                          Adicionar ao Carrinho
+                          <ShoppingCart className="w-3.5 h-3.5 mr-1" />
+                          <span className="text-[11px]">Adicionar ao Carrinho</span>
                         </Button>
                       </div>
                     )}
