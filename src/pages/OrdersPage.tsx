@@ -731,7 +731,7 @@ const OrdersPage = () => {
                           R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={status.variant} className="text-[10px]">{status.label}</Badge>
+                          <Badge variant={status.variant} className={`text-[10px] ${status.badgeClass || ''}`}>{status.label}</Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-0.5">
