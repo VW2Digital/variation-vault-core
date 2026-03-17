@@ -217,8 +217,9 @@ serve(async (req) => {
 
         const parsedInstallmentCount = Number(installmentCount) || 1;
 
-        // Recalcular valor com juros no backend (fonte da verdade)
-        const { valorFinal, valorParcela } = calcularParcelamentoBackend(toCurrencyNumber(value), parsedInstallmentCount);
+        // Carregar tabela de juros do banco (fonte da verdade)
+        const interestTable = await loadInterestTable(supabaseUrl, supabaseKey);
+        const { valorFinal, valorParcela } = calcularParcelamentoBackend(toCurrencyNumber(value), parsedInstallmentCount, interestTable);
 
         const paymentBody: any = {
           customer,
