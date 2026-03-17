@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw, MoreVertical, Eye, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, CheckSquare, MessageSquare, Send, FileText, AlertCircle, ChevronDown, ChevronUp, Star, Link as LinkIcon } from 'lucide-react';
+import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw, MoreVertical, Eye, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, CheckSquare, MessageSquare, Send, FileText, AlertCircle, ChevronDown, ChevronUp, Star, Link as LinkIcon, CreditCard, QrCode } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -59,6 +59,13 @@ const billingTypeMap: Record<string, string> = {
   UNDEFINED: '-',
   credit_card: 'Cartão de Crédito',
   pix: 'PIX',
+};
+
+const PaymentIcon = ({ method, size = 16 }: { method: string; size?: number }) => {
+  const m = method?.toLowerCase();
+  if (m === 'pix') return <QrCode className="text-teal-600" size={size} />;
+  if (m === 'credit_card') return <CreditCard className="text-amber-600" size={size} />;
+  return <span className="text-xs text-muted-foreground">{billingTypeMap[method] || method}</span>;
 };
 
 const whatsappTemplates = [
@@ -661,7 +668,7 @@ const OrdersPage = () => {
                     <p className="text-xs text-muted-foreground truncate pl-7">{order.product_name}{order.dosage ? ` - ${order.dosage}` : ''}</p>
                     <div className="flex items-center justify-between gap-2 pl-7">
                       <span className="font-bold text-base text-primary">R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                      <span className="text-xs text-muted-foreground">{billingTypeMap[order.payment_method] || order.payment_method}</span>
+                      <PaymentIcon method={order.payment_method} />
                     </div>
                     <div className="flex flex-wrap gap-1.5 pl-7">
                       <Badge variant={status.variant} className={`text-[10px] ${status.badgeClass || ''}`}>{status.label}</Badge>
@@ -724,8 +731,8 @@ const OrdersPage = () => {
                         <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
                           {order.product_name} {order.dosage ? `- ${order.dosage}` : ''}
                         </TableCell>
-                        <TableCell className="text-xs">
-                          {billingTypeMap[order.payment_method] || order.payment_method}
+                        <TableCell className="text-center">
+                          <PaymentIcon method={order.payment_method} />
                         </TableCell>
                         <TableCell className="font-semibold whitespace-nowrap">
                           R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
