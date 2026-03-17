@@ -279,7 +279,7 @@ serve(async (req) => {
       }
 
       case 'get_pix_qrcode': {
-        const { paymentId } = body;
+        const { paymentId } = payload;
         if (!paymentId) throw new Error('paymentId obrigatório');
         result = await asaasFetch(baseUrl, apiKey, `/payments/${paymentId}/pixQrCode`, 'GET');
         break;
