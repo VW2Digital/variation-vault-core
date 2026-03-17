@@ -199,7 +199,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
     supabase.functions.invoke('asaas-checkout', {
       body: { action: 'simulate_installments', value: totalValue, installmentCount: maxParcelas },
     }).then(({ data }) => {
-      if (data?.creditCard?.installments) {
+      if (data?.creditCard?.installments && Array.isArray(data.creditCard.installments) && data.creditCard.installments.length > 0) {
         const opts: InstallmentResult[] = data.creditCard.installments.map((inst: any) => ({
           parcelas: inst.installmentCount,
           percentualJuros: inst.installmentCount === 1 ? 0 : Number(((inst.totalValue / totalValue - 1)).toFixed(4)),
@@ -207,10 +207,13 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
           valorParcela: Number(inst.installmentValue),
         }));
         setInstallmentOptions(opts);
+      } else {
+        // Fallback: cálculo local
+        setInstallmentOptions(gerarOpcoesParcelamento(totalValue, maxParcelas));
       }
     }).catch(() => {
-      // Fallback: opção única à vista
-      setInstallmentOptions([{ parcelas: 1, percentualJuros: 0, valorFinal: totalValue, valorParcela: totalValue }]);
+      // Fallback: cálculo local quando a API falha
+      setInstallmentOptions(gerarOpcoesParcelamento(totalValue, maxParcelas));
     }).finally(() => setLoadingInstallments(false));
   }, [totalValue, maxInstallmentsSetting]);
 
