@@ -190,16 +190,18 @@ serve(async (req) => {
 
       // ─── 3. CREDIT CARD PAYMENT (transparent — card data sent directly) ───
       case 'create_card_payment': {
-        const { customer, value, description, creditCard, creditCardHolderInfo, installmentCount, installmentValue, orderId } = payload;
+        const { customer, value, description, creditCard, creditCardHolderInfo, installmentCount, orderId } = payload;
         const remoteIp = getRemoteIp(req);
 
-        const normalizedValue = toCurrencyNumber(value);
-        const parsedInstallmentCount = Number(installmentCount);
+        const parsedInstallmentCount = Number(installmentCount) || 1;
+
+        // Recalcular valor com juros no backend (fonte da verdade)
+        const { valorFinal, valorParcela } = calcularParcelamentoBackend(toCurrencyNumber(value), parsedInstallmentCount);
 
         const paymentBody: any = {
           customer,
           billingType: 'CREDIT_CARD',
-          value: normalizedValue,
+          value: valorFinal,
           description,
           dueDate: new Date().toISOString().split('T')[0],
           externalReference: orderId || undefined,
@@ -208,45 +210,22 @@ serve(async (req) => {
           remoteIp,
         };
 
-        if (Number.isFinite(parsedInstallmentCount) && parsedInstallmentCount > 1) {
+        if (parsedInstallmentCount > 1) {
           paymentBody.installmentCount = parsedInstallmentCount;
-
-          let resolvedInstallmentValue = Number(installmentValue);
-
-          if (!Number.isFinite(resolvedInstallmentValue) || resolvedInstallmentValue <= 0) {
-            try {
-              const simulation = await asaasFetch(baseUrl, apiKey, '/payments/simulate', 'POST', {
-                value: normalizedValue,
-                billingTypes: ['CREDIT_CARD'],
-                installmentCount: parsedInstallmentCount,
-              });
-
-              const simulatedInstallmentValue = Number(simulation?.creditCard?.installment?.paymentValue);
-              if (Number.isFinite(simulatedInstallmentValue) && simulatedInstallmentValue > 0) {
-                resolvedInstallmentValue = simulatedInstallmentValue;
-              }
-            } catch (simulationError: any) {
-              console.warn('Installment pre-simulation failed:', simulationError?.message || simulationError);
-            }
-          }
-
-          const minimumInstallmentValue = Math.ceil((normalizedValue / parsedInstallmentCount) * 100) / 100;
-          if (!Number.isFinite(resolvedInstallmentValue) || resolvedInstallmentValue <= 0) {
-            resolvedInstallmentValue = minimumInstallmentValue;
-          } else {
-            resolvedInstallmentValue = Math.max(resolvedInstallmentValue, minimumInstallmentValue);
-          }
-
-          paymentBody.installmentValue = toCurrencyNumber(resolvedInstallmentValue);
+          paymentBody.installmentValue = valorParcela;
         }
 
         result = await asaasFetch(baseUrl, apiKey, '/payments', 'POST', paymentBody);
 
-        // Update order with payment ID and status
+        // Update order with payment ID, status and final value with interest
         if (orderId && result.id) {
           await supabase
             .from('orders')
-            .update({ asaas_payment_id: result.id, status: result.status || 'PENDING' })
+            .update({
+              asaas_payment_id: result.id,
+              status: result.status || 'PENDING',
+              total_value: valorFinal,
+            })
             .eq('id', orderId);
         }
         break;
