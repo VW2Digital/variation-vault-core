@@ -155,7 +155,7 @@ const Catalog = () => {
         </div>
       </AnimatedSection>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-[5px] py-8">
         {/* Filters Bar */}
         <AnimatedSection variant="fadeIn" className="mb-8">
           <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
