@@ -45,11 +45,11 @@ const statusMap: Record<string, { label: string; variant: 'default' | 'secondary
 };
 
 const deliveryStatuses = [
-  { value: 'PROCESSING', label: 'Em Processamento' },
-  { value: 'SHIPPED', label: 'Enviado' },
-  { value: 'IN_TRANSIT', label: 'Em Trânsito' },
-  { value: 'DELIVERED', label: 'Entregue' },
-  { value: 'RETURNED', label: 'Devolvido' },
+  { value: 'PROCESSING', label: 'Em Processamento', badgeClass: '' },
+  { value: 'SHIPPED', label: 'Enviado', badgeClass: 'bg-amber-500 hover:bg-amber-600 text-white border-transparent' },
+  { value: 'IN_TRANSIT', label: 'Em Trânsito', badgeClass: 'bg-amber-500 hover:bg-amber-600 text-white border-transparent' },
+  { value: 'DELIVERED', label: 'Entregue', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
+  { value: 'RETURNED', label: 'Devolvido', badgeClass: 'bg-red-500 hover:bg-red-600 text-white border-transparent' },
 ];
 
 const billingTypeMap: Record<string, string> = {
@@ -665,7 +665,7 @@ const OrdersPage = () => {
                     </div>
                     <div className="flex flex-wrap gap-1.5 pl-7">
                       <Badge variant={status.variant} className={`text-[10px] ${status.badgeClass || ''}`}>{status.label}</Badge>
-                      <Badge variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'} className="text-[10px]">{delivery?.label || 'Processando'}</Badge>
+                      <Badge variant="outline" className={`text-[10px] ${delivery?.badgeClass || ''}`}>{delivery?.label || 'Processando'}</Badge>
                       {order.tracking_code && <Badge variant="secondary" className="text-[10px] font-mono">{order.tracking_code}</Badge>}
                       {order.shipping_status === 'insufficient_balance' && (
                         <Badge variant="destructive" className="text-[10px] animate-pulse">💰 Sem saldo ME</Badge>
@@ -735,7 +735,7 @@ const OrdersPage = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-0.5">
-                            <Badge variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'} className="text-[10px] w-fit">
+                            <Badge variant="outline" className={`text-[10px] w-fit ${delivery?.badgeClass || ''}`}>
                               {delivery?.label || 'Processando'}
                             </Badge>
                             {order.shipping_status === 'insufficient_balance' && (
