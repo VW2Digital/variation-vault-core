@@ -651,15 +651,17 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
           mobilePhone: holderPhoneDigits,
         };
 
+        // Calcular valor final com juros embutidos
+        const parcelamento = calcularParcelamento(totalValue, installments);
+
         const orderId = await createOrder(paymentMethod, asaasCustomerId);
-        const selectedInstallmentValue = installments > 1 ? simulatedInstallments[installments] : undefined;
 
         const result = await invokeAsaas('create_card_payment', {
           customer: asaasCustomerId,
-          value: totalValue,
+          value: parcelamento.valorFinal,
           description,
           installmentCount: installments,
-          installmentValue: selectedInstallmentValue,
+          installmentValue: parcelamento.valorParcela,
           creditCard: {
             holderName: cardName.trim() || name.trim(),
             number: cardNumber.replace(/\s/g, ''),
