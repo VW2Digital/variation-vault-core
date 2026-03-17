@@ -5,7 +5,7 @@ import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/Ani
 import { fetchProduct, fetchTestimonials, fetchBanners, fetchSetting } from '@/lib/api';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
 import { getEffectivePrice, WholesaleTier } from '@/contexts/CartContext';
-import { gerarOpcoesParcelamento } from '@/lib/installments';
+import { gerarOpcoesParcelamento, parseInterestTable } from '@/lib/installments';
 import Footer from '@/components/Footer';
 import { useCart } from '@/contexts/CartContext';
 import Header from '@/components/Header';
