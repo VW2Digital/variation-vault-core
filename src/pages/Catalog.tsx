@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchProducts, fetchSetting } from '@/lib/api';
 import { WholesaleTier } from '@/contexts/CartContext';
+import { calcularParcelamento, parseInterestTable } from '@/lib/installments';
 import { supabase } from '@/integrations/supabase/client';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
 import { Input } from '@/components/ui/input';
