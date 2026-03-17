@@ -382,11 +382,12 @@ const Catalog = () => {
 
                         {hasWholesale && wholesaleMinQty && (
                           <div className="pt-0.5">
-                            <Badge variant="outline" className="text-[10px] text-primary border-primary/30 font-bold gap-1">
-                              <Layers className="w-3 h-3" /> Atacado a partir de {wholesaleMinQty} unid.
+                            <Badge variant="outline" className="text-[9px] text-primary border-primary/30 font-bold gap-0.5 px-1.5">
+                              <Layers className="w-2.5 h-2.5" /> Atacado a partir de {wholesaleMinQty} unid.
                             </Badge>
                           </div>
                         )}
+                        <div className="flex-1" /> {/* Spacer to push buttons down */}
                       </div>
                     </Link>
 
