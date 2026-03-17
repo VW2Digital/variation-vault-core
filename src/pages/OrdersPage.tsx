@@ -45,11 +45,11 @@ const statusMap: Record<string, { label: string; variant: 'default' | 'secondary
 };
 
 const deliveryStatuses = [
-  { value: 'PROCESSING', label: 'Em Processamento' },
-  { value: 'SHIPPED', label: 'Enviado' },
-  { value: 'IN_TRANSIT', label: 'Em Trânsito' },
-  { value: 'DELIVERED', label: 'Entregue' },
-  { value: 'RETURNED', label: 'Devolvido' },
+  { value: 'PROCESSING', label: 'Em Processamento', badgeClass: '' },
+  { value: 'SHIPPED', label: 'Enviado', badgeClass: 'bg-amber-500 hover:bg-amber-600 text-white border-transparent' },
+  { value: 'IN_TRANSIT', label: 'Em Trânsito', badgeClass: 'bg-amber-500 hover:bg-amber-600 text-white border-transparent' },
+  { value: 'DELIVERED', label: 'Entregue', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
+  { value: 'RETURNED', label: 'Devolvido', badgeClass: 'bg-red-500 hover:bg-red-600 text-white border-transparent' },
 ];
 
 const billingTypeMap: Record<string, string> = {
