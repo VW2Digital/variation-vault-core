@@ -175,24 +175,30 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const [maxInstallmentsSetting, setMaxInstallmentsSetting] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('com_juros');
   const [installmentOptions, setInstallmentOptions] = useState<InstallmentResult[]>([]);
+  const [interestTable, setInterestTable] = useState<Record<number, number> | undefined>(undefined);
 
   const shippingCost = qualifiesForFreeShipping ? 0 : (selectedShipping?.price || 0);
   const totalValue = baseProductTotal + shippingCost;
 
-  // Load payment settings
+  // Load payment settings + interest table
   useEffect(() => {
-    Promise.all([fetchSetting('max_installments'), fetchSetting('installments_interest')]).then(([val, instInterest]) => {
+    Promise.all([
+      fetchSetting('max_installments'),
+      fetchSetting('installments_interest'),
+      fetchSetting('installments_interest_table'),
+    ]).then(([val, instInterest, tableJson]) => {
       if (val) setMaxInstallmentsSetting(Number(val));
       if (instInterest) setInstallmentsInterest(instInterest);
+      if (tableJson) setInterestTable(parseInterestTable(tableJson));
     });
   }, []);
 
   // Gerar opções de parcelamento localmente quando total ou configurações mudam
   useEffect(() => {
     if (totalValue <= 0) return;
-    const opcoes = gerarOpcoesParcelamento(totalValue, maxInstallmentsSetting);
+    const opcoes = gerarOpcoesParcelamento(totalValue, maxInstallmentsSetting, interestTable);
     setInstallmentOptions(opcoes);
-  }, [totalValue, maxInstallmentsSetting]);
+  }, [totalValue, maxInstallmentsSetting, interestTable]);
 
   // Load saved profile + addresses on mount
   useEffect(() => {
