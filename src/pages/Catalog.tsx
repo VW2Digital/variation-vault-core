@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchProducts, fetchSetting } from '@/lib/api';
 import { WholesaleTier } from '@/contexts/CartContext';
+import { calcularParcelamento, parseInterestTable } from '@/lib/installments';
 import { supabase } from '@/integrations/supabase/client';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
 import { Input } from '@/components/ui/input';
@@ -39,13 +40,15 @@ const Catalog = () => {
   const [pixPercentSetting, setPixPercentSetting] = useState(19);
   const [maxInstallmentsSetting, setMaxInstallmentsSetting] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
+  const [interestTable, setInterestTable] = useState<Record<number, number>>({});
 
   useEffect(() => {
     // Load payment display settings
-    Promise.all([fetchSetting('pix_discount_percent'), fetchSetting('max_installments'), fetchSetting('installments_interest')]).then(([pixDisc, maxInst, instInterest]) => {
+    Promise.all([fetchSetting('pix_discount_percent'), fetchSetting('max_installments'), fetchSetting('installments_interest'), fetchSetting('interest_table')]).then(([pixDisc, maxInst, instInterest, intTable]) => {
       if (pixDisc) setPixPercentSetting(Number(pixDisc));
       if (maxInst) setMaxInstallmentsSetting(Number(maxInst));
       if (instInterest) setInstallmentsInterest(instInterest);
+      setInterestTable(parseInterestTable(intTable));
     });
 
     fetchProducts()
@@ -363,15 +366,25 @@ const Catalog = () => {
                             {/* Installments */}
                             {displayPrice && displayPrice > 10 && maxInstallmentsSetting > 1 && (
                               <p className="text-muted-foreground text-[10px] sm:text-[11px] hidden sm:block">
-                                ou R$ {displayPrice!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em{' '}
-                                <span className="text-primary font-medium">
-                                  {(() => {
-                                    const maxInst = Math.min(maxInstallmentsSetting, Math.floor(displayPrice! / 5));
-                                    const installmentValue = displayPrice! / Math.max(maxInst, 1);
-                                    const interestLabel = installmentsInterest === 'sem_juros' ? ' sem juros' : '';
-                                    return `${maxInst}x R$ ${installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}${interestLabel}`;
-                                  })()}
-                                </span>
+                                {(() => {
+                                  const maxInst = Math.min(maxInstallmentsSetting, Math.floor(displayPrice! / 5));
+                                  const effectiveMax = Math.max(maxInst, 1);
+                                  if (installmentsInterest === 'sem_juros') {
+                                    const installmentValue = displayPrice! / effectiveMax;
+                                    return <>ou R$ {displayPrice!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em{' '}
+                                      <span className="text-primary font-medium">
+                                        {effectiveMax}x R$ {installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} sem juros
+                                      </span>
+                                    </>;
+                                  } else {
+                                    const result = calcularParcelamento(displayPrice!, effectiveMax, interestTable);
+                                    return <>ou R$ {result.valorFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em{' '}
+                                      <span className="text-primary font-medium">
+                                        {effectiveMax}x R$ {result.valorParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </>;
+                                  }
+                                })()}
                               </p>
                             )}
                             {offerPrice && <CountdownTimer variant="compact" />}
