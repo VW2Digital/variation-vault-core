@@ -664,7 +664,7 @@ const OrdersPage = () => {
                       <span className="text-xs text-muted-foreground">{billingTypeMap[order.payment_method] || order.payment_method}</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5 pl-7">
-                      <Badge variant={status.variant} className="text-[10px]">{status.label}</Badge>
+                      <Badge variant={status.variant} className={`text-[10px] ${status.badgeClass || ''}`}>{status.label}</Badge>
                       <Badge variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'} className="text-[10px]">{delivery?.label || 'Processando'}</Badge>
                       {order.tracking_code && <Badge variant="secondary" className="text-[10px] font-mono">{order.tracking_code}</Badge>}
                       {order.shipping_status === 'insufficient_balance' && (
