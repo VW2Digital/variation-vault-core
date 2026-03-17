@@ -45,7 +45,7 @@ const statusMap: Record<string, { label: string; variant: 'default' | 'secondary
 };
 
 const deliveryStatuses = [
-  { value: 'PROCESSING', label: 'Em Processamento', badgeClass: '' },
+  { value: 'PROCESSING', label: 'Processando', badgeClass: '' },
   { value: 'SHIPPED', label: 'Enviado', badgeClass: 'bg-amber-500 hover:bg-amber-600 text-white border-transparent' },
   { value: 'IN_TRANSIT', label: 'Em Trânsito', badgeClass: 'bg-amber-500 hover:bg-amber-600 text-white border-transparent' },
   { value: 'DELIVERED', label: 'Entregue', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
