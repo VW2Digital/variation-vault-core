@@ -51,46 +51,38 @@ function toCurrencyNumber(value: number) {
 }
 
 /**
- * Tabela de juros padrão (fallback se não houver configuração no banco)
+ * Usa a API de simulação do Asaas para obter o valor exato de cada parcela.
+ * Retorna { valorFinal, valorParcela } para a quantidade de parcelas solicitada.
  */
-const DEFAULT_INTEREST_TABLE: Record<number, number> = {
-  1: 0, 2: 0.05, 3: 0.07, 4: 0.09, 5: 0.12, 6: 0.15,
-  7: 0.18, 8: 0.21, 9: 0.24, 10: 0.27, 11: 0.30, 12: 0.33,
-};
-
-/**
- * Carrega a tabela de juros do banco de dados (site_settings).
- * Retorna a tabela padrão se não encontrar ou se houver erro.
- */
-async function loadInterestTable(supabaseUrl: string, supabaseKey: string): Promise<Record<number, number>> {
-  try {
-    const sb = createClient(supabaseUrl, supabaseKey);
-    const { data } = await sb.from('site_settings').select('value').eq('key', 'installments_interest_table').maybeSingle();
-    if (!data?.value) return { ...DEFAULT_INTEREST_TABLE };
-    const parsed = JSON.parse(data.value);
-    if (typeof parsed !== 'object' || parsed === null) return { ...DEFAULT_INTEREST_TABLE };
-    const table: Record<number, number> = {};
-    for (let i = 1; i <= 12; i++) {
-      const val = Number(parsed[String(i)] ?? parsed[i]);
-      table[i] = Number.isFinite(val) && val >= 0 ? val : (DEFAULT_INTEREST_TABLE[i] ?? 0);
-    }
-    return table;
-  } catch {
-    return { ...DEFAULT_INTEREST_TABLE };
-  }
-}
-
-/**
- * Recalcula o valor final com juros embutidos no backend (fonte da verdade).
- */
-function calcularParcelamentoBackend(valorBase: number, parcelas: number, interestTable: Record<number, number>) {
+async function simularParcelamentoAsaas(
+  baseUrl: string, apiKey: string, valorBase: number, parcelas: number
+): Promise<{ valorFinal: number; valorParcela: number }> {
   if (parcelas < 1 || parcelas > 12 || !Number.isInteger(parcelas)) {
     throw new Error(`Parcelas inválidas: ${parcelas}`);
   }
-  const percentual = interestTable[parcelas] ?? 0;
-  const valorFinal = toCurrencyNumber(valorBase * (1 + percentual));
-  const valorParcela = toCurrencyNumber(valorFinal / parcelas);
-  return { valorFinal, valorParcela, percentual };
+  if (parcelas === 1) {
+    return { valorFinal: toCurrencyNumber(valorBase), valorParcela: toCurrencyNumber(valorBase) };
+  }
+
+  const simResult = await asaasFetch(baseUrl, apiKey, '/payments/simulate', 'POST', {
+    value: toCurrencyNumber(valorBase),
+    installmentCount: parcelas,
+    billingTypes: ['CREDIT_CARD'],
+  });
+
+  const installments = simResult?.creditCard?.installments;
+  if (Array.isArray(installments)) {
+    const match = installments.find((i: any) => i.installmentCount === parcelas);
+    if (match) {
+      return {
+        valorFinal: toCurrencyNumber(match.totalValue),
+        valorParcela: toCurrencyNumber(match.installmentValue),
+      };
+    }
+  }
+
+  // Fallback: usar valor sem juros se simulação não retornar dados
+  return { valorFinal: toCurrencyNumber(valorBase), valorParcela: toCurrencyNumber(valorBase / parcelas) };
 }
 
 function sanitizePhone(phone?: string): string | undefined {
