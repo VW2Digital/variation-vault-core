@@ -27,20 +27,20 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 
-const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; badgeClass?: string }> = {
   PENDING: { label: 'Pendente', variant: 'outline' },
-  PAID: { label: 'Pago', variant: 'default' },
-  RECEIVED: { label: 'Recebido', variant: 'default' },
-  CONFIRMED: { label: 'Confirmado', variant: 'default' },
+  PAID: { label: 'Pago', variant: 'default', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
+  RECEIVED: { label: 'Recebido', variant: 'default', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
+  CONFIRMED: { label: 'Confirmado', variant: 'default', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
   OVERDUE: { label: 'Vencido', variant: 'destructive' },
   REFUNDED: { label: 'Estornado', variant: 'secondary' },
-  RECEIVED_IN_CASH: { label: 'Recebido em dinheiro', variant: 'default' },
+  RECEIVED_IN_CASH: { label: 'Recebido em dinheiro', variant: 'default', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
   REFUND_REQUESTED: { label: 'Estorno solicitado', variant: 'secondary' },
   CHARGEBACK_REQUESTED: { label: 'Chargeback', variant: 'destructive' },
   CHARGEBACK_DISPUTE: { label: 'Disputa', variant: 'destructive' },
   AWAITING_CHARGEBACK_REVERSAL: { label: 'Aguardando reversão', variant: 'secondary' },
   DUNNING_REQUESTED: { label: 'Cobrança solicitada', variant: 'outline' },
-  DUNNING_RECEIVED: { label: 'Cobrança recebida', variant: 'default' },
+  DUNNING_RECEIVED: { label: 'Cobrança recebida', variant: 'default', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
   AWAITING_RISK_ANALYSIS: { label: 'Análise de risco', variant: 'outline' },
 };
 
@@ -607,7 +607,7 @@ const OrdersPage = () => {
           {/* Mobile card view */}
           <div className="space-y-3 md:hidden">
             {paginatedOrders.map((order) => {
-              const status = statusMap[order.status] || { label: order.status, variant: 'outline' as const };
+              const status = statusMap[order.status] || { label: order.status, variant: 'outline' as const, badgeClass: '' };
               const delivery = deliveryStatuses.find(d => d.value === order.delivery_status);
               return (
                 <Card key={order.id} className={`border-border/50 ${selectedIds.has(order.id) ? 'ring-1 ring-primary' : ''}`}>
@@ -664,7 +664,7 @@ const OrdersPage = () => {
                       <span className="text-xs text-muted-foreground">{billingTypeMap[order.payment_method] || order.payment_method}</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5 pl-7">
-                      <Badge variant={status.variant} className="text-[10px]">{status.label}</Badge>
+                      <Badge variant={status.variant} className={`text-[10px] ${status.badgeClass || ''}`}>{status.label}</Badge>
                       <Badge variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'} className="text-[10px]">{delivery?.label || 'Processando'}</Badge>
                       {order.tracking_code && <Badge variant="secondary" className="text-[10px] font-mono">{order.tracking_code}</Badge>}
                       {order.shipping_status === 'insufficient_balance' && (
@@ -705,7 +705,7 @@ const OrdersPage = () => {
                 </TableHeader>
                 <TableBody>
                   {paginatedOrders.map((order) => {
-                    const status = statusMap[order.status] || { label: order.status, variant: 'outline' as const };
+                    const status = statusMap[order.status] || { label: order.status, variant: 'outline' as const, badgeClass: '' };
                     const delivery = deliveryStatuses.find(d => d.value === order.delivery_status);
                     return (
                       <TableRow key={order.id} className={selectedIds.has(order.id) ? 'bg-primary/5' : ''}>
@@ -731,7 +731,7 @@ const OrdersPage = () => {
                           R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={status.variant} className="text-[10px]">{status.label}</Badge>
+                          <Badge variant={status.variant} className={`text-[10px] ${status.badgeClass || ''}`}>{status.label}</Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-0.5">
