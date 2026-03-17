@@ -1244,19 +1244,25 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Parcelas</Label>
-              <select value={installments} onChange={(e) => setInstallments(Number(e.target.value))} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                {installmentOptions.map((opt) => (
-                  <option key={opt.parcelas} value={opt.parcelas}>
-                    {opt.parcelas}x de R$ {opt.valorParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    {opt.parcelas === 1
-                      ? ' (à vista)'
-                      : opt.percentualJuros === 0
-                        ? ' (sem juros)'
-                        : ` (total: R$ ${opt.valorFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`
-                    }
-                  </option>
-                ))}
-              </select>
+              {loadingInstallments ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Carregando parcelas...
+                </div>
+              ) : (
+                <select value={installments} onChange={(e) => setInstallments(Number(e.target.value))} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  {installmentOptions.map((opt) => (
+                    <option key={opt.parcelas} value={opt.parcelas}>
+                      {opt.parcelas}x de R$ {opt.valorParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      {opt.parcelas === 1
+                        ? ' (à vista)'
+                        : opt.percentualJuros === 0
+                          ? ' (sem juros)'
+                          : ` (total: R$ ${opt.valorFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`
+                      }
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             <div className="border-t border-border/50 pt-3 space-y-2">
               <p className="text-xs font-medium text-muted-foreground">Dados do titular</p>
