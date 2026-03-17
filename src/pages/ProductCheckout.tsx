@@ -129,7 +129,8 @@ const ProductCheckout = () => {
   const [maxInstallments, setMaxInstallments] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
   const [showInstallments, setShowInstallments] = useState(false);
-  const [interestTable, setInterestTable] = useState<Record<number, number> | undefined>(undefined);
+  const [simulatedInstallments, setSimulatedInstallments] = useState<InstallmentResult[]>([]);
+  const [loadingSimulation, setLoadingSimulation] = useState(false);
   const [shippingOptions, setShippingOptions] = useState<{ id: number; name: string; company: string; price: number; delivery_time: number | null }[]>([]);
   const [loadingShipping, setLoadingShipping] = useState(false);
   const [userPostalCode, setUserPostalCode] = useState('');
