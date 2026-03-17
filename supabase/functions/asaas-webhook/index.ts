@@ -142,76 +142,9 @@ serve(async (req) => {
         }
       } // end of downgrade check
 
-      // ─── AUTO-TRIGGER SHIPPING ON PAYMENT CONFIRMATION ───
+      // Auto-shipping disabled — labels are created manually via admin panel
       if (newStatus === 'PAID') {
-        console.log('[Webhook] Payment confirmed, triggering shipping flow...');
-
-        let orderId = payment.externalReference || null;
-        let shouldShip = false;
-        let selectedServiceId: number | null = null;
-
-        if (orderId) {
-          const { data: orderData } = await supabase
-            .from('orders')
-            .select('id, customer_postal_code, shipment_id, selected_service_id')
-            .eq('id', orderId)
-            .maybeSingle();
-
-          if (orderData && !orderData.shipment_id && orderData.customer_postal_code) {
-            shouldShip = true;
-            selectedServiceId = orderData.selected_service_id;
-          } else if (orderData?.shipment_id) {
-            console.log(`[Webhook] Skipping auto-shipping: shipment already exists for order ${orderId}`);
-            orderId = null;
-          } else if (orderData && !orderData.customer_postal_code) {
-            console.log(`[Webhook] Skipping auto-shipping: no postal code for order ${orderId}`);
-            orderId = null;
-          }
-        }
-
-        if (!orderId) {
-          const { data: orderData } = await supabase
-            .from('orders')
-            .select('id, customer_postal_code, shipment_id, selected_service_id')
-            .eq('asaas_payment_id', payment.id)
-            .maybeSingle();
-
-          if (orderData && !orderData.shipment_id && orderData.customer_postal_code) {
-            orderId = orderData.id;
-            shouldShip = true;
-            selectedServiceId = orderData.selected_service_id;
-          } else if (orderData?.shipment_id) {
-            console.log(`[Webhook] Skipping auto-shipping: shipment already exists`);
-          } else if (orderData && !orderData.customer_postal_code) {
-            console.log(`[Webhook] Skipping auto-shipping: no postal code`);
-          }
-        }
-
-        if (orderId && shouldShip) {
-          console.log(`[Webhook] Auto-shipping order ${orderId}`);
-          try {
-            const shipmentResponse = await fetch(
-              `${supabaseUrl}/functions/v1/melhor-envio-shipment`,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${supabaseKey}`,
-                },
-                body: JSON.stringify({
-                  order_id: orderId,
-                  action: 'full_flow',
-                  ...(selectedServiceId ? { service_id: selectedServiceId } : {}),
-                }),
-              }
-            );
-
-            const shipmentResult = await shipmentResponse.text();
-            console.log(`[Webhook] Shipping result: ${shipmentResult}`);
-          } catch (shipErr: any) {
-            console.error('[Webhook] Shipping trigger error:', shipErr.message);
-          }
-        }
+        console.log('[Webhook] Payment confirmed. Auto-shipping disabled — label must be created manually.');
       }
     }
 
