@@ -668,7 +668,7 @@ const OrdersPage = () => {
                     <p className="text-xs text-muted-foreground truncate pl-7">{order.product_name}{order.dosage ? ` - ${order.dosage}` : ''}</p>
                     <div className="flex items-center justify-between gap-2 pl-7">
                       <span className="font-bold text-base text-primary">R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                      <span className="text-xs text-muted-foreground">{billingTypeMap[order.payment_method] || order.payment_method}</span>
+                      <PaymentIcon method={order.payment_method} />
                     </div>
                     <div className="flex flex-wrap gap-1.5 pl-7">
                       <Badge variant={status.variant} className={`text-[10px] ${status.badgeClass || ''}`}>{status.label}</Badge>
