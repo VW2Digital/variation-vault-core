@@ -47,9 +47,12 @@ serve(async (req) => {
       });
     }
 
-    // Clean URL trailing slash
+    // Clean URL trailing slash and encode instance name
     const baseUrl = apiUrl.replace(/\/+$/, '');
-    const url = `${baseUrl}/message/sendText/${instanceName}`;
+    const encodedInstance = encodeURIComponent(instanceName);
+    const url = `${baseUrl}/message/sendText/${encodedInstance}`;
+
+    console.log(`[Evolution] Sending to ${number}, instance: ${instanceName}, url: ${url}`);
 
     const response = await fetch(url, {
       method: 'POST',
