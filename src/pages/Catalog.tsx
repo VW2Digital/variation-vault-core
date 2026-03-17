@@ -44,10 +44,11 @@ const Catalog = () => {
 
   useEffect(() => {
     // Load payment display settings
-    Promise.all([fetchSetting('pix_discount_percent'), fetchSetting('max_installments'), fetchSetting('installments_interest')]).then(([pixDisc, maxInst, instInterest]) => {
+    Promise.all([fetchSetting('pix_discount_percent'), fetchSetting('max_installments'), fetchSetting('installments_interest'), fetchSetting('interest_table')]).then(([pixDisc, maxInst, instInterest, intTable]) => {
       if (pixDisc) setPixPercentSetting(Number(pixDisc));
       if (maxInst) setMaxInstallmentsSetting(Number(maxInst));
       if (instInterest) setInstallmentsInterest(instInterest);
+      setInterestTable(parseInterestTable(intTable));
     });
 
     fetchProducts()
