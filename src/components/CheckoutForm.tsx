@@ -829,7 +829,18 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
               <p className="text-sm text-muted-foreground">
                 Status: <span className="font-medium text-primary">{paymentResult?.status === 'CONFIRMED' ? 'Confirmado' : paymentResult?.status === 'PENDING' ? 'Pendente' : paymentResult?.status}</span>
               </p>
-              <p className="text-xs text-muted-foreground">Valor: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              {installments > 1 ? (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    {installments}x de R$ {(installmentOptions.find(o => o.parcelas === installments)?.valorParcela ?? totalValue / installments).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs font-medium text-foreground">
+                    Total com juros: R$ {(installmentOptions.find(o => o.parcelas === installments)?.valorFinal ?? totalValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground">Valor: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              )}
               <p className="text-xs text-muted-foreground mt-2">Você será redirecionado em 5 segundos...</p>
             </>
           )}
