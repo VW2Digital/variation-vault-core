@@ -135,7 +135,8 @@ const SettingsPage = () => {
       fetchSetting('pix_discount_percent'),
       fetchSetting('max_installments'),
       fetchSetting('installments_interest'),
-    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pixDisc, maxInst, instInterest]) => {
+      fetchSetting('installments_interest_table'),
+    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pixDisc, maxInst, instInterest, interestTableJson]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
