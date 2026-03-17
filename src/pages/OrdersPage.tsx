@@ -735,7 +735,7 @@ const OrdersPage = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-0.5">
-                            <Badge variant={order.delivery_status === 'DELIVERED' ? 'default' : 'outline'} className="text-[10px] w-fit">
+                            <Badge variant="outline" className={`text-[10px] w-fit ${delivery?.badgeClass || ''}`}>
                               {delivery?.label || 'Processando'}
                             </Badge>
                             {order.shipping_status === 'insufficient_balance' && (
