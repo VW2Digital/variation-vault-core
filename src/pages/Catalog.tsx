@@ -366,15 +366,25 @@ const Catalog = () => {
                             {/* Installments */}
                             {displayPrice && displayPrice > 10 && maxInstallmentsSetting > 1 && (
                               <p className="text-muted-foreground text-[10px] sm:text-[11px] hidden sm:block">
-                                ou R$ {displayPrice!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em{' '}
-                                <span className="text-primary font-medium">
-                                  {(() => {
-                                    const maxInst = Math.min(maxInstallmentsSetting, Math.floor(displayPrice! / 5));
-                                    const installmentValue = displayPrice! / Math.max(maxInst, 1);
-                                    const interestLabel = installmentsInterest === 'sem_juros' ? ' sem juros' : '';
-                                    return `${maxInst}x R$ ${installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}${interestLabel}`;
-                                  })()}
-                                </span>
+                                {(() => {
+                                  const maxInst = Math.min(maxInstallmentsSetting, Math.floor(displayPrice! / 5));
+                                  const effectiveMax = Math.max(maxInst, 1);
+                                  if (installmentsInterest === 'sem_juros') {
+                                    const installmentValue = displayPrice! / effectiveMax;
+                                    return <>ou R$ {displayPrice!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em{' '}
+                                      <span className="text-primary font-medium">
+                                        {effectiveMax}x R$ {installmentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} sem juros
+                                      </span>
+                                    </>;
+                                  } else {
+                                    const result = calcularParcelamento(displayPrice!, effectiveMax, interestTable);
+                                    return <>ou R$ {result.valorFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em{' '}
+                                      <span className="text-primary font-medium">
+                                        {effectiveMax}x R$ {result.valorParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </>;
+                                  }
+                                })()}
                               </p>
                             )}
                             {offerPrice && <CountdownTimer variant="compact" />}
