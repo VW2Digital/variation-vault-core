@@ -27,20 +27,20 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 
-const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; badgeClass?: string }> = {
   PENDING: { label: 'Pendente', variant: 'outline' },
-  PAID: { label: 'Pago', variant: 'default' },
-  RECEIVED: { label: 'Recebido', variant: 'default' },
-  CONFIRMED: { label: 'Confirmado', variant: 'default' },
+  PAID: { label: 'Pago', variant: 'default', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
+  RECEIVED: { label: 'Recebido', variant: 'default', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
+  CONFIRMED: { label: 'Confirmado', variant: 'default', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
   OVERDUE: { label: 'Vencido', variant: 'destructive' },
   REFUNDED: { label: 'Estornado', variant: 'secondary' },
-  RECEIVED_IN_CASH: { label: 'Recebido em dinheiro', variant: 'default' },
+  RECEIVED_IN_CASH: { label: 'Recebido em dinheiro', variant: 'default', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
   REFUND_REQUESTED: { label: 'Estorno solicitado', variant: 'secondary' },
   CHARGEBACK_REQUESTED: { label: 'Chargeback', variant: 'destructive' },
   CHARGEBACK_DISPUTE: { label: 'Disputa', variant: 'destructive' },
   AWAITING_CHARGEBACK_REVERSAL: { label: 'Aguardando reversão', variant: 'secondary' },
   DUNNING_REQUESTED: { label: 'Cobrança solicitada', variant: 'outline' },
-  DUNNING_RECEIVED: { label: 'Cobrança recebida', variant: 'default' },
+  DUNNING_RECEIVED: { label: 'Cobrança recebida', variant: 'default', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
   AWAITING_RISK_ANALYSIS: { label: 'Análise de risco', variant: 'outline' },
 };
 
