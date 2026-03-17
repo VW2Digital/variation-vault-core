@@ -40,6 +40,7 @@ const Catalog = () => {
   const [pixPercentSetting, setPixPercentSetting] = useState(19);
   const [maxInstallmentsSetting, setMaxInstallmentsSetting] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
+  const [interestTable, setInterestTable] = useState<Record<number, number>>({});
 
   useEffect(() => {
     // Load payment display settings
