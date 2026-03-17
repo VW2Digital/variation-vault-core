@@ -51,8 +51,15 @@ function toCurrencyNumber(value: number) {
 }
 
 /**
- * Usa a API de simulação do Asaas para obter o valor exato de cada parcela.
- * Retorna { valorFinal, valorParcela } para a quantidade de parcelas solicitada.
+ * Tabela de juros padrão (fallback quando simulação do Asaas falha)
+ */
+const DEFAULT_INTEREST_TABLE: Record<number, number> = {
+  1: 0, 2: 0.05, 3: 0.07, 4: 0.09, 5: 0.12, 6: 0.15,
+  7: 0.18, 8: 0.21, 9: 0.24, 10: 0.27, 11: 0.30, 12: 0.33,
+};
+
+/**
+ * Tenta usar a API de simulação do Asaas. Se falhar, usa tabela local de juros.
  */
 async function simularParcelamentoAsaas(
   baseUrl: string, apiKey: string, valorBase: number, parcelas: number
@@ -64,25 +71,32 @@ async function simularParcelamentoAsaas(
     return { valorFinal: toCurrencyNumber(valorBase), valorParcela: toCurrencyNumber(valorBase) };
   }
 
-  const simResult = await asaasFetch(baseUrl, apiKey, '/payments/simulate', 'POST', {
-    value: toCurrencyNumber(valorBase),
-    installmentCount: parcelas,
-    billingTypes: ['CREDIT_CARD'],
-  });
+  try {
+    const simResult = await asaasFetch(baseUrl, apiKey, '/payments/simulate', 'POST', {
+      value: toCurrencyNumber(valorBase),
+      installmentCount: parcelas,
+      billingTypes: ['CREDIT_CARD'],
+    });
 
-  const installments = simResult?.creditCard?.installments;
-  if (Array.isArray(installments)) {
-    const match = installments.find((i: any) => i.installmentCount === parcelas);
-    if (match) {
-      return {
-        valorFinal: toCurrencyNumber(match.totalValue),
-        valorParcela: toCurrencyNumber(match.installmentValue),
-      };
+    const installments = simResult?.creditCard?.installments;
+    if (Array.isArray(installments)) {
+      const match = installments.find((i: any) => i.installmentCount === parcelas);
+      if (match) {
+        return {
+          valorFinal: toCurrencyNumber(match.totalValue),
+          valorParcela: toCurrencyNumber(match.installmentValue),
+        };
+      }
     }
+  } catch (e) {
+    console.warn('Simulação Asaas falhou, usando tabela local:', (e as Error).message);
   }
 
-  // Fallback: usar valor sem juros se simulação não retornar dados
-  return { valorFinal: toCurrencyNumber(valorBase), valorParcela: toCurrencyNumber(valorBase / parcelas) };
+  // Fallback: cálculo local com tabela de juros
+  const percentual = DEFAULT_INTEREST_TABLE[parcelas] ?? 0;
+  const valorFinal = toCurrencyNumber(valorBase * (1 + percentual));
+  const valorParcela = toCurrencyNumber(valorFinal / parcelas);
+  return { valorFinal, valorParcela };
 }
 
 function sanitizePhone(phone?: string): string | undefined {
