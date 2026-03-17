@@ -512,7 +512,11 @@ const ProductCheckout = () => {
                       </button>
                       {showInstallments && (
                         <div className="bg-muted rounded-lg p-3 mt-1 space-y-1 animate-in slide-in-from-top-2 duration-200">
-                          {gerarOpcoesParcelamento(total, maxInstallments, interestTable).map((opt) => (
+                          {loadingSimulation ? (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
+                              <Loader2 className="w-3 h-3 animate-spin" /> Carregando parcelas...
+                            </div>
+                          ) : simulatedInstallments.length > 0 ? simulatedInstallments.map((opt) => (
                             <div key={opt.parcelas} className="flex justify-between text-xs text-foreground">
                               <span>
                                 {opt.parcelas}x {opt.percentualJuros === 0 ? (opt.parcelas === 1 ? 'à vista' : 'sem juros') : 'com juros'}
@@ -521,7 +525,9 @@ const ProductCheckout = () => {
                                 R$ {opt.valorParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                               </span>
                             </div>
-                          ))}
+                          )) : (
+                            <p className="text-xs text-muted-foreground">Parcelas indisponíveis</p>
+                          )}
                         </div>
                       )}
                     </div>
