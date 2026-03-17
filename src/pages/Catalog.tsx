@@ -393,9 +393,9 @@ const Catalog = () => {
 
                     {/* Free Shipping Banner */}
                     {product.free_shipping && (
-                      <div className="mx-4 mb-2 rounded-md bg-success/10 border border-success/20 px-3 py-1.5 flex items-center gap-1.5">
-                        <Truck className="w-3.5 h-3.5 text-success flex-shrink-0" />
-                        <span className="text-success text-[11px] font-semibold">Frete Grátis</span>
+                      <div className="mx-3 mb-1.5 rounded-md bg-success/10 border border-success/20 px-2 py-1 flex items-center gap-1">
+                        <Truck className="w-3 h-3 text-success flex-shrink-0" />
+                        <span className="text-success text-[10px] font-semibold">Frete Grátis</span>
                       </div>
                     )}
 
