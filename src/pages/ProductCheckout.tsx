@@ -185,7 +185,34 @@ const ProductCheckout = () => {
       });
   }, [product, selectedVariation]);
 
-  // (installment options are now calculated locally via gerarOpcoesParcelamento)
+  // Buscar simulação de parcelas via API do Asaas quando produto/variação/quantidade mudam
+  useEffect(() => {
+    if (!product) return;
+    const variations = product.product_variations || [];
+    const variation = variations[selectedVariation];
+    if (!variation) return;
+    const basePrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : Number(variation?.price || 0);
+    const effectiveUnit = getEffectivePrice(basePrice, quantity, wholesaleTiers);
+    const simTotal = effectiveUnit * quantity;
+    if (simTotal <= 0) return;
+
+    setLoadingSimulation(true);
+    supabase.functions.invoke('asaas-checkout', {
+      body: { action: 'simulate_installments', value: simTotal, installmentCount: maxInstallments },
+    }).then(({ data }) => {
+      if (data?.creditCard?.installments) {
+        const opts: InstallmentResult[] = data.creditCard.installments.map((inst: any) => ({
+          parcelas: inst.installmentCount,
+          percentualJuros: inst.installmentCount === 1 ? 0 : Number(((inst.totalValue / simTotal - 1)).toFixed(4)),
+          valorFinal: Number(inst.totalValue),
+          valorParcela: Number(inst.installmentValue),
+        }));
+        setSimulatedInstallments(opts);
+      }
+    }).catch(() => {
+      setSimulatedInstallments([]);
+    }).finally(() => setLoadingSimulation(false));
+  }, [product, selectedVariation, quantity, wholesaleTiers, maxInstallments]);
 
   const fetchShippingByPostalCode = async (postalCode: string) => {
     if (!product || !postalCode || postalCode.replace(/\D/g, '').length !== 8) return;
