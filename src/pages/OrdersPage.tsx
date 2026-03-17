@@ -148,7 +148,16 @@ const OrdersPage = () => {
     }
   };
 
-  useEffect(() => { fetchOrders(); }, []);
+  useEffect(() => {
+    fetchOrders();
+    const channel = supabase
+      .channel('orders-realtime')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, () => {
+        fetchOrders();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const fetchShippingLogs = async (orderId: string) => {
     setLoadingLogs(true);
