@@ -658,7 +658,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
         };
 
         // Calcular valor final com juros embutidos
-        const parcelamento = calcularParcelamento(totalValue, installments);
+        const parcelamento = calcularParcelamento(totalValue, installments, interestTable);
 
         const orderId = await createOrder(paymentMethod, asaasCustomerId);
 
