@@ -488,7 +488,7 @@ const CustomerDashboard = () => {
                                 </Badge>
                               </div>
                               <div className="flex items-center gap-2">
-                                {order.status === 'PENDING' && order.payment_method === 'pix' && order.asaas_payment_id && (
+                                {order.status === 'PENDING' && order.asaas_payment_id && (
                                   <Button
                                     size="sm"
                                     variant="default"
