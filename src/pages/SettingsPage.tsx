@@ -144,6 +144,7 @@ const SettingsPage = () => {
       setPixDiscountPercent(pixDisc || '19');
       setMaxInstallments(maxInst || '6');
       setInstallmentsInterest(instInterest || 'sem_juros');
+      setInterestTable(parseInterestTable(interestTableJson));
       const currentMeEnv = meEnv || 'sandbox';
       setMelhorEnvioEnv(currentMeEnv);
 
