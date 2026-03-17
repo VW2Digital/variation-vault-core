@@ -8,3 +8,18 @@ verify_jwt = false
 
 [functions.melhor-envio-shipment]
 verify_jwt = false
+
+[functions.melhor-envio-webhook]
+verify_jwt = false
+
+[functions.cart-abandonment]
+verify_jwt = false
+
+[functions.admin-users]
+verify_jwt = false
+
+[functions.evolution-send-message]
+verify_jwt = false
+
+[functions.notify-payment-failure]
+verify_jwt = false
