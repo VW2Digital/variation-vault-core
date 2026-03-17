@@ -5,7 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Phone, CreditCard, Eye, EyeOff, Truck, MapPin, Mail, Link2, CheckCircle2, Download, Loader2, MessageSquare, Send } from 'lucide-react';
+import { Phone, CreditCard, Eye, EyeOff, Truck, MapPin, Mail, Link2, CheckCircle2, Download, Loader2, MessageSquare, Send, Percent } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { DEFAULT_INTEREST_TABLE, MAX_ALLOWED_INSTALLMENTS, parseInterestTable, serializeInterestTable, gerarOpcoesParcelamento } from '@/lib/installments';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Select,
