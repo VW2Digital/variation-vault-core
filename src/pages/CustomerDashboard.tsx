@@ -71,18 +71,32 @@ const CustomerDashboard = () => {
   const handlePayNow = async (order: any) => {
     setPayNowLoading(order.id);
     try {
-      const { data, error } = await supabase.functions.invoke('asaas-checkout', {
-        body: { action: 'get_pix_qrcode', paymentId: order.asaas_payment_id },
-      });
-      if (error || !data) throw new Error('Erro ao buscar QR Code');
-      setPixModal({
-        orderId: order.id,
-        qrCode: data.encodedImage,
-        payload: data.payload,
-        value: Number(order.total_value),
-      });
+      if (order.payment_method === 'pix') {
+        // Fetch PIX QR Code
+        const { data, error } = await supabase.functions.invoke('asaas-checkout', {
+          body: { action: 'get_pix_qrcode', paymentId: order.asaas_payment_id },
+        });
+        if (error || !data) throw new Error('Erro ao buscar QR Code');
+        setPixModal({
+          orderId: order.id,
+          qrCode: data.encodedImage,
+          payload: data.payload,
+          value: Number(order.total_value),
+        });
+      } else {
+        // Credit/debit card: fetch payment details and redirect to invoice URL
+        const { data, error } = await supabase.functions.invoke('asaas-checkout', {
+          body: { action: 'get_payment_status', paymentId: order.asaas_payment_id },
+        });
+        if (error || !data) throw new Error('Erro ao buscar dados do pagamento');
+        if (data.invoiceUrl) {
+          window.open(data.invoiceUrl, '_blank');
+        } else {
+          toast({ title: 'Link de pagamento indisponível', description: 'Não foi possível obter o link para finalizar o pagamento.', variant: 'destructive' });
+        }
+      }
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message || 'Não foi possível gerar o QR Code', variant: 'destructive' });
+      toast({ title: 'Erro', description: err.message || 'Não foi possível processar', variant: 'destructive' });
     } finally {
       setPayNowLoading(null);
     }
@@ -474,7 +488,7 @@ const CustomerDashboard = () => {
                                 </Badge>
                               </div>
                               <div className="flex items-center gap-2">
-                                {order.status === 'PENDING' && order.payment_method === 'pix' && order.asaas_payment_id && (
+                                {order.status === 'PENDING' && order.asaas_payment_id && (
                                   <Button
                                     size="sm"
                                     variant="default"
