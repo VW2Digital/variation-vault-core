@@ -249,7 +249,7 @@ const Catalog = () => {
             </Button>
           </div>
         ) : (
-          <StaggerContainer className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3.5">
+          <StaggerContainer className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1.5 sm:gap-2.5">
             {flatItems.map(({ product, variation }, idx) => {
               const price = variation ? Number(variation.price) : null;
               const offerPrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : null;
