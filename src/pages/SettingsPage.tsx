@@ -5,9 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Phone, CreditCard, Eye, EyeOff, Truck, MapPin, Mail, Link2, CheckCircle2, Download, Loader2, MessageSquare, Send, Percent } from 'lucide-react';
+import { Phone, CreditCard, Eye, EyeOff, Truck, MapPin, Mail, Link2, CheckCircle2, Download, Loader2, MessageSquare, Send } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { DEFAULT_INTEREST_TABLE, MAX_ALLOWED_INSTALLMENTS, parseInterestTable, serializeInterestTable, gerarOpcoesParcelamento } from '@/lib/installments';
 import {
   Select,
   SelectContent,
@@ -38,7 +37,6 @@ const SettingsPage = () => {
   const [pixDiscountPercent, setPixDiscountPercent] = useState('19');
   const [maxInstallments, setMaxInstallments] = useState('6');
   const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
-  const [interestTable, setInterestTable] = useState<Record<number, number>>({ ...DEFAULT_INTEREST_TABLE });
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fetchingProfile, setFetchingProfile] = useState(false);
@@ -135,7 +133,7 @@ const SettingsPage = () => {
       fetchSetting('max_installments'),
       fetchSetting('installments_interest'),
       fetchSetting('installments_interest_table'),
-    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pixDisc, maxInst, instInterest, interestTableJson]) => {
+    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pixDisc, maxInst, instInterest]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
@@ -143,7 +141,6 @@ const SettingsPage = () => {
       setPixDiscountPercent(pixDisc || '19');
       setMaxInstallments(maxInst || '6');
       setInstallmentsInterest(instInterest || 'sem_juros');
-      setInterestTable(parseInterestTable(interestTableJson));
       const currentMeEnv = meEnv || 'sandbox';
       setMelhorEnvioEnv(currentMeEnv);
 
@@ -294,7 +291,6 @@ const SettingsPage = () => {
         upsertSetting('pix_discount_percent', pixDiscountPercent, uid),
         upsertSetting('max_installments', maxInstallments, uid),
         upsertSetting('installments_interest', installmentsInterest, uid),
-        upsertSetting('installments_interest_table', serializeInterestTable(interestTable), uid),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
@@ -394,69 +390,6 @@ const SettingsPage = () => {
         </CardContent>
       </Card>
 
-      {/* Tabela de Juros por Parcela */}
-      {installmentsInterest === 'com_juros' && (
-        <Card className="border-border/50">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Percent className="w-5 h-5" /> Tabela de Juros por Parcela
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-xs text-muted-foreground">
-              Defina o percentual de juros aplicado sobre o valor total para cada quantidade de parcelas.
-              Exemplo: 5% em 2x significa que R$ 100 vira R$ 105 (2x de R$ 52,50).
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {Array.from({ length: MAX_ALLOWED_INSTALLMENTS }, (_, i) => i + 1).map((n) => (
-                <div key={n} className="space-y-1">
-                  <Label className="text-xs">{n}x {n === 1 ? '(à vista)' : ''}</Label>
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      value={((interestTable[n] ?? 0) * 100).toFixed(2)}
-                      onChange={(e) => {
-                        const pct = Number(e.target.value);
-                        setInterestTable((prev) => ({ ...prev, [n]: Number.isFinite(pct) ? pct / 100 : 0 }));
-                      }}
-                      disabled={n === 1}
-                      className="pr-7 text-sm"
-                    />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="bg-muted rounded-lg p-3 space-y-1">
-              <p className="text-xs font-medium text-foreground mb-2">Preview (R$ 100,00):</p>
-              {gerarOpcoesParcelamento(100, Number(maxInstallments) || 6, interestTable).map((opt) => (
-                <div key={opt.parcelas} className="flex justify-between text-xs text-foreground">
-                  <span>
-                    {opt.parcelas}x {opt.percentualJuros === 0 ? (opt.parcelas === 1 ? 'à vista' : 'sem juros') : `(${(opt.percentualJuros * 100).toFixed(1)}% juros)`}
-                  </span>
-                  <span className="font-medium text-primary">
-                    R$ {opt.valorParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    {opt.parcelas > 1 && opt.percentualJuros > 0 && (
-                      <span className="text-muted-foreground ml-1">(total: R$ {opt.valorFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</span>
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setInterestTable({ ...DEFAULT_INTEREST_TABLE })}
-              className="text-xs"
-            >
-              Restaurar valores padrão
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
       <Card className="border-border/50">
         <CardHeader>
