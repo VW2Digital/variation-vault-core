@@ -51,21 +51,43 @@ function toCurrencyNumber(value: number) {
 }
 
 /**
- * Tabela de juros por parcela — deve ser idêntica à do frontend (src/lib/installments.ts)
+ * Tabela de juros padrão (fallback se não houver configuração no banco)
  */
-const INTEREST_TABLE: Record<number, number> = {
+const DEFAULT_INTEREST_TABLE: Record<number, number> = {
   1: 0, 2: 0.05, 3: 0.07, 4: 0.09, 5: 0.12, 6: 0.15,
   7: 0.18, 8: 0.21, 9: 0.24, 10: 0.27, 11: 0.30, 12: 0.33,
 };
 
 /**
+ * Carrega a tabela de juros do banco de dados (site_settings).
+ * Retorna a tabela padrão se não encontrar ou se houver erro.
+ */
+async function loadInterestTable(supabaseUrl: string, supabaseKey: string): Promise<Record<number, number>> {
+  try {
+    const sb = createClient(supabaseUrl, supabaseKey);
+    const { data } = await sb.from('site_settings').select('value').eq('key', 'installments_interest_table').maybeSingle();
+    if (!data?.value) return { ...DEFAULT_INTEREST_TABLE };
+    const parsed = JSON.parse(data.value);
+    if (typeof parsed !== 'object' || parsed === null) return { ...DEFAULT_INTEREST_TABLE };
+    const table: Record<number, number> = {};
+    for (let i = 1; i <= 12; i++) {
+      const val = Number(parsed[String(i)] ?? parsed[i]);
+      table[i] = Number.isFinite(val) && val >= 0 ? val : (DEFAULT_INTEREST_TABLE[i] ?? 0);
+    }
+    return table;
+  } catch {
+    return { ...DEFAULT_INTEREST_TABLE };
+  }
+}
+
+/**
  * Recalcula o valor final com juros embutidos no backend (fonte da verdade).
  */
-function calcularParcelamentoBackend(valorBase: number, parcelas: number) {
+function calcularParcelamentoBackend(valorBase: number, parcelas: number, interestTable: Record<number, number>) {
   if (parcelas < 1 || parcelas > 12 || !Number.isInteger(parcelas)) {
     throw new Error(`Parcelas inválidas: ${parcelas}`);
   }
-  const percentual = INTEREST_TABLE[parcelas] ?? 0;
+  const percentual = interestTable[parcelas] ?? 0;
   const valorFinal = toCurrencyNumber(valorBase * (1 + percentual));
   const valorParcela = toCurrencyNumber(valorFinal / parcelas);
   return { valorFinal, valorParcela, percentual };
@@ -195,8 +217,9 @@ serve(async (req) => {
 
         const parsedInstallmentCount = Number(installmentCount) || 1;
 
-        // Recalcular valor com juros no backend (fonte da verdade)
-        const { valorFinal, valorParcela } = calcularParcelamentoBackend(toCurrencyNumber(value), parsedInstallmentCount);
+        // Carregar tabela de juros do banco (fonte da verdade)
+        const interestTable = await loadInterestTable(supabaseUrl, supabaseKey);
+        const { valorFinal, valorParcela } = calcularParcelamentoBackend(toCurrencyNumber(value), parsedInstallmentCount, interestTable);
 
         const paymentBody: any = {
           customer,

@@ -5,7 +5,7 @@ import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/Ani
 import { fetchProduct, fetchTestimonials, fetchBanners, fetchSetting } from '@/lib/api';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
 import { getEffectivePrice, WholesaleTier } from '@/contexts/CartContext';
-import { gerarOpcoesParcelamento } from '@/lib/installments';
+import { gerarOpcoesParcelamento, parseInterestTable } from '@/lib/installments';
 import Footer from '@/components/Footer';
 import { useCart } from '@/contexts/CartContext';
 import Header from '@/components/Header';
@@ -129,6 +129,7 @@ const ProductCheckout = () => {
   const [maxInstallments, setMaxInstallments] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
   const [showInstallments, setShowInstallments] = useState(false);
+  const [interestTable, setInterestTable] = useState<Record<number, number> | undefined>(undefined);
   const [shippingOptions, setShippingOptions] = useState<{ id: number; name: string; company: string; price: number; delivery_time: number | null }[]>([]);
   const [loadingShipping, setLoadingShipping] = useState(false);
   const [userPostalCode, setUserPostalCode] = useState('');
@@ -140,7 +141,8 @@ const ProductCheckout = () => {
     Promise.all([
       fetchProduct(id), fetchTestimonials(), fetchBanners(), fetchSetting('whatsapp_number'),
       fetchSetting('pix_discount_percent'), fetchSetting('max_installments'), fetchSetting('installments_interest'),
-    ]).then(async ([prod, tests, bans, wp, pixDisc, maxInst, instInterest]) => {
+      fetchSetting('installments_interest_table'),
+    ]).then(async ([prod, tests, bans, wp, pixDisc, maxInst, instInterest, interestTableJson]) => {
       setProduct(prod);
       setDynamicTestimonials(tests);
       setBanners(bans);
@@ -148,6 +150,7 @@ const ProductCheckout = () => {
       if (pixDisc) setPixDiscountPercent(Number(pixDisc));
       if (maxInst) setMaxInstallments(Number(maxInst));
       if (instInterest) setInstallmentsInterest(instInterest);
+      if (interestTableJson) setInterestTable(parseInterestTable(interestTableJson as string));
       const vId = searchParams.get('v');
       if (vId && prod.product_variations) {
         const idx = prod.product_variations.findIndex((v: any) => v.id === vId);
@@ -483,7 +486,7 @@ const ProductCheckout = () => {
                       </button>
                       {showInstallments && (
                         <div className="bg-muted rounded-lg p-3 mt-1 space-y-1 animate-in slide-in-from-top-2 duration-200">
-                          {gerarOpcoesParcelamento(total, maxInstallments).map((opt) => (
+                          {gerarOpcoesParcelamento(total, maxInstallments, interestTable).map((opt) => (
                             <div key={opt.parcelas} className="flex justify-between text-xs text-foreground">
                               <span>
                                 {opt.parcelas}x {opt.percentualJuros === 0 ? (opt.parcelas === 1 ? 'à vista' : 'sem juros') : 'com juros'}
