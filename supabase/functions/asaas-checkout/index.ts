@@ -209,9 +209,8 @@ serve(async (req) => {
 
         const parsedInstallmentCount = Number(installmentCount) || 1;
 
-        // Carregar tabela de juros do banco (fonte da verdade)
-        const interestTable = await loadInterestTable(supabaseUrl, supabaseKey);
-        const { valorFinal, valorParcela } = calcularParcelamentoBackend(toCurrencyNumber(value), parsedInstallmentCount, interestTable);
+        // Usar simulação da API do Asaas como fonte da verdade para juros
+        const { valorFinal, valorParcela } = await simularParcelamentoAsaas(baseUrl, apiKey, toCurrencyNumber(value), parsedInstallmentCount);
 
         const paymentBody: any = {
           customer,
