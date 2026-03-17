@@ -73,6 +73,8 @@ const Dashboard = () => {
   const [allLogs, setAllLogs] = useState<RawLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodKey>('30');
+  const [paidWithoutLabel, setPaidWithoutLabel] = useState(0);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
