@@ -63,9 +63,10 @@ const billingTypeMap: Record<string, string> = {
 
 const PaymentIcon = ({ method, size = 16 }: { method: string; size?: number }) => {
   const m = method?.toLowerCase();
-  if (m === 'pix') return <QrCode className="text-teal-600" size={size} />;
-  if (m === 'credit_card') return <CreditCard className="text-amber-600" size={size} />;
-  return <span className="text-xs text-muted-foreground">{billingTypeMap[method] || method}</span>;
+  const label = billingTypeMap[method] || method;
+  if (m === 'pix') return <span title={label}><QrCode className="text-teal-600 cursor-help" size={size} /></span>;
+  if (m === 'credit_card') return <span title={label}><CreditCard className="text-amber-600 cursor-help" size={size} /></span>;
+  return <span className="text-xs text-muted-foreground">{label}</span>;
 };
 
 const whatsappTemplates = [
