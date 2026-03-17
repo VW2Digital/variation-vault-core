@@ -292,7 +292,6 @@ const SettingsPage = () => {
         upsertSetting('pix_discount_percent', pixDiscountPercent, uid),
         upsertSetting('max_installments', maxInstallments, uid),
         upsertSetting('installments_interest', installmentsInterest, uid),
-        upsertSetting('installments_interest_table', serializeInterestTable(interestTable), uid),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
