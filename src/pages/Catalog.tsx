@@ -305,8 +305,8 @@ const Catalog = () => {
 
                       {/* Mais Vendido badge below image */}
                       {product.is_bestseller && (
-                        <div className="px-4 pt-3">
-                          <Badge className="bg-success text-white text-[10px] font-bold uppercase tracking-wide px-2 py-0.5">
+                        <div className="px-3 pt-2">
+                          <Badge className="bg-success text-white text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5">
                             Mais Vendido
                           </Badge>
                         </div>
