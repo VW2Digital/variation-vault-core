@@ -731,8 +731,8 @@ const OrdersPage = () => {
                         <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
                           {order.product_name} {order.dosage ? `- ${order.dosage}` : ''}
                         </TableCell>
-                        <TableCell className="text-xs">
-                          {billingTypeMap[order.payment_method] || order.payment_method}
+                        <TableCell className="text-center">
+                          <PaymentIcon method={order.payment_method} />
                         </TableCell>
                         <TableCell className="font-semibold whitespace-nowrap">
                           R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
