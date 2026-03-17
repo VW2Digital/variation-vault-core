@@ -486,7 +486,7 @@ const ProductCheckout = () => {
                       </button>
                       {showInstallments && (
                         <div className="bg-muted rounded-lg p-3 mt-1 space-y-1 animate-in slide-in-from-top-2 duration-200">
-                          {gerarOpcoesParcelamento(total, maxInstallments).map((opt) => (
+                          {gerarOpcoesParcelamento(total, maxInstallments, interestTable).map((opt) => (
                             <div key={opt.parcelas} className="flex justify-between text-xs text-foreground">
                               <span>
                                 {opt.parcelas}x {opt.percentualJuros === 0 ? (opt.parcelas === 1 ? 'à vista' : 'sem juros') : 'com juros'}
