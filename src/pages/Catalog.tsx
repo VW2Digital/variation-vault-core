@@ -416,8 +416,8 @@ const Catalog = () => {
                             addToCart(product.id, variation.id, minQty);
                           }}
                         >
-                          <ShoppingCart className="w-3.5 h-3.5 mr-1.5" />
-                          Adicionar ao Carrinho
+                          <ShoppingCart className="w-3.5 h-3.5 mr-1" />
+                          <span className="text-[11px]">Adicionar ao Carrinho</span>
                         </Button>
                       </div>
                     )}
