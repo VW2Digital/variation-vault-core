@@ -50,6 +50,27 @@ function toCurrencyNumber(value: number) {
   return Number(Number(value).toFixed(2));
 }
 
+/**
+ * Tabela de juros por parcela — deve ser idêntica à do frontend (src/lib/installments.ts)
+ */
+const INTEREST_TABLE: Record<number, number> = {
+  1: 0, 2: 0.05, 3: 0.07, 4: 0.09, 5: 0.12, 6: 0.15,
+  7: 0.18, 8: 0.21, 9: 0.24, 10: 0.27, 11: 0.30, 12: 0.33,
+};
+
+/**
+ * Recalcula o valor final com juros embutidos no backend (fonte da verdade).
+ */
+function calcularParcelamentoBackend(valorBase: number, parcelas: number) {
+  if (parcelas < 1 || parcelas > 12 || !Number.isInteger(parcelas)) {
+    throw new Error(`Parcelas inválidas: ${parcelas}`);
+  }
+  const percentual = INTEREST_TABLE[parcelas] ?? 0;
+  const valorFinal = toCurrencyNumber(valorBase * (1 + percentual));
+  const valorParcela = toCurrencyNumber(valorFinal / parcelas);
+  return { valorFinal, valorParcela, percentual };
+}
+
 function sanitizePhone(phone?: string): string | undefined {
   if (!phone) return undefined;
   let digits = phone.replace(/\D/g, '');
