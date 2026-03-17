@@ -169,49 +169,8 @@ serve(async (req) => {
           }
         }
 
-        if (!orderId) {
-          const { data: orderData } = await supabase
-            .from('orders')
-            .select('id, customer_postal_code, shipment_id, selected_service_id')
-            .eq('asaas_payment_id', payment.id)
-            .maybeSingle();
-
-          if (orderData && !orderData.shipment_id && orderData.customer_postal_code) {
-            orderId = orderData.id;
-            shouldShip = true;
-            selectedServiceId = orderData.selected_service_id;
-          } else if (orderData?.shipment_id) {
-            console.log(`[Webhook] Skipping auto-shipping: shipment already exists`);
-          } else if (orderData && !orderData.customer_postal_code) {
-            console.log(`[Webhook] Skipping auto-shipping: no postal code`);
-          }
-        }
-
-        if (orderId && shouldShip) {
-          console.log(`[Webhook] Auto-shipping order ${orderId}`);
-          try {
-            const shipmentResponse = await fetch(
-              `${supabaseUrl}/functions/v1/melhor-envio-shipment`,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${supabaseKey}`,
-                },
-                body: JSON.stringify({
-                  order_id: orderId,
-                  action: 'full_flow',
-                  ...(selectedServiceId ? { service_id: selectedServiceId } : {}),
-                }),
-              }
-            );
-
-            const shipmentResult = await shipmentResponse.text();
-            console.log(`[Webhook] Shipping result: ${shipmentResult}`);
-          } catch (shipErr: any) {
-            console.error('[Webhook] Shipping trigger error:', shipErr.message);
-          }
-        }
+        // Auto-shipping disabled — labels are created manually via admin panel
+        console.log(`[Webhook] Auto-shipping disabled. Label must be created manually.`);
       }
     }
 
