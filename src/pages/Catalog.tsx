@@ -272,7 +272,7 @@ const Catalog = () => {
 
               return (
                 <StaggerItem key={variation?.id || `${product.id}-${idx}`}>
-                  <div className={`group rounded-xl border overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col ${product.is_bestseller ? 'border-success/30 bg-success/[0.08] hover:border-success/50' : 'border-border/50 bg-card hover:border-primary/30'}`}>
+                  <div className={`group rounded-xl border overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col h-full ${product.is_bestseller ? 'border-success/30 bg-success/[0.08] hover:border-success/50' : 'border-border/50 bg-card hover:border-primary/30'}`}>
                     <Link
                       to={`/produto/${product.id}${variation ? `?v=${variation.id}` : ''}`}
                       className="block flex-1"
