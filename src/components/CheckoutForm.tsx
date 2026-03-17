@@ -383,7 +383,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
     throw lastError ?? new Error('Erro inesperado no checkout');
   };
 
-  const createOrder = async (paymentMethodType: string, asaasCustomerIdValue = customerId): Promise<string> => {
+  const createOrder = async (paymentMethodType: string, asaasCustomerIdValue = customerId, finalTotal?: number): Promise<string> => {
     const { data: { session } } = await supabase.auth.getSession();
     const orderData: any = {
       customer_name: name.trim(),
@@ -402,7 +402,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
       dosage,
       quantity,
       unit_price: unitPrice,
-      total_value: totalValue,
+      total_value: finalTotal ?? totalValue,
       shipping_cost: shippingCost,
       selected_service_id: selectedShipping?.id || null,
       shipping_service: selectedShipping ? `${selectedShipping.company} - ${selectedShipping.name}` : null,
@@ -679,7 +679,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
         const valorFinalCartao = selectedOpt ? selectedOpt.valorFinal : totalValue;
         const valorParcelaCartao = selectedOpt ? selectedOpt.valorParcela : totalValue;
 
-        const orderId = await createOrder(paymentMethod, asaasCustomerId);
+        const orderId = await createOrder(paymentMethod, asaasCustomerId, valorFinalCartao);
 
         const result = await invokeAsaas('create_card_payment', {
           customer: asaasCustomerId,
