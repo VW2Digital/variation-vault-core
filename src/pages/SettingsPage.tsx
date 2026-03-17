@@ -39,6 +39,7 @@ const SettingsPage = () => {
   const [pixDiscountPercent, setPixDiscountPercent] = useState('19');
   const [maxInstallments, setMaxInstallments] = useState('6');
   const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
+  const [interestTable, setInterestTable] = useState<Record<number, number>>({ ...DEFAULT_INTEREST_TABLE });
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fetchingProfile, setFetchingProfile] = useState(false);
