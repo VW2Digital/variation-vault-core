@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchSetting } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
-import { calcularParcelamento, gerarOpcoesParcelamento, parseInterestTable, type InstallmentResult } from '@/lib/installments';
+import { type InstallmentResult } from '@/lib/installments';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -175,30 +175,44 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const [maxInstallmentsSetting, setMaxInstallmentsSetting] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('com_juros');
   const [installmentOptions, setInstallmentOptions] = useState<InstallmentResult[]>([]);
-  const [interestTable, setInterestTable] = useState<Record<number, number> | undefined>(undefined);
+  const [loadingInstallments, setLoadingInstallments] = useState(false);
 
   const shippingCost = qualifiesForFreeShipping ? 0 : (selectedShipping?.price || 0);
   const totalValue = baseProductTotal + shippingCost;
 
-  // Load payment settings + interest table
+  // Load payment settings
   useEffect(() => {
     Promise.all([
       fetchSetting('max_installments'),
       fetchSetting('installments_interest'),
-      fetchSetting('installments_interest_table'),
-    ]).then(([val, instInterest, tableJson]) => {
+    ]).then(([val, instInterest]) => {
       if (val) setMaxInstallmentsSetting(Number(val));
       if (instInterest) setInstallmentsInterest(instInterest);
-      if (tableJson) setInterestTable(parseInterestTable(tableJson));
     });
   }, []);
 
-  // Gerar opções de parcelamento localmente quando total ou configurações mudam
+  // Buscar simulação de parcelas via API do Asaas
   useEffect(() => {
     if (totalValue <= 0) return;
-    const opcoes = gerarOpcoesParcelamento(totalValue, maxInstallmentsSetting, interestTable);
-    setInstallmentOptions(opcoes);
-  }, [totalValue, maxInstallmentsSetting, interestTable]);
+    const maxParcelas = Math.min(maxInstallmentsSetting, Math.max(1, Math.floor(totalValue / 5) || 1));
+    setLoadingInstallments(true);
+    supabase.functions.invoke('asaas-checkout', {
+      body: { action: 'simulate_installments', value: totalValue, installmentCount: maxParcelas },
+    }).then(({ data }) => {
+      if (data?.creditCard?.installments) {
+        const opts: InstallmentResult[] = data.creditCard.installments.map((inst: any) => ({
+          parcelas: inst.installmentCount,
+          percentualJuros: inst.installmentCount === 1 ? 0 : Number(((inst.totalValue / totalValue - 1)).toFixed(4)),
+          valorFinal: Number(inst.totalValue),
+          valorParcela: Number(inst.installmentValue),
+        }));
+        setInstallmentOptions(opts);
+      }
+    }).catch(() => {
+      // Fallback: opção única à vista
+      setInstallmentOptions([{ parcelas: 1, percentualJuros: 0, valorFinal: totalValue, valorParcela: totalValue }]);
+    }).finally(() => setLoadingInstallments(false));
+  }, [totalValue, maxInstallmentsSetting]);
 
   // Load saved profile + addresses on mount
   useEffect(() => {
@@ -657,17 +671,19 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
           mobilePhone: holderPhoneDigits,
         };
 
-        // Calcular valor final com juros embutidos
-        const parcelamento = calcularParcelamento(totalValue, installments, interestTable);
+        // Usar valores da simulação do Asaas (já carregados no dropdown)
+        const selectedOpt = installmentOptions.find(o => o.parcelas === installments);
+        const valorFinalCartao = selectedOpt ? selectedOpt.valorFinal : totalValue;
+        const valorParcelaCartao = selectedOpt ? selectedOpt.valorParcela : totalValue;
 
         const orderId = await createOrder(paymentMethod, asaasCustomerId);
 
         const result = await invokeAsaas('create_card_payment', {
           customer: asaasCustomerId,
-          value: parcelamento.valorFinal,
+          value: valorFinalCartao,
           description,
           installmentCount: installments,
-          installmentValue: parcelamento.valorParcela,
+          installmentValue: valorParcelaCartao,
           creditCard: {
             holderName: cardName.trim() || name.trim(),
             number: cardNumber.replace(/\s/g, ''),
@@ -1228,19 +1244,25 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Parcelas</Label>
-              <select value={installments} onChange={(e) => setInstallments(Number(e.target.value))} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                {installmentOptions.map((opt) => (
-                  <option key={opt.parcelas} value={opt.parcelas}>
-                    {opt.parcelas}x de R$ {opt.valorParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    {opt.parcelas === 1
-                      ? ' (à vista)'
-                      : opt.percentualJuros === 0
-                        ? ' (sem juros)'
-                        : ` (total: R$ ${opt.valorFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`
-                    }
-                  </option>
-                ))}
-              </select>
+              {loadingInstallments ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Carregando parcelas...
+                </div>
+              ) : (
+                <select value={installments} onChange={(e) => setInstallments(Number(e.target.value))} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  {installmentOptions.map((opt) => (
+                    <option key={opt.parcelas} value={opt.parcelas}>
+                      {opt.parcelas}x de R$ {opt.valorParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      {opt.parcelas === 1
+                        ? ' (à vista)'
+                        : opt.percentualJuros === 0
+                          ? ' (sem juros)'
+                          : ` (total: R$ ${opt.valorFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`
+                      }
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             <div className="border-t border-border/50 pt-3 space-y-2">
               <p className="text-xs font-medium text-muted-foreground">Dados do titular</p>

@@ -5,7 +5,7 @@ import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/Ani
 import { fetchProduct, fetchTestimonials, fetchBanners, fetchSetting } from '@/lib/api';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
 import { getEffectivePrice, WholesaleTier } from '@/contexts/CartContext';
-import { gerarOpcoesParcelamento, parseInterestTable } from '@/lib/installments';
+import { type InstallmentResult } from '@/lib/installments';
 import Footer from '@/components/Footer';
 import { useCart } from '@/contexts/CartContext';
 import Header from '@/components/Header';
@@ -129,7 +129,8 @@ const ProductCheckout = () => {
   const [maxInstallments, setMaxInstallments] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
   const [showInstallments, setShowInstallments] = useState(false);
-  const [interestTable, setInterestTable] = useState<Record<number, number> | undefined>(undefined);
+  const [simulatedInstallments, setSimulatedInstallments] = useState<InstallmentResult[]>([]);
+  const [loadingSimulation, setLoadingSimulation] = useState(false);
   const [shippingOptions, setShippingOptions] = useState<{ id: number; name: string; company: string; price: number; delivery_time: number | null }[]>([]);
   const [loadingShipping, setLoadingShipping] = useState(false);
   const [userPostalCode, setUserPostalCode] = useState('');
@@ -141,8 +142,7 @@ const ProductCheckout = () => {
     Promise.all([
       fetchProduct(id), fetchTestimonials(), fetchBanners(), fetchSetting('whatsapp_number'),
       fetchSetting('pix_discount_percent'), fetchSetting('max_installments'), fetchSetting('installments_interest'),
-      fetchSetting('installments_interest_table'),
-    ]).then(async ([prod, tests, bans, wp, pixDisc, maxInst, instInterest, interestTableJson]) => {
+    ]).then(async ([prod, tests, bans, wp, pixDisc, maxInst, instInterest]) => {
       setProduct(prod);
       setDynamicTestimonials(tests);
       setBanners(bans);
@@ -150,7 +150,6 @@ const ProductCheckout = () => {
       if (pixDisc) setPixDiscountPercent(Number(pixDisc));
       if (maxInst) setMaxInstallments(Number(maxInst));
       if (instInterest) setInstallmentsInterest(instInterest);
-      if (interestTableJson) setInterestTable(parseInterestTable(interestTableJson as string));
       const vId = searchParams.get('v');
       if (vId && prod.product_variations) {
         const idx = prod.product_variations.findIndex((v: any) => v.id === vId);
@@ -186,7 +185,34 @@ const ProductCheckout = () => {
       });
   }, [product, selectedVariation]);
 
-  // (installment options are now calculated locally via gerarOpcoesParcelamento)
+  // Buscar simulação de parcelas via API do Asaas quando produto/variação/quantidade mudam
+  useEffect(() => {
+    if (!product) return;
+    const variations = product.product_variations || [];
+    const variation = variations[selectedVariation];
+    if (!variation) return;
+    const basePrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : Number(variation?.price || 0);
+    const effectiveUnit = getEffectivePrice(basePrice, quantity, wholesaleTiers);
+    const simTotal = effectiveUnit * quantity;
+    if (simTotal <= 0) return;
+
+    setLoadingSimulation(true);
+    supabase.functions.invoke('asaas-checkout', {
+      body: { action: 'simulate_installments', value: simTotal, installmentCount: maxInstallments },
+    }).then(({ data }) => {
+      if (data?.creditCard?.installments) {
+        const opts: InstallmentResult[] = data.creditCard.installments.map((inst: any) => ({
+          parcelas: inst.installmentCount,
+          percentualJuros: inst.installmentCount === 1 ? 0 : Number(((inst.totalValue / simTotal - 1)).toFixed(4)),
+          valorFinal: Number(inst.totalValue),
+          valorParcela: Number(inst.installmentValue),
+        }));
+        setSimulatedInstallments(opts);
+      }
+    }).catch(() => {
+      setSimulatedInstallments([]);
+    }).finally(() => setLoadingSimulation(false));
+  }, [product, selectedVariation, quantity, wholesaleTiers, maxInstallments]);
 
   const fetchShippingByPostalCode = async (postalCode: string) => {
     if (!product || !postalCode || postalCode.replace(/\D/g, '').length !== 8) return;
@@ -486,7 +512,11 @@ const ProductCheckout = () => {
                       </button>
                       {showInstallments && (
                         <div className="bg-muted rounded-lg p-3 mt-1 space-y-1 animate-in slide-in-from-top-2 duration-200">
-                          {gerarOpcoesParcelamento(total, maxInstallments, interestTable).map((opt) => (
+                          {loadingSimulation ? (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
+                              <Loader2 className="w-3 h-3 animate-spin" /> Carregando parcelas...
+                            </div>
+                          ) : simulatedInstallments.length > 0 ? simulatedInstallments.map((opt) => (
                             <div key={opt.parcelas} className="flex justify-between text-xs text-foreground">
                               <span>
                                 {opt.parcelas}x {opt.percentualJuros === 0 ? (opt.parcelas === 1 ? 'à vista' : 'sem juros') : 'com juros'}
@@ -495,7 +525,9 @@ const ProductCheckout = () => {
                                 R$ {opt.valorParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                               </span>
                             </div>
-                          ))}
+                          )) : (
+                            <p className="text-xs text-muted-foreground">Parcelas indisponíveis</p>
+                          )}
                         </div>
                       )}
                     </div>
