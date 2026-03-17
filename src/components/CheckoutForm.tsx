@@ -175,30 +175,44 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const [maxInstallmentsSetting, setMaxInstallmentsSetting] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('com_juros');
   const [installmentOptions, setInstallmentOptions] = useState<InstallmentResult[]>([]);
-  const [interestTable, setInterestTable] = useState<Record<number, number> | undefined>(undefined);
+  const [loadingInstallments, setLoadingInstallments] = useState(false);
 
   const shippingCost = qualifiesForFreeShipping ? 0 : (selectedShipping?.price || 0);
   const totalValue = baseProductTotal + shippingCost;
 
-  // Load payment settings + interest table
+  // Load payment settings
   useEffect(() => {
     Promise.all([
       fetchSetting('max_installments'),
       fetchSetting('installments_interest'),
-      fetchSetting('installments_interest_table'),
-    ]).then(([val, instInterest, tableJson]) => {
+    ]).then(([val, instInterest]) => {
       if (val) setMaxInstallmentsSetting(Number(val));
       if (instInterest) setInstallmentsInterest(instInterest);
-      if (tableJson) setInterestTable(parseInterestTable(tableJson));
     });
   }, []);
 
-  // Gerar opções de parcelamento localmente quando total ou configurações mudam
+  // Buscar simulação de parcelas via API do Asaas
   useEffect(() => {
     if (totalValue <= 0) return;
-    const opcoes = gerarOpcoesParcelamento(totalValue, maxInstallmentsSetting, interestTable);
-    setInstallmentOptions(opcoes);
-  }, [totalValue, maxInstallmentsSetting, interestTable]);
+    const maxParcelas = Math.min(maxInstallmentsSetting, Math.max(1, Math.floor(totalValue / 5) || 1));
+    setLoadingInstallments(true);
+    supabase.functions.invoke('asaas-checkout', {
+      body: { action: 'simulate_installments', value: totalValue, installmentCount: maxParcelas },
+    }).then(({ data }) => {
+      if (data?.creditCard?.installments) {
+        const opts: InstallmentResult[] = data.creditCard.installments.map((inst: any) => ({
+          parcelas: inst.installmentCount,
+          percentualJuros: inst.installmentCount === 1 ? 0 : Number(((inst.totalValue / totalValue - 1)).toFixed(4)),
+          valorFinal: Number(inst.totalValue),
+          valorParcela: Number(inst.installmentValue),
+        }));
+        setInstallmentOptions(opts);
+      }
+    }).catch(() => {
+      // Fallback: opção única à vista
+      setInstallmentOptions([{ parcelas: 1, percentualJuros: 0, valorFinal: totalValue, valorParcela: totalValue }]);
+    }).finally(() => setLoadingInstallments(false));
+  }, [totalValue, maxInstallmentsSetting]);
 
   // Load saved profile + addresses on mount
   useEffect(() => {
