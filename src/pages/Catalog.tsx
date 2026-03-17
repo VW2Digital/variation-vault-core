@@ -401,7 +401,7 @@ const Catalog = () => {
 
                     {/* Add to Cart Button */}
                     {variation && inStock && (
-                      <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-1">
+                      <div className="px-3 pb-3 pt-0.5 mt-auto">
                         <Button
                           variant="outline"
                           size="sm"
