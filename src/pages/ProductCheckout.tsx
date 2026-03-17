@@ -483,27 +483,16 @@ const ProductCheckout = () => {
                       </button>
                       {showInstallments && (
                         <div className="bg-muted rounded-lg p-3 mt-1 space-y-1 animate-in slide-in-from-top-2 duration-200">
-                          {loadingSimulation ? (
-                            <div className="flex items-center justify-center py-3 gap-2">
-                              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                              <span className="text-xs text-muted-foreground">Calculando parcelas...</span>
+                          {gerarOpcoesParcelamento(total, maxInstallments).map((opt) => (
+                            <div key={opt.parcelas} className="flex justify-between text-xs text-foreground">
+                              <span>
+                                {opt.parcelas}x {opt.percentualJuros === 0 ? (opt.parcelas === 1 ? 'à vista' : 'sem juros') : 'com juros'}
+                              </span>
+                              <span className="font-medium text-primary">
+                                R$ {opt.valorParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </span>
                             </div>
-                          ) : (
-                            <>
-                              {Array.from({ length: maxInstallments }, (_, i) => {
-                                const n = i + 1;
-                                const parcela = simulatedInstallments[n] ?? (total / n);
-                                return (
-                                  <div key={n} className="flex justify-between text-xs text-foreground">
-                                    <span>{n}x {installmentsInterest === 'sem_juros' ? 'sem juros' : n === 1 ? '' : 'com juros'}</span>
-                                    <span className="font-medium text-primary">
-                                      R$ {parcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </>
-                          )}
+                          ))}
                         </div>
                       )}
                     </div>
