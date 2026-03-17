@@ -150,6 +150,7 @@ const ProductCheckout = () => {
       if (pixDisc) setPixDiscountPercent(Number(pixDisc));
       if (maxInst) setMaxInstallments(Number(maxInst));
       if (instInterest) setInstallmentsInterest(instInterest);
+      if (interestTableJson) setInterestTable(parseInterestTable(interestTableJson as string));
       const vId = searchParams.get('v');
       if (vId && prod.product_variations) {
         const idx = prod.product_variations.findIndex((v: any) => v.id === vId);
