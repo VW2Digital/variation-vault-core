@@ -607,7 +607,7 @@ const OrdersPage = () => {
           {/* Mobile card view */}
           <div className="space-y-3 md:hidden">
             {paginatedOrders.map((order) => {
-              const status = statusMap[order.status] || { label: order.status, variant: 'outline' as const };
+              const status = statusMap[order.status] || { label: order.status, variant: 'outline' as const, badgeClass: '' };
               const delivery = deliveryStatuses.find(d => d.value === order.delivery_status);
               return (
                 <Card key={order.id} className={`border-border/50 ${selectedIds.has(order.id) ? 'ring-1 ring-primary' : ''}`}>
