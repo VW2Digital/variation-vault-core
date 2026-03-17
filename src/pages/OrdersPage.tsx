@@ -433,12 +433,13 @@ const OrdersPage = () => {
   };
 
   const sendWhatsappMessage = async (number: string, text: string) => {
-    if (!number || !text) return;
+    if (!number || !text) throw new Error('Número e mensagem são obrigatórios');
     const { data, error } = await supabase.functions.invoke('evolution-send-message', {
       body: { number: number.replace(/\D/g, ''), text },
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(error.message || 'Erro ao chamar a função de envio');
     if (data?.error) throw new Error(data.error);
+    if (!data?.success) throw new Error('Resposta inesperada da API. Verifique as configurações da Evolution API.');
     return data;
   };
 
