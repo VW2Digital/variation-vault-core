@@ -705,7 +705,7 @@ const OrdersPage = () => {
                 </TableHeader>
                 <TableBody>
                   {paginatedOrders.map((order) => {
-                    const status = statusMap[order.status] || { label: order.status, variant: 'outline' as const };
+                    const status = statusMap[order.status] || { label: order.status, variant: 'outline' as const, badgeClass: '' };
                     const delivery = deliveryStatuses.find(d => d.value === order.delivery_status);
                     return (
                       <TableRow key={order.id} className={selectedIds.has(order.id) ? 'bg-primary/5' : ''}>
