@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchSetting } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
-import { calcularParcelamento, gerarOpcoesParcelamento, parseInterestTable, type InstallmentResult } from '@/lib/installments';
+import { type InstallmentResult } from '@/lib/installments';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
