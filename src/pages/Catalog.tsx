@@ -284,7 +284,7 @@ const Catalog = () => {
                           alt={displayName}
                           className="max-w-[80%] max-h-[80%] object-contain group-hover:scale-105 transition-transform duration-500"
                         />
-                        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+                        <div className="absolute top-2 left-2 flex flex-col gap-1">
                           {offer && offerPrice && price && (
                             <Badge className="bg-destructive text-destructive-foreground text-[10px] font-bold">
                               -{Math.round(((price - offerPrice) / price) * 100)}%
