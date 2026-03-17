@@ -107,12 +107,14 @@ const CustomerDashboard = () => {
     toast({ title: 'Código PIX copiado!' });
   };
   useEffect(() => {
+    let userEmail = '';
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { navigate('/cliente/login'); return; }
       setUser(session.user);
+      userEmail = session.user.email || '';
       await Promise.all([
-        fetchOrders(session.user.email || ''),
+        fetchOrders(userEmail),
         fetchProfile(session.user.id),
         fetchReviews(session.user.id),
       ]);
@@ -121,7 +123,18 @@ const CustomerDashboard = () => {
       if (!session) navigate('/cliente/login');
     });
     checkAuth();
-    return () => subscription.unsubscribe();
+
+    const channel = supabase
+      .channel('customer-orders-realtime')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, () => {
+        if (userEmail) fetchOrders(userEmail);
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+      supabase.removeChannel(channel);
+    };
   }, [navigate]);
 
   const fetchOrders = async (email: string) => {
