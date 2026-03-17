@@ -134,7 +134,7 @@ const SettingsPage = () => {
       fetchSetting('max_installments'),
       fetchSetting('installments_interest'),
       fetchSetting('installments_interest_table'),
-    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pixDisc, maxInst, instInterest, interestTableJson]) => {
+    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pixDisc, maxInst, instInterest]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
@@ -142,7 +142,6 @@ const SettingsPage = () => {
       setPixDiscountPercent(pixDisc || '19');
       setMaxInstallments(maxInst || '6');
       setInstallmentsInterest(instInterest || 'sem_juros');
-      setInterestTable(parseInterestTable(interestTableJson));
       const currentMeEnv = meEnv || 'sandbox';
       setMelhorEnvioEnv(currentMeEnv);
 
