@@ -50,7 +50,7 @@ const Index = () => {
       {/* Offers Section */}
       {!loading && offerItems.length > 0 && (
         <section className="py-12 bg-gradient-to-b from-destructive/5 via-destructive/[0.02] to-transparent">
-          <div className="max-w-7xl mx-auto px-4">
+          <div className="max-w-7xl mx-auto px-[5px]">
             <AnimatedSection variant="fadeUp">
               <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
                 <div className="flex items-center gap-3">
@@ -68,7 +68,7 @@ const Index = () => {
               </div>
             </AnimatedSection>
 
-            <StaggerContainer className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3.5">
+            <StaggerContainer className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1.5 sm:gap-2.5">
               {offerItems.map(({ product, variation }, idx) => {
                 const price = Number(variation.price);
                 const offerPrice = Number(variation.offer_price);
