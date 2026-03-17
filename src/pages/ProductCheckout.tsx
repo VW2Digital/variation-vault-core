@@ -5,6 +5,7 @@ import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/Ani
 import { fetchProduct, fetchTestimonials, fetchBanners, fetchSetting } from '@/lib/api';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
 import { getEffectivePrice, WholesaleTier } from '@/contexts/CartContext';
+import { gerarOpcoesParcelamento } from '@/lib/installments';
 import Footer from '@/components/Footer';
 import { useCart } from '@/contexts/CartContext';
 import Header from '@/components/Header';
@@ -128,8 +129,6 @@ const ProductCheckout = () => {
   const [maxInstallments, setMaxInstallments] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
   const [showInstallments, setShowInstallments] = useState(false);
-  const [simulatedInstallments, setSimulatedInstallments] = useState<Record<number, number>>({});
-  const [loadingSimulation, setLoadingSimulation] = useState(false);
   const [shippingOptions, setShippingOptions] = useState<{ id: number; name: string; company: string; price: number; delivery_time: number | null }[]>([]);
   const [loadingShipping, setLoadingShipping] = useState(false);
   const [userPostalCode, setUserPostalCode] = useState('');
@@ -184,43 +183,7 @@ const ProductCheckout = () => {
       });
   }, [product, selectedVariation]);
 
-  // Simulate installments from gateway when showInstallments is toggled
-  useEffect(() => {
-    if (!showInstallments || maxInstallments < 2 || !product) return;
-    const vars = product?.product_variations || [];
-    const v = vars[selectedVariation];
-    if (!v) return;
-    const bp = v?.is_offer && v?.offer_price ? Number(v.offer_price) : Number(v?.price || 0);
-    const eu = getEffectivePrice(bp, quantity, wholesaleTiers);
-    const tot = eu * quantity;
-    if (tot <= 0) return;
-    const cachedTotal = (simulatedInstallments as any).__total;
-    if (cachedTotal === tot && Object.keys(simulatedInstallments).length > 1) return;
-    let cancelled = false;
-    setLoadingSimulation(true);
-    const simulate = async () => {
-      try {
-        const results: Record<number, number> = { 1: tot };
-        if (installmentsInterest === 'sem_juros') {
-          for (let n = 2; n <= maxInstallments; n++) results[n] = tot / n;
-        } else {
-          const promises = Array.from({ length: maxInstallments - 1 }, (_, i) => i + 2).map(async (n) => {
-            try {
-              const { data } = await supabase.functions.invoke('asaas-checkout', {
-                body: { action: 'simulate_installments', value: tot, installmentCount: n },
-              });
-              const iv = data?.creditCard?.installment?.paymentValue;
-              if (iv && Number.isFinite(Number(iv))) results[n] = Number(iv);
-            } catch { /* skip */ }
-          });
-          await Promise.all(promises);
-        }
-        if (!cancelled) { (results as any).__total = tot; setSimulatedInstallments(results); }
-      } catch { /* silent */ } finally { if (!cancelled) setLoadingSimulation(false); }
-    };
-    simulate();
-    return () => { cancelled = true; };
-  }, [showInstallments, product, selectedVariation, quantity, wholesaleTiers, maxInstallments, installmentsInterest]);
+  // (installment options are now calculated locally via gerarOpcoesParcelamento)
 
   const fetchShippingByPostalCode = async (postalCode: string) => {
     if (!product || !postalCode || postalCode.replace(/\D/g, '').length !== 8) return;
@@ -520,27 +483,16 @@ const ProductCheckout = () => {
                       </button>
                       {showInstallments && (
                         <div className="bg-muted rounded-lg p-3 mt-1 space-y-1 animate-in slide-in-from-top-2 duration-200">
-                          {loadingSimulation ? (
-                            <div className="flex items-center justify-center py-3 gap-2">
-                              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                              <span className="text-xs text-muted-foreground">Calculando parcelas...</span>
+                          {gerarOpcoesParcelamento(total, maxInstallments).map((opt) => (
+                            <div key={opt.parcelas} className="flex justify-between text-xs text-foreground">
+                              <span>
+                                {opt.parcelas}x {opt.percentualJuros === 0 ? (opt.parcelas === 1 ? 'à vista' : 'sem juros') : 'com juros'}
+                              </span>
+                              <span className="font-medium text-primary">
+                                R$ {opt.valorParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </span>
                             </div>
-                          ) : (
-                            <>
-                              {Array.from({ length: maxInstallments }, (_, i) => {
-                                const n = i + 1;
-                                const parcela = simulatedInstallments[n] ?? (total / n);
-                                return (
-                                  <div key={n} className="flex justify-between text-xs text-foreground">
-                                    <span>{n}x {installmentsInterest === 'sem_juros' ? 'sem juros' : n === 1 ? '' : 'com juros'}</span>
-                                    <span className="font-medium text-primary">
-                                      R$ {parcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </>
-                          )}
+                          ))}
                         </div>
                       )}
                     </div>
