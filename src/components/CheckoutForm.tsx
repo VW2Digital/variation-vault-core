@@ -821,7 +821,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
                   </Button>
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">Valor: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              <p className="text-xs text-muted-foreground">Valor: R$ {pixTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{pixDiscountPercent > 0 && ` (${pixDiscountPercent}% de desconto no PIX)`}</p>
               {pixPaid ? (
                 <p className="text-xs text-green-600 font-semibold mt-2">✅ Pagamento confirmado! Redirecionando...</p>
               ) : (
