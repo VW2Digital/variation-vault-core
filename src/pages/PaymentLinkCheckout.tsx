@@ -137,6 +137,10 @@ export default function PaymentLinkCheckout() {
         toast({ title: 'Preencha todos os dados do cartão.', variant: 'destructive' });
         return;
       }
+      if (!postalCode.replace(/\D/g, '') || !address.trim() || !addressNumber.trim()) {
+        toast({ title: 'Preencha o endereço do titular do cartão.', variant: 'destructive' });
+        return;
+      }
     }
 
     setSubmitting(true);
