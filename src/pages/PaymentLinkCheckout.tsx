@@ -19,6 +19,8 @@ interface PaymentLink {
   description: string;
   amount: number;
   slug: string;
+  pix_discount_percent: number;
+  max_installments: number;
 }
 
 export default function PaymentLinkCheckout() {
@@ -69,7 +71,7 @@ export default function PaymentLinkCheckout() {
   useEffect(() => {
     if (!link || link.amount <= 0) return;
     const value = link.amount;
-    const maxParcelas = Math.min(12, Math.max(1, Math.floor(value / 5) || 1));
+    const maxParcelas = Math.min(link.max_installments || 12, Math.max(1, Math.floor(value / 5) || 1));
     if (maxParcelas <= 1) {
       setInstallmentOptions([{ parcelas: 1, percentualJuros: 0, valorFinal: value, valorParcela: value }]);
       return;
@@ -132,10 +134,14 @@ export default function PaymentLinkCheckout() {
 
     setSubmitting(true);
     try {
-      // Determine final value based on installments
+      // Determine final value based on payment method
+      const pixDiscountPct = link.pix_discount_percent || 0;
+      const pixDiscountValue = pixDiscountPct > 0 ? link.amount * (pixDiscountPct / 100) : 0;
+      const pixTotalValue = link.amount - pixDiscountValue;
+
       const selectedOpt = installmentOptions.find(o => o.parcelas === installments);
-      const finalValue = paymentMethod === 'credit_card' && selectedOpt ? selectedOpt.valorFinal : link.amount;
-      const installmentValue = paymentMethod === 'credit_card' && selectedOpt ? selectedOpt.valorParcela : link.amount;
+      const finalValue = paymentMethod === 'pix' ? pixTotalValue : (selectedOpt ? selectedOpt.valorFinal : link.amount);
+      const installmentValue = paymentMethod === 'credit_card' && selectedOpt ? selectedOpt.valorParcela : finalValue;
 
       // 1. Create order
       const { data: orderData, error: orderError } = await supabase.from('orders').insert({
@@ -177,7 +183,7 @@ export default function PaymentLinkCheckout() {
           body: {
             action: 'create_pix_payment',
             customer: asaasCustomerId,
-            value: link.amount,
+            value: pixTotalValue,
             description: link.title,
             orderId,
           },
@@ -282,6 +288,12 @@ export default function PaymentLinkCheckout() {
             <p className="text-3xl font-extrabold text-primary mt-2">
               R$ {Number(link!.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
+            {(link!.pix_discount_percent || 0) > 0 && (
+              <p className="text-sm text-muted-foreground">
+                No PIX: <span className="font-semibold text-primary">R$ {(link!.amount - link!.amount * (link!.pix_discount_percent / 100)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                <span className="ml-1">({link!.pix_discount_percent}% off)</span>
+              </p>
+            )}
           </CardContent>
         </Card>
 

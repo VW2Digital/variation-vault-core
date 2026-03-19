@@ -26,6 +26,8 @@ interface PaymentLink {
   slug: string;
   created_at: string;
   user_id: string;
+  pix_discount_percent: number;
+  max_installments: number;
 }
 
 const generateSlug = () => {
@@ -45,6 +47,8 @@ export default function PaymentLinksPage() {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [active, setActive] = useState(true);
+  const [pixDiscount, setPixDiscount] = useState('0');
+  const [maxInstallments, setMaxInstallments] = useState('1');
 
   const fetchLinks = async () => {
     setLoading(true);
@@ -64,6 +68,8 @@ export default function PaymentLinksPage() {
     setDescription('');
     setAmount('');
     setActive(true);
+    setPixDiscount('0');
+    setMaxInstallments('1');
     setDialogOpen(true);
   };
 
@@ -73,6 +79,8 @@ export default function PaymentLinksPage() {
     setDescription(link.description || '');
     setAmount(String(link.amount));
     setActive(link.active);
+    setPixDiscount(String(link.pix_discount_percent || 0));
+    setMaxInstallments(String(link.max_installments || 1));
     setDialogOpen(true);
   };
 
@@ -85,17 +93,26 @@ export default function PaymentLinksPage() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { setSaving(false); return; }
 
+    const payload = {
+      title: title.trim(),
+      description: description.trim(),
+      amount: Number(amount),
+      active,
+      pix_discount_percent: Number(pixDiscount) || 0,
+      max_installments: Number(maxInstallments) || 1,
+    };
+
     if (editing) {
       const { error } = await supabase
         .from('payment_links')
-        .update({ title: title.trim(), description: description.trim(), amount: Number(amount), active })
+        .update(payload)
         .eq('id', editing.id);
       if (error) toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
       else toast({ title: 'Link atualizado!' });
     } else {
       const { error } = await supabase
         .from('payment_links')
-        .insert({ title: title.trim(), description: description.trim(), amount: Number(amount), active, slug: generateSlug(), user_id: session.user.id });
+        .insert({ ...payload, slug: generateSlug(), user_id: session.user.id });
       if (error) toast({ title: 'Erro ao criar', description: error.message, variant: 'destructive' });
       else toast({ title: 'Link criado com sucesso!' });
     }
@@ -206,6 +223,16 @@ export default function PaymentLinksPage() {
             <div className="space-y-2">
               <Label>Valor (R$) *</Label>
               <Input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Desconto PIX (%)</Label>
+                <Input type="number" min="0" max="100" step="1" value={pixDiscount} onChange={(e) => setPixDiscount(e.target.value)} placeholder="0" />
+              </div>
+              <div className="space-y-2">
+                <Label>Máx. Parcelas</Label>
+                <Input type="number" min="1" max="12" step="1" value={maxInstallments} onChange={(e) => setMaxInstallments(e.target.value)} placeholder="1" />
+              </div>
             </div>
             <div className="flex items-center justify-between">
               <Label>Link ativo</Label>
