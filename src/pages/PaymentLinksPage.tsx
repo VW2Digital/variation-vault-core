@@ -93,17 +93,26 @@ export default function PaymentLinksPage() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { setSaving(false); return; }
 
+    const payload = {
+      title: title.trim(),
+      description: description.trim(),
+      amount: Number(amount),
+      active,
+      pix_discount_percent: Number(pixDiscount) || 0,
+      max_installments: Number(maxInstallments) || 1,
+    };
+
     if (editing) {
       const { error } = await supabase
         .from('payment_links')
-        .update({ title: title.trim(), description: description.trim(), amount: Number(amount), active })
+        .update(payload)
         .eq('id', editing.id);
       if (error) toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
       else toast({ title: 'Link atualizado!' });
     } else {
       const { error } = await supabase
         .from('payment_links')
-        .insert({ title: title.trim(), description: description.trim(), amount: Number(amount), active, slug: generateSlug(), user_id: session.user.id });
+        .insert({ ...payload, slug: generateSlug(), user_id: session.user.id });
       if (error) toast({ title: 'Erro ao criar', description: error.message, variant: 'destructive' });
       else toast({ title: 'Link criado com sucesso!' });
     }
