@@ -318,69 +318,6 @@ const SettingsPage = () => {
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <CreditCard className="w-5 h-5" /> Formas de Pagamento (Catálogo)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Desconto PIX (%)</Label>
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                value={pixDiscountPercent}
-                onChange={(e) => setPixDiscountPercent(e.target.value)}
-                placeholder="19"
-              />
-              <p className="text-xs text-muted-foreground">
-                Percentual de desconto para pagamento via PIX
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label>Máx. Parcelas</Label>
-              <Select value={maxInstallments} onValueChange={setMaxInstallments}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12].map(n => (
-                    <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Máximo de parcelas no catálogo e checkout
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label>Tipo de Parcelas</Label>
-              <Select value={installmentsInterest} onValueChange={setInstallmentsInterest}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sem_juros">Sem juros</SelectItem>
-                  <SelectItem value="com_juros">Com juros</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Define se as parcelas são exibidas como "sem juros" ou "com juros"
-              </p>
-            </div>
-          </div>
-          <div className="bg-muted rounded-lg p-3 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground mb-1">Preview:</p>
-            <p className="text-success text-xs font-semibold">{pixDiscountPercent}% OFF no Pix</p>
-            <p className="text-[11px]">ou R$ 100,00 em {maxInstallments}x R$ {(100 / Number(maxInstallments || 1)).toFixed(2).replace('.', ',')}{installmentsInterest === 'sem_juros' ? ' sem juros' : ''}</p>
-          </div>
-        </CardContent>
-      </Card>
-
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
             <CreditCard className="w-5 h-5" /> Asaas - Checkout Transparente
           </CardTitle>
         </CardHeader>
