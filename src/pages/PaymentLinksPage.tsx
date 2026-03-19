@@ -47,6 +47,8 @@ export default function PaymentLinksPage() {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [active, setActive] = useState(true);
+  const [pixDiscount, setPixDiscount] = useState('0');
+  const [maxInstallments, setMaxInstallments] = useState('1');
 
   const fetchLinks = async () => {
     setLoading(true);
