@@ -288,6 +288,12 @@ export default function PaymentLinkCheckout() {
             <p className="text-3xl font-extrabold text-primary mt-2">
               R$ {Number(link!.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
+            {(link!.pix_discount_percent || 0) > 0 && (
+              <p className="text-sm text-muted-foreground">
+                No PIX: <span className="font-semibold text-green-600">R$ {(link!.amount - link!.amount * (link!.pix_discount_percent / 100)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                <span className="ml-1">({link!.pix_discount_percent}% off)</span>
+              </p>
+            )}
           </CardContent>
         </Card>
 
