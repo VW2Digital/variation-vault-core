@@ -230,7 +230,9 @@ export default function PaymentLinkCheckout() {
               email: email.trim(),
               cpfCnpj: cpf.replace(/\D/g, ''),
               phone: phone.replace(/\D/g, '') || '00000000000',
-              postalCode: '00000000',
+              postalCode: postalCode.replace(/\D/g, ''),
+              address: address.trim(),
+              addressNumber: addressNumber.trim(),
             },
           },
         });
