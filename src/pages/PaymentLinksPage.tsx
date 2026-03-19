@@ -26,6 +26,8 @@ interface PaymentLink {
   slug: string;
   created_at: string;
   user_id: string;
+  pix_discount_percent: number;
+  max_installments: number;
 }
 
 const generateSlug = () => {
