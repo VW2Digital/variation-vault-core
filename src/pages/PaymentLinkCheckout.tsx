@@ -183,7 +183,7 @@ export default function PaymentLinkCheckout() {
           body: {
             action: 'create_pix_payment',
             customer: asaasCustomerId,
-            value: link.amount,
+            value: pixTotalValue,
             description: link.title,
             orderId,
           },
