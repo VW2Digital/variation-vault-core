@@ -174,20 +174,25 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const [loadingShipping, setLoadingShipping] = useState(false);
   const [maxInstallmentsSetting, setMaxInstallmentsSetting] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('com_juros');
+  const [pixDiscountPercent, setPixDiscountPercent] = useState(0);
   const [installmentOptions, setInstallmentOptions] = useState<InstallmentResult[]>([]);
   const [loadingInstallments, setLoadingInstallments] = useState(false);
 
   const shippingCost = qualifiesForFreeShipping ? 0 : (selectedShipping?.price || 0);
   const totalValue = baseProductTotal + shippingCost;
+  const pixDiscountValue = pixDiscountPercent > 0 ? totalValue * (pixDiscountPercent / 100) : 0;
+  const pixTotalValue = totalValue - pixDiscountValue;
 
   // Load payment settings
   useEffect(() => {
     Promise.all([
       fetchSetting('max_installments'),
       fetchSetting('installments_interest'),
-    ]).then(([val, instInterest]) => {
+      fetchSetting('pix_discount_percent'),
+    ]).then(([val, instInterest, pixDisc]) => {
       if (val) setMaxInstallmentsSetting(Number(val));
       if (instInterest) setInstallmentsInterest(instInterest);
+      if (pixDisc) setPixDiscountPercent(Number(pixDisc));
     });
   }, []);
 
@@ -647,10 +652,10 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
       const description = `${productName} ${dosage} x${quantity}`;
 
       if (paymentMethod === 'pix') {
-        const orderId = await createOrder(paymentMethod, asaasCustomerId);
+        const orderId = await createOrder(paymentMethod, asaasCustomerId, pixTotalValue);
         const result = await invokeAsaas('create_pix_payment', {
           customer: asaasCustomerId,
-          value: totalValue,
+          value: pixTotalValue,
           description,
           orderId,
         });
@@ -816,7 +821,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
                   </Button>
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">Valor: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              <p className="text-xs text-muted-foreground">Valor: R$ {pixTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{pixDiscountPercent > 0 && ` (${pixDiscountPercent}% de desconto no PIX)`}</p>
               {pixPaid ? (
                 <p className="text-xs text-green-600 font-semibold mt-2">✅ Pagamento confirmado! Redirecionando...</p>
               ) : (
@@ -1223,7 +1228,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
               Pagar com PIX em 1 clique
             </Button>
             <p className="text-[10px] text-center text-muted-foreground">
-              PIX é instantâneo e seguro • Mesmo valor: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              PIX é instantâneo e seguro • Valor: R$ {pixTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
           </div>
         )}
@@ -1302,6 +1307,16 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
             <p className="text-sm text-muted-foreground">
               Ao confirmar, um QR Code PIX será gerado para pagamento imediato.
             </p>
+            {pixDiscountPercent > 0 && (
+              <div className="bg-success/10 rounded-lg px-4 py-2.5">
+                <p className="text-sm font-medium text-success">
+                  🎉 {pixDiscountPercent}% de desconto no PIX!
+                </p>
+                <p className="text-xs text-success">
+                  De R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} por R$ {pixTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -1324,9 +1339,17 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
                 )}
               </div>
             )}
+            {paymentMethod === 'pix' && pixDiscountPercent > 0 && (
+              <div className="flex justify-between text-xs text-success">
+                <span>Desconto PIX ({pixDiscountPercent}%)</span>
+                <span>- R$ {pixDiscountValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center pt-1">
               <span className="text-sm text-muted-foreground">Total</span>
-              <span className="text-lg font-bold text-foreground">R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              <span className="text-lg font-bold text-foreground">
+                R$ {(paymentMethod === 'pix' ? pixTotalValue : totalValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
             </div>
           </div>
           <Button onClick={handlePayment} disabled={processing} className="w-full">
