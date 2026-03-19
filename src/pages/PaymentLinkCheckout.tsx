@@ -47,10 +47,15 @@ export default function PaymentLinkCheckout() {
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
 
-  // Address fields (required by Asaas for card payments)
+  // Address fields
   const [postalCode, setPostalCode] = useState('');
   const [address, setAddress] = useState('');
   const [addressNumber, setAddressNumber] = useState('');
+  const [complement, setComplement] = useState('');
+  const [district, setDistrict] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [loadingCep, setLoadingCep] = useState(false);
 
   // Installments
   const [installments, setInstallments] = useState(1);
