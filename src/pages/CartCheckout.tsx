@@ -33,22 +33,34 @@ const CartCheckout = () => {
     }
   }, [loading, items, navigate, ready]);
 
-  // Fetch free shipping info from products in cart
+  // Fetch free shipping and payment info from products in cart
+  const [cartPaymentSettings, setCartPaymentSettings] = useState<{ pixDiscount: number; maxInstallments: number; installmentsInterest: string }>({ pixDiscount: 0, maxInstallments: 6, installmentsInterest: 'sem_juros' });
+
   useEffect(() => {
     if (items.length === 0) return;
     const productIds = [...new Set(items.map(i => i.product_id))];
     supabase
       .from('products')
-      .select('id, free_shipping, free_shipping_min_value')
+      .select('id, free_shipping, free_shipping_min_value, pix_discount_percent, max_installments, installments_interest')
       .in('id', productIds)
       .then(({ data }) => {
         if (!data) return;
-        // If any product offers free shipping and total meets the lowest min value
+        // Free shipping
         const freeShippingProducts = data.filter((p: any) => p.free_shipping);
         if (freeShippingProducts.length > 0) {
           const minValue = Math.max(...freeShippingProducts.map((p: any) => Number(p.free_shipping_min_value) || 0));
           setFreeShippingInfo({ freeShipping: true, minValue });
         }
+        // Payment: use best PIX discount and max installments from cart products
+        const bestPixDiscount = Math.max(...data.map((p: any) => Number(p.pix_discount_percent) || 0));
+        const bestMaxInstallments = Math.max(...data.map((p: any) => Number(p.max_installments) || 6));
+        // If any product has "com_juros", use that
+        const hasComJuros = data.some((p: any) => p.installments_interest === 'com_juros');
+        setCartPaymentSettings({
+          pixDiscount: bestPixDiscount,
+          maxInstallments: bestMaxInstallments,
+          installmentsInterest: hasComJuros ? 'com_juros' : 'sem_juros',
+        });
       });
   }, [items]);
 
