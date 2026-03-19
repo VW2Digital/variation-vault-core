@@ -193,6 +193,9 @@ const CartCheckout = () => {
             unitPrice={Math.round((totalPrice / totalQuantity) * 100) / 100}
             freeShipping={freeShippingInfo.freeShipping}
             freeShippingMinValue={freeShippingInfo.minValue}
+            pixDiscountPercentProp={cartPaymentSettings.pixDiscount}
+            maxInstallmentsProp={cartPaymentSettings.maxInstallments}
+            installmentsInterestProp={cartPaymentSettings.installmentsInterest}
           />
         </AnimatedSection>
       </section>
