@@ -1339,9 +1339,17 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
                 )}
               </div>
             )}
+            {paymentMethod === 'pix' && pixDiscountPercent > 0 && (
+              <div className="flex justify-between text-xs text-success">
+                <span>Desconto PIX ({pixDiscountPercent}%)</span>
+                <span>- R$ {pixDiscountValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center pt-1">
               <span className="text-sm text-muted-foreground">Total</span>
-              <span className="text-lg font-bold text-foreground">R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              <span className="text-lg font-bold text-foreground">
+                R$ {(paymentMethod === 'pix' ? pixTotalValue : totalValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
             </div>
           </div>
           <Button onClick={handlePayment} disabled={processing} className="w-full">
