@@ -19,6 +19,9 @@ interface CheckoutFormProps {
   unitPrice: number;
   freeShipping?: boolean;
   freeShippingMinValue?: number;
+  pixDiscountPercentProp?: number;
+  maxInstallmentsProp?: number;
+  installmentsInterestProp?: string;
   onSuccess?: () => void;
 }
 
