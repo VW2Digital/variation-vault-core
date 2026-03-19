@@ -1307,6 +1307,16 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
             <p className="text-sm text-muted-foreground">
               Ao confirmar, um QR Code PIX será gerado para pagamento imediato.
             </p>
+            {pixDiscountPercent > 0 && (
+              <div className="bg-success/10 rounded-lg px-4 py-2.5">
+                <p className="text-sm font-medium text-success">
+                  🎉 {pixDiscountPercent}% de desconto no PIX!
+                </p>
+                <p className="text-xs text-success">
+                  De R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} por R$ {pixTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
