@@ -191,6 +191,13 @@ export default function PaymentLinkCheckout() {
         payment_method: paymentMethod,
         installments,
         status: 'PENDING',
+        customer_address: address.trim(),
+        customer_number: addressNumber.trim(),
+        customer_complement: complement.trim() || null,
+        customer_district: district.trim(),
+        customer_city: city.trim(),
+        customer_state: state.trim(),
+        customer_postal_code: postalCode.replace(/\D/g, ''),
       }).select('id').single();
 
       if (orderError) throw orderError;
