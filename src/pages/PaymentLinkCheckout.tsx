@@ -290,7 +290,7 @@ export default function PaymentLinkCheckout() {
             </p>
             {(link!.pix_discount_percent || 0) > 0 && (
               <p className="text-sm text-muted-foreground">
-                No PIX: <span className="font-semibold text-green-600">R$ {(link!.amount - link!.amount * (link!.pix_discount_percent / 100)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                No PIX: <span className="font-semibold text-primary">R$ {(link!.amount - link!.amount * (link!.pix_discount_percent / 100)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 <span className="ml-1">({link!.pix_discount_percent}% off)</span>
               </p>
             )}
