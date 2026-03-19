@@ -19,6 +19,8 @@ interface PaymentLink {
   description: string;
   amount: number;
   slug: string;
+  pix_discount_percent: number;
+  max_installments: number;
 }
 
 export default function PaymentLinkCheckout() {
