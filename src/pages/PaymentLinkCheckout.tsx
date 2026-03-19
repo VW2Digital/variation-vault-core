@@ -134,10 +134,14 @@ export default function PaymentLinkCheckout() {
 
     setSubmitting(true);
     try {
-      // Determine final value based on installments
+      // Determine final value based on payment method
+      const pixDiscountPct = link.pix_discount_percent || 0;
+      const pixDiscountValue = pixDiscountPct > 0 ? link.amount * (pixDiscountPct / 100) : 0;
+      const pixTotalValue = link.amount - pixDiscountValue;
+
       const selectedOpt = installmentOptions.find(o => o.parcelas === installments);
-      const finalValue = paymentMethod === 'credit_card' && selectedOpt ? selectedOpt.valorFinal : link.amount;
-      const installmentValue = paymentMethod === 'credit_card' && selectedOpt ? selectedOpt.valorParcela : link.amount;
+      const finalValue = paymentMethod === 'pix' ? pixTotalValue : (selectedOpt ? selectedOpt.valorFinal : link.amount);
+      const installmentValue = paymentMethod === 'credit_card' && selectedOpt ? selectedOpt.valorParcela : finalValue;
 
       // 1. Create order
       const { data: orderData, error: orderError } = await supabase.from('orders').insert({
