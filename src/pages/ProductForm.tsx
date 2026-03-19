@@ -8,7 +8,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Plus, Trash2, ImagePlus } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
 interface WholesaleTier {
@@ -56,6 +63,9 @@ const ProductForm = () => {
   const [freeShipping, setFreeShipping] = useState(false);
   const [freeShippingMinValue, setFreeShippingMinValue] = useState(0);
   const [isBestseller, setIsBestseller] = useState(false);
+  const [pixDiscountPercent, setPixDiscountPercent] = useState(0);
+  const [maxInstallments, setMaxInstallments] = useState(6);
+  const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
   const [variations, setVariations] = useState<Variation[]>([emptyVariation()]);
   const [saving, setSaving] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
@@ -73,6 +83,9 @@ const ProductForm = () => {
         setFrequency(p.frequency || '');
         setFreeShipping(p.free_shipping || false);
         setFreeShippingMinValue(Number(p.free_shipping_min_value) || 0);
+        setPixDiscountPercent(Number((p as any).pix_discount_percent) || 0);
+        setMaxInstallments(Number((p as any).max_installments) || 6);
+        setInstallmentsInterest((p as any).installments_interest || 'sem_juros');
         setIsBestseller(p.is_bestseller || false);
         // Fetch wholesale prices for all variations
         const varIds = (p.product_variations || []).map((v: any) => v.id);
@@ -126,6 +139,9 @@ const ProductForm = () => {
         free_shipping: freeShipping,
         free_shipping_min_value: freeShippingMinValue,
         is_bestseller: isBestseller,
+        pix_discount_percent: pixDiscountPercent,
+        max_installments: maxInstallments,
+        installments_interest: installmentsInterest,
         variations: variations.filter((v) => v.dosage.trim() !== ''),
       };
 
@@ -269,6 +285,68 @@ const ProductForm = () => {
                 </p>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CreditCard className="w-5 h-5" /> Formas de Pagamento
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Desconto PIX (%)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={pixDiscountPercent || ''}
+                  onChange={(e) => setPixDiscountPercent(Number(e.target.value))}
+                  placeholder="0"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Percentual de desconto para pagamento via PIX
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Máx. Parcelas</Label>
+                <Select value={String(maxInstallments)} onValueChange={(v) => setMaxInstallments(Number(v))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12].map(n => (
+                      <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Máximo de parcelas no catálogo e checkout
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Tipo de Parcelas</Label>
+                <Select value={installmentsInterest} onValueChange={setInstallmentsInterest}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sem_juros">Sem juros</SelectItem>
+                    <SelectItem value="com_juros">Com juros</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Define se as parcelas são exibidas como "sem juros" ou "com juros"
+                </p>
+              </div>
+            </div>
+            <div className="bg-muted rounded-lg p-3 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">Preview:</p>
+              <p className="text-success text-xs font-semibold">{pixDiscountPercent}% OFF no Pix</p>
+              <p className="text-[11px]">ou R$ 100,00 em {maxInstallments}x R$ {(100 / maxInstallments).toFixed(2).replace('.', ',')}{installmentsInterest === 'sem_juros' ? ' sem juros' : ''}</p>
+            </div>
           </CardContent>
         </Card>
 

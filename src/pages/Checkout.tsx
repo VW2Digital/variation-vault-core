@@ -156,6 +156,9 @@ const Checkout = () => {
             unitPrice={unitPrice}
             freeShipping={product.free_shipping}
             freeShippingMinValue={Number(product.free_shipping_min_value) || 0}
+            pixDiscountPercentProp={Number(product.pix_discount_percent) || 0}
+            maxInstallmentsProp={Number(product.max_installments) || 6}
+            installmentsInterestProp={product.installments_interest || 'sem_juros'}
           />
         </AnimatedSection>
       </section>

@@ -498,9 +498,12 @@ export type Database = {
           frequency: string | null
           id: string
           images: string[] | null
+          installments_interest: string | null
           is_bestseller: boolean
+          max_installments: number | null
           name: string
           pharma_form: string | null
+          pix_discount_percent: number | null
           subtitle: string | null
           updated_at: string
           user_id: string
@@ -515,9 +518,12 @@ export type Database = {
           frequency?: string | null
           id?: string
           images?: string[] | null
+          installments_interest?: string | null
           is_bestseller?: boolean
+          max_installments?: number | null
           name: string
           pharma_form?: string | null
+          pix_discount_percent?: number | null
           subtitle?: string | null
           updated_at?: string
           user_id: string
@@ -532,9 +538,12 @@ export type Database = {
           frequency?: string | null
           id?: string
           images?: string[] | null
+          installments_interest?: string | null
           is_bestseller?: boolean
+          max_installments?: number | null
           name?: string
           pharma_form?: string | null
+          pix_discount_percent?: number | null
           subtitle?: string | null
           updated_at?: string
           user_id?: string

@@ -34,9 +34,6 @@ const SettingsPage = () => {
   const [resendApiKey, setResendApiKey] = useState('');
   const [resendFromEmail, setResendFromEmail] = useState('');
   const [showResendKey, setShowResendKey] = useState(false);
-  const [pixDiscountPercent, setPixDiscountPercent] = useState('19');
-  const [maxInstallments, setMaxInstallments] = useState('6');
-  const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fetchingProfile, setFetchingProfile] = useState(false);
@@ -129,18 +126,11 @@ const SettingsPage = () => {
       fetchSetting('melhor_envio_sender'),
       fetchSetting('resend_api_key'),
       fetchSetting('resend_from_email'),
-      fetchSetting('pix_discount_percent'),
-      fetchSetting('max_installments'),
-      fetchSetting('installments_interest'),
-      fetchSetting('installments_interest_table'),
-    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pixDisc, maxInst, instInterest]) => {
+    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
       setAsaasWebhookToken(webhookToken || '');
-      setPixDiscountPercent(pixDisc || '19');
-      setMaxInstallments(maxInst || '6');
-      setInstallmentsInterest(instInterest || 'sem_juros');
       const currentMeEnv = meEnv || 'sandbox';
       setMelhorEnvioEnv(currentMeEnv);
 
@@ -288,9 +278,6 @@ const SettingsPage = () => {
         upsertSetting('evolution_api_url', evolutionApiUrl, uid),
         upsertSetting('evolution_api_key', evolutionApiKey, uid),
         upsertSetting('evolution_instance_name', evolutionInstanceName, uid),
-        upsertSetting('pix_discount_percent', pixDiscountPercent, uid),
-        upsertSetting('max_installments', maxInstallments, uid),
-        upsertSetting('installments_interest', installmentsInterest, uid),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
@@ -327,69 +314,6 @@ const SettingsPage = () => {
           </div>
         </CardContent>
       </Card>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <CreditCard className="w-5 h-5" /> Formas de Pagamento (Catálogo)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Desconto PIX (%)</Label>
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                value={pixDiscountPercent}
-                onChange={(e) => setPixDiscountPercent(e.target.value)}
-                placeholder="19"
-              />
-              <p className="text-xs text-muted-foreground">
-                Percentual de desconto para pagamento via PIX
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label>Máx. Parcelas</Label>
-              <Select value={maxInstallments} onValueChange={setMaxInstallments}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12].map(n => (
-                    <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Máximo de parcelas no catálogo e checkout
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label>Tipo de Parcelas</Label>
-              <Select value={installmentsInterest} onValueChange={setInstallmentsInterest}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sem_juros">Sem juros</SelectItem>
-                  <SelectItem value="com_juros">Com juros</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Define se as parcelas são exibidas como "sem juros" ou "com juros"
-              </p>
-            </div>
-          </div>
-          <div className="bg-muted rounded-lg p-3 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground mb-1">Preview:</p>
-            <p className="text-success text-xs font-semibold">{pixDiscountPercent}% OFF no Pix</p>
-            <p className="text-[11px]">ou R$ 100,00 em {maxInstallments}x R$ {(100 / Number(maxInstallments || 1)).toFixed(2).replace('.', ',')}{installmentsInterest === 'sem_juros' ? ' sem juros' : ''}</p>
-          </div>
-        </CardContent>
-      </Card>
-
 
       <Card className="border-border/50">
         <CardHeader>

@@ -141,15 +141,14 @@ const ProductCheckout = () => {
     if (!id) return;
     Promise.all([
       fetchProduct(id), fetchTestimonials(), fetchBanners(), fetchSetting('whatsapp_number'),
-      fetchSetting('pix_discount_percent'), fetchSetting('max_installments'), fetchSetting('installments_interest'),
-    ]).then(async ([prod, tests, bans, wp, pixDisc, maxInst, instInterest]) => {
+    ]).then(async ([prod, tests, bans, wp]) => {
       setProduct(prod);
       setDynamicTestimonials(tests);
       setBanners(bans);
       setWhatsappNumber(wp);
-      if (pixDisc) setPixDiscountPercent(Number(pixDisc));
-      if (maxInst) setMaxInstallments(Number(maxInst));
-      if (instInterest) setInstallmentsInterest(instInterest);
+      setPixDiscountPercent(Number((prod as any).pix_discount_percent) || 0);
+      setMaxInstallments(Number((prod as any).max_installments) || 6);
+      setInstallmentsInterest((prod as any).installments_interest || 'sem_juros');
       const vId = searchParams.get('v');
       if (vId && prod.product_variations) {
         const idx = prod.product_variations.findIndex((v: any) => v.id === vId);

@@ -19,6 +19,9 @@ interface CheckoutFormProps {
   unitPrice: number;
   freeShipping?: boolean;
   freeShippingMinValue?: number;
+  pixDiscountPercentProp?: number;
+  maxInstallmentsProp?: number;
+  installmentsInterestProp?: string;
   onSuccess?: () => void;
 }
 
@@ -127,7 +130,7 @@ const StepIndicator = ({ currentStep }: { currentStep: CheckoutStep }) => {
   );
 };
 
-const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, freeShippingMinValue, onSuccess }: CheckoutFormProps) => {
+const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, freeShippingMinValue, pixDiscountPercentProp, maxInstallmentsProp, installmentsInterestProp, onSuccess }: CheckoutFormProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { clearCart } = useCart();
@@ -183,18 +186,12 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const pixDiscountValue = pixDiscountPercent > 0 ? totalValue * (pixDiscountPercent / 100) : 0;
   const pixTotalValue = totalValue - pixDiscountValue;
 
-  // Load payment settings
+  // Load payment settings from props (per-product)
   useEffect(() => {
-    Promise.all([
-      fetchSetting('max_installments'),
-      fetchSetting('installments_interest'),
-      fetchSetting('pix_discount_percent'),
-    ]).then(([val, instInterest, pixDisc]) => {
-      if (val) setMaxInstallmentsSetting(Number(val));
-      if (instInterest) setInstallmentsInterest(instInterest);
-      if (pixDisc) setPixDiscountPercent(Number(pixDisc));
-    });
-  }, []);
+    if (pixDiscountPercentProp !== undefined) setPixDiscountPercent(pixDiscountPercentProp);
+    if (maxInstallmentsProp !== undefined) setMaxInstallmentsSetting(maxInstallmentsProp);
+    if (installmentsInterestProp !== undefined) setInstallmentsInterest(installmentsInterestProp);
+  }, [pixDiscountPercentProp, maxInstallmentsProp, installmentsInterestProp]);
 
   // Buscar simulação de parcelas via API do Asaas
   useEffect(() => {
