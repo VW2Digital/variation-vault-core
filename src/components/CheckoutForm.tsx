@@ -186,9 +186,11 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
     Promise.all([
       fetchSetting('max_installments'),
       fetchSetting('installments_interest'),
-    ]).then(([val, instInterest]) => {
+      fetchSetting('pix_discount_percent'),
+    ]).then(([val, instInterest, pixDisc]) => {
       if (val) setMaxInstallmentsSetting(Number(val));
       if (instInterest) setInstallmentsInterest(instInterest);
+      if (pixDisc) setPixDiscountPercent(Number(pixDisc));
     });
   }, []);
 
