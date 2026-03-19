@@ -1228,7 +1228,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
               Pagar com PIX em 1 clique
             </Button>
             <p className="text-[10px] text-center text-muted-foreground">
-              PIX é instantâneo e seguro • Mesmo valor: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              PIX é instantâneo e seguro • Valor: R$ {pixTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
           </div>
         )}
