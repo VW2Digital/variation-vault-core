@@ -392,8 +392,61 @@ export default function PaymentLinkCheckout() {
                     <Input value={cpf} onChange={(e) => setCpf(formatCPF(e.target.value))} placeholder="000.000.000-00" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Telefone</Label>
+                    <Label>Telefone *</Label>
                     <Input value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} placeholder="(00) 00000-0000" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Address */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Endereço de Entrega</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2 col-span-1">
+                    <Label>CEP *</Label>
+                    <Input
+                      value={postalCode}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 8);
+                        const formatted = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
+                        setPostalCode(formatted);
+                        if (digits.length === 8) fetchCepData(digits);
+                      }}
+                      placeholder="00000-000"
+                      maxLength={9}
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <Label>Rua / Logradouro *</Label>
+                    <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rua, Av..." disabled={loadingCep} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Label>Número *</Label>
+                    <Input value={addressNumber} onChange={(e) => setAddressNumber(e.target.value)} placeholder="123" />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <Label>Complemento</Label>
+                    <Input value={complement} onChange={(e) => setComplement(e.target.value)} placeholder="Apto, bloco..." />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Bairro *</Label>
+                  <Input value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="Bairro" disabled={loadingCep} />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2 col-span-2">
+                    <Label>Cidade *</Label>
+                    <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Cidade" disabled={loadingCep} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>UF *</Label>
+                    <Input value={state} onChange={(e) => setState(e.target.value)} placeholder="SP" maxLength={2} disabled={loadingCep} />
                   </div>
                 </div>
               </CardContent>
