@@ -47,6 +47,11 @@ export default function PaymentLinkCheckout() {
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
 
+  // Address fields (required by Asaas for card payments)
+  const [postalCode, setPostalCode] = useState('');
+  const [address, setAddress] = useState('');
+  const [addressNumber, setAddressNumber] = useState('');
+
   // Installments
   const [installments, setInstallments] = useState(1);
   const [installmentOptions, setInstallmentOptions] = useState<InstallmentResult[]>([]);
@@ -130,6 +135,10 @@ export default function PaymentLinkCheckout() {
     if (paymentMethod === 'credit_card') {
       if (!cardNumber.replace(/\s/g, '') || !cardName.trim() || !cardExpiry || !cardCvv) {
         toast({ title: 'Preencha todos os dados do cartão.', variant: 'destructive' });
+        return;
+      }
+      if (!postalCode.replace(/\D/g, '') || !address.trim() || !addressNumber.trim()) {
+        toast({ title: 'Preencha o endereço do titular do cartão.', variant: 'destructive' });
         return;
       }
     }
@@ -221,7 +230,9 @@ export default function PaymentLinkCheckout() {
               email: email.trim(),
               cpfCnpj: cpf.replace(/\D/g, ''),
               phone: phone.replace(/\D/g, '') || '00000000000',
-              postalCode: '00000000',
+              postalCode: postalCode.replace(/\D/g, ''),
+              address: address.trim(),
+              addressNumber: addressNumber.trim(),
             },
           },
         });
@@ -425,6 +436,33 @@ export default function PaymentLinkCheckout() {
                         <Label>CVV</Label>
                         <Input value={cardCvv} onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="000" maxLength={4} />
                       </div>
+                    </div>
+
+                    {/* Address fields required by payment gateway */}
+                    <div className="space-y-2 pt-2 border-t border-border">
+                      <p className="text-xs text-muted-foreground font-medium">Endereço do titular</p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-2 col-span-1">
+                        <Label>CEP *</Label>
+                        <Input
+                          value={postalCode}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/\D/g, '').slice(0, 8);
+                            setPostalCode(digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits);
+                          }}
+                          placeholder="00000-000"
+                          maxLength={9}
+                        />
+                      </div>
+                      <div className="space-y-2 col-span-2">
+                        <Label>Endereço *</Label>
+                        <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rua, Av..." />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Número *</Label>
+                      <Input value={addressNumber} onChange={(e) => setAddressNumber(e.target.value)} placeholder="123" className="w-24" />
                     </div>
 
                     {/* Show selected installment total */}
