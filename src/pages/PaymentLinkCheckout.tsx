@@ -131,19 +131,38 @@ export default function PaymentLinkCheckout() {
     return digits;
   };
 
+  const fetchCepData = async (cep: string) => {
+    const digits = cep.replace(/\D/g, '');
+    if (digits.length !== 8) return;
+    setLoadingCep(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        setAddress(data.logradouro || '');
+        setDistrict(data.bairro || '');
+        setCity(data.localidade || '');
+        setState(data.uf || '');
+      }
+    } catch { /* ignore */ }
+    setLoadingCep(false);
+  };
+
   const handleSubmit = async () => {
-    if (!link || !name.trim() || !email.trim() || !cpf.trim()) {
+    if (!link || !name.trim() || !email.trim() || !cpf.trim() || !phone.trim()) {
       toast({ title: 'Preencha todos os campos obrigatórios.', variant: 'destructive' });
+      return;
+    }
+
+    // Address is always required
+    if (!postalCode.replace(/\D/g, '') || !address.trim() || !addressNumber.trim() || !district.trim() || !city.trim() || !state.trim()) {
+      toast({ title: 'Preencha o endereço completo para entrega.', variant: 'destructive' });
       return;
     }
 
     if (paymentMethod === 'credit_card') {
       if (!cardNumber.replace(/\s/g, '') || !cardName.trim() || !cardExpiry || !cardCvv) {
         toast({ title: 'Preencha todos os dados do cartão.', variant: 'destructive' });
-        return;
-      }
-      if (!postalCode.replace(/\D/g, '') || !address.trim() || !addressNumber.trim()) {
-        toast({ title: 'Preencha o endereço do titular do cartão.', variant: 'destructive' });
         return;
       }
     }
