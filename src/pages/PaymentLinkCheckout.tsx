@@ -71,7 +71,7 @@ export default function PaymentLinkCheckout() {
   useEffect(() => {
     if (!link || link.amount <= 0) return;
     const value = link.amount;
-    const maxParcelas = Math.min(12, Math.max(1, Math.floor(value / 5) || 1));
+    const maxParcelas = Math.min(link.max_installments || 12, Math.max(1, Math.floor(value / 5) || 1));
     if (maxParcelas <= 1) {
       setInstallmentOptions([{ parcelas: 1, percentualJuros: 0, valorFinal: value, valorParcela: value }]);
       return;
