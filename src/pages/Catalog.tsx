@@ -259,6 +259,9 @@ const Catalog = () => {
                 ? `${product.name} ${variation.dosage}`
                 : product.name;
 
+              const pixPercentSetting = Number((product as any).pix_discount_percent) || 0;
+              const maxInstallmentsSetting = Number((product as any).max_installments) || 6;
+              const installmentsInterest = (product as any).installments_interest || 'sem_juros';
               const displayPrice = offerPrice || price;
               const pixDiscount = displayPrice && pixPercentSetting > 0 ? Math.round(displayPrice * (1 - pixPercentSetting / 100) * 100) / 100 : null;
               const pixPercent = pixPercentSetting;
