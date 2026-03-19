@@ -37,17 +37,11 @@ const Catalog = () => {
   const [sortBy, setSortBy] = useState('newest');
   const [stockFilter, setStockFilter] = useState('all');
   const [reviewsMap, setReviewsMap] = useState<Record<string, { avg: number; count: number }>>({});
-  const [pixPercentSetting, setPixPercentSetting] = useState(19);
-  const [maxInstallmentsSetting, setMaxInstallmentsSetting] = useState(6);
-  const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
   const [interestTable, setInterestTable] = useState<Record<number, number>>({});
 
   useEffect(() => {
-    // Load payment display settings
-    Promise.all([fetchSetting('pix_discount_percent'), fetchSetting('max_installments'), fetchSetting('installments_interest'), fetchSetting('interest_table')]).then(([pixDisc, maxInst, instInterest, intTable]) => {
-      if (pixDisc) setPixPercentSetting(Number(pixDisc));
-      if (maxInst) setMaxInstallmentsSetting(Number(maxInst));
-      if (instInterest) setInstallmentsInterest(instInterest);
+    // Load interest table (still global)
+    fetchSetting('interest_table').then((intTable) => {
       setInterestTable(parseInterestTable(intTable));
     });
 
