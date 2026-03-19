@@ -174,6 +174,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
   const [loadingShipping, setLoadingShipping] = useState(false);
   const [maxInstallmentsSetting, setMaxInstallmentsSetting] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('com_juros');
+  const [pixDiscountPercent, setPixDiscountPercent] = useState(0);
   const [installmentOptions, setInstallmentOptions] = useState<InstallmentResult[]>([]);
   const [loadingInstallments, setLoadingInstallments] = useState(false);
 
