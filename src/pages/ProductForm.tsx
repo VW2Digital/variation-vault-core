@@ -63,6 +63,9 @@ const ProductForm = () => {
   const [freeShipping, setFreeShipping] = useState(false);
   const [freeShippingMinValue, setFreeShippingMinValue] = useState(0);
   const [isBestseller, setIsBestseller] = useState(false);
+  const [pixDiscountPercent, setPixDiscountPercent] = useState(0);
+  const [maxInstallments, setMaxInstallments] = useState(6);
+  const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
   const [variations, setVariations] = useState<Variation[]>([emptyVariation()]);
   const [saving, setSaving] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
