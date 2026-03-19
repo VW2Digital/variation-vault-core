@@ -68,6 +68,8 @@ export default function PaymentLinksPage() {
     setDescription('');
     setAmount('');
     setActive(true);
+    setPixDiscount('0');
+    setMaxInstallments('1');
     setDialogOpen(true);
   };
 
@@ -77,6 +79,8 @@ export default function PaymentLinksPage() {
     setDescription(link.description || '');
     setAmount(String(link.amount));
     setActive(link.active);
+    setPixDiscount(String(link.pix_discount_percent || 0));
+    setMaxInstallments(String(link.max_installments || 1));
     setDialogOpen(true);
   };
 
