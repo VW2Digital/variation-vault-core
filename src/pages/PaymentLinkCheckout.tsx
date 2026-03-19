@@ -7,9 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ShieldCheck, CreditCard, QrCode, CheckCircle2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import logoImg from '@/assets/liberty-pharma-logo.png';
+import { gerarOpcoesParcelamento, InstallmentResult } from '@/lib/installments';
 
 interface PaymentLink {
   id: string;
@@ -43,6 +45,11 @@ export default function PaymentLinkCheckout() {
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
 
+  // Installments
+  const [installments, setInstallments] = useState(1);
+  const [installmentOptions, setInstallmentOptions] = useState<InstallmentResult[]>([]);
+  const [loadingInstallments, setLoadingInstallments] = useState(false);
+
   useEffect(() => {
     if (!slug) return;
     supabase
@@ -58,6 +65,35 @@ export default function PaymentLinkCheckout() {
       });
   }, [slug]);
 
+  // Fetch installment simulation from Asaas (same logic as CheckoutForm)
+  useEffect(() => {
+    if (!link || link.amount <= 0) return;
+    const value = link.amount;
+    const maxParcelas = Math.min(12, Math.max(1, Math.floor(value / 5) || 1));
+    if (maxParcelas <= 1) {
+      setInstallmentOptions([{ parcelas: 1, percentualJuros: 0, valorFinal: value, valorParcela: value }]);
+      return;
+    }
+    setLoadingInstallments(true);
+    supabase.functions.invoke('asaas-checkout', {
+      body: { action: 'simulate_installments', value, installmentCount: maxParcelas },
+    }).then(({ data }) => {
+      if (data?.creditCard?.installments && Array.isArray(data.creditCard.installments) && data.creditCard.installments.length > 0) {
+        const opts: InstallmentResult[] = data.creditCard.installments.map((inst: any) => ({
+          parcelas: inst.installmentCount,
+          percentualJuros: inst.installmentCount === 1 ? 0 : Number(((inst.totalValue / value - 1)).toFixed(4)),
+          valorFinal: Number(inst.totalValue),
+          valorParcela: Number(inst.installmentValue),
+        }));
+        setInstallmentOptions(opts);
+      } else {
+        setInstallmentOptions(gerarOpcoesParcelamento(value, maxParcelas));
+      }
+    }).catch(() => {
+      setInstallmentOptions(gerarOpcoesParcelamento(value, maxParcelas));
+    }).finally(() => setLoadingInstallments(false));
+  }, [link]);
+
   const formatCPF = (v: string) => {
     const digits = v.replace(/\D/g, '').slice(0, 11);
     return digits.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
@@ -70,14 +106,37 @@ export default function PaymentLinkCheckout() {
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
   };
 
+  const formatCardNumber = (v: string) => {
+    const digits = v.replace(/\D/g, '').slice(0, 16);
+    return digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+  };
+
+  const formatExpiry = (v: string) => {
+    const digits = v.replace(/\D/g, '').slice(0, 4);
+    if (digits.length > 2) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return digits;
+  };
+
   const handleSubmit = async () => {
     if (!link || !name.trim() || !email.trim() || !cpf.trim()) {
       toast({ title: 'Preencha todos os campos obrigatórios.', variant: 'destructive' });
       return;
     }
 
+    if (paymentMethod === 'credit_card') {
+      if (!cardNumber.replace(/\s/g, '') || !cardName.trim() || !cardExpiry || !cardCvv) {
+        toast({ title: 'Preencha todos os dados do cartão.', variant: 'destructive' });
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
+      // Determine final value based on installments
+      const selectedOpt = installmentOptions.find(o => o.parcelas === installments);
+      const finalValue = paymentMethod === 'credit_card' && selectedOpt ? selectedOpt.valorFinal : link.amount;
+      const installmentValue = paymentMethod === 'credit_card' && selectedOpt ? selectedOpt.valorParcela : link.amount;
+
       // 1. Create order
       const { data: orderData, error: orderError } = await supabase.from('orders').insert({
         customer_name: name.trim(),
@@ -87,8 +146,9 @@ export default function PaymentLinkCheckout() {
         product_name: link.title,
         quantity: 1,
         unit_price: link.amount,
-        total_value: link.amount,
+        total_value: finalValue,
         payment_method: paymentMethod,
+        installments,
         status: 'PENDING',
       }).select('id').single();
 
@@ -109,7 +169,6 @@ export default function PaymentLinkCheckout() {
       if (customerError) throw customerError;
       const asaasCustomerId = customerData.id;
 
-      // Update order with Asaas customer ID
       await supabase.from('orders').update({ asaas_customer_id: asaasCustomerId }).eq('id', orderId);
 
       // 3. Create payment
@@ -137,11 +196,13 @@ export default function PaymentLinkCheckout() {
           body: {
             action: 'create_card_payment',
             customer: asaasCustomerId,
-            value: link.amount,
+            value: finalValue,
             description: link.title,
             orderId,
+            installmentCount: installments,
+            installmentValue: installmentValue,
             creditCard: {
-              holderName: cardName,
+              holderName: cardName.trim(),
               number: cardNumber.replace(/\s/g, ''),
               expiryMonth: expMonth,
               expiryYear: expYear?.length === 2 ? `20${expYear}` : expYear,
@@ -163,7 +224,8 @@ export default function PaymentLinkCheckout() {
 
       toast({ title: paymentMethod === 'pix' ? 'PIX gerado com sucesso!' : 'Pagamento processado!' });
     } catch (err: any) {
-      toast({ title: 'Erro no pagamento', description: err.message, variant: 'destructive' });
+      const msg = err?.message || 'Não foi possível processar o pagamento';
+      toast({ title: 'Erro no pagamento', description: msg, variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -204,6 +266,8 @@ export default function PaymentLinkCheckout() {
       </div>
     );
   }
+
+  const selectedOpt = installmentOptions.find(o => o.parcelas === installments);
 
   return (
     <div className="min-h-screen bg-background">
@@ -287,7 +351,7 @@ export default function PaymentLinkCheckout() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <button
-                    onClick={() => setPaymentMethod('pix')}
+                    onClick={() => { setPaymentMethod('pix'); setInstallments(1); }}
                     className={`p-4 rounded-lg border-2 text-center transition-all ${paymentMethod === 'pix' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'}`}
                   >
                     <QrCode className={`w-6 h-6 mx-auto mb-1 ${paymentMethod === 'pix' ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -304,9 +368,35 @@ export default function PaymentLinkCheckout() {
 
                 {paymentMethod === 'credit_card' && (
                   <div className="space-y-3 pt-2">
+                    {/* Installments selector */}
+                    {installmentOptions.length > 1 && (
+                      <div className="space-y-2">
+                        <Label>Parcelas</Label>
+                        {loadingInstallments ? (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                            <Loader2 className="w-4 h-4 animate-spin" /> Carregando parcelas...
+                          </div>
+                        ) : (
+                          <Select value={String(installments)} onValueChange={(v) => setInstallments(Number(v))}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {installmentOptions.map((opt) => (
+                                <SelectItem key={opt.parcelas} value={String(opt.parcelas)}>
+                                  {opt.parcelas}x de R$ {opt.valorParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  {opt.parcelas === 1 ? ' (à vista)' : ` (total R$ ${opt.valorFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <Label>Número do Cartão</Label>
-                      <Input value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} placeholder="0000 0000 0000 0000" />
+                      <Input value={cardNumber} onChange={(e) => setCardNumber(formatCardNumber(e.target.value))} placeholder="0000 0000 0000 0000" maxLength={19} />
                     </div>
                     <div className="space-y-2">
                       <Label>Nome no Cartão</Label>
@@ -315,19 +405,29 @@ export default function PaymentLinkCheckout() {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label>Validade</Label>
-                        <Input value={cardExpiry} onChange={(e) => setCardExpiry(e.target.value)} placeholder="MM/AA" />
+                        <Input value={cardExpiry} onChange={(e) => setCardExpiry(formatExpiry(e.target.value))} placeholder="MM/AA" maxLength={5} />
                       </div>
                       <div className="space-y-2">
                         <Label>CVV</Label>
-                        <Input value={cardCvv} onChange={(e) => setCardCvv(e.target.value)} placeholder="000" maxLength={4} />
+                        <Input value={cardCvv} onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="000" maxLength={4} />
                       </div>
                     </div>
+
+                    {/* Show selected installment total */}
+                    {selectedOpt && installments > 1 && (
+                      <div className="bg-muted/50 p-3 rounded-lg text-sm text-center">
+                        <span className="text-muted-foreground">Total no cartão: </span>
+                        <span className="font-semibold text-foreground">
+                          R$ {selectedOpt.valorFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 <Button onClick={handleSubmit} disabled={submitting} className="w-full h-12 text-base mt-2">
                   {submitting ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
-                  {paymentMethod === 'pix' ? 'Gerar PIX' : 'Pagar com Cartão'}
+                  {paymentMethod === 'pix' ? 'Gerar PIX' : `Pagar ${installments > 1 ? `${installments}x de R$ ${selectedOpt?.valorParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'com Cartão'}`}
                 </Button>
 
                 <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
