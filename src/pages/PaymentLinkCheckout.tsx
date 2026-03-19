@@ -81,12 +81,14 @@ export default function PaymentLinkCheckout() {
       body: { action: 'simulate_installments', value, installmentCount: maxParcelas },
     }).then(({ data }) => {
       if (data?.creditCard?.installments && Array.isArray(data.creditCard.installments) && data.creditCard.installments.length > 0) {
-        const opts: InstallmentResult[] = data.creditCard.installments.map((inst: any) => ({
-          parcelas: inst.installmentCount,
-          percentualJuros: inst.installmentCount === 1 ? 0 : Number(((inst.totalValue / value - 1)).toFixed(4)),
-          valorFinal: Number(inst.totalValue),
-          valorParcela: Number(inst.installmentValue),
-        }));
+        const opts: InstallmentResult[] = data.creditCard.installments
+          .filter((inst: any) => inst.installmentCount <= maxParcelas)
+          .map((inst: any) => ({
+            parcelas: inst.installmentCount,
+            percentualJuros: inst.installmentCount === 1 ? 0 : Number(((inst.totalValue / value - 1)).toFixed(4)),
+            valorFinal: Number(inst.totalValue),
+            valorParcela: Number(inst.installmentValue),
+          }));
         setInstallmentOptions(opts);
       } else {
         setInstallmentOptions(gerarOpcoesParcelamento(value, maxParcelas));
