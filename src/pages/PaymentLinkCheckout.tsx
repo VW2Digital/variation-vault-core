@@ -47,10 +47,15 @@ export default function PaymentLinkCheckout() {
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
 
-  // Address fields (required by Asaas for card payments)
+  // Address fields
   const [postalCode, setPostalCode] = useState('');
   const [address, setAddress] = useState('');
   const [addressNumber, setAddressNumber] = useState('');
+  const [complement, setComplement] = useState('');
+  const [district, setDistrict] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [loadingCep, setLoadingCep] = useState(false);
 
   // Installments
   const [installments, setInstallments] = useState(1);
@@ -126,19 +131,38 @@ export default function PaymentLinkCheckout() {
     return digits;
   };
 
+  const fetchCepData = async (cep: string) => {
+    const digits = cep.replace(/\D/g, '');
+    if (digits.length !== 8) return;
+    setLoadingCep(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        setAddress(data.logradouro || '');
+        setDistrict(data.bairro || '');
+        setCity(data.localidade || '');
+        setState(data.uf || '');
+      }
+    } catch { /* ignore */ }
+    setLoadingCep(false);
+  };
+
   const handleSubmit = async () => {
-    if (!link || !name.trim() || !email.trim() || !cpf.trim()) {
+    if (!link || !name.trim() || !email.trim() || !cpf.trim() || !phone.trim()) {
       toast({ title: 'Preencha todos os campos obrigatórios.', variant: 'destructive' });
+      return;
+    }
+
+    // Address is always required
+    if (!postalCode.replace(/\D/g, '') || !address.trim() || !addressNumber.trim() || !district.trim() || !city.trim() || !state.trim()) {
+      toast({ title: 'Preencha o endereço completo para entrega.', variant: 'destructive' });
       return;
     }
 
     if (paymentMethod === 'credit_card') {
       if (!cardNumber.replace(/\s/g, '') || !cardName.trim() || !cardExpiry || !cardCvv) {
         toast({ title: 'Preencha todos os dados do cartão.', variant: 'destructive' });
-        return;
-      }
-      if (!postalCode.replace(/\D/g, '') || !address.trim() || !addressNumber.trim()) {
-        toast({ title: 'Preencha o endereço do titular do cartão.', variant: 'destructive' });
         return;
       }
     }
@@ -167,6 +191,13 @@ export default function PaymentLinkCheckout() {
         payment_method: paymentMethod,
         installments,
         status: 'PENDING',
+        customer_address: address.trim(),
+        customer_number: addressNumber.trim(),
+        customer_complement: complement.trim() || null,
+        customer_district: district.trim(),
+        customer_city: city.trim(),
+        customer_state: state.trim(),
+        customer_postal_code: postalCode.replace(/\D/g, ''),
       }).select('id').single();
 
       if (orderError) throw orderError;
@@ -361,8 +392,61 @@ export default function PaymentLinkCheckout() {
                     <Input value={cpf} onChange={(e) => setCpf(formatCPF(e.target.value))} placeholder="000.000.000-00" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Telefone</Label>
+                    <Label>Telefone *</Label>
                     <Input value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} placeholder="(00) 00000-0000" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Address */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Endereço de Entrega</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2 col-span-1">
+                    <Label>CEP *</Label>
+                    <Input
+                      value={postalCode}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 8);
+                        const formatted = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
+                        setPostalCode(formatted);
+                        if (digits.length === 8) fetchCepData(digits);
+                      }}
+                      placeholder="00000-000"
+                      maxLength={9}
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <Label>Rua / Logradouro *</Label>
+                    <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rua, Av..." disabled={loadingCep} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Label>Número *</Label>
+                    <Input value={addressNumber} onChange={(e) => setAddressNumber(e.target.value)} placeholder="123" />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <Label>Complemento</Label>
+                    <Input value={complement} onChange={(e) => setComplement(e.target.value)} placeholder="Apto, bloco..." />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Bairro *</Label>
+                  <Input value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="Bairro" disabled={loadingCep} />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2 col-span-2">
+                    <Label>Cidade *</Label>
+                    <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Cidade" disabled={loadingCep} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>UF *</Label>
+                    <Input value={state} onChange={(e) => setState(e.target.value)} placeholder="SP" maxLength={2} disabled={loadingCep} />
                   </div>
                 </div>
               </CardContent>
@@ -438,32 +522,6 @@ export default function PaymentLinkCheckout() {
                       </div>
                     </div>
 
-                    {/* Address fields required by payment gateway */}
-                    <div className="space-y-2 pt-2 border-t border-border">
-                      <p className="text-xs text-muted-foreground font-medium">Endereço do titular</p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-2 col-span-1">
-                        <Label>CEP *</Label>
-                        <Input
-                          value={postalCode}
-                          onChange={(e) => {
-                            const digits = e.target.value.replace(/\D/g, '').slice(0, 8);
-                            setPostalCode(digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits);
-                          }}
-                          placeholder="00000-000"
-                          maxLength={9}
-                        />
-                      </div>
-                      <div className="space-y-2 col-span-2">
-                        <Label>Endereço *</Label>
-                        <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rua, Av..." />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Número *</Label>
-                      <Input value={addressNumber} onChange={(e) => setAddressNumber(e.target.value)} placeholder="123" className="w-24" />
-                    </div>
 
                     {/* Show selected installment total */}
                     {selectedOpt && installments > 1 && (
