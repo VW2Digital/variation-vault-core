@@ -224,6 +224,16 @@ export default function PaymentLinksPage() {
               <Label>Valor (R$) *</Label>
               <Input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Desconto PIX (%)</Label>
+                <Input type="number" min="0" max="100" step="1" value={pixDiscount} onChange={(e) => setPixDiscount(e.target.value)} placeholder="0" />
+              </div>
+              <div className="space-y-2">
+                <Label>Máx. Parcelas</Label>
+                <Input type="number" min="1" max="12" step="1" value={maxInstallments} onChange={(e) => setMaxInstallments(e.target.value)} placeholder="1" />
+              </div>
+            </div>
             <div className="flex items-center justify-between">
               <Label>Link ativo</Label>
               <Switch checked={active} onCheckedChange={setActive} />
