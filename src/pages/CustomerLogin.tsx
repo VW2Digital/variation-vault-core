@@ -16,6 +16,7 @@ const CustomerLogin = () => {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
