@@ -35,7 +35,6 @@ const SettingsPage = () => {
   const [resendFromEmail, setResendFromEmail] = useState('');
   const [showResendKey, setShowResendKey] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fetchingProfile, setFetchingProfile] = useState(false);
 
