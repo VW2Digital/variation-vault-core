@@ -139,6 +139,9 @@ const ProductForm = () => {
         free_shipping: freeShipping,
         free_shipping_min_value: freeShippingMinValue,
         is_bestseller: isBestseller,
+        pix_discount_percent: pixDiscountPercent,
+        max_installments: maxInstallments,
+        installments_interest: installmentsInterest,
         variations: variations.filter((v) => v.dosage.trim() !== ''),
       };
 
