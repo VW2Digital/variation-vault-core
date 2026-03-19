@@ -180,6 +180,8 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
 
   const shippingCost = qualifiesForFreeShipping ? 0 : (selectedShipping?.price || 0);
   const totalValue = baseProductTotal + shippingCost;
+  const pixDiscountValue = pixDiscountPercent > 0 ? totalValue * (pixDiscountPercent / 100) : 0;
+  const pixTotalValue = totalValue - pixDiscountValue;
 
   // Load payment settings
   useEffect(() => {
