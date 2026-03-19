@@ -522,32 +522,6 @@ export default function PaymentLinkCheckout() {
                       </div>
                     </div>
 
-                    {/* Address fields required by payment gateway */}
-                    <div className="space-y-2 pt-2 border-t border-border">
-                      <p className="text-xs text-muted-foreground font-medium">Endereço do titular</p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-2 col-span-1">
-                        <Label>CEP *</Label>
-                        <Input
-                          value={postalCode}
-                          onChange={(e) => {
-                            const digits = e.target.value.replace(/\D/g, '').slice(0, 8);
-                            setPostalCode(digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits);
-                          }}
-                          placeholder="00000-000"
-                          maxLength={9}
-                        />
-                      </div>
-                      <div className="space-y-2 col-span-2">
-                        <Label>Endereço *</Label>
-                        <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rua, Av..." />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Número *</Label>
-                      <Input value={addressNumber} onChange={(e) => setAddressNumber(e.target.value)} placeholder="123" className="w-24" />
-                    </div>
 
                     {/* Show selected installment total */}
                     {selectedOpt && installments > 1 && (
