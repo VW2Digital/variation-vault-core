@@ -315,7 +315,7 @@ const ProductCheckout = () => {
       <Header />
 
       {/* Product Section */}
-      <section className="max-w-6xl mx-auto px-4 py-8">
+      <section className="max-w-6xl mx-auto px-4 py-3 sm:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {/* Image Gallery */}
           <AnimatedSection variant="fadeUp">
