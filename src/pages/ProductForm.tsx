@@ -27,6 +27,7 @@ interface WholesaleTier {
 interface Variation {
   id?: string;
   dosage: string;
+  subtitle: string;
   price: number;
   offer_price: number;
   in_stock: boolean;
@@ -38,6 +39,7 @@ interface Variation {
 
 const emptyVariation = (): Variation => ({
   dosage: '',
+  subtitle: '',
   price: 0,
   offer_price: 0,
   in_stock: true,
@@ -106,6 +108,7 @@ const ProductForm = () => {
             ? p.product_variations.map((v: any) => ({
                 id: v.id,
                 dosage: v.dosage,
+                subtitle: v.subtitle || '',
                 price: Number(v.price),
                 offer_price: Number(v.offer_price || 0),
                 in_stock: v.in_stock,
@@ -364,6 +367,10 @@ const ProductForm = () => {
                   <div className="space-y-2">
                     <Label>Dosagem</Label>
                     <Input value={v.dosage} onChange={(e) => updateVariation(i, 'dosage', e.target.value)} placeholder="5mg" />
+                  </div>
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label>Subtítulo da Variação</Label>
+                    <Input value={v.subtitle} onChange={(e) => updateVariation(i, 'subtitle', e.target.value)} placeholder="Ex: contém um total de 20mg, dividida em 4 doses de 15mg." />
                   </div>
                   <div className="space-y-2">
                     <Label>{v.is_offer ? 'Preço Original (R$)' : 'Preço (R$)'}</Label>

@@ -58,7 +58,7 @@ export const createProduct = async (product: {
   pix_discount_percent?: number;
   max_installments?: number;
   installments_interest?: string;
-  variations?: { dosage: string; price: number; offer_price?: number; in_stock: boolean; is_offer: boolean; image_url?: string; images?: string[] }[];
+  variations?: { dosage: string; subtitle?: string; price: number; offer_price?: number; in_stock: boolean; is_offer: boolean; image_url?: string; images?: string[] }[];
 }) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Not authenticated');
@@ -75,7 +75,7 @@ export const createProduct = async (product: {
   if (variations && variations.length > 0) {
     const { error: vError } = await supabase
       .from('product_variations')
-      .insert(variations.map((v) => ({ dosage: v.dosage, price: v.price, offer_price: v.offer_price || 0, in_stock: v.in_stock, is_offer: v.is_offer, image_url: v.image_url || '', images: v.images || [], product_id: data.id })));
+      .insert(variations.map((v) => ({ dosage: v.dosage, subtitle: v.subtitle || '', price: v.price, offer_price: v.offer_price || 0, in_stock: v.in_stock, is_offer: v.is_offer, image_url: v.image_url || '', images: v.images || [], product_id: data.id })));
     if (vError) throw vError;
   }
 
@@ -99,7 +99,7 @@ export const updateProduct = async (
     pix_discount_percent?: number;
     max_installments?: number;
     installments_interest?: string;
-    variations?: { id?: string; dosage: string; price: number; offer_price?: number; in_stock: boolean; is_offer: boolean; image_url?: string; images?: string[] }[];
+    variations?: { id?: string; dosage: string; subtitle?: string; price: number; offer_price?: number; in_stock: boolean; is_offer: boolean; image_url?: string; images?: string[] }[];
   }
 ) => {
   const { variations, ...productData } = product;
@@ -113,7 +113,7 @@ export const updateProduct = async (
     if (variations.length > 0) {
       const { error: vError } = await supabase
         .from('product_variations')
-        .insert(variations.map((v) => ({ dosage: v.dosage, price: v.price, offer_price: v.offer_price || 0, in_stock: v.in_stock, is_offer: v.is_offer, image_url: v.image_url || '', images: v.images || [], product_id: id } as any)));
+        .insert(variations.map((v) => ({ dosage: v.dosage, subtitle: v.subtitle || '', price: v.price, offer_price: v.offer_price || 0, in_stock: v.in_stock, is_offer: v.is_offer, image_url: v.image_url || '', images: v.images || [], product_id: id } as any)));
       if (vError) throw vError;
     }
   }

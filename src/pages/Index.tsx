@@ -100,8 +100,8 @@ const Index = () => {
                           <h3 className="font-semibold text-foreground text-xs sm:text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
                             {displayName}
                           </h3>
-                          {product.subtitle && (
-                            <p className="text-xs text-muted-foreground line-clamp-1">{product.subtitle}</p>
+                          {(variation.subtitle || product.subtitle) && (
+                            <p className="text-xs text-muted-foreground line-clamp-1">{variation.subtitle || product.subtitle}</p>
                           )}
                           <div className="space-y-1">
                             <p className="text-muted-foreground text-xs line-through">

@@ -320,6 +320,12 @@ const Catalog = () => {
                             : product.name}
                         </h3>
 
+                        {(variation?.subtitle || product.subtitle) && (
+                          <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2">
+                            {variation?.subtitle || product.subtitle}
+                          </p>
+                        )}
+
                         {reviewsMap[product.name] && (
                           <div className="flex items-center gap-1">
                             <div className="flex gap-0.5">

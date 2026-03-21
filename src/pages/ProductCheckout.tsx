@@ -364,7 +364,9 @@ const ProductCheckout = () => {
           <AnimatedSection variant="fadeUp" delay={0.2} className="space-y-6">
             <div>
               <h1 className="text-3xl font-bold text-foreground">{product.name}</h1>
-              
+              {(variation?.subtitle || product.subtitle) && (
+                <p className="text-sm text-muted-foreground mt-1">{variation?.subtitle || product.subtitle}</p>
+              )}
             </div>
 
             {/* Dosage Selector */}
