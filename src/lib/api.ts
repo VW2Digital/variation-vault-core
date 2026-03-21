@@ -58,7 +58,7 @@ export const createProduct = async (product: {
   pix_discount_percent?: number;
   max_installments?: number;
   installments_interest?: string;
-  variations?: { dosage: string; price: number; offer_price?: number; in_stock: boolean; is_offer: boolean; image_url?: string; images?: string[] }[];
+  variations?: { dosage: string; subtitle?: string; price: number; offer_price?: number; in_stock: boolean; is_offer: boolean; image_url?: string; images?: string[] }[];
 }) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Not authenticated');
