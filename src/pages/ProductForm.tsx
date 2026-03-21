@@ -368,6 +368,10 @@ const ProductForm = () => {
                     <Label>Dosagem</Label>
                     <Input value={v.dosage} onChange={(e) => updateVariation(i, 'dosage', e.target.value)} placeholder="5mg" />
                   </div>
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label>Subtítulo da Variação</Label>
+                    <Input value={v.subtitle} onChange={(e) => updateVariation(i, 'subtitle', e.target.value)} placeholder="Ex: contém um total de 20mg, dividida em 4 doses de 15mg." />
+                  </div>
                   <div className="space-y-2">
                     <Label>{v.is_offer ? 'Preço Original (R$)' : 'Preço (R$)'}</Label>
                     <Input type="number" value={v.price || ''} onChange={(e) => updateVariation(i, 'price', Number(e.target.value))} />
