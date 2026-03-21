@@ -39,6 +39,7 @@ interface Variation {
 
 const emptyVariation = (): Variation => ({
   dosage: '',
+  subtitle: '',
   price: 0,
   offer_price: 0,
   in_stock: true,
