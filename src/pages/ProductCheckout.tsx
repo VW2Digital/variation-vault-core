@@ -413,12 +413,6 @@ const ProductCheckout = () => {
               </div>
             )}
 
-            {/* Info note */}
-            {variation?.dosage && (
-              <div className="bg-muted rounded-lg p-3 text-sm text-muted-foreground">
-                Caneta de {variation.dosage}: contém um total de 20mg, dividida em 4 doses de {variation.dosage}.
-              </div>
-            )}
 
             {/* Quantity */}
             {(() => {
