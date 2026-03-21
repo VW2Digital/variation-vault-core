@@ -99,7 +99,7 @@ export const updateProduct = async (
     pix_discount_percent?: number;
     max_installments?: number;
     installments_interest?: string;
-    variations?: { id?: string; dosage: string; price: number; offer_price?: number; in_stock: boolean; is_offer: boolean; image_url?: string; images?: string[] }[];
+    variations?: { id?: string; dosage: string; subtitle?: string; price: number; offer_price?: number; in_stock: boolean; is_offer: boolean; image_url?: string; images?: string[] }[];
   }
 ) => {
   const { variations, ...productData } = product;
