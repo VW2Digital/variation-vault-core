@@ -27,6 +27,7 @@ interface WholesaleTier {
 interface Variation {
   id?: string;
   dosage: string;
+  subtitle: string;
   price: number;
   offer_price: number;
   in_stock: boolean;
