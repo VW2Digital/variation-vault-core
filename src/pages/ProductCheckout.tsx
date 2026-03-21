@@ -407,6 +407,12 @@ const ProductCheckout = () => {
               </div>
             }
 
+            {(variation?.subtitle || product.subtitle) && (
+              <div className="bg-muted/50 rounded-lg px-4 py-3 border border-border/30">
+                <p className="text-sm text-muted-foreground">{variation?.subtitle || product.subtitle}</p>
+              </div>
+            )}
+
             {/* Info note */}
             {variation?.dosage && (
               <div className="bg-muted rounded-lg p-3 text-sm text-muted-foreground">
