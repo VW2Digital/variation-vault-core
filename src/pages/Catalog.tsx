@@ -326,7 +326,8 @@ const Catalog = () => {
                           </p>
                         )}
 
-                          {reviewsMap[product.name] && (
+                        {reviewsMap[product.name] && (
+                          <div className="flex items-center gap-1">
                             <div className="flex gap-0.5">
                               {[1, 2, 3, 4, 5].map((s) => (
                                 <Star
