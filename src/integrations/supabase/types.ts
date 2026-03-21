@@ -458,6 +458,7 @@ export type Database = {
           offer_price: number | null
           price: number
           product_id: string
+          subtitle: string | null
         }
         Insert: {
           created_at?: string
@@ -470,6 +471,7 @@ export type Database = {
           offer_price?: number | null
           price?: number
           product_id: string
+          subtitle?: string | null
         }
         Update: {
           created_at?: string
@@ -482,6 +484,7 @@ export type Database = {
           offer_price?: number | null
           price?: number
           product_id?: string
+          subtitle?: string | null
         }
         Relationships: [
           {
