@@ -108,6 +108,7 @@ const ProductForm = () => {
             ? p.product_variations.map((v: any) => ({
                 id: v.id,
                 dosage: v.dosage,
+                subtitle: v.subtitle || '',
                 price: Number(v.price),
                 offer_price: Number(v.offer_price || 0),
                 in_stock: v.in_stock,
