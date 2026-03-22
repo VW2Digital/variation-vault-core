@@ -99,14 +99,21 @@ async function simularParcelamentoAsaas(
   return { valorFinal, valorParcela };
 }
 
+function sanitizeDescription(desc?: string): string {
+  if (!desc) return 'Pagamento';
+  return desc
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9 ,.\-()]/g, '')
+    .trim() || 'Pagamento';
+}
+
 function sanitizePhone(phone?: string): string | undefined {
   if (!phone) return undefined;
   let digits = phone.replace(/\D/g, '');
-  // Remove country code 55 if present (13 digits: 55 + DDD + 9XXXX-XXXX)
   if (digits.length === 13 && digits.startsWith('55')) {
     digits = digits.slice(2);
   }
-  // Must be 10 or 11 digits (DDD + number)
   if (digits.length < 10 || digits.length > 11) return undefined;
   return digits;
 }
@@ -196,7 +203,7 @@ serve(async (req) => {
           customer,
           billingType: 'PIX',
           value: toCurrencyNumber(value),
-          description,
+          description: sanitizeDescription(description),
           dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           externalReference: orderId || undefined,
         });
@@ -230,7 +237,7 @@ serve(async (req) => {
           customer,
           billingType: 'CREDIT_CARD',
           value: valorFinal,
-          description,
+          description: sanitizeDescription(description),
           dueDate: new Date().toISOString().split('T')[0],
           externalReference: orderId || undefined,
           creditCard,
