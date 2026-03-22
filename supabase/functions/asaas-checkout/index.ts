@@ -203,7 +203,7 @@ serve(async (req) => {
           customer,
           billingType: 'PIX',
           value: toCurrencyNumber(value),
-          description,
+          description: sanitizeDescription(description),
           dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           externalReference: orderId || undefined,
         });
