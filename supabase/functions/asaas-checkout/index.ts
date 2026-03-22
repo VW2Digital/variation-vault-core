@@ -237,7 +237,7 @@ serve(async (req) => {
           customer,
           billingType: 'CREDIT_CARD',
           value: valorFinal,
-          description,
+          description: sanitizeDescription(description),
           dueDate: new Date().toISOString().split('T')[0],
           externalReference: orderId || undefined,
           creditCard,
