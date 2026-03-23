@@ -71,14 +71,6 @@ export default function CartAbandonmentLogsPage() {
         .from('profiles')
         .select('user_id, full_name, phone, cpf');
 
-      const { data: recentOrders } = await supabase
-        .from('orders')
-        .select('customer_user_id, status')
-        .in('customer_user_id', userIds)
-        .in('status', ['PAID', 'CONFIRMED', 'RECEIVED']);
-
-      const paidUserIds = new Set((recentOrders || []).map(o => o.customer_user_id));
-
       let userEmails: Record<string, string> = {};
       try {
         const { data: usersData } = await supabase.functions.invoke('admin-users', {
@@ -95,7 +87,6 @@ export default function CartAbandonmentLogsPage() {
 
       const userMap = new Map<string, ActiveCartUser>();
       for (const item of cartItems) {
-        if (paidUserIds.has(item.user_id)) continue;
 
         const product = item.products as any;
         const variation = item.product_variations as any;
