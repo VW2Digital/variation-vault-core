@@ -775,7 +775,7 @@ const CustomerDashboard = () => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {/* Orders available for review */}
-                    {orders.filter(o => (o.status === 'RECEIVED' || o.status === 'CONFIRMED')).length === 0 ? (
+                    {orders.filter(o => ['PAID', 'RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(o.status)).length === 0 ? (
                       <div className="text-center py-8 space-y-2">
                         <Star className="w-10 h-10 text-muted-foreground/40 mx-auto" />
                         <p className="text-sm text-muted-foreground">Você ainda não possui pedidos pagos para avaliar.</p>
