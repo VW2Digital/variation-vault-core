@@ -51,6 +51,7 @@ const App = () => (
       <BrowserRouter>
         <SessionGuard />
         <PromoPopup />
+        <ChatWidgetEmbed />
         <Routes>
           <Route path="/" element={<Catalog />} />
           <Route path="/catalogo" element={<Catalog />} />

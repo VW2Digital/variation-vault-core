@@ -833,6 +833,28 @@ const SettingsPage = () => {
         </CardContent>
       </Card>
 
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Code className="w-5 h-5" /> Widget de Chat (CRM)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Código embed do widget</Label>
+            <p className="text-xs text-muted-foreground">
+              Cole aqui o código HTML/JavaScript do widget de chat do seu CRM. Ele será exibido automaticamente em todas as páginas públicas do site.
+            </p>
+            <textarea
+              className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-mono"
+              value={chatWidgetCode}
+              onChange={(e) => setChatWidgetCode(e.target.value)}
+              placeholder='<script src="https://seu-crm.com/widget.js"></script>'
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       <Button onClick={handleSave} disabled={saving} className="px-8">
         {saving ? 'Salvando...' : 'Salvar Configurações'}
       </Button>
