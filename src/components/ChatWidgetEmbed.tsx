@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { fetchSetting } from '@/lib/api';
 
 /**
  * Loads an embeddable chat widget script from site_settings.
- * Injects it directly into document.body on public pages.
+ * Extracts and injects scripts directly into document.body.
  */
 const ChatWidgetEmbed = () => {
   const [widgetCode, setWidgetCode] = useState('');
   const location = useLocation();
+  const injectedRef = useRef(false);
 
   useEffect(() => {
     fetchSetting('chat_widget_code').then((code) => {
@@ -17,36 +18,34 @@ const ChatWidgetEmbed = () => {
   }, []);
 
   useEffect(() => {
-    if (!widgetCode) return;
+    if (!widgetCode || injectedRef.current) return;
 
     // Don't render on admin or login pages
     if (location.pathname.startsWith('/admin') || location.pathname === '/login') return;
 
-    // Parse the widget code to extract script src or inline code
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(widgetCode, 'text/html');
-    const scriptTags = doc.querySelectorAll('script');
+    injectedRef.current = true;
 
-    const addedScripts: HTMLScriptElement[] = [];
-
-    scriptTags.forEach((tag) => {
+    // Extract script src URLs
+    const srcRegex = /<script[^>]+src=['"]([^'"]+)['"]/gi;
+    let srcMatch;
+    while ((srcMatch = srcRegex.exec(widgetCode)) !== null) {
       const script = document.createElement('script');
-      if (tag.src) {
-        script.src = tag.src;
-      }
-      if (tag.textContent) {
-        script.textContent = tag.textContent;
-      }
+      script.src = srcMatch[1];
       script.async = true;
       document.body.appendChild(script);
-      addedScripts.push(script);
-    });
+    }
 
-    return () => {
-      addedScripts.forEach((s) => {
-        try { document.body.removeChild(s); } catch {}
-      });
-    };
+    // Extract inline script content
+    const inlineRegex = /<script(?:\s[^>]*)?>([^]*?)<\/script>/gi;
+    let inlineMatch;
+    while ((inlineMatch = inlineRegex.exec(widgetCode)) !== null) {
+      const content = inlineMatch[1].trim();
+      // Skip if it's a src-only tag (no meaningful inline content)
+      if (!content || content.length < 5) continue;
+      const script = document.createElement('script');
+      script.textContent = content;
+      document.body.appendChild(script);
+    }
   }, [widgetCode, location.pathname]);
 
   return null;
