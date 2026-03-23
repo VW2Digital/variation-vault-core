@@ -1,12 +1,19 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Mail, ShoppingCart, Users, AlertTriangle } from 'lucide-react';
-import { format } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Mail, ShoppingCart, Users, AlertTriangle, MessageCircle, CalendarIcon, X, Loader2 } from 'lucide-react';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { DateRange } from 'react-day-picker';
 
 interface ActiveCartUser {
   user_id: string;
@@ -25,6 +32,9 @@ interface ActiveCartUser {
 }
 
 export default function CartAbandonmentLogsPage() {
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [sendingWhatsApp, setSendingWhatsApp] = useState<string | null>(null);
+
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['cart-abandonment-logs'],
     queryFn: async () => {
@@ -125,11 +135,50 @@ export default function CartAbandonmentLogsPage() {
     },
   });
 
+  const filteredCarts = dateRange?.from
+    ? activeCartsData.filter((user) => {
+        const itemDate = new Date(user.oldest_item_date);
+        const from = startOfDay(dateRange.from!);
+        const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from!);
+        return isWithinInterval(itemDate, { start: from, end: to });
+      })
+    : activeCartsData;
+
+  const handleSendWhatsApp = async (user: ActiveCartUser) => {
+    if (!user.phone) {
+      toast.error('Este usuário não possui telefone cadastrado.');
+      return;
+    }
+
+    setSendingWhatsApp(user.user_id);
+
+    const productsList = user.items
+      .map(item => `• ${item.product_name}${item.dosage ? ` (${item.dosage})` : ''} x${item.quantity}`)
+      .join('\n');
+
+    const message = `Olá ${user.full_name}! 😊\n\nNotamos que você tem itens no seu carrinho:\n\n${productsList}\n\n💰 Total: R$ ${user.total_value.toFixed(2).replace('.', ',')}\n\nPrecisa de ajuda para finalizar sua compra? Estamos à disposição! 🛒`;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('evolution-send-message', {
+        body: { number: user.phone, text: message },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success(`Mensagem enviada para ${user.full_name}!`);
+    } catch (err: any) {
+      toast.error(`Erro ao enviar: ${err.message || 'Tente novamente.'}`);
+    } finally {
+      setSendingWhatsApp(null);
+    }
+  };
+
   const totalEmails = logs.length;
   const uniqueUsers = new Set(logs.map((l) => l.user_id)).size;
   const totalItems = logs.reduce((sum, l) => sum + l.cart_item_count, 0);
-  const activeCartUsers = activeCartsData.length;
-  const activeCartValue = activeCartsData.reduce((sum, u) => sum + u.total_value, 0);
+  const activeCartUsers = filteredCarts.length;
+  const activeCartValue = filteredCarts.reduce((sum, u) => sum + u.total_value, 0);
 
   return (
     <div className="space-y-6">
@@ -196,16 +245,66 @@ export default function CartAbandonmentLogsPage() {
 
         <TabsContent value="active">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <CardTitle>Usuários com Itens no Carrinho (sem compra)</CardTitle>
+              <div className="flex items-center gap-2">
+                {dateRange?.from && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDateRange(undefined)}
+                    className="h-8 px-2 text-muted-foreground"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Limpar
+                  </Button>
+                )}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "h-8 justify-start text-left font-normal",
+                        !dateRange?.from && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateRange?.from ? (
+                        dateRange.to ? (
+                          <>
+                            {format(dateRange.from, "dd/MM/yy", { locale: ptBR })} -{" "}
+                            {format(dateRange.to, "dd/MM/yy", { locale: ptBR })}
+                          </>
+                        ) : (
+                          format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })
+                        )
+                      ) : (
+                        "Filtrar por data"
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="range"
+                      selected={dateRange}
+                      onSelect={setDateRange}
+                      numberOfMonths={2}
+                      locale={ptBR}
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </CardHeader>
             <CardContent>
               {isLoadingCarts ? (
                 <p className="text-muted-foreground text-center py-8">Carregando...</p>
-              ) : activeCartsData.length === 0 ? (
+              ) : filteredCarts.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">Nenhum carrinho abandonado no momento.</p>
               ) : (
                 <>
+                  {/* Desktop */}
                   <div className="hidden md:block">
                     <Table>
                       <TableHeader>
@@ -217,10 +316,11 @@ export default function CartAbandonmentLogsPage() {
                           <TableHead className="text-center">Qtd</TableHead>
                           <TableHead className="text-right">Valor Total</TableHead>
                           <TableHead>Desde</TableHead>
+                          <TableHead className="text-center">Ação</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {activeCartsData.map((user) => (
+                        {filteredCarts.map((user) => (
                           <TableRow key={user.user_id}>
                             <TableCell className="font-medium">{user.full_name}</TableCell>
                             <TableCell className="text-sm">{user.email || '—'}</TableCell>
@@ -245,14 +345,32 @@ export default function CartAbandonmentLogsPage() {
                             <TableCell className="text-sm text-muted-foreground">
                               {format(new Date(user.oldest_item_date), "dd/MM/yyyy", { locale: ptBR })}
                             </TableCell>
+                            <TableCell className="text-center">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1.5 text-green-700 border-green-300 hover:bg-green-50 hover:text-green-800"
+                                disabled={!user.phone || sendingWhatsApp === user.user_id}
+                                onClick={() => handleSendWhatsApp(user)}
+                                title={!user.phone ? 'Sem telefone cadastrado' : 'Enviar via WhatsApp'}
+                              >
+                                {sendingWhatsApp === user.user_id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <MessageCircle className="h-4 w-4" />
+                                )}
+                                WhatsApp
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </div>
 
+                  {/* Mobile */}
                   <div className="md:hidden space-y-3">
-                    {activeCartsData.map((user) => (
+                    {filteredCarts.map((user) => (
                       <div key={user.user_id} className="border rounded-lg p-4 space-y-2">
                         <div className="flex justify-between items-start">
                           <div>
@@ -282,6 +400,20 @@ export default function CartAbandonmentLogsPage() {
                             R$ {user.total_value.toFixed(2).replace('.', ',')}
                           </span>
                         </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full gap-1.5 text-green-700 border-green-300 hover:bg-green-50 hover:text-green-800"
+                          disabled={!user.phone || sendingWhatsApp === user.user_id}
+                          onClick={() => handleSendWhatsApp(user)}
+                        >
+                          {sendingWhatsApp === user.user_id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <MessageCircle className="h-4 w-4" />
+                          )}
+                          {user.phone ? 'Enviar WhatsApp' : 'Sem telefone'}
+                        </Button>
                       </div>
                     ))}
                   </div>
