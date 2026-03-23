@@ -141,14 +141,16 @@ const SettingsPage = () => {
       await loadMelhorEnvioCredentials(currentMeEnv);
 
       // Load Evolution API settings
-      const [evoUrl, evoKey, evoInstance] = await Promise.all([
+      const [evoUrl, evoKey, evoInstance, chatWidget] = await Promise.all([
         fetchSetting('evolution_api_url'),
         fetchSetting('evolution_api_key'),
         fetchSetting('evolution_instance_name'),
+        fetchSetting('chat_widget_code'),
       ]);
       setEvolutionApiUrl(evoUrl || '');
       setEvolutionApiKey(evoKey || '');
       setEvolutionInstanceName(evoInstance || '');
+      setChatWidgetCode(chatWidget || '');
 
       if (senderJson) {
         try {
