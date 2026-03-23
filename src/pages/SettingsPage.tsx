@@ -43,6 +43,9 @@ const SettingsPage = () => {
   const [evolutionApiKey, setEvolutionApiKey] = useState('');
   const [evolutionInstanceName, setEvolutionInstanceName] = useState('');
   const [showEvolutionKey, setShowEvolutionKey] = useState(false);
+
+  // Chat Widget
+  const [chatWidgetCode, setChatWidgetCode] = useState('');
   const [testNumber, setTestNumber] = useState('');
   const [testMessage, setTestMessage] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
