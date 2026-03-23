@@ -283,6 +283,7 @@ const SettingsPage = () => {
         upsertSetting('evolution_api_url', evolutionApiUrl, uid),
         upsertSetting('evolution_api_key', evolutionApiKey, uid),
         upsertSetting('evolution_instance_name', evolutionInstanceName, uid),
+        upsertSetting('chat_widget_code', chatWidgetCode, uid),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
