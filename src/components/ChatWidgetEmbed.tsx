@@ -3,8 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { fetchSetting } from '@/lib/api';
 
 /**
- * Loads an embeddable chat widget script from site_settings.
- * Extracts and injects scripts directly into document.body.
+ * Loads an embeddable chat widget from site_settings.
+ * Extracts script tags and injects them into document.body.
  */
 const ChatWidgetEmbed = () => {
   const [widgetCode, setWidgetCode] = useState('');
@@ -25,27 +25,39 @@ const ChatWidgetEmbed = () => {
 
     injectedRef.current = true;
 
-    // Extract script src URLs
-    const srcRegex = /<script[^>]+src=['"]([^'"]+)['"]/gi;
-    let srcMatch;
-    while ((srcMatch = srcRegex.exec(widgetCode)) !== null) {
-      const script = document.createElement('script');
-      script.src = srcMatch[1];
-      script.async = true;
-      document.body.appendChild(script);
+    // Use a temporary div to parse the HTML and extract scripts
+    const temp = document.createElement('div');
+    temp.innerHTML = widgetCode;
+
+    // Find all script tags
+    const scripts = temp.getElementsByTagName('script');
+    
+    for (let i = 0; i < scripts.length; i++) {
+      const oldScript = scripts[i];
+      const newScript = document.createElement('script');
+      
+      // Copy all attributes
+      for (let j = 0; j < oldScript.attributes.length; j++) {
+        const attr = oldScript.attributes[j];
+        newScript.setAttribute(attr.name, attr.value);
+      }
+      
+      // Copy inline content
+      if (oldScript.innerHTML) {
+        newScript.innerHTML = oldScript.innerHTML;
+      }
+      
+      newScript.async = true;
+      document.body.appendChild(newScript);
     }
 
-    // Extract inline script content
-    const inlineRegex = /<script(?:\s[^>]*)?>([^]*?)<\/script>/gi;
-    let inlineMatch;
-    while ((inlineMatch = inlineRegex.exec(widgetCode)) !== null) {
-      const content = inlineMatch[1].trim();
-      // Skip if it's a src-only tag (no meaningful inline content)
-      if (!content || content.length < 5) continue;
-      const script = document.createElement('script');
-      script.textContent = content;
-      document.body.appendChild(script);
-    }
+    // Also append non-script elements (like divs for widget containers)
+    const nonScriptElements = temp.querySelectorAll(':not(script)');
+    nonScriptElements.forEach((el) => {
+      if (el.parentElement === temp) {
+        document.body.appendChild(el.cloneNode(true));
+      }
+    });
   }, [widgetCode, location.pathname]);
 
   return null;
