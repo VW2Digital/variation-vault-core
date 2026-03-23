@@ -71,6 +71,20 @@ export default function CartAbandonmentLogsPage() {
         .from('profiles')
         .select('user_id, full_name, phone, cpf');
 
+      let userEmails: Record<string, string> = {};
+      try {
+        const { data: usersData } = await supabase.functions.invoke('admin-users', {
+          method: 'GET',
+        });
+        if (usersData?.users) {
+          for (const u of usersData.users) {
+            userEmails[u.id] = u.email || '';
+          }
+        }
+      } catch {
+        // fallback
+      }
+
       const userMap = new Map<string, ActiveCartUser>();
       for (const item of cartItems) {
 
