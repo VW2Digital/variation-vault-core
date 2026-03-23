@@ -47,7 +47,7 @@ export default function CartAbandonmentLogsPage() {
     },
   });
 
-  const { data: activeCartsData = [], isLoading: isLoadingCarts } = useQuery({
+  const { data: activeCartsData = [], isLoading: isLoadingCarts, refetch: refetchCarts } = useQuery({
     queryKey: ['active-abandoned-carts'],
     queryFn: async () => {
       const { data: cartItems, error: cartError } = await supabase
