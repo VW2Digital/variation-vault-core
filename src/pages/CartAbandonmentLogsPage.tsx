@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Mail, ShoppingCart, Users, AlertTriangle, MessageCircle, CalendarIcon, X, Loader2 } from 'lucide-react';
+import { Mail, ShoppingCart, Users, AlertTriangle, MessageCircle, CalendarIcon, X, Loader2, RefreshCw } from 'lucide-react';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -47,7 +47,7 @@ export default function CartAbandonmentLogsPage() {
     },
   });
 
-  const { data: activeCartsData = [], isLoading: isLoadingCarts } = useQuery({
+  const { data: activeCartsData = [], isLoading: isLoadingCarts, refetch: refetchCarts } = useQuery({
     queryKey: ['active-abandoned-carts'],
     queryFn: async () => {
       const { data: cartItems, error: cartError } = await supabase
@@ -239,6 +239,16 @@ export default function CartAbandonmentLogsPage() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <CardTitle>Usuários com Itens no Carrinho (sem compra)</CardTitle>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={() => refetchCarts()}
+                  disabled={isLoadingCarts}
+                >
+                  <RefreshCw className={cn("h-4 w-4", isLoadingCarts && "animate-spin")} />
+                  Atualizar
+                </Button>
                 {dateRange?.from && (
                   <Button
                     variant="ghost"
