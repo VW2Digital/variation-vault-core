@@ -783,7 +783,7 @@ const CustomerDashboard = () => {
                     ) : (
                       <div className="space-y-3">
                         {orders
-                          .filter(o => o.status === 'RECEIVED' || o.status === 'CONFIRMED')
+                          .filter(o => ['PAID', 'RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(o.status))
                           .map((order) => {
                             const existingReview = reviews.find(r => r.order_id === order.id);
                             const isReviewing = reviewingOrderId === order.id;
