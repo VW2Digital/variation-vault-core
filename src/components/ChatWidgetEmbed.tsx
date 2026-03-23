@@ -2,10 +2,6 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { fetchSetting } from '@/lib/api';
 
-/**
- * Loads an embeddable chat widget script from site_settings.
- * Injects it directly into document.body on public pages.
- */
 const ChatWidgetEmbed = () => {
   const [widgetCode, setWidgetCode] = useState('');
   const location = useLocation();
@@ -18,35 +14,40 @@ const ChatWidgetEmbed = () => {
 
   useEffect(() => {
     if (!widgetCode) return;
-
-    // Don't render on admin or login pages
     if (location.pathname.startsWith('/admin') || location.pathname === '/login') return;
 
-    // Parse the widget code to extract script src or inline code
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(widgetCode, 'text/html');
-    const scriptTags = doc.querySelectorAll('script');
+    // Check if already injected by looking for our marker
+    if (document.getElementById('crm-chat-widget-injected')) return;
 
-    const addedScripts: HTMLScriptElement[] = [];
+    // Create a marker element
+    const marker = document.createElement('div');
+    marker.id = 'crm-chat-widget-injected';
+    marker.style.display = 'none';
+    document.body.appendChild(marker);
 
-    scriptTags.forEach((tag) => {
+    // Extract and inject script tags using regex
+    const scriptPattern = /<script([^>]*)>([\s\S]*?)<\/script>/gi;
+    const srcPattern = /src\s*=\s*['"]([^'"]+)['"]/i;
+    let match;
+
+    while ((match = scriptPattern.exec(widgetCode)) !== null) {
+      const attrs = match[1] || '';
+      const content = match[2] || '';
+      const srcMatch = srcPattern.exec(attrs);
+
       const script = document.createElement('script');
-      if (tag.src) {
-        script.src = tag.src;
-      }
-      if (tag.textContent) {
-        script.textContent = tag.textContent;
-      }
-      script.async = true;
-      document.body.appendChild(script);
-      addedScripts.push(script);
-    });
 
-    return () => {
-      addedScripts.forEach((s) => {
-        try { document.body.removeChild(s); } catch {}
-      });
-    };
+      if (srcMatch) {
+        script.src = srcMatch[1];
+        script.async = true;
+      } else if (content.trim()) {
+        script.textContent = content;
+      } else {
+        continue;
+      }
+
+      document.body.appendChild(script);
+    }
   }, [widgetCode, location.pathname]);
 
   return null;
