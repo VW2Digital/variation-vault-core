@@ -37,6 +37,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
 import ContactPage from "./pages/ContactPage";
 import { SessionGuard } from "./components/SessionGuard";
+import ChatWidgetEmbed from "./components/ChatWidgetEmbed";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,7 @@ const App = () => (
       <BrowserRouter>
         <SessionGuard />
         <PromoPopup />
+        <ChatWidgetEmbed />
         <Routes>
           <Route path="/" element={<Catalog />} />
           <Route path="/catalogo" element={<Catalog />} />

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Phone, CreditCard, Eye, EyeOff, Truck, MapPin, Mail, Link2, CheckCircle2, Download, Loader2, MessageSquare, Send } from 'lucide-react';
+import { Phone, CreditCard, Eye, EyeOff, Truck, MapPin, Mail, Link2, CheckCircle2, Download, Loader2, MessageSquare, Send, Code } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Select,
@@ -43,6 +43,9 @@ const SettingsPage = () => {
   const [evolutionApiKey, setEvolutionApiKey] = useState('');
   const [evolutionInstanceName, setEvolutionInstanceName] = useState('');
   const [showEvolutionKey, setShowEvolutionKey] = useState(false);
+
+  // Chat Widget
+  const [chatWidgetCode, setChatWidgetCode] = useState('');
   const [testNumber, setTestNumber] = useState('');
   const [testMessage, setTestMessage] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
@@ -138,14 +141,16 @@ const SettingsPage = () => {
       await loadMelhorEnvioCredentials(currentMeEnv);
 
       // Load Evolution API settings
-      const [evoUrl, evoKey, evoInstance] = await Promise.all([
+      const [evoUrl, evoKey, evoInstance, chatWidget] = await Promise.all([
         fetchSetting('evolution_api_url'),
         fetchSetting('evolution_api_key'),
         fetchSetting('evolution_instance_name'),
+        fetchSetting('chat_widget_code'),
       ]);
       setEvolutionApiUrl(evoUrl || '');
       setEvolutionApiKey(evoKey || '');
       setEvolutionInstanceName(evoInstance || '');
+      setChatWidgetCode(chatWidget || '');
 
       if (senderJson) {
         try {
@@ -278,6 +283,7 @@ const SettingsPage = () => {
         upsertSetting('evolution_api_url', evolutionApiUrl, uid),
         upsertSetting('evolution_api_key', evolutionApiKey, uid),
         upsertSetting('evolution_instance_name', evolutionInstanceName, uid),
+        upsertSetting('chat_widget_code', chatWidgetCode, uid),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
@@ -823,6 +829,28 @@ const SettingsPage = () => {
               {sendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               {sendingTest ? 'Enviando...' : 'Enviar Teste'}
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Code className="w-5 h-5" /> Widget de Chat (CRM)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Código embed do widget</Label>
+            <p className="text-xs text-muted-foreground">
+              Cole aqui o código HTML/JavaScript do widget de chat do seu CRM. Ele será exibido automaticamente em todas as páginas públicas do site.
+            </p>
+            <textarea
+              className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-mono"
+              value={chatWidgetCode}
+              onChange={(e) => setChatWidgetCode(e.target.value)}
+              placeholder='<script src="https://seu-crm.com/widget.js"></script>'
+            />
           </div>
         </CardContent>
       </Card>
