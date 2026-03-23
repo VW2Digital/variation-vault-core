@@ -239,6 +239,16 @@ export default function CartAbandonmentLogsPage() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <CardTitle>Usuários com Itens no Carrinho (sem compra)</CardTitle>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={() => refetchCarts()}
+                  disabled={isLoadingCarts}
+                >
+                  <RefreshCw className={cn("h-4 w-4", isLoadingCarts && "animate-spin")} />
+                  Atualizar
+                </Button>
                 {dateRange?.from && (
                   <Button
                     variant="ghost"
