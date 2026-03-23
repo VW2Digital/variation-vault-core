@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { fetchSetting } from '@/lib/api';
 
 /**
- * Renders an embeddable chat widget script/HTML from site_settings.
- * Only renders on public (non-admin) pages.
+ * Loads an embeddable chat widget script from site_settings.
+ * Injects it directly into document.body on public pages.
  */
 const ChatWidgetEmbed = () => {
   const [widgetCode, setWidgetCode] = useState('');
+  const location = useLocation();
 
   useEffect(() => {
     fetchSetting('chat_widget_code').then((code) => {
@@ -17,33 +19,37 @@ const ChatWidgetEmbed = () => {
   useEffect(() => {
     if (!widgetCode) return;
 
-    // Don't render on admin pages
-    if (window.location.pathname.startsWith('/admin') || window.location.pathname === '/login') return;
+    // Don't render on admin or login pages
+    if (location.pathname.startsWith('/admin') || location.pathname === '/login') return;
 
-    const container = document.getElementById('chat-widget-container');
-    if (!container) return;
+    // Parse the widget code to extract script src or inline code
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(widgetCode, 'text/html');
+    const scriptTags = doc.querySelectorAll('script');
 
-    container.innerHTML = widgetCode;
+    const addedScripts: HTMLScriptElement[] = [];
 
-    // Execute any <script> tags inside the widget code
-    const scripts = container.querySelectorAll('script');
-    scripts.forEach((oldScript) => {
-      const newScript = document.createElement('script');
-      Array.from(oldScript.attributes).forEach((attr) => {
-        newScript.setAttribute(attr.name, attr.value);
-      });
-      newScript.textContent = oldScript.textContent;
-      oldScript.parentNode?.replaceChild(newScript, oldScript);
+    scriptTags.forEach((tag) => {
+      const script = document.createElement('script');
+      if (tag.src) {
+        script.src = tag.src;
+      }
+      if (tag.textContent) {
+        script.textContent = tag.textContent;
+      }
+      script.async = true;
+      document.body.appendChild(script);
+      addedScripts.push(script);
     });
 
     return () => {
-      if (container) container.innerHTML = '';
+      addedScripts.forEach((s) => {
+        try { document.body.removeChild(s); } catch {}
+      });
     };
-  }, [widgetCode]);
+  }, [widgetCode, location.pathname]);
 
-  if (!widgetCode) return null;
-
-  return <div id="chat-widget-container" />;
+  return null;
 };
 
 export default ChatWidgetEmbed;
