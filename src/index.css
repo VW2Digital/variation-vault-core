@@ -78,3 +78,10 @@
   animation: marquee 20s linear infinite;
   display: inline-block;
 }
+
+/* Limitar altura do widget de chat externo */
+iframe[src*="web-chat"],
+div[id*="chat-widget"],
+div[class*="chat-widget"] {
+  max-height: 500px !important;
+}
