@@ -14,6 +14,7 @@ import { useCart } from '@/contexts/CartContext';
 
 interface CheckoutFormProps {
   productName: string;
+  paymentDescription?: string;
   dosage: string;
   quantity: number;
   unitPrice: number;
