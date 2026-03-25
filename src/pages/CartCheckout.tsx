@@ -81,8 +81,9 @@ const CartCheckout = () => {
 
   // Build a combined product name, dosage and total for CheckoutForm
   const productName = items.map(i => {
-    const dosageSuffix = i.dosage && !i.product_name.toLowerCase().includes(i.dosage.toLowerCase()) ? ` ${i.dosage}` : '';
-    return `${i.product_name}${dosageSuffix} x${i.quantity}`;
+    const displayName = productFantasyNames[i.product_id] || i.product_name;
+    const dosageSuffix = i.dosage && !displayName.toLowerCase().includes(i.dosage.toLowerCase()) ? ` ${i.dosage}` : '';
+    return `${displayName}${dosageSuffix} x${i.quantity}`;
   }).join(', ');
   const totalQuantity = items.reduce((s, i) => s + i.quantity, 0);
   // Build combined dosage string from all items
