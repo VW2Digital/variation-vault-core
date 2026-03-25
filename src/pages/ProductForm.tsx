@@ -56,6 +56,7 @@ const ProductForm = () => {
   const { toast } = useToast();
 
   const [name, setName] = useState('');
+  const [fantasyName, setFantasyName] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [description, setDescription] = useState('');
   const [activeIngredient, setActiveIngredient] = useState('');
