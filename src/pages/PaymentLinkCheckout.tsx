@@ -16,6 +16,7 @@ import { gerarOpcoesParcelamento, InstallmentResult } from '@/lib/installments';
 interface PaymentLink {
   id: string;
   title: string;
+  fantasy_name: string | null;
   description: string;
   amount: number;
   slug: string;
