@@ -35,6 +35,7 @@ const CartCheckout = () => {
 
   // Fetch free shipping and payment info from products in cart
   const [cartPaymentSettings, setCartPaymentSettings] = useState<{ pixDiscount: number; maxInstallments: number; installmentsInterest: string }>({ pixDiscount: 0, maxInstallments: 6, installmentsInterest: 'sem_juros' });
+  const [productFantasyNames, setProductFantasyNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (items.length === 0) return;
@@ -45,6 +46,12 @@ const CartCheckout = () => {
       .in('id', productIds)
       .then(({ data }) => {
         if (!data) return;
+        // Build fantasy name map
+        const nameMap: Record<string, string> = {};
+        data.forEach((p: any) => {
+          if (p.fantasy_name) nameMap[p.id] = p.fantasy_name;
+        });
+        setProductFantasyNames(nameMap);
         // Free shipping
         const freeShippingProducts = data.filter((p: any) => p.free_shipping);
         if (freeShippingProducts.length > 0) {
