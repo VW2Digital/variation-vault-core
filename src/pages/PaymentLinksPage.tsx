@@ -99,6 +99,7 @@ export default function PaymentLinksPage() {
 
     const payload = {
       title: title.trim(),
+      fantasy_name: fantasyName.trim() || null,
       description: description.trim(),
       amount: Number(amount),
       active,
