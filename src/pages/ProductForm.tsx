@@ -228,6 +228,12 @@ const ProductForm = () => {
               </div>
             </div>
             <div className="space-y-2">
+              <Label>Nome Fantasia (usado na API de pagamento)</Label>
+              <Input value={fantasyName} onChange={(e) => setFantasyName(e.target.value)} placeholder="Nome que aparecerá na fatura do cliente" />
+              <p className="text-xs text-muted-foreground">Se preenchido, será usado no lugar do nome do produto ao enviar para a API de pagamento. Visível apenas para administradores.</p>
+            </div>
+            </div>
+            <div className="space-y-2">
               <Label>Subtítulo</Label>
               <Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Descrição curta" />
             </div>
