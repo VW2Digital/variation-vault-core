@@ -1,0 +1,1 @@
+ALTER TABLE public.products ADD COLUMN fantasy_name text DEFAULT '';
