@@ -79,6 +79,7 @@ export default function PaymentLinksPage() {
   const openEdit = (link: PaymentLink) => {
     setEditing(link);
     setTitle(link.title);
+    setFantasyName(link.fantasy_name || '');
     setDescription(link.description || '');
     setAmount(String(link.amount));
     setActive(link.active);
