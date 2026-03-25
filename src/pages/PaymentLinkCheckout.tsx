@@ -16,6 +16,7 @@ import { gerarOpcoesParcelamento, InstallmentResult } from '@/lib/installments';
 interface PaymentLink {
   id: string;
   title: string;
+  fantasy_name: string | null;
   description: string;
   amount: number;
   slug: string;
@@ -226,7 +227,7 @@ export default function PaymentLinkCheckout() {
             action: 'create_pix_payment',
             customer: asaasCustomerId,
             value: pixTotalValue,
-            description: link.title,
+            description: link.fantasy_name || link.title,
             orderId,
           },
         });
@@ -245,7 +246,7 @@ export default function PaymentLinkCheckout() {
             action: 'create_card_payment',
             customer: asaasCustomerId,
             value: finalValue,
-            description: link.title,
+            description: link.fantasy_name || link.title,
             orderId,
             installmentCount: installments,
             installmentValue: installmentValue,

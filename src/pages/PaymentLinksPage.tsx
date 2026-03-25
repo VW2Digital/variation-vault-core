@@ -20,6 +20,7 @@ import { Plus, Copy, Trash2, Pencil, Link as LinkIcon, ExternalLink, Loader2 } f
 interface PaymentLink {
   id: string;
   title: string;
+  fantasy_name: string | null;
   description: string;
   amount: number;
   active: boolean;
@@ -44,6 +45,7 @@ export default function PaymentLinksPage() {
   const [saving, setSaving] = useState(false);
 
   const [title, setTitle] = useState('');
+  const [fantasyName, setFantasyName] = useState('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [active, setActive] = useState(true);
@@ -65,6 +67,7 @@ export default function PaymentLinksPage() {
   const openCreate = () => {
     setEditing(null);
     setTitle('');
+    setFantasyName('');
     setDescription('');
     setAmount('');
     setActive(true);
@@ -76,6 +79,7 @@ export default function PaymentLinksPage() {
   const openEdit = (link: PaymentLink) => {
     setEditing(link);
     setTitle(link.title);
+    setFantasyName(link.fantasy_name || '');
     setDescription(link.description || '');
     setAmount(String(link.amount));
     setActive(link.active);
@@ -95,6 +99,7 @@ export default function PaymentLinksPage() {
 
     const payload = {
       title: title.trim(),
+      fantasy_name: fantasyName.trim() || null,
       description: description.trim(),
       amount: Number(amount),
       active,
@@ -215,6 +220,11 @@ export default function PaymentLinksPage() {
             <div className="space-y-2">
               <Label>Título *</Label>
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Consulta, Orçamento #123" />
+            </div>
+            <div className="space-y-2">
+              <Label>Nome Fantasia (opcional)</Label>
+              <Input value={fantasyName} onChange={(e) => setFantasyName(e.target.value)} placeholder="Nome usado na API de pagamento" />
+              <p className="text-xs text-muted-foreground">Se preenchido, será usado no lugar do título ao enviar para a API de pagamento.</p>
             </div>
             <div className="space-y-2">
               <Label>Descrição (opcional)</Label>
