@@ -647,7 +647,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
         setCustomerId(customer.id);
       }
 
-      const description = `${productName} ${dosage} x${quantity}`;
+      const description = `${paymentDescription || productName} ${dosage} x${quantity}`;
 
       if (paymentMethod === 'pix') {
         const orderId = await createOrder(paymentMethod, asaasCustomerId, pixTotalValue);
