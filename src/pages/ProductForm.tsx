@@ -135,6 +135,7 @@ const ProductForm = () => {
     try {
       const data = {
         name,
+        fantasy_name: fantasyName,
         subtitle,
         description,
         active_ingredient: activeIngredient,
