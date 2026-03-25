@@ -322,6 +322,7 @@ export type Database = {
           amount: number
           created_at: string
           description: string | null
+          fantasy_name: string | null
           id: string
           max_installments: number | null
           pix_discount_percent: number | null
@@ -335,6 +336,7 @@ export type Database = {
           amount?: number
           created_at?: string
           description?: string | null
+          fantasy_name?: string | null
           id?: string
           max_installments?: number | null
           pix_discount_percent?: number | null
@@ -348,6 +350,7 @@ export type Database = {
           amount?: number
           created_at?: string
           description?: string | null
+          fantasy_name?: string | null
           id?: string
           max_installments?: number | null
           pix_discount_percent?: number | null
