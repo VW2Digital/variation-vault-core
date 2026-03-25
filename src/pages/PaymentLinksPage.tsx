@@ -45,6 +45,7 @@ export default function PaymentLinksPage() {
   const [saving, setSaving] = useState(false);
 
   const [title, setTitle] = useState('');
+  const [fantasyName, setFantasyName] = useState('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [active, setActive] = useState(true);
