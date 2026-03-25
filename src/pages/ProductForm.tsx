@@ -56,6 +56,7 @@ const ProductForm = () => {
   const { toast } = useToast();
 
   const [name, setName] = useState('');
+  const [fantasyName, setFantasyName] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [description, setDescription] = useState('');
   const [activeIngredient, setActiveIngredient] = useState('');
@@ -77,6 +78,7 @@ const ProductForm = () => {
       setLoadingProduct(true);
       fetchProduct(id).then(async (p) => {
         setName(p.name);
+        setFantasyName((p as any).fantasy_name || '');
         setSubtitle(p.subtitle || '');
         setDescription(p.description || '');
         setActiveIngredient(p.active_ingredient || '');
@@ -133,6 +135,7 @@ const ProductForm = () => {
     try {
       const data = {
         name,
+        fantasy_name: fantasyName,
         subtitle,
         description,
         active_ingredient: activeIngredient,
@@ -223,6 +226,11 @@ const ProductForm = () => {
                 <Label>Princípio Ativo</Label>
                 <Input value={activeIngredient} onChange={(e) => setActiveIngredient(e.target.value)} placeholder="Ex: Tirzepatide" />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Nome Fantasia (usado na API de pagamento)</Label>
+              <Input value={fantasyName} onChange={(e) => setFantasyName(e.target.value)} placeholder="Nome que aparecerá na fatura do cliente" />
+              <p className="text-xs text-muted-foreground">Se preenchido, será usado no lugar do nome do produto ao enviar para a API de pagamento. Visível apenas para administradores.</p>
             </div>
             <div className="space-y-2">
               <Label>Subtítulo</Label>

@@ -35,16 +35,23 @@ const CartCheckout = () => {
 
   // Fetch free shipping and payment info from products in cart
   const [cartPaymentSettings, setCartPaymentSettings] = useState<{ pixDiscount: number; maxInstallments: number; installmentsInterest: string }>({ pixDiscount: 0, maxInstallments: 6, installmentsInterest: 'sem_juros' });
+  const [productFantasyNames, setProductFantasyNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (items.length === 0) return;
     const productIds = [...new Set(items.map(i => i.product_id))];
     supabase
       .from('products')
-      .select('id, free_shipping, free_shipping_min_value, pix_discount_percent, max_installments, installments_interest')
+      .select('id, free_shipping, free_shipping_min_value, pix_discount_percent, max_installments, installments_interest, fantasy_name, name')
       .in('id', productIds)
       .then(({ data }) => {
         if (!data) return;
+        // Build fantasy name map
+        const nameMap: Record<string, string> = {};
+        data.forEach((p: any) => {
+          if (p.fantasy_name) nameMap[p.id] = p.fantasy_name;
+        });
+        setProductFantasyNames(nameMap);
         // Free shipping
         const freeShippingProducts = data.filter((p: any) => p.free_shipping);
         if (freeShippingProducts.length > 0) {
@@ -74,8 +81,9 @@ const CartCheckout = () => {
 
   // Build a combined product name, dosage and total for CheckoutForm
   const productName = items.map(i => {
-    const dosageSuffix = i.dosage && !i.product_name.toLowerCase().includes(i.dosage.toLowerCase()) ? ` ${i.dosage}` : '';
-    return `${i.product_name}${dosageSuffix} x${i.quantity}`;
+    const displayName = productFantasyNames[i.product_id] || i.product_name;
+    const dosageSuffix = i.dosage && !displayName.toLowerCase().includes(i.dosage.toLowerCase()) ? ` ${i.dosage}` : '';
+    return `${displayName}${dosageSuffix} x${i.quantity}`;
   }).join(', ');
   const totalQuantity = items.reduce((s, i) => s + i.quantity, 0);
   // Build combined dosage string from all items

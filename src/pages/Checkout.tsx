@@ -150,7 +150,7 @@ const Checkout = () => {
 
           {/* Checkout Form */}
           <CheckoutForm
-            productName={product.name}
+            productName={(product as any).fantasy_name || product.name}
             dosage={variation?.dosage || ''}
             quantity={quantity}
             unitPrice={unitPrice}
