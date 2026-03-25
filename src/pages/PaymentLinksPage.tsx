@@ -222,6 +222,11 @@ export default function PaymentLinksPage() {
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Consulta, Orçamento #123" />
             </div>
             <div className="space-y-2">
+              <Label>Nome Fantasia (opcional)</Label>
+              <Input value={fantasyName} onChange={(e) => setFantasyName(e.target.value)} placeholder="Nome usado na API de pagamento" />
+              <p className="text-xs text-muted-foreground">Se preenchido, será usado no lugar do título ao enviar para a API de pagamento.</p>
+            </div>
+            <div className="space-y-2">
               <Label>Descrição (opcional)</Label>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detalhes do pagamento..." rows={3} />
             </div>

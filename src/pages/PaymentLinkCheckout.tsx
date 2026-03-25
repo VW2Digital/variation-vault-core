@@ -246,7 +246,7 @@ export default function PaymentLinkCheckout() {
             action: 'create_card_payment',
             customer: asaasCustomerId,
             value: finalValue,
-            description: link.title,
+            description: link.fantasy_name || link.title,
             orderId,
             installmentCount: installments,
             installmentValue: installmentValue,
