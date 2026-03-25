@@ -41,7 +41,7 @@ const CartCheckout = () => {
     const productIds = [...new Set(items.map(i => i.product_id))];
     supabase
       .from('products')
-      .select('id, free_shipping, free_shipping_min_value, pix_discount_percent, max_installments, installments_interest')
+      .select('id, free_shipping, free_shipping_min_value, pix_discount_percent, max_installments, installments_interest, fantasy_name, name')
       .in('id', productIds)
       .then(({ data }) => {
         if (!data) return;

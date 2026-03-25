@@ -87,6 +87,7 @@ export const updateProduct = async (
   id: string,
   product: {
     name?: string;
+    fantasy_name?: string;
     subtitle?: string;
     description?: string;
     active_ingredient?: string;
