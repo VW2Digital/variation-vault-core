@@ -67,6 +67,7 @@ export default function PaymentLinksPage() {
   const openCreate = () => {
     setEditing(null);
     setTitle('');
+    setFantasyName('');
     setDescription('');
     setAmount('');
     setActive(true);
