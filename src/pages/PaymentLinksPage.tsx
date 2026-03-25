@@ -20,6 +20,7 @@ import { Plus, Copy, Trash2, Pencil, Link as LinkIcon, ExternalLink, Loader2 } f
 interface PaymentLink {
   id: string;
   title: string;
+  fantasy_name: string | null;
   description: string;
   amount: number;
   active: boolean;
