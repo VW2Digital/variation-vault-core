@@ -14,6 +14,7 @@ import { useCart } from '@/contexts/CartContext';
 
 interface CheckoutFormProps {
   productName: string;
+  paymentDescription?: string;
   dosage: string;
   quantity: number;
   unitPrice: number;
@@ -130,7 +131,7 @@ const StepIndicator = ({ currentStep }: { currentStep: CheckoutStep }) => {
   );
 };
 
-const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, freeShippingMinValue, pixDiscountPercentProp, maxInstallmentsProp, installmentsInterestProp, onSuccess }: CheckoutFormProps) => {
+const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitPrice, freeShipping, freeShippingMinValue, pixDiscountPercentProp, maxInstallmentsProp, installmentsInterestProp, onSuccess }: CheckoutFormProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { clearCart } = useCart();
@@ -646,7 +647,7 @@ const CheckoutForm = ({ productName, dosage, quantity, unitPrice, freeShipping, 
         setCustomerId(customer.id);
       }
 
-      const description = `${productName} ${dosage} x${quantity}`;
+      const description = `${paymentDescription || productName} ${dosage} x${quantity}`;
 
       if (paymentMethod === 'pix') {
         const orderId = await createOrder(paymentMethod, asaasCustomerId, pixTotalValue);

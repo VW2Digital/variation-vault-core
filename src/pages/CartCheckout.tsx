@@ -81,10 +81,16 @@ const CartCheckout = () => {
 
   // Build a combined product name, dosage and total for CheckoutForm
   const productName = items.map(i => {
+    const dosageSuffix = i.dosage && !i.product_name.toLowerCase().includes(i.dosage.toLowerCase()) ? ` ${i.dosage}` : '';
+    return `${i.product_name}${dosageSuffix} x${i.quantity}`;
+  }).join(', ');
+  // Build payment description using fantasy names when available
+  const paymentDesc = items.map(i => {
     const displayName = productFantasyNames[i.product_id] || i.product_name;
     const dosageSuffix = i.dosage && !displayName.toLowerCase().includes(i.dosage.toLowerCase()) ? ` ${i.dosage}` : '';
     return `${displayName}${dosageSuffix} x${i.quantity}`;
   }).join(', ');
+  const hasFantasyNames = Object.keys(productFantasyNames).length > 0;
   const totalQuantity = items.reduce((s, i) => s + i.quantity, 0);
   // Build combined dosage string from all items
   const combinedDosage = [...new Set(items.map(i => i.dosage).filter(Boolean))].join(', ');
@@ -196,6 +202,7 @@ const CartCheckout = () => {
           {/* Checkout Form - uses total price as unit price with qty 1 */}
           <CheckoutForm
             productName={productName}
+            paymentDescription={hasFantasyNames ? paymentDesc : undefined}
             dosage={combinedDosage}
             quantity={totalQuantity}
             unitPrice={Math.round((totalPrice / totalQuantity) * 100) / 100}
