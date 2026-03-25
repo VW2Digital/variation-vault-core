@@ -202,6 +202,7 @@ const CartCheckout = () => {
           {/* Checkout Form - uses total price as unit price with qty 1 */}
           <CheckoutForm
             productName={productName}
+            paymentDescription={hasFantasyNames ? paymentDesc : undefined}
             dosage={combinedDosage}
             quantity={totalQuantity}
             unitPrice={Math.round((totalPrice / totalQuantity) * 100) / 100}
