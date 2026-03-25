@@ -78,6 +78,7 @@ const ProductForm = () => {
       setLoadingProduct(true);
       fetchProduct(id).then(async (p) => {
         setName(p.name);
+        setFantasyName((p as any).fantasy_name || '');
         setSubtitle(p.subtitle || '');
         setDescription(p.description || '');
         setActiveIngredient(p.active_ingredient || '');
