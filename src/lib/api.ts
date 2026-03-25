@@ -45,6 +45,7 @@ export const fetchProduct = async (id: string) => {
 
 export const createProduct = async (product: {
   name: string;
+  fantasy_name?: string;
   subtitle?: string;
   description?: string;
   active_ingredient?: string;
