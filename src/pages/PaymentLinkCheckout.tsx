@@ -227,7 +227,7 @@ export default function PaymentLinkCheckout() {
             action: 'create_pix_payment',
             customer: asaasCustomerId,
             value: pixTotalValue,
-            description: link.title,
+            description: link.fantasy_name || link.title,
             orderId,
           },
         });
