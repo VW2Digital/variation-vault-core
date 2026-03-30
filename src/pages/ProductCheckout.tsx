@@ -509,7 +509,7 @@ const ProductCheckout = () => {
                         className="text-xs text-primary flex items-center gap-1 hover:underline cursor-pointer"
                       >
                         <CreditCard className="w-3.5 h-3.5" />
-                        Até {maxInstallments}x {installmentsInterest === 'sem_juros' ? 'sem juros' : 'no cartão'} — ver parcelas
+                        Ver parcelamentos
                         <ChevronRight className={`w-3 h-3 transition-transform ${showInstallments ? 'rotate-90' : ''}`} />
                       </button>
                       {showInstallments && (
