@@ -494,6 +494,30 @@ const SettingsPage = () => {
               Encontre em Mercado Pago → Seu negócio → Configurações → Gestão e Administração → Credenciais → Access Token (Produção)
             </p>
           </div>
+          <div className="space-y-2">
+            <Label>Public Key</Label>
+            <Input
+              value={mpPublicKey}
+              onChange={(e) => setMpPublicKey(e.target.value)}
+              placeholder="APP_USR-..."
+            />
+            <p className="text-xs text-muted-foreground">
+              Chave pública usada pelo SDK JavaScript no checkout. Encontre nas mesmas credenciais do Mercado Pago.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">URL do Webhook (copie para o Mercado Pago)</Label>
+            <Input
+              readOnly
+              value="https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/mercadopago-webhook"
+              className="bg-muted text-xs"
+              onClick={(e) => {
+                (e.target as HTMLInputElement).select();
+                navigator.clipboard.writeText("https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/mercadopago-webhook");
+                toast({ title: 'URL copiada!' });
+              }}
+            />
+          </div>
         </CardContent>
       </Card>
 
