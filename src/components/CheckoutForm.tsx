@@ -137,7 +137,7 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
   const { t } = useLanguage();
   const { clearCart } = useCart();
   const navigate = useNavigate();
-  const { activeGateway, tokenizeCard } = useMercadoPago();
+  const { activeGateway, gatewayEnvironment: gatewayEnv, tokenizeCard } = useMercadoPago();
   const isMercadoPago = activeGateway === 'mercadopago';
   const safeUnitPrice = Number(unitPrice) || 0;
   const safeQuantity = Number(quantity) || 1;

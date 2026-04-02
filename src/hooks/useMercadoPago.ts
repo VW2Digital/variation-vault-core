@@ -116,5 +116,5 @@ export function useMercadoPago(): UseMercadoPagoReturn {
     return cardTokenResponse.id;
   }, [mpInstance]);
 
-  return { isReady, publicKey, tokenizeCard, activeGateway };
+  return { isReady, publicKey, tokenizeCard, activeGateway, gatewayEnvironment };
 }
