@@ -65,6 +65,7 @@ export function useMercadoPago(): UseMercadoPagoReturn {
 
         if (cancelled) return;
         setActiveGateway(gateway || 'asaas');
+        setGatewayEnvironment(mpEnv || 'sandbox');
 
         if (gateway !== 'mercadopago') return;
 
