@@ -663,7 +663,7 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
           orderId,
           creditCardHolderInfo: { email: email.trim() },
         });
-        setPaymentResult({ ...result, orderId });
+        setPaymentResult({ ...result, orderId, finalValue: pixTotalValue, finalInstallments: 1 });
       } else {
         const holderCpfDigits = (holderCpf || cpf).replace(/\D/g, '');
         const holderPhoneDigits = (holderPhone || phone).replace(/\D/g, '');
