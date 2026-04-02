@@ -293,6 +293,8 @@ const SettingsPage = () => {
         upsertSetting('evolution_api_key', evolutionApiKey, uid),
         upsertSetting('evolution_instance_name', evolutionInstanceName, uid),
         upsertSetting('chat_widget_code', chatWidgetCode, uid),
+        upsertSetting('payment_gateway', paymentGateway, uid),
+        upsertSetting('mercadopago_access_token', mpAccessToken, uid),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
