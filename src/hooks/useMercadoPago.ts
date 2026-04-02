@@ -50,6 +50,7 @@ export function useMercadoPago(): UseMercadoPagoReturn {
   const [isReady, setIsReady] = useState(false);
   const [publicKey, setPublicKey] = useState('');
   const [activeGateway, setActiveGateway] = useState('asaas');
+  const [gatewayEnvironment, setGatewayEnvironment] = useState('sandbox');
   const [mpInstance, setMpInstance] = useState<any>(null);
 
   useEffect(() => {
