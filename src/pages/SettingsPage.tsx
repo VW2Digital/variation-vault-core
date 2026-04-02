@@ -298,6 +298,7 @@ const SettingsPage = () => {
         upsertSetting('chat_widget_code', chatWidgetCode, uid),
         upsertSetting('payment_gateway', paymentGateway, uid),
         upsertSetting('mercadopago_access_token', mpAccessToken, uid),
+        upsertSetting('mercadopago_public_key', mpPublicKey, uid),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
