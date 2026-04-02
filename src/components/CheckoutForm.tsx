@@ -336,8 +336,8 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
     return message;
   };
 
-  const invokeAsaas = async (action: string, payload: any) => {
-    const { data, error } = await supabase.functions.invoke('asaas-checkout', {
+  const invokeGateway = async (action: string, payload: any) => {
+    const { data, error } = await supabase.functions.invoke('payment-checkout', {
       body: { action, ...payload },
     });
 
