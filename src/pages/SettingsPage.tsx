@@ -172,12 +172,8 @@ const SettingsPage = () => {
       fetchSetting('resend_api_key'),
       fetchSetting('resend_from_email'),
       fetchSetting('payment_gateway'),
-      fetchSetting('mercadopago_access_token'),
-      fetchSetting('mercadopago_public_key'),
       fetchSetting('mercadopago_environment'),
-      fetchSetting('mercadopago_client_id'),
-      fetchSetting('mercadopago_client_secret'),
-    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pgw, mpToken, mpPubKey, mpEnv, mpCid, mpCsec]) => {
+    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pgw, mpEnv]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
@@ -187,15 +183,15 @@ const SettingsPage = () => {
       setPaymentGateway(activeGw);
       setAsaasEnabled(activeGw === 'asaas');
       setMpEnabled(activeGw === 'mercadopago');
-      setMpAccessToken(mpToken || '');
-      setMpPublicKey(mpPubKey || '');
-      setMpEnvironment(mpEnv || 'sandbox');
-      setMpClientId(mpCid || '');
-      setMpClientSecret(mpCsec || '');
+      const currentMpEnv = mpEnv || 'sandbox';
+      setMpEnvironment(currentMpEnv);
       setMelhorEnvioEnv(currentMeEnv);
 
-      // Load env-specific credentials
-      await loadMelhorEnvioCredentials(currentMeEnv);
+      // Load env-specific credentials for both
+      await Promise.all([
+        loadMelhorEnvioCredentials(currentMeEnv),
+        loadMpCredentials(currentMpEnv),
+      ]);
 
       // Load Evolution API settings
       const [evoUrl, evoKey, evoInstance, chatWidget] = await Promise.all([
