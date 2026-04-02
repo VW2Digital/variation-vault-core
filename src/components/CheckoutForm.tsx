@@ -366,12 +366,12 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
     return data;
   };
 
-  const invokeAsaasWithRetry = async (action: string, payload: any, maxRetries = 2) => {
+  const invokeGatewayWithRetry = async (action: string, payload: any, maxRetries = 2) => {
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
       try {
-        return await invokeAsaas(action, payload);
+        return await invokeGateway(action, payload);
       } catch (err: any) {
         lastError = err instanceof Error ? err : new Error(String(err));
         const shouldRetry = SAFE_RETRY_ACTIONS.has(action) && isTransientCheckoutError(lastError.message) && attempt < maxRetries;
@@ -539,7 +539,7 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
     if (!validateCustomer()) return;
     setProcessing(true);
     try {
-      const customer = await invokeAsaas('create_customer', {
+      const customer = await invokeGateway('create_customer', {
         name: name.trim(),
         email: email.trim(),
         cpfCnpj: cpf.replace(/\D/g, ''),
@@ -637,7 +637,7 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
       // Ensure customer exists (may not have been created if profile auto-skipped)
       let asaasCustomerId = customerId;
       if (!asaasCustomerId) {
-        const customer = await invokeAsaasWithRetry('create_customer', {
+        const customer = await invokeGatewayWithRetry('create_customer', {
           name: name.trim(),
           email: email.trim(),
           cpfCnpj: cpf.replace(/\D/g, ''),
@@ -651,7 +651,7 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
 
       if (paymentMethod === 'pix') {
         const orderId = await createOrder(paymentMethod, asaasCustomerId, pixTotalValue);
-        const result = await invokeAsaas('create_pix_payment', {
+        const result = await invokeGateway('create_pix_payment', {
           customer: asaasCustomerId,
           value: pixTotalValue,
           description,
@@ -684,7 +684,7 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
 
         const orderId = await createOrder(paymentMethod, asaasCustomerId, valorFinalCartao);
 
-        const result = await invokeAsaas('create_card_payment', {
+        const result = await invokeGateway('create_card_payment', {
           customer: asaasCustomerId,
           value: valorFinalCartao,
           description,
