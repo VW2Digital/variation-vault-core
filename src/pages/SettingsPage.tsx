@@ -308,6 +308,7 @@ const SettingsPage = () => {
         upsertSetting('payment_gateway', paymentGateway, uid),
         upsertSetting('mercadopago_access_token', mpAccessToken, uid),
         upsertSetting('mercadopago_public_key', mpPublicKey, uid),
+        upsertSetting('mercadopago_environment', mpEnvironment, uid),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
