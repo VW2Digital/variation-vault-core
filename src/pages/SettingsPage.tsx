@@ -404,7 +404,7 @@ const SettingsPage = () => {
             onClick={async () => {
               setTestingAsaas(true);
               try {
-                const { data, error } = await supabase.functions.invoke('asaas-checkout', {
+                const { data, error } = await supabase.functions.invoke('payment-checkout', {
                   body: { action: 'test_connection', environment: asaasEnv, api_key: asaasApiKey },
                 });
                 if (error) throw new Error(error.message);

@@ -199,7 +199,7 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
     if (totalValue <= 0) return;
     const maxParcelas = Math.min(maxInstallmentsSetting, Math.max(1, Math.floor(totalValue / 5) || 1));
     setLoadingInstallments(true);
-    supabase.functions.invoke('asaas-checkout', {
+    supabase.functions.invoke('payment-checkout', {
       body: { action: 'simulate_installments', value: totalValue, installmentCount: maxParcelas },
     }).then(({ data }) => {
       if (data?.creditCard?.installments && Array.isArray(data.creditCard.installments) && data.creditCard.installments.length > 0) {
