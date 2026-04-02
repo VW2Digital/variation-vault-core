@@ -45,8 +45,11 @@ const SettingsPage = () => {
   const [mpEnabled, setMpEnabled] = useState(false);
   const [mpAccessToken, setMpAccessToken] = useState('');
   const [mpPublicKey, setMpPublicKey] = useState('');
+  const [mpClientId, setMpClientId] = useState('');
+  const [mpClientSecret, setMpClientSecret] = useState('');
   const [mpEnvironment, setMpEnvironment] = useState('sandbox');
   const [showMpToken, setShowMpToken] = useState(false);
+  const [showMpClientSecret, setShowMpClientSecret] = useState(false);
 
   // Evolution API
   const [evolutionApiUrl, setEvolutionApiUrl] = useState('');
@@ -143,7 +146,9 @@ const SettingsPage = () => {
       fetchSetting('mercadopago_access_token'),
       fetchSetting('mercadopago_public_key'),
       fetchSetting('mercadopago_environment'),
-    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pgw, mpToken, mpPubKey, mpEnv]) => {
+      fetchSetting('mercadopago_client_id'),
+      fetchSetting('mercadopago_client_secret'),
+    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pgw, mpToken, mpPubKey, mpEnv, mpCid, mpCsec]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
@@ -156,6 +161,8 @@ const SettingsPage = () => {
       setMpAccessToken(mpToken || '');
       setMpPublicKey(mpPubKey || '');
       setMpEnvironment(mpEnv || 'sandbox');
+      setMpClientId(mpCid || '');
+      setMpClientSecret(mpCsec || '');
       setMelhorEnvioEnv(currentMeEnv);
 
       // Load env-specific credentials
@@ -309,6 +316,8 @@ const SettingsPage = () => {
         upsertSetting('mercadopago_access_token', mpAccessToken, uid),
         upsertSetting('mercadopago_public_key', mpPublicKey, uid),
         upsertSetting('mercadopago_environment', mpEnvironment, uid),
+        upsertSetting('mercadopago_client_id', mpClientId, uid),
+        upsertSetting('mercadopago_client_secret', mpClientSecret, uid),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
@@ -544,6 +553,39 @@ const SettingsPage = () => {
               />
               <p className="text-xs text-muted-foreground">
                 Chave pública usada pelo SDK JavaScript no checkout. Encontre nas mesmas credenciais do Mercado Pago.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Client ID</Label>
+              <Input
+                value={mpClientId}
+                onChange={(e) => setMpClientId(e.target.value)}
+                placeholder="Ex: 3427228834545577"
+              />
+              <p className="text-xs text-muted-foreground">
+                ID da aplicação. Encontre nas credenciais do Mercado Pago.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Client Secret</Label>
+              <div className="relative">
+                <Input
+                  type={showMpClientSecret ? 'text' : 'password'}
+                  value={mpClientSecret}
+                  onChange={(e) => setMpClientSecret(e.target.value)}
+                  placeholder="Ex: gCED4b..."
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowMpClientSecret(!showMpClientSecret)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showMpClientSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Chave secreta da aplicação. Encontre nas mesmas credenciais do Mercado Pago.
               </p>
             </div>
             <div className="space-y-2">
