@@ -137,7 +137,8 @@ const SettingsPage = () => {
       fetchSetting('resend_from_email'),
       fetchSetting('payment_gateway'),
       fetchSetting('mercadopago_access_token'),
-    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pgw, mpToken]) => {
+      fetchSetting('mercadopago_public_key'),
+    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pgw, mpToken, mpPubKey]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
@@ -145,6 +146,7 @@ const SettingsPage = () => {
       const currentMeEnv = meEnv || 'sandbox';
       setPaymentGateway(pgw || 'asaas');
       setMpAccessToken(mpToken || '');
+      setMpPublicKey(mpPubKey || '');
       setMelhorEnvioEnv(currentMeEnv);
 
       // Load env-specific credentials
