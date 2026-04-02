@@ -43,6 +43,7 @@ export interface UseMercadoPagoReturn {
   publicKey: string;
   tokenizeCard: (data: MpCardData) => Promise<string>;
   activeGateway: string;
+  gatewayEnvironment: string;
 }
 
 export function useMercadoPago(): UseMercadoPagoReturn {
