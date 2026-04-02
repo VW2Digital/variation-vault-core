@@ -384,13 +384,34 @@ async function createGateway(supabaseUrl: string, supabaseKey: string): Promise<
   const gatewayName = gwRow?.value || 'asaas';
 
   if (gatewayName === 'mercadopago') {
-    const { data: tokenRow } = await supabase
+    // Read environment
+    const { data: mpEnvRow } = await supabase
       .from('site_settings')
       .select('value')
-      .eq('key', 'mercadopago_access_token')
+      .eq('key', 'mercadopago_environment')
       .maybeSingle();
-    if (!tokenRow?.value) throw new Error('Access Token do Mercado Pago não configurado');
-    return { gateway: new MercadoPagoGateway(tokenRow.value), gatewayName };
+    const mpEnv = mpEnvRow?.value || 'sandbox';
+
+    // Read env-specific access token (with fallback to generic key)
+    const { data: tokenEnvRow } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', `mercadopago_access_token_${mpEnv}`)
+      .maybeSingle();
+    
+    let accessToken = tokenEnvRow?.value;
+    if (!accessToken) {
+      const { data: tokenRow } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'mercadopago_access_token')
+        .maybeSingle();
+      accessToken = tokenRow?.value;
+    }
+
+    if (!accessToken) throw new Error('Access Token do Mercado Pago não configurado');
+    console.log(`[PaymentFactory] Using MercadoPago gateway (env: ${mpEnv})`);
+    return { gateway: new MercadoPagoGateway(accessToken), gatewayName };
   }
 
   // Default: Asaas
