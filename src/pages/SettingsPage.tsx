@@ -493,6 +493,10 @@ const SettingsPage = () => {
         </CardContent>
       </Card>
 
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Truck className="w-5 h-5" /> Melhor Envio
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
