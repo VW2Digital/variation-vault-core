@@ -92,7 +92,17 @@ const App = () => (
             <Route path="falhas-pagamento" element={<PaymentLogsPage />} />
             <Route path="carrinho-abandonado" element={<CartAbandonmentLogsPage />} />
             <Route path="links-pagamento" element={<PaymentLinksPage />} />
-            <Route path="configuracoes" element={<SettingsPage />} />
+            <Route path="configuracoes" element={<SettingsIndex />} />
+            <Route path="configuracoes/design" element={<SettingsDesign />} />
+            <Route path="configuracoes/cores" element={<SettingsColors />} />
+            <Route path="configuracoes/fontes" element={<SettingsFonts />} />
+            <Route path="configuracoes/css" element={<SettingsCSS />} />
+            <Route path="configuracoes/pagina-inicial" element={<SettingsHomePage />} />
+            <Route path="configuracoes/pagamento" element={<SettingsPayment />} />
+            <Route path="configuracoes/logistica" element={<SettingsShipping />} />
+            <Route path="configuracoes/comunicacao" element={<SettingsCommunication />} />
+            <Route path="configuracoes/rodape" element={<SettingsFooter />} />
+            <Route path="configuracoes/avancado" element={<SettingsAdvanced />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
