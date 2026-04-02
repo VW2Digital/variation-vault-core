@@ -38,6 +38,11 @@ const SettingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [fetchingProfile, setFetchingProfile] = useState(false);
 
+  // Payment Gateway selection
+  const [paymentGateway, setPaymentGateway] = useState('asaas');
+  const [mpAccessToken, setMpAccessToken] = useState('');
+  const [showMpToken, setShowMpToken] = useState(false);
+
   // Evolution API
   const [evolutionApiUrl, setEvolutionApiUrl] = useState('');
   const [evolutionApiKey, setEvolutionApiKey] = useState('');
@@ -129,12 +134,16 @@ const SettingsPage = () => {
       fetchSetting('melhor_envio_sender'),
       fetchSetting('resend_api_key'),
       fetchSetting('resend_from_email'),
-    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom]) => {
+      fetchSetting('payment_gateway'),
+      fetchSetting('mercadopago_access_token'),
+    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pgw, mpToken]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
       setAsaasWebhookToken(webhookToken || '');
       const currentMeEnv = meEnv || 'sandbox';
+      setPaymentGateway(pgw || 'asaas');
+      setMpAccessToken(mpToken || '');
       setMelhorEnvioEnv(currentMeEnv);
 
       // Load env-specific credentials
@@ -284,6 +293,8 @@ const SettingsPage = () => {
         upsertSetting('evolution_api_key', evolutionApiKey, uid),
         upsertSetting('evolution_instance_name', evolutionInstanceName, uid),
         upsertSetting('chat_widget_code', chatWidgetCode, uid),
+        upsertSetting('payment_gateway', paymentGateway, uid),
+        upsertSetting('mercadopago_access_token', mpAccessToken, uid),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
@@ -316,6 +327,32 @@ const SettingsPage = () => {
             />
             <p className="text-xs text-muted-foreground">
               Formato: código do país + DDD + número. Ex: 5511999999999
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Gateway Selector */}
+      <Card className="border-border/50 border-2 border-primary/30">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <CreditCard className="w-5 h-5" /> Gateway de Pagamento Ativo
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Selecione o gateway que será usado no checkout</Label>
+            <Select value={paymentGateway} onValueChange={setPaymentGateway}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="asaas">Asaas</SelectItem>
+                <SelectItem value="mercadopago">Mercado Pago</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              O gateway selecionado será usado para todos os pagamentos (PIX e Cartão) no checkout.
             </p>
           </div>
         </CardContent>
@@ -404,7 +441,7 @@ const SettingsPage = () => {
             onClick={async () => {
               setTestingAsaas(true);
               try {
-                const { data, error } = await supabase.functions.invoke('asaas-checkout', {
+                const { data, error } = await supabase.functions.invoke('payment-checkout', {
                   body: { action: 'test_connection', environment: asaasEnv, api_key: asaasApiKey },
                 });
                 if (error) throw new Error(error.message);
@@ -420,6 +457,39 @@ const SettingsPage = () => {
             {testingAsaas ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
             Testar Conexão
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Mercado Pago */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <CreditCard className="w-5 h-5" /> Mercado Pago
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Access Token</Label>
+            <div className="relative">
+              <Input
+                type={showMpToken ? 'text' : 'password'}
+                value={mpAccessToken}
+                onChange={(e) => setMpAccessToken(e.target.value)}
+                placeholder="APP_USR-..."
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowMpToken(!showMpToken)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showMpToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Encontre em Mercado Pago → Seu negócio → Configurações → Gestão e Administração → Credenciais → Access Token (Produção)
+            </p>
+          </div>
         </CardContent>
       </Card>
 

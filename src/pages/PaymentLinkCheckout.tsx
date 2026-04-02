@@ -88,7 +88,7 @@ export default function PaymentLinkCheckout() {
       return;
     }
     setLoadingInstallments(true);
-    supabase.functions.invoke('asaas-checkout', {
+    supabase.functions.invoke('payment-checkout', {
       body: { action: 'simulate_installments', value, installmentCount: maxParcelas },
     }).then(({ data }) => {
       if (data?.creditCard?.installments && Array.isArray(data.creditCard.installments) && data.creditCard.installments.length > 0) {
@@ -205,7 +205,7 @@ export default function PaymentLinkCheckout() {
       const orderId = orderData.id;
 
       // 2. Create or find Asaas customer
-      const { data: customerData, error: customerError } = await supabase.functions.invoke('asaas-checkout', {
+      const { data: customerData, error: customerError } = await supabase.functions.invoke('payment-checkout', {
         body: {
           action: 'create_customer',
           name: name.trim(),
@@ -222,7 +222,7 @@ export default function PaymentLinkCheckout() {
 
       // 3. Create payment
       if (paymentMethod === 'pix') {
-        const { data: pixResult, error: pixError } = await supabase.functions.invoke('asaas-checkout', {
+        const { data: pixResult, error: pixError } = await supabase.functions.invoke('payment-checkout', {
           body: {
             action: 'create_pix_payment',
             customer: asaasCustomerId,
@@ -241,7 +241,7 @@ export default function PaymentLinkCheckout() {
         }
       } else {
         const [expMonth, expYear] = cardExpiry.split('/');
-        const { data: cardResult, error: cardError } = await supabase.functions.invoke('asaas-checkout', {
+        const { data: cardResult, error: cardError } = await supabase.functions.invoke('payment-checkout', {
           body: {
             action: 'create_card_payment',
             customer: asaasCustomerId,
