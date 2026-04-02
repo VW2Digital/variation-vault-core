@@ -663,7 +663,7 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
           orderId,
           creditCardHolderInfo: { email: email.trim() },
         });
-        setPaymentResult({ ...result, orderId });
+        setPaymentResult({ ...result, orderId, finalValue: pixTotalValue, finalInstallments: 1 });
       } else {
         const holderCpfDigits = (holderCpf || cpf).replace(/\D/g, '');
         const holderPhoneDigits = (holderPhone || phone).replace(/\D/g, '');
@@ -724,7 +724,7 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
           creditCardHolderInfo: holderInfo,
           orderId,
         });
-        setPaymentResult(result);
+        setPaymentResult({ ...result, finalValue: valorFinalCartao, finalInstallments: installments, finalInstallmentValue: valorParcelaCartao });
       }
 
       setStep('success');
@@ -843,7 +843,7 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
                   </Button>
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">Valor: R$ {pixTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{pixDiscountPercent > 0 && ` (${pixDiscountPercent}% de desconto no PIX)`}</p>
+              <p className="text-xs text-muted-foreground">Valor: R$ {(paymentResult?.finalValue ?? pixTotalValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}{pixDiscountPercent > 0 && ` (${pixDiscountPercent}% de desconto no PIX)`}</p>
               {pixPaid ? (
                 <p className="text-xs text-green-600 font-semibold mt-2">✅ Pagamento confirmado! Redirecionando...</p>
               ) : (
@@ -856,17 +856,17 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
               <p className="text-sm text-muted-foreground">
                 Status: <span className="font-medium text-primary">{paymentResult?.status === 'CONFIRMED' ? 'Confirmado' : paymentResult?.status === 'PENDING' ? 'Pendente' : paymentResult?.status}</span>
               </p>
-              {installments > 1 ? (
+              {(paymentResult?.finalInstallments ?? installments) > 1 ? (
                 <>
                   <p className="text-xs text-muted-foreground">
-                    {installments}x de R$ {(installmentOptions.find(o => o.parcelas === installments)?.valorParcela ?? totalValue / installments).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    {paymentResult?.finalInstallments ?? installments}x de R$ {(paymentResult?.finalInstallmentValue ?? (totalValue / installments)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
                   <p className="text-xs font-medium text-foreground">
-                    Total com juros: R$ {(installmentOptions.find(o => o.parcelas === installments)?.valorFinal ?? totalValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    Total: R$ {(paymentResult?.finalValue ?? totalValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
                 </>
               ) : (
-                <p className="text-xs text-muted-foreground">Valor: R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                <p className="text-xs text-muted-foreground">Valor: R$ {(paymentResult?.finalValue ?? totalValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
               )}
               <p className="text-xs text-muted-foreground mt-2">Você será redirecionado em 5 segundos...</p>
             </>
