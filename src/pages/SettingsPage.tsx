@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Phone, CreditCard, Eye, EyeOff, Truck, MapPin, Mail, Link2, CheckCircle2, Download, Loader2, MessageSquare, Send, Code } from 'lucide-react';
+import { Phone, CreditCard, Eye, EyeOff, Truck, MapPin, Mail, Link2, CheckCircle2, Download, Loader2, MessageSquare, Send, Code, ToggleLeft } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Select,
@@ -40,8 +41,11 @@ const SettingsPage = () => {
 
   // Payment Gateway selection
   const [paymentGateway, setPaymentGateway] = useState('asaas');
+  const [asaasEnabled, setAsaasEnabled] = useState(true);
+  const [mpEnabled, setMpEnabled] = useState(false);
   const [mpAccessToken, setMpAccessToken] = useState('');
   const [mpPublicKey, setMpPublicKey] = useState('');
+  const [mpEnvironment, setMpEnvironment] = useState('sandbox');
   const [showMpToken, setShowMpToken] = useState(false);
 
   // Evolution API
@@ -138,15 +142,20 @@ const SettingsPage = () => {
       fetchSetting('payment_gateway'),
       fetchSetting('mercadopago_access_token'),
       fetchSetting('mercadopago_public_key'),
-    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pgw, mpToken, mpPubKey]) => {
+      fetchSetting('mercadopago_environment'),
+    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pgw, mpToken, mpPubKey, mpEnv]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
       setAsaasWebhookToken(webhookToken || '');
       const currentMeEnv = meEnv || 'sandbox';
-      setPaymentGateway(pgw || 'asaas');
+      const activeGw = pgw || 'asaas';
+      setPaymentGateway(activeGw);
+      setAsaasEnabled(activeGw === 'asaas');
+      setMpEnabled(activeGw === 'mercadopago');
       setMpAccessToken(mpToken || '');
       setMpPublicKey(mpPubKey || '');
+      setMpEnvironment(mpEnv || 'sandbox');
       setMelhorEnvioEnv(currentMeEnv);
 
       // Load env-specific credentials
@@ -299,6 +308,7 @@ const SettingsPage = () => {
         upsertSetting('payment_gateway', paymentGateway, uid),
         upsertSetting('mercadopago_access_token', mpAccessToken, uid),
         upsertSetting('mercadopago_public_key', mpPublicKey, uid),
+        upsertSetting('mercadopago_environment', mpEnvironment, uid),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
@@ -336,189 +346,221 @@ const SettingsPage = () => {
         </CardContent>
       </Card>
 
-      {/* Gateway Selector */}
-      <Card className="border-border/50 border-2 border-primary/30">
+      {/* Asaas */}
+      <Card className={`border-border/50 ${asaasEnabled ? 'border-2 border-primary/30' : 'opacity-60'}`}>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <CreditCard className="w-5 h-5" /> Gateway de Pagamento Ativo
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Selecione o gateway que será usado no checkout</Label>
-            <Select value={paymentGateway} onValueChange={setPaymentGateway}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="asaas">Asaas</SelectItem>
-                <SelectItem value="mercadopago">Mercado Pago</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              O gateway selecionado será usado para todos os pagamentos (PIX e Cartão) no checkout.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <CreditCard className="w-5 h-5" /> Asaas - Checkout Transparente
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Ambiente</Label>
-            <Select value={asaasEnv} onValueChange={setAsaasEnv}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="sandbox">Sandbox (Testes)</SelectItem>
-                <SelectItem value="production">Produção</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>API Key</Label>
-            <div className="relative">
-              <Input
-                type={showApiKey ? 'text' : 'password'}
-                value={asaasApiKey}
-                onChange={(e) => setAsaasApiKey(e.target.value)}
-                placeholder="$aact_..."
-                className="pr-10"
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CreditCard className="w-5 h-5" /> Asaas - Checkout Transparente
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">{asaasEnabled ? 'Ativo' : 'Inativo'}</span>
+              <Switch
+                checked={asaasEnabled}
+                onCheckedChange={(checked) => {
+                  setAsaasEnabled(checked);
+                  if (checked) {
+                    setMpEnabled(false);
+                    setPaymentGateway('asaas');
+                  } else if (!mpEnabled) {
+                    setMpEnabled(true);
+                    setPaymentGateway('mercadopago');
+                  }
+                }}
               />
-              <button
-                type="button"
-                onClick={() => setShowApiKey(!showApiKey)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Encontre sua API Key no painel do Asaas em Configurações → Integrações → API
-            </p>
           </div>
-          <div className="space-y-2">
-            <Label>Token de Autenticação do Webhook</Label>
-            <div className="relative">
+        </CardHeader>
+        {asaasEnabled && (
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Ambiente</Label>
+              <Select value={asaasEnv} onValueChange={setAsaasEnv}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sandbox">Sandbox (Testes)</SelectItem>
+                  <SelectItem value="production">Produção</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>API Key</Label>
+              <div className="relative">
+                <Input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={asaasApiKey}
+                  onChange={(e) => setAsaasApiKey(e.target.value)}
+                  placeholder="$aact_..."
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Encontre sua API Key no painel do Asaas em Configurações → Integrações → API
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Token de Autenticação do Webhook</Label>
+              <div className="relative">
+                <Input
+                  type={showWebhookToken ? 'text' : 'password'}
+                  value={asaasWebhookToken}
+                  onChange={(e) => setAsaasWebhookToken(e.target.value)}
+                  placeholder="Token definido no Asaas"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowWebhookToken(!showWebhookToken)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showWebhookToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Mesmo token configurado no painel do Asaas em Webhooks → Token de autenticação
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">URL do Webhook (copie para o Asaas)</Label>
               <Input
-                type={showWebhookToken ? 'text' : 'password'}
-                value={asaasWebhookToken}
-                onChange={(e) => setAsaasWebhookToken(e.target.value)}
-                placeholder="Token definido no Asaas"
-                className="pr-10"
+                readOnly
+                value="https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/asaas-webhook"
+                className="bg-muted text-xs"
+                onClick={(e) => {
+                  (e.target as HTMLInputElement).select();
+                  navigator.clipboard.writeText("https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/asaas-webhook");
+                  toast({ title: 'URL copiada!' });
+                }}
               />
-              <button
-                type="button"
-                onClick={() => setShowWebhookToken(!showWebhookToken)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showWebhookToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Mesmo token configurado no painel do Asaas em Webhooks → Token de autenticação
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">URL do Webhook (copie para o Asaas)</Label>
-            <Input
-              readOnly
-              value="https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/asaas-webhook"
-              className="bg-muted text-xs"
-              onClick={(e) => {
-                (e.target as HTMLInputElement).select();
-                navigator.clipboard.writeText("https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/asaas-webhook");
-                toast({ title: 'URL copiada!' });
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={testingAsaas || !asaasApiKey}
+              onClick={async () => {
+                setTestingAsaas(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke('payment-checkout', {
+                    body: { action: 'test_connection', environment: asaasEnv, api_key: asaasApiKey },
+                  });
+                  if (error) throw new Error(error.message);
+                  if (data?.error) throw new Error(data.error);
+                  toast({ title: '✅ Conexão com Asaas OK!', description: `Ambiente: ${asaasEnv === 'production' ? 'Produção' : 'Sandbox'}. Carteira ID: ${data?.walletId || 'N/A'}` });
+                } catch (err: any) {
+                  toast({ title: 'Falha na conexão', description: err.message, variant: 'destructive' });
+                } finally {
+                  setTestingAsaas(false);
+                }
               }}
-            />
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={testingAsaas || !asaasApiKey}
-            onClick={async () => {
-              setTestingAsaas(true);
-              try {
-                const { data, error } = await supabase.functions.invoke('payment-checkout', {
-                  body: { action: 'test_connection', environment: asaasEnv, api_key: asaasApiKey },
-                });
-                if (error) throw new Error(error.message);
-                if (data?.error) throw new Error(data.error);
-                toast({ title: '✅ Conexão com Asaas OK!', description: `Ambiente: ${asaasEnv === 'production' ? 'Produção' : 'Sandbox'}. Carteira ID: ${data?.walletId || 'N/A'}` });
-              } catch (err: any) {
-                toast({ title: 'Falha na conexão', description: err.message, variant: 'destructive' });
-              } finally {
-                setTestingAsaas(false);
-              }
-            }}
-          >
-            {testingAsaas ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-            Testar Conexão
-          </Button>
-        </CardContent>
+            >
+              {testingAsaas ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+              Testar Conexão
+            </Button>
+          </CardContent>
+        )}
       </Card>
 
       {/* Mercado Pago */}
-      <Card className="border-border/50">
+      <Card className={`border-border/50 ${mpEnabled ? 'border-2 border-primary/30' : 'opacity-60'}`}>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <CreditCard className="w-5 h-5" /> Mercado Pago
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Access Token</Label>
-            <div className="relative">
-              <Input
-                type={showMpToken ? 'text' : 'password'}
-                value={mpAccessToken}
-                onChange={(e) => setMpAccessToken(e.target.value)}
-                placeholder="APP_USR-..."
-                className="pr-10"
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CreditCard className="w-5 h-5" /> Mercado Pago
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">{mpEnabled ? 'Ativo' : 'Inativo'}</span>
+              <Switch
+                checked={mpEnabled}
+                onCheckedChange={(checked) => {
+                  setMpEnabled(checked);
+                  if (checked) {
+                    setAsaasEnabled(false);
+                    setPaymentGateway('mercadopago');
+                  } else if (!asaasEnabled) {
+                    setAsaasEnabled(true);
+                    setPaymentGateway('asaas');
+                  }
+                }}
               />
-              <button
-                type="button"
-                onClick={() => setShowMpToken(!showMpToken)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showMpToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Encontre em Mercado Pago → Seu negócio → Configurações → Gestão e Administração → Credenciais → Access Token (Produção)
-            </p>
           </div>
-          <div className="space-y-2">
-            <Label>Public Key</Label>
-            <Input
-              value={mpPublicKey}
-              onChange={(e) => setMpPublicKey(e.target.value)}
-              placeholder="APP_USR-..."
-            />
-            <p className="text-xs text-muted-foreground">
-              Chave pública usada pelo SDK JavaScript no checkout. Encontre nas mesmas credenciais do Mercado Pago.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">URL do Webhook (copie para o Mercado Pago)</Label>
-            <Input
-              readOnly
-              value="https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/mercadopago-webhook"
-              className="bg-muted text-xs"
-              onClick={(e) => {
-                (e.target as HTMLInputElement).select();
-                navigator.clipboard.writeText("https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/mercadopago-webhook");
-                toast({ title: 'URL copiada!' });
-              }}
-            />
-          </div>
-        </CardContent>
+        </CardHeader>
+        {mpEnabled && (
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Ambiente</Label>
+              <Select value={mpEnvironment} onValueChange={setMpEnvironment}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sandbox">Sandbox (Testes)</SelectItem>
+                  <SelectItem value="production">Produção</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Use credenciais de teste no sandbox e credenciais reais em produção.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Access Token</Label>
+              <div className="relative">
+                <Input
+                  type={showMpToken ? 'text' : 'password'}
+                  value={mpAccessToken}
+                  onChange={(e) => setMpAccessToken(e.target.value)}
+                  placeholder={mpEnvironment === 'sandbox' ? 'TEST-...' : 'APP_USR-...'}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowMpToken(!showMpToken)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showMpToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {mpEnvironment === 'sandbox'
+                  ? 'Use o Access Token de teste. Encontre em Mercado Pago → Seu negócio → Configurações → Credenciais de teste'
+                  : 'Encontre em Mercado Pago → Seu negócio → Configurações → Gestão e Administração → Credenciais → Access Token (Produção)'}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Public Key</Label>
+              <Input
+                value={mpPublicKey}
+                onChange={(e) => setMpPublicKey(e.target.value)}
+                placeholder={mpEnvironment === 'sandbox' ? 'TEST-...' : 'APP_USR-...'}
+              />
+              <p className="text-xs text-muted-foreground">
+                Chave pública usada pelo SDK JavaScript no checkout. Encontre nas mesmas credenciais do Mercado Pago.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">URL do Webhook (copie para o Mercado Pago)</Label>
+              <Input
+                readOnly
+                value="https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/mercadopago-webhook"
+                className="bg-muted text-xs"
+                onClick={(e) => {
+                  (e.target as HTMLInputElement).select();
+                  navigator.clipboard.writeText("https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/mercadopago-webhook");
+                  toast({ title: 'URL copiada!' });
+                }}
+              />
+            </div>
+          </CardContent>
+        )}
       </Card>
 
       <Card className="border-border/50">
