@@ -12,6 +12,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import logoImg from '@/assets/liberty-pharma-logo.png';
 import { gerarOpcoesParcelamento, InstallmentResult } from '@/lib/installments';
+import { fetchSetting } from '@/lib/api';
 
 interface PaymentLink {
   id: string;
