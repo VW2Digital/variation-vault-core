@@ -55,14 +55,32 @@ serve(async (req) => {
       });
     }
 
-    // Get Mercado Pago access token from settings
-    const { data: tokenRow } = await supabase
+    // Get Mercado Pago environment and access token from settings
+    const { data: mpEnvRow } = await supabase
       .from('site_settings')
       .select('value')
-      .eq('key', 'mercadopago_access_token')
+      .eq('key', 'mercadopago_environment')
+      .maybeSingle();
+    const mpEnv = mpEnvRow?.value || 'sandbox';
+
+    // Try env-specific token first, fallback to generic
+    const { data: tokenEnvRow } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', `mercadopago_access_token_${mpEnv}`)
       .maybeSingle();
 
-    if (!tokenRow?.value) {
+    let accessToken = tokenEnvRow?.value;
+    if (!accessToken) {
+      const { data: tokenRow } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'mercadopago_access_token')
+        .maybeSingle();
+      accessToken = tokenRow?.value;
+    }
+
+    if (!accessToken) {
       console.error('[MP Webhook] Access token not configured');
       return new Response(JSON.stringify({ received: true, error: 'token_missing' }), {
         status: 200,
