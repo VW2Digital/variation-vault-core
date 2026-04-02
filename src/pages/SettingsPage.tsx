@@ -45,8 +45,11 @@ const SettingsPage = () => {
   const [mpEnabled, setMpEnabled] = useState(false);
   const [mpAccessToken, setMpAccessToken] = useState('');
   const [mpPublicKey, setMpPublicKey] = useState('');
+  const [mpClientId, setMpClientId] = useState('');
+  const [mpClientSecret, setMpClientSecret] = useState('');
   const [mpEnvironment, setMpEnvironment] = useState('sandbox');
   const [showMpToken, setShowMpToken] = useState(false);
+  const [showMpClientSecret, setShowMpClientSecret] = useState(false);
 
   // Evolution API
   const [evolutionApiUrl, setEvolutionApiUrl] = useState('');
