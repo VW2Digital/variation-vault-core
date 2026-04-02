@@ -41,6 +41,7 @@ const SettingsPage = () => {
   // Payment Gateway selection
   const [paymentGateway, setPaymentGateway] = useState('asaas');
   const [mpAccessToken, setMpAccessToken] = useState('');
+  const [mpPublicKey, setMpPublicKey] = useState('');
   const [showMpToken, setShowMpToken] = useState(false);
 
   // Evolution API
