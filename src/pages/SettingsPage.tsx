@@ -561,6 +561,7 @@ const SettingsPage = () => {
             </div>
           </CardContent>
         )}
+      </Card>
 
       <Card className="border-border/50">
         <CardHeader>
