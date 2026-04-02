@@ -224,9 +224,11 @@ export type Database = {
           customer_user_id: string | null
           delivery_status: string | null
           dosage: string | null
+          gateway_environment: string | null
           id: string
           installments: number
           label_url: string | null
+          payment_gateway: string | null
           payment_method: string
           product_name: string
           quantity: number
@@ -260,9 +262,11 @@ export type Database = {
           customer_user_id?: string | null
           delivery_status?: string | null
           dosage?: string | null
+          gateway_environment?: string | null
           id?: string
           installments?: number
           label_url?: string | null
+          payment_gateway?: string | null
           payment_method?: string
           product_name: string
           quantity?: number
@@ -296,9 +300,11 @@ export type Database = {
           customer_user_id?: string | null
           delivery_status?: string | null
           dosage?: string | null
+          gateway_environment?: string | null
           id?: string
           installments?: number
           label_url?: string | null
+          payment_gateway?: string | null
           payment_method?: string
           product_name?: string
           quantity?: number

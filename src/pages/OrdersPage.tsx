@@ -920,6 +920,8 @@ const OrdersPage = () => {
                 <h4 className="text-sm font-semibold text-foreground mb-1">Pagamento</h4>
                 <InfoRow label="Forma" value={billingTypeMap[viewOrder.payment_method] || viewOrder.payment_method} />
                 <InfoRow label="Status" value={(statusMap[viewOrder.status] || { label: viewOrder.status }).label} />
+                <InfoRow label="Gateway" value={viewOrder.payment_gateway === 'mercadopago' ? 'Mercado Pago' : 'Asaas'} />
+                <InfoRow label="Ambiente" value={viewOrder.gateway_environment === 'production' ? '🟢 Produção' : '🟡 Sandbox (Teste)'} />
                 {viewOrder.asaas_payment_id && <InfoRow label="ID Asaas" value={viewOrder.asaas_payment_id} />}
               </div>
               <Separator />

@@ -43,12 +43,14 @@ export interface UseMercadoPagoReturn {
   publicKey: string;
   tokenizeCard: (data: MpCardData) => Promise<string>;
   activeGateway: string;
+  gatewayEnvironment: string;
 }
 
 export function useMercadoPago(): UseMercadoPagoReturn {
   const [isReady, setIsReady] = useState(false);
   const [publicKey, setPublicKey] = useState('');
   const [activeGateway, setActiveGateway] = useState('asaas');
+  const [gatewayEnvironment, setGatewayEnvironment] = useState('sandbox');
   const [mpInstance, setMpInstance] = useState<any>(null);
 
   useEffect(() => {
@@ -56,13 +58,17 @@ export function useMercadoPago(): UseMercadoPagoReturn {
 
     const init = async () => {
       try {
-        const [gateway, mpEnv] = await Promise.all([
+        const [gateway, mpEnv, asaasEnv] = await Promise.all([
           fetchSetting('payment_gateway'),
           fetchSetting('mercadopago_environment'),
+          fetchSetting('asaas_environment'),
         ]);
 
         if (cancelled) return;
         setActiveGateway(gateway || 'asaas');
+        setGatewayEnvironment(
+          gateway === 'mercadopago' ? (mpEnv || 'sandbox') : (asaasEnv || 'sandbox')
+        );
 
         if (gateway !== 'mercadopago') return;
 
@@ -113,5 +119,5 @@ export function useMercadoPago(): UseMercadoPagoReturn {
     return cardTokenResponse.id;
   }, [mpInstance]);
 
-  return { isReady, publicKey, tokenizeCard, activeGateway };
+  return { isReady, publicKey, tokenizeCard, activeGateway, gatewayEnvironment };
 }

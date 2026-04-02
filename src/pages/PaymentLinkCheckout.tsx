@@ -12,6 +12,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import logoImg from '@/assets/liberty-pharma-logo.png';
 import { gerarOpcoesParcelamento, InstallmentResult } from '@/lib/installments';
+import { fetchSetting } from '@/lib/api';
 
 interface PaymentLink {
   id: string;
@@ -192,6 +193,8 @@ export default function PaymentLinkCheckout() {
         payment_method: paymentMethod,
         installments,
         status: 'PENDING',
+        payment_gateway: 'asaas',
+        gateway_environment: await fetchSetting('asaas_environment') || 'sandbox',
         customer_address: address.trim(),
         customer_number: addressNumber.trim(),
         customer_complement: complement.trim() || null,
