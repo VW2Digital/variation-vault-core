@@ -51,6 +51,7 @@ import ChatWidgetEmbed from "./components/ChatWidgetEmbed";
 
 const queryClient = new QueryClient();
 
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <LanguageProvider>
