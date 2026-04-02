@@ -724,7 +724,7 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
           creditCardHolderInfo: holderInfo,
           orderId,
         });
-        setPaymentResult(result);
+        setPaymentResult({ ...result, finalValue: valorFinalCartao, finalInstallments: installments, finalInstallmentValue: valorParcelaCartao });
       }
 
       setStep('success');
