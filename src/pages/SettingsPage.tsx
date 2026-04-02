@@ -556,6 +556,39 @@ const SettingsPage = () => {
               </p>
             </div>
             <div className="space-y-2">
+              <Label>Client ID</Label>
+              <Input
+                value={mpClientId}
+                onChange={(e) => setMpClientId(e.target.value)}
+                placeholder="Ex: 3427228834545577"
+              />
+              <p className="text-xs text-muted-foreground">
+                ID da aplicação. Encontre nas credenciais do Mercado Pago.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Client Secret</Label>
+              <div className="relative">
+                <Input
+                  type={showMpClientSecret ? 'text' : 'password'}
+                  value={mpClientSecret}
+                  onChange={(e) => setMpClientSecret(e.target.value)}
+                  placeholder="Ex: gCED4b..."
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowMpClientSecret(!showMpClientSecret)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showMpClientSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Chave secreta da aplicação. Encontre nas mesmas credenciais do Mercado Pago.
+              </p>
+            </div>
+            <div className="space-y-2">
               <Label className="text-xs text-muted-foreground">URL do Webhook (copie para o Mercado Pago)</Label>
               <Input
                 readOnly
