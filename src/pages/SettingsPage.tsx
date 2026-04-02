@@ -132,6 +132,35 @@ const SettingsPage = () => {
     setMelhorEnvioTokenExpires(meTokenExpires || '');
   };
 
+  // Load Mercado Pago env-specific credentials
+  const loadMpCredentials = async (env: string) => {
+    const [token, pubKey, clientId, clientSecret] = await Promise.all([
+      fetchSetting(`mercadopago_access_token_${env}`),
+      fetchSetting(`mercadopago_public_key_${env}`),
+      fetchSetting(`mercadopago_client_id_${env}`),
+      fetchSetting(`mercadopago_client_secret_${env}`),
+    ]);
+    setMpAccessToken(token || '');
+    setMpPublicKey(pubKey || '');
+    setMpClientId(clientId || '');
+    setMpClientSecret(clientSecret || '');
+  };
+
+  const handleMpEnvChange = async (newEnv: string) => {
+    // Save current env credentials before switching
+    const oldEnv = mpEnvironment;
+    if (mpAccessToken || mpPublicKey || mpClientId || mpClientSecret) {
+      await Promise.all([
+        upsertSetting(`mercadopago_access_token_${oldEnv}`, mpAccessToken),
+        upsertSetting(`mercadopago_public_key_${oldEnv}`, mpPublicKey),
+        upsertSetting(`mercadopago_client_id_${oldEnv}`, mpClientId),
+        upsertSetting(`mercadopago_client_secret_${oldEnv}`, mpClientSecret),
+      ]);
+    }
+    setMpEnvironment(newEnv);
+    await loadMpCredentials(newEnv);
+  };
+
   useEffect(() => {
     Promise.all([
       fetchSetting('whatsapp_number'),
@@ -143,12 +172,8 @@ const SettingsPage = () => {
       fetchSetting('resend_api_key'),
       fetchSetting('resend_from_email'),
       fetchSetting('payment_gateway'),
-      fetchSetting('mercadopago_access_token'),
-      fetchSetting('mercadopago_public_key'),
       fetchSetting('mercadopago_environment'),
-      fetchSetting('mercadopago_client_id'),
-      fetchSetting('mercadopago_client_secret'),
-    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pgw, mpToken, mpPubKey, mpEnv, mpCid, mpCsec]) => {
+    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pgw, mpEnv]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
@@ -158,15 +183,15 @@ const SettingsPage = () => {
       setPaymentGateway(activeGw);
       setAsaasEnabled(activeGw === 'asaas');
       setMpEnabled(activeGw === 'mercadopago');
-      setMpAccessToken(mpToken || '');
-      setMpPublicKey(mpPubKey || '');
-      setMpEnvironment(mpEnv || 'sandbox');
-      setMpClientId(mpCid || '');
-      setMpClientSecret(mpCsec || '');
+      const currentMpEnv = mpEnv || 'sandbox';
+      setMpEnvironment(currentMpEnv);
       setMelhorEnvioEnv(currentMeEnv);
 
-      // Load env-specific credentials
-      await loadMelhorEnvioCredentials(currentMeEnv);
+      // Load env-specific credentials for both
+      await Promise.all([
+        loadMelhorEnvioCredentials(currentMeEnv),
+        loadMpCredentials(currentMpEnv),
+      ]);
 
       // Load Evolution API settings
       const [evoUrl, evoKey, evoInstance, chatWidget] = await Promise.all([
@@ -313,11 +338,14 @@ const SettingsPage = () => {
         upsertSetting('evolution_instance_name', evolutionInstanceName, uid),
         upsertSetting('chat_widget_code', chatWidgetCode, uid),
         upsertSetting('payment_gateway', paymentGateway, uid),
+        upsertSetting('mercadopago_environment', mpEnvironment, uid),
+        upsertSetting(`mercadopago_access_token_${mpEnvironment}`, mpAccessToken, uid),
+        upsertSetting(`mercadopago_public_key_${mpEnvironment}`, mpPublicKey, uid),
+        upsertSetting(`mercadopago_client_id_${mpEnvironment}`, mpClientId, uid),
+        upsertSetting(`mercadopago_client_secret_${mpEnvironment}`, mpClientSecret, uid),
+        // Also save the active env credentials without suffix for backward compatibility
         upsertSetting('mercadopago_access_token', mpAccessToken, uid),
         upsertSetting('mercadopago_public_key', mpPublicKey, uid),
-        upsertSetting('mercadopago_environment', mpEnvironment, uid),
-        upsertSetting('mercadopago_client_id', mpClientId, uid),
-        upsertSetting('mercadopago_client_secret', mpClientSecret, uid),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
@@ -507,7 +535,7 @@ const SettingsPage = () => {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Ambiente</Label>
-              <Select value={mpEnvironment} onValueChange={setMpEnvironment}>
+              <Select value={mpEnvironment} onValueChange={handleMpEnvChange}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

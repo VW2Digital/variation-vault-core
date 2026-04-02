@@ -56,15 +56,25 @@ export function useMercadoPago(): UseMercadoPagoReturn {
 
     const init = async () => {
       try {
-        const [gateway, mpPubKey] = await Promise.all([
+        const [gateway, mpEnv] = await Promise.all([
           fetchSetting('payment_gateway'),
-          fetchSetting('mercadopago_public_key'),
+          fetchSetting('mercadopago_environment'),
         ]);
 
         if (cancelled) return;
         setActiveGateway(gateway || 'asaas');
 
-        if (gateway !== 'mercadopago' || !mpPubKey) return;
+        if (gateway !== 'mercadopago') return;
+
+        const currentEnv = mpEnv || 'sandbox';
+
+        // Try env-specific public key first, fallback to generic
+        let mpPubKey = await fetchSetting(`mercadopago_public_key_${currentEnv}`);
+        if (!mpPubKey) {
+          mpPubKey = await fetchSetting('mercadopago_public_key');
+        }
+
+        if (cancelled || !mpPubKey) return;
 
         setPublicKey(mpPubKey);
         await loadMercadoPagoSdk();
