@@ -149,9 +149,13 @@ const SettingsPage = () => {
       setAsaasEnv(env || 'sandbox');
       setAsaasWebhookToken(webhookToken || '');
       const currentMeEnv = meEnv || 'sandbox';
-      setPaymentGateway(pgw || 'asaas');
+      const activeGw = pgw || 'asaas';
+      setPaymentGateway(activeGw);
+      setAsaasEnabled(activeGw === 'asaas');
+      setMpEnabled(activeGw === 'mercadopago');
       setMpAccessToken(mpToken || '');
       setMpPublicKey(mpPubKey || '');
+      setMpEnvironment(mpEnv || 'sandbox');
       setMelhorEnvioEnv(currentMeEnv);
 
       // Load env-specific credentials
