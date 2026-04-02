@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle, MapPin, Truck, ShoppingBag, User, Check } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCart } from '@/contexts/CartContext';
+import { useMercadoPago } from '@/hooks/useMercadoPago';
 
 interface CheckoutFormProps {
   productName: string;
@@ -136,6 +137,8 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
   const { t } = useLanguage();
   const { clearCart } = useCart();
   const navigate = useNavigate();
+  const { activeGateway, tokenizeCard } = useMercadoPago();
+  const isMercadoPago = activeGateway === 'mercadopago';
   const safeUnitPrice = Number(unitPrice) || 0;
   const safeQuantity = Number(quantity) || 1;
   const baseProductTotal = safeUnitPrice * safeQuantity;
@@ -656,6 +659,7 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
           value: pixTotalValue,
           description,
           orderId,
+          creditCardHolderInfo: { email: email.trim() },
         });
         setPaymentResult({ ...result, orderId });
       } else {
@@ -677,12 +681,36 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
           mobilePhone: holderPhoneDigits,
         };
 
-        // Usar valores da simulação do Asaas (já carregados no dropdown)
+        // Usar valores da simulação (já carregados no dropdown)
         const selectedOpt = installmentOptions.find(o => o.parcelas === installments);
         const valorFinalCartao = selectedOpt ? selectedOpt.valorFinal : totalValue;
         const valorParcelaCartao = selectedOpt ? selectedOpt.valorParcela : totalValue;
 
         const orderId = await createOrder(paymentMethod, asaasCustomerId, valorFinalCartao);
+
+        // Build credit card payload — Mercado Pago needs a token, Asaas uses raw data
+        let creditCardPayload: any;
+        if (isMercadoPago) {
+          // Tokenize card via MP SDK
+          const cardToken = await tokenizeCard({
+            cardNumber: cardNumber.replace(/\s/g, ''),
+            cardholderName: cardName.trim() || name.trim(),
+            expirationMonth: cardExpMonth,
+            expirationYear: cardExpYear,
+            securityCode: cardCcv,
+            identificationType: 'CPF',
+            identificationNumber: holderCpfDigits,
+          });
+          creditCardPayload = { token: cardToken };
+        } else {
+          creditCardPayload = {
+            holderName: cardName.trim() || name.trim(),
+            number: cardNumber.replace(/\s/g, ''),
+            expiryMonth: cardExpMonth,
+            expiryYear: cardExpYear,
+            ccv: cardCcv,
+          };
+        }
 
         const result = await invokeGateway('create_card_payment', {
           customer: asaasCustomerId,
@@ -690,13 +718,7 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
           description,
           installmentCount: installments,
           installmentValue: valorParcelaCartao,
-          creditCard: {
-            holderName: cardName.trim() || name.trim(),
-            number: cardNumber.replace(/\s/g, ''),
-            expiryMonth: cardExpMonth,
-            expiryYear: cardExpYear,
-            ccv: cardCcv,
-          },
+          creditCard: creditCardPayload,
           creditCardHolderInfo: holderInfo,
           orderId,
         });

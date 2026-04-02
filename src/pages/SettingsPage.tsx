@@ -41,6 +41,7 @@ const SettingsPage = () => {
   // Payment Gateway selection
   const [paymentGateway, setPaymentGateway] = useState('asaas');
   const [mpAccessToken, setMpAccessToken] = useState('');
+  const [mpPublicKey, setMpPublicKey] = useState('');
   const [showMpToken, setShowMpToken] = useState(false);
 
   // Evolution API
@@ -136,7 +137,8 @@ const SettingsPage = () => {
       fetchSetting('resend_from_email'),
       fetchSetting('payment_gateway'),
       fetchSetting('mercadopago_access_token'),
-    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pgw, mpToken]) => {
+      fetchSetting('mercadopago_public_key'),
+    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pgw, mpToken, mpPubKey]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
@@ -144,6 +146,7 @@ const SettingsPage = () => {
       const currentMeEnv = meEnv || 'sandbox';
       setPaymentGateway(pgw || 'asaas');
       setMpAccessToken(mpToken || '');
+      setMpPublicKey(mpPubKey || '');
       setMelhorEnvioEnv(currentMeEnv);
 
       // Load env-specific credentials
@@ -295,6 +298,7 @@ const SettingsPage = () => {
         upsertSetting('chat_widget_code', chatWidgetCode, uid),
         upsertSetting('payment_gateway', paymentGateway, uid),
         upsertSetting('mercadopago_access_token', mpAccessToken, uid),
+        upsertSetting('mercadopago_public_key', mpPublicKey, uid),
       ]);
       toast({ title: 'Configurações salvas!' });
     } catch (err: any) {
@@ -489,6 +493,30 @@ const SettingsPage = () => {
             <p className="text-xs text-muted-foreground">
               Encontre em Mercado Pago → Seu negócio → Configurações → Gestão e Administração → Credenciais → Access Token (Produção)
             </p>
+          </div>
+          <div className="space-y-2">
+            <Label>Public Key</Label>
+            <Input
+              value={mpPublicKey}
+              onChange={(e) => setMpPublicKey(e.target.value)}
+              placeholder="APP_USR-..."
+            />
+            <p className="text-xs text-muted-foreground">
+              Chave pública usada pelo SDK JavaScript no checkout. Encontre nas mesmas credenciais do Mercado Pago.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">URL do Webhook (copie para o Mercado Pago)</Label>
+            <Input
+              readOnly
+              value="https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/mercadopago-webhook"
+              className="bg-muted text-xs"
+              onClick={(e) => {
+                (e.target as HTMLInputElement).select();
+                navigator.clipboard.writeText("https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/mercadopago-webhook");
+                toast({ title: 'URL copiada!' });
+              }}
+            />
           </div>
         </CardContent>
       </Card>
