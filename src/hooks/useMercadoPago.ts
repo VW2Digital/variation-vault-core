@@ -58,14 +58,17 @@ export function useMercadoPago(): UseMercadoPagoReturn {
 
     const init = async () => {
       try {
-        const [gateway, mpEnv] = await Promise.all([
+        const [gateway, mpEnv, asaasEnv] = await Promise.all([
           fetchSetting('payment_gateway'),
           fetchSetting('mercadopago_environment'),
+          fetchSetting('asaas_environment'),
         ]);
 
         if (cancelled) return;
         setActiveGateway(gateway || 'asaas');
-        setGatewayEnvironment(mpEnv || 'sandbox');
+        setGatewayEnvironment(
+          gateway === 'mercadopago' ? (mpEnv || 'sandbox') : (asaasEnv || 'sandbox')
+        );
 
         if (gateway !== 'mercadopago') return;
 
