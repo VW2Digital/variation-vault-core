@@ -460,10 +460,39 @@ const SettingsPage = () => {
         </CardContent>
       </Card>
 
+      {/* Mercado Pago */}
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Truck className="w-5 h-5" /> Melhor Envio
+            <CreditCard className="w-5 h-5" /> Mercado Pago
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Access Token</Label>
+            <div className="relative">
+              <Input
+                type={showMpToken ? 'text' : 'password'}
+                value={mpAccessToken}
+                onChange={(e) => setMpAccessToken(e.target.value)}
+                placeholder="APP_USR-..."
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowMpToken(!showMpToken)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showMpToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Encontre em Mercado Pago → Seu negócio → Configurações → Gestão e Administração → Credenciais → Access Token (Produção)
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
