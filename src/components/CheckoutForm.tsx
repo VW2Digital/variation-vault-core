@@ -415,6 +415,8 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
       payment_method: paymentMethodType,
       installments: paymentMethodType === 'credit_card' ? installments : 1,
       status: 'PENDING',
+      payment_gateway: activeGateway || 'asaas',
+      gateway_environment: gatewayEnv || 'sandbox',
     };
     if (session?.user?.id) {
       orderData.customer_user_id = session.user.id;
