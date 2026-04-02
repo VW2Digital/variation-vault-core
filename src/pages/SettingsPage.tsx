@@ -161,6 +161,8 @@ const SettingsPage = () => {
       setMpAccessToken(mpToken || '');
       setMpPublicKey(mpPubKey || '');
       setMpEnvironment(mpEnv || 'sandbox');
+      setMpClientId(mpCid || '');
+      setMpClientSecret(mpCsec || '');
       setMelhorEnvioEnv(currentMeEnv);
 
       // Load env-specific credentials
