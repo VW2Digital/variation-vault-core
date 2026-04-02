@@ -680,12 +680,36 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
           mobilePhone: holderPhoneDigits,
         };
 
-        // Usar valores da simulação do Asaas (já carregados no dropdown)
+        // Usar valores da simulação (já carregados no dropdown)
         const selectedOpt = installmentOptions.find(o => o.parcelas === installments);
         const valorFinalCartao = selectedOpt ? selectedOpt.valorFinal : totalValue;
         const valorParcelaCartao = selectedOpt ? selectedOpt.valorParcela : totalValue;
 
         const orderId = await createOrder(paymentMethod, asaasCustomerId, valorFinalCartao);
+
+        // Build credit card payload — Mercado Pago needs a token, Asaas uses raw data
+        let creditCardPayload: any;
+        if (isMercadoPago) {
+          // Tokenize card via MP SDK
+          const cardToken = await tokenizeCard({
+            cardNumber: cardNumber.replace(/\s/g, ''),
+            cardholderName: cardName.trim() || name.trim(),
+            expirationMonth: cardExpMonth,
+            expirationYear: cardExpYear,
+            securityCode: cardCcv,
+            identificationType: 'CPF',
+            identificationNumber: holderCpfDigits,
+          });
+          creditCardPayload = { token: cardToken };
+        } else {
+          creditCardPayload = {
+            holderName: cardName.trim() || name.trim(),
+            number: cardNumber.replace(/\s/g, ''),
+            expiryMonth: cardExpMonth,
+            expiryYear: cardExpYear,
+            ccv: cardCcv,
+          };
+        }
 
         const result = await invokeGateway('create_card_payment', {
           customer: asaasCustomerId,
@@ -693,13 +717,7 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
           description,
           installmentCount: installments,
           installmentValue: valorParcelaCartao,
-          creditCard: {
-            holderName: cardName.trim() || name.trim(),
-            number: cardNumber.replace(/\s/g, ''),
-            expiryMonth: cardExpMonth,
-            expiryYear: cardExpYear,
-            ccv: cardCcv,
-          },
+          creditCard: creditCardPayload,
           creditCardHolderInfo: holderInfo,
           orderId,
         });
