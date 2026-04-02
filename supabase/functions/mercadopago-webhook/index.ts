@@ -91,7 +91,7 @@ serve(async (req) => {
     // Fetch payment details from MP API to get current status
     const mpResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
       headers: {
-        'Authorization': `Bearer ${tokenRow.value}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
     });
