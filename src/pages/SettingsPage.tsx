@@ -146,7 +146,9 @@ const SettingsPage = () => {
       fetchSetting('mercadopago_access_token'),
       fetchSetting('mercadopago_public_key'),
       fetchSetting('mercadopago_environment'),
-    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pgw, mpToken, mpPubKey, mpEnv]) => {
+      fetchSetting('mercadopago_client_id'),
+      fetchSetting('mercadopago_client_secret'),
+    ]).then(async ([wp, apiKey, env, webhookToken, meEnv, senderJson, rKey, rFrom, pgw, mpToken, mpPubKey, mpEnv, mpCid, mpCsec]) => {
       setWhatsapp(wp);
       setAsaasApiKey(apiKey);
       setAsaasEnv(env || 'sandbox');
