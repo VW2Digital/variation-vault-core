@@ -659,6 +659,7 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
           value: pixTotalValue,
           description,
           orderId,
+          creditCardHolderInfo: { email: email.trim() },
         });
         setPaymentResult({ ...result, orderId });
       } else {
