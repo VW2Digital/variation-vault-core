@@ -6,17 +6,89 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+async function verifyWebhookSignature(req: Request, body: string): Promise<boolean> {
+  const secret = Deno.env.get('MP_WEBHOOK_SECRET');
+  if (!secret) {
+    console.warn('[MP Webhook] MP_WEBHOOK_SECRET not set — skipping signature verification');
+    return true; // allow through if not configured
+  }
+
+  const xSignature = req.headers.get('x-signature');
+  const xRequestId = req.headers.get('x-request-id');
+
+  if (!xSignature || !xRequestId) {
+    console.warn('[MP Webhook] Missing x-signature or x-request-id headers');
+    return false;
+  }
+
+  // Parse x-signature: "ts=...,v1=..."
+  const parts: Record<string, string> = {};
+  xSignature.split(',').forEach((part) => {
+    const [key, value] = part.trim().split('=');
+    if (key && value) parts[key] = value;
+  });
+
+  const ts = parts['ts'];
+  const v1 = parts['v1'];
+  if (!ts || !v1) {
+    console.warn('[MP Webhook] Invalid x-signature format');
+    return false;
+  }
+
+  // Extract data.id from the query string (MP sends it as ?data.id=xxx)
+  const url = new URL(req.url);
+  const dataId = url.searchParams.get('data.id') || '';
+
+  // Build the manifest: id:{data.id};request-id:{x-request-id};ts:{ts};
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+
+  // HMAC-SHA256
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(manifest));
+  const computed = Array.from(new Uint8Array(signature))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  if (computed !== v1) {
+    console.error(`[MP Webhook] Signature mismatch. Expected: ${v1}, Got: ${computed}`);
+    return false;
+  }
+
+  console.log('[MP Webhook] Signature verified successfully');
+  return true;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Read body as text for signature verification, then parse
+    const bodyText = await req.text();
+
+    // Verify webhook signature
+    const isValid = await verifyWebhookSignature(req, bodyText);
+    if (!isValid) {
+      console.error('[MP Webhook] Invalid signature — rejecting');
+      return new Response(JSON.stringify({ received: true, error: 'invalid_signature' }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const body = await req.json();
+    const body = JSON.parse(bodyText);
     const { action, type, id: notificationId, data: notificationData, topic } = body;
 
     // Mercado Pago sends notifications in two formats:
