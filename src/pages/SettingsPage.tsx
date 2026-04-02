@@ -358,7 +358,10 @@ const SettingsPage = () => {
         </CardContent>
       </Card>
 
-
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <CreditCard className="w-5 h-5" /> Asaas - Checkout Transparente
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
