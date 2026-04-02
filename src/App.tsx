@@ -15,7 +15,17 @@ import ProductCheckout from "./pages/ProductCheckout";
 import Catalog from "./pages/Catalog";
 import TestimonialList from "./pages/TestimonialList";
 import BannerList from "./pages/BannerList";
-import SettingsPage from "./pages/SettingsPage";
+import SettingsIndex from "./pages/settings/SettingsIndex";
+import SettingsDesign from "./pages/settings/SettingsDesign";
+import SettingsColors from "./pages/settings/SettingsColors";
+import SettingsFonts from "./pages/settings/SettingsFonts";
+import SettingsCSS from "./pages/settings/SettingsCSS";
+import SettingsHomePage from "./pages/settings/SettingsHomePage";
+import SettingsPayment from "./pages/settings/SettingsPayment";
+import SettingsShipping from "./pages/settings/SettingsShipping";
+import SettingsCommunication from "./pages/settings/SettingsCommunication";
+import SettingsFooter from "./pages/settings/SettingsFooter";
+import SettingsAdvanced from "./pages/settings/SettingsAdvanced";
 import OrdersPage from "./pages/OrdersPage";
 import UsersPage from "./pages/UsersPage";
 import Checkout from "./pages/Checkout";
@@ -82,7 +92,17 @@ const App = () => (
             <Route path="falhas-pagamento" element={<PaymentLogsPage />} />
             <Route path="carrinho-abandonado" element={<CartAbandonmentLogsPage />} />
             <Route path="links-pagamento" element={<PaymentLinksPage />} />
-            <Route path="configuracoes" element={<SettingsPage />} />
+            <Route path="configuracoes" element={<SettingsIndex />} />
+            <Route path="configuracoes/design" element={<SettingsDesign />} />
+            <Route path="configuracoes/cores" element={<SettingsColors />} />
+            <Route path="configuracoes/fontes" element={<SettingsFonts />} />
+            <Route path="configuracoes/css" element={<SettingsCSS />} />
+            <Route path="configuracoes/pagina-inicial" element={<SettingsHomePage />} />
+            <Route path="configuracoes/pagamento" element={<SettingsPayment />} />
+            <Route path="configuracoes/logistica" element={<SettingsShipping />} />
+            <Route path="configuracoes/comunicacao" element={<SettingsCommunication />} />
+            <Route path="configuracoes/rodape" element={<SettingsFooter />} />
+            <Route path="configuracoes/avancado" element={<SettingsAdvanced />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
