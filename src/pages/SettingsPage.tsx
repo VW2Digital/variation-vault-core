@@ -132,6 +132,35 @@ const SettingsPage = () => {
     setMelhorEnvioTokenExpires(meTokenExpires || '');
   };
 
+  // Load Mercado Pago env-specific credentials
+  const loadMpCredentials = async (env: string) => {
+    const [token, pubKey, clientId, clientSecret] = await Promise.all([
+      fetchSetting(`mercadopago_access_token_${env}`),
+      fetchSetting(`mercadopago_public_key_${env}`),
+      fetchSetting(`mercadopago_client_id_${env}`),
+      fetchSetting(`mercadopago_client_secret_${env}`),
+    ]);
+    setMpAccessToken(token || '');
+    setMpPublicKey(pubKey || '');
+    setMpClientId(clientId || '');
+    setMpClientSecret(clientSecret || '');
+  };
+
+  const handleMpEnvChange = async (newEnv: string) => {
+    // Save current env credentials before switching
+    const oldEnv = mpEnvironment;
+    if (mpAccessToken || mpPublicKey || mpClientId || mpClientSecret) {
+      await Promise.all([
+        upsertSetting(`mercadopago_access_token_${oldEnv}`, mpAccessToken),
+        upsertSetting(`mercadopago_public_key_${oldEnv}`, mpPublicKey),
+        upsertSetting(`mercadopago_client_id_${oldEnv}`, mpClientId),
+        upsertSetting(`mercadopago_client_secret_${oldEnv}`, mpClientSecret),
+      ]);
+    }
+    setMpEnvironment(newEnv);
+    await loadMpCredentials(newEnv);
+  };
+
   useEffect(() => {
     Promise.all([
       fetchSetting('whatsapp_number'),
