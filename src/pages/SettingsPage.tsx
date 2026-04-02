@@ -38,6 +38,11 @@ const SettingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [fetchingProfile, setFetchingProfile] = useState(false);
 
+  // Payment Gateway selection
+  const [paymentGateway, setPaymentGateway] = useState('asaas');
+  const [mpAccessToken, setMpAccessToken] = useState('');
+  const [showMpToken, setShowMpToken] = useState(false);
+
   // Evolution API
   const [evolutionApiUrl, setEvolutionApiUrl] = useState('');
   const [evolutionApiKey, setEvolutionApiKey] = useState('');
