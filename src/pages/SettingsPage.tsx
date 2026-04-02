@@ -332,10 +332,33 @@ const SettingsPage = () => {
         </CardContent>
       </Card>
 
-      <Card className="border-border/50">
+      {/* Gateway Selector */}
+      <Card className="border-border/50 border-2 border-primary/30">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <CreditCard className="w-5 h-5" /> Asaas - Checkout Transparente
+            <CreditCard className="w-5 h-5" /> Gateway de Pagamento Ativo
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Selecione o gateway que será usado no checkout</Label>
+            <Select value={paymentGateway} onValueChange={setPaymentGateway}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="asaas">Asaas</SelectItem>
+                <SelectItem value="mercadopago">Mercado Pago</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              O gateway selecionado será usado para todos os pagamentos (PIX e Cartão) no checkout.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
