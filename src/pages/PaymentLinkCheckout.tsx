@@ -193,6 +193,8 @@ export default function PaymentLinkCheckout() {
         payment_method: paymentMethod,
         installments,
         status: 'PENDING',
+        payment_gateway: 'asaas',
+        gateway_environment: await fetchSetting('asaas_environment') || 'sandbox',
         customer_address: address.trim(),
         customer_number: addressNumber.trim(),
         customer_complement: complement.trim() || null,
