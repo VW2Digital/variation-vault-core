@@ -535,7 +535,7 @@ const SettingsPage = () => {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Ambiente</Label>
-              <Select value={mpEnvironment} onValueChange={setMpEnvironment}>
+              <Select value={mpEnvironment} onValueChange={handleMpEnvChange}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
