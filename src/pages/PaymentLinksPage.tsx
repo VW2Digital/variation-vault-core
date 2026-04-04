@@ -85,7 +85,9 @@ export default function PaymentLinksPage() {
     setTitle(link.title);
     setFantasyName(link.fantasy_name || '');
     setDescription(link.description || '');
-    setAmount(String(link.amount));
+    const qty = (link as any).quantity || 1;
+    setQuantity(String(qty));
+    setUnitPrice(String(qty > 0 ? link.amount / qty : link.amount));
     setActive(link.active);
     setPixDiscount(String(link.pix_discount_percent || 0));
     setMaxInstallments(String(link.max_installments || 1));
