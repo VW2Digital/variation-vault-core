@@ -39,6 +39,8 @@ export default function PaymentLinksPage() {
   const { toast } = useToast();
   const [links, setLinks] = useState<PaymentLink[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeGateway, setActiveGateway] = useState<string>('');
+  const [gatewayEnv, setGatewayEnv] = useState<string>('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<PaymentLink | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PaymentLink | null>(null);
