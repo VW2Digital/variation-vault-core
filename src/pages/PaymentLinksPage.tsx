@@ -47,10 +47,13 @@ export default function PaymentLinksPage() {
   const [title, setTitle] = useState('');
   const [fantasyName, setFantasyName] = useState('');
   const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
+  const [quantity, setQuantity] = useState('1');
+  const [unitPrice, setUnitPrice] = useState('');
   const [active, setActive] = useState(true);
   const [pixDiscount, setPixDiscount] = useState('0');
   const [maxInstallments, setMaxInstallments] = useState('1');
+
+  const totalAmount = (Number(quantity) || 0) * (Number(unitPrice) || 0);
 
   const fetchLinks = async () => {
     setLoading(true);
