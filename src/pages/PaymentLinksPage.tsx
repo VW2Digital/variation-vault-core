@@ -67,7 +67,23 @@ export default function PaymentLinksPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchLinks(); }, []);
+  useEffect(() => { fetchLinks(); fetchGateway(); }, []);
+
+  const fetchGateway = async () => {
+    const { data } = await supabase
+      .from('site_settings')
+      .select('key, value')
+      .in('key', ['payment_gateway', 'asaas_environment', 'mercadopago_environment']);
+    if (data) {
+      const gw = data.find(d => d.key === 'payment_gateway')?.value || 'asaas';
+      setActiveGateway(gw);
+      if (gw === 'mercadopago') {
+        setGatewayEnv(data.find(d => d.key === 'mercadopago_environment')?.value || 'sandbox');
+      } else {
+        setGatewayEnv(data.find(d => d.key === 'asaas_environment')?.value || 'sandbox');
+      }
+    }
+  };
 
   const openCreate = () => {
     setEditing(null);
