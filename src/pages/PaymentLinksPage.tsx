@@ -107,7 +107,7 @@ export default function PaymentLinksPage() {
       title: title.trim(),
       fantasy_name: fantasyName.trim() || null,
       description: description.trim(),
-      amount: Number(amount),
+      amount: Number(totalAmount.toFixed(2)),
       active,
       pix_discount_percent: Number(pixDiscount) || 0,
       max_installments: Number(maxInstallments) || 1,
