@@ -256,6 +256,8 @@ export default function PaymentLinksPage() {
                   {quantity}x de R$ {Number(unitPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
               )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Desconto PIX (%)</Label>
                 <Input type="number" min="0" max="100" step="1" value={pixDiscount} onChange={(e) => setPixDiscount(e.target.value)} placeholder="0" />
