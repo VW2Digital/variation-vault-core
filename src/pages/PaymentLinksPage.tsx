@@ -167,7 +167,16 @@ export default function PaymentLinksPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Links de Pagamento</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-foreground">Links de Pagamento</h1>
+          {activeGateway && (
+            <Badge variant="outline" className="text-xs gap-1">
+              {activeGateway === 'mercadopago' ? 'Mercado Pago' : 'Asaas'}
+              <span className={`inline-block w-2 h-2 rounded-full ${gatewayEnv === 'production' ? 'bg-green-500' : 'bg-yellow-500'}`} />
+              <span className="text-muted-foreground">{gatewayEnv === 'production' ? 'Produção' : 'Sandbox'}</span>
+            </Badge>
+          )}
+        </div>
         <Button onClick={openCreate} className="gap-2">
           <Plus className="w-4 h-4" /> Novo Link
         </Button>
