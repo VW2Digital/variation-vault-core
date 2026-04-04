@@ -47,10 +47,13 @@ export default function PaymentLinksPage() {
   const [title, setTitle] = useState('');
   const [fantasyName, setFantasyName] = useState('');
   const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
+  const [quantity, setQuantity] = useState('1');
+  const [unitPrice, setUnitPrice] = useState('');
   const [active, setActive] = useState(true);
   const [pixDiscount, setPixDiscount] = useState('0');
   const [maxInstallments, setMaxInstallments] = useState('1');
+
+  const totalAmount = (Number(quantity) || 0) * (Number(unitPrice) || 0);
 
   const fetchLinks = async () => {
     setLoading(true);
@@ -69,7 +72,8 @@ export default function PaymentLinksPage() {
     setTitle('');
     setFantasyName('');
     setDescription('');
-    setAmount('');
+    setQuantity('1');
+    setUnitPrice('');
     setActive(true);
     setPixDiscount('0');
     setMaxInstallments('1');
@@ -81,7 +85,9 @@ export default function PaymentLinksPage() {
     setTitle(link.title);
     setFantasyName(link.fantasy_name || '');
     setDescription(link.description || '');
-    setAmount(String(link.amount));
+    const qty = (link as any).quantity || 1;
+    setQuantity(String(qty));
+    setUnitPrice(String(qty > 0 ? link.amount / qty : link.amount));
     setActive(link.active);
     setPixDiscount(String(link.pix_discount_percent || 0));
     setMaxInstallments(String(link.max_installments || 1));
@@ -89,8 +95,8 @@ export default function PaymentLinksPage() {
   };
 
   const handleSave = async () => {
-    if (!title.trim() || !amount || Number(amount) <= 0) {
-      toast({ title: 'Preencha o título e um valor válido.', variant: 'destructive' });
+    if (!title.trim() || !unitPrice || Number(unitPrice) <= 0 || !quantity || Number(quantity) < 1) {
+      toast({ title: 'Preencha o título, quantidade e valor unitário válidos.', variant: 'destructive' });
       return;
     }
     setSaving(true);
@@ -101,7 +107,7 @@ export default function PaymentLinksPage() {
       title: title.trim(),
       fantasy_name: fantasyName.trim() || null,
       description: description.trim(),
-      amount: Number(amount),
+      amount: Number(totalAmount.toFixed(2)),
       active,
       pix_discount_percent: Number(pixDiscount) || 0,
       max_installments: Number(maxInstallments) || 1,
@@ -230,9 +236,26 @@ export default function PaymentLinksPage() {
               <Label>Descrição (opcional)</Label>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detalhes do pagamento..." rows={3} />
             </div>
-            <div className="space-y-2">
-              <Label>Valor (R$) *</Label>
-              <Input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Quantidade *</Label>
+                <Input type="number" min="1" step="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="1" />
+              </div>
+              <div className="space-y-2">
+                <Label>Valor Unitário (R$) *</Label>
+                <Input type="number" min="0.01" step="0.01" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} placeholder="0,00" />
+              </div>
+            </div>
+            <div className="rounded-md bg-muted p-3 text-center">
+              <p className="text-sm text-muted-foreground">Valor Total</p>
+              <p className="text-2xl font-bold text-primary">
+                R$ {totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+              {Number(quantity) > 1 && Number(unitPrice) > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {quantity}x de R$ {Number(unitPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
