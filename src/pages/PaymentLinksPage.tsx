@@ -236,11 +236,26 @@ export default function PaymentLinksPage() {
               <Label>Descrição (opcional)</Label>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detalhes do pagamento..." rows={3} />
             </div>
-            <div className="space-y-2">
-              <Label>Valor (R$) *</Label>
-              <Input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" />
-            </div>
             <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Quantidade *</Label>
+                <Input type="number" min="1" step="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="1" />
+              </div>
+              <div className="space-y-2">
+                <Label>Valor Unitário (R$) *</Label>
+                <Input type="number" min="0.01" step="0.01" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} placeholder="0,00" />
+              </div>
+            </div>
+            <div className="rounded-md bg-muted p-3 text-center">
+              <p className="text-sm text-muted-foreground">Valor Total</p>
+              <p className="text-2xl font-bold text-primary">
+                R$ {totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+              {Number(quantity) > 1 && Number(unitPrice) > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {quantity}x de R$ {Number(unitPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              )}
               <div className="space-y-2">
                 <Label>Desconto PIX (%)</Label>
                 <Input type="number" min="0" max="100" step="1" value={pixDiscount} onChange={(e) => setPixDiscount(e.target.value)} placeholder="0" />
