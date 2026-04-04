@@ -72,7 +72,8 @@ export default function PaymentLinksPage() {
     setTitle('');
     setFantasyName('');
     setDescription('');
-    setAmount('');
+    setQuantity('1');
+    setUnitPrice('');
     setActive(true);
     setPixDiscount('0');
     setMaxInstallments('1');
