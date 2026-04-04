@@ -95,8 +95,8 @@ export default function PaymentLinksPage() {
   };
 
   const handleSave = async () => {
-    if (!title.trim() || !amount || Number(amount) <= 0) {
-      toast({ title: 'Preencha o título e um valor válido.', variant: 'destructive' });
+    if (!title.trim() || !unitPrice || Number(unitPrice) <= 0 || !quantity || Number(quantity) < 1) {
+      toast({ title: 'Preencha o título, quantidade e valor unitário válidos.', variant: 'destructive' });
       return;
     }
     setSaving(true);
