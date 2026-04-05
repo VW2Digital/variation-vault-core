@@ -1,16 +1,81 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Plug, Copy, Check, ExternalLink } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Plug, Copy, Check, ExternalLink, Key, RefreshCw, Save, Eye, EyeOff } from 'lucide-react';
 import SettingsBackButton from './SettingsBackButton';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const API_ENDPOINT = `${SUPABASE_URL}/functions/v1/orders-api`;
 
+const generateApiKey = () => {
+  return 'sk_' + crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+};
+
 const SettingsAPI = () => {
   const { toast } = useToast();
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState('');
+  const [savedApiKey, setSavedApiKey] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showKey, setShowKey] = useState(false);
+
+  useEffect(() => {
+    loadApiKey();
+  }, []);
+
+  const loadApiKey = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', 'orders_api_key')
+      .maybeSingle();
+    if (data?.value) {
+      setApiKey(data.value);
+      setSavedApiKey(data.value);
+    }
+    setLoading(false);
+  };
+
+  const saveApiKey = async () => {
+    if (!apiKey.trim()) {
+      toast({ title: 'Erro', description: 'A API Key não pode ser vazia', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    const { data: session } = await supabase.auth.getSession();
+    const userId = session?.session?.user?.id;
+    if (!userId) {
+      toast({ title: 'Erro', description: 'Usuário não autenticado', variant: 'destructive' });
+      setSaving(false);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('site_settings')
+      .upsert(
+        { key: 'orders_api_key', value: apiKey, user_id: userId },
+        { onConflict: 'key' }
+      );
+
+    if (error) {
+      toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
+    } else {
+      setSavedApiKey(apiKey);
+      toast({ title: 'API Key salva com sucesso!' });
+    }
+    setSaving(false);
+  };
+
+  const handleGenerate = () => {
+    const newKey = generateApiKey();
+    setApiKey(newKey);
+    setShowKey(true);
+  };
 
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
@@ -30,8 +95,10 @@ const SettingsAPI = () => {
     </Button>
   );
 
+  const maskedKey = savedApiKey ? savedApiKey.slice(0, 6) + '••••••••••••••••' + savedApiKey.slice(-4) : '';
+
   const exampleCurl = `curl -X GET "${API_ENDPOINT}?status=paid&per_page=10" \\
-  -H "x-api-key: SUA_API_KEY"`;
+  -H "x-api-key: ${savedApiKey || 'SUA_API_KEY'}"`;
 
   const exampleFilters = `# Filtros disponíveis (query params):
 ?id=UUID                    # Pedido específico
@@ -58,15 +125,88 @@ const SettingsAPI = () => {
     <div className="space-y-6 w-full">
       <SettingsBackButton title="Integração API" description="Conecte seu CRM ou agente de IA para consultar pedidos" />
 
+      {/* API Key Management */}
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Plug className="w-5 h-5" /> Endpoint da API
+            <Key className="w-5 h-5" /> Chave de Acesso (API Key)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Gere uma chave de acesso e copie para configurar no seu CRM ou agente de IA. Esta chave é necessária para autenticar as requisições.
+          </p>
+
+          {loading ? (
+            <div className="text-sm text-muted-foreground">Carregando...</div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showKey ? 'text' : 'password'}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="Clique em 'Gerar nova chave' ou insira manualmente"
+                    className="pr-10 font-mono text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowKey(!showKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {apiKey && <CopyButton text={apiKey} field="apikey" />}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleGenerate}>
+                  <RefreshCw className="w-4 h-4 mr-2" /> Gerar nova chave
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={saveApiKey}
+                  disabled={saving || !apiKey || apiKey === savedApiKey}
+                >
+                  <Save className="w-4 h-4 mr-2" /> {saving ? 'Salvando...' : 'Salvar'}
+                </Button>
+              </div>
+
+              {savedApiKey && (
+                <div className="rounded-lg bg-accent/30 p-3 space-y-1">
+                  <p className="text-xs font-medium text-foreground">✅ Chave ativa:</p>
+                  <div className="flex items-center gap-2">
+                    <code className="text-xs font-mono text-muted-foreground">{maskedKey}</code>
+                    <CopyButton text={savedApiKey} field="savedkey" />
+                  </div>
+                </div>
+              )}
+
+              {!savedApiKey && (
+                <div className="rounded-lg bg-destructive/10 p-3">
+                  <p className="text-xs text-destructive font-medium">
+                    ⚠️ Nenhuma chave configurada. Gere uma chave e salve para ativar a API.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Endpoint */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Plug className="w-5 h-5" /> Dados para configurar no CRM
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">URL base para consultar pedidos. Use este endpoint no seu CRM ou agente de IA.</p>
+            <p className="text-sm font-medium text-foreground">URL da API</p>
+            <p className="text-xs text-muted-foreground">Cole esta URL no campo de endpoint do seu CRM ou agente de IA.</p>
             <div className="flex items-center gap-2">
               <code className="flex-1 bg-muted px-3 py-2 rounded-md text-sm font-mono break-all text-foreground">
                 {API_ENDPOINT}
@@ -77,12 +217,12 @@ const SettingsAPI = () => {
 
           <div className="space-y-2">
             <p className="text-sm font-medium text-foreground">Header de autenticação</p>
-            <p className="text-xs text-muted-foreground">Envie sua API Key no header de cada requisição:</p>
+            <p className="text-xs text-muted-foreground">Configure este header em cada requisição do CRM:</p>
             <div className="flex items-center gap-2">
               <code className="flex-1 bg-muted px-3 py-2 rounded-md text-sm font-mono text-foreground">
-                x-api-key: SUA_API_KEY
+                x-api-key: {savedApiKey ? maskedKey : 'SUA_API_KEY'}
               </code>
-              <CopyButton text="x-api-key: SUA_API_KEY" field="header" />
+              {savedApiKey && <CopyButton text={`x-api-key: ${savedApiKey}`} field="header" />}
             </div>
           </div>
 

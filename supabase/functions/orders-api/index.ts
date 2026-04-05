@@ -18,11 +18,9 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Auth via x-api-key header
   const apiKey = req.headers.get("x-api-key");
-  const expectedKey = Deno.env.get("ORDERS_API_KEY");
 
-  if (!expectedKey || apiKey !== expectedKey) {
+  if (!apiKey) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -33,6 +31,20 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
+
+  // Validate API key from site_settings
+  const { data: keyRow } = await supabase
+    .from("site_settings")
+    .select("value")
+    .eq("key", "orders_api_key")
+    .maybeSingle();
+
+  if (!keyRow?.value || apiKey !== keyRow.value) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   const url = new URL(req.url);
   const params = url.searchParams;
