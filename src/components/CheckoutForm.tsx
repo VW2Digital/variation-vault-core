@@ -1415,6 +1415,34 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
           </div>
         )}
 
+        {/* Coupon */}
+        <div className="border-t border-border/50 pt-3 space-y-2">
+          <Label className="text-xs flex items-center gap-1"><Ticket className="w-3 h-3" /> Cupom de desconto</Label>
+          {appliedCouponCode ? (
+            <div className="flex items-center gap-2 bg-success/10 rounded-lg px-3 py-2">
+              <span className="text-sm font-medium text-success flex-1">
+                🎟️ {appliedCouponCode} ({couponLabel})
+              </span>
+              <Button type="button" variant="ghost" size="sm" onClick={handleRemoveCoupon} className="h-6 px-2 text-xs text-destructive hover:text-destructive">
+                Remover
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                placeholder="Digite o código"
+                className="flex-1"
+                onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
+              />
+              <Button type="button" variant="outline" size="sm" onClick={handleApplyCoupon} disabled={validatingCoupon || !couponCode.trim()}>
+                {validatingCoupon ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Aplicar'}
+              </Button>
+            </div>
+          )}
+        </div>
+
         <div className="border-t border-border/50 pt-3">
           <div className="space-y-1 mb-3">
             <div className="flex justify-between text-xs text-muted-foreground">
