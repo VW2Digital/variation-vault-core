@@ -224,13 +224,14 @@ export default function PaymentLinkCheckout() {
 
     setSubmitting(true);
     try {
-      // Determine final value based on payment method
+      // Determine final value based on payment method (with coupon)
+      const baseAmount = link.amount - couponDiscount;
       const pixDiscountPct = link.pix_discount_percent || 0;
-      const pixDiscountValue = pixDiscountPct > 0 ? link.amount * (pixDiscountPct / 100) : 0;
-      const pixTotalValue = link.amount - pixDiscountValue;
+      const pixDiscountValue = pixDiscountPct > 0 ? baseAmount * (pixDiscountPct / 100) : 0;
+      const pixTotalValue = baseAmount - pixDiscountValue;
 
       const selectedOpt = installmentOptions.find(o => o.parcelas === installments);
-      const finalValue = paymentMethod === 'pix' ? pixTotalValue : (selectedOpt ? selectedOpt.valorFinal : link.amount);
+      const finalValue = paymentMethod === 'pix' ? pixTotalValue : (selectedOpt ? selectedOpt.valorFinal : baseAmount);
       const installmentValue = paymentMethod === 'credit_card' && selectedOpt ? selectedOpt.valorParcela : finalValue;
 
       // Detect active gateway
