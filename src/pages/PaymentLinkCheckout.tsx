@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ShieldCheck, CreditCard, QrCode, CheckCircle2 } from 'lucide-react';
+import { Loader2, ShieldCheck, CreditCard, QrCode, CheckCircle2, Ticket } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
