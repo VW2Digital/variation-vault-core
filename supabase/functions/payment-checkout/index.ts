@@ -447,8 +447,38 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { action, ...payload } = await req.json();
+    const body = await req.json();
+    const { action, ...payload } = body;
+
+    console.log(`[payment-checkout] Action: ${action} | Gateway resolving...`);
+    console.log(`[payment-checkout] Payload keys: ${Object.keys(payload).join(', ')}`);
+
+    // Log detailed payload for card payments (mask sensitive data)
+    if (action === 'create_card_payment') {
+      console.log('[payment-checkout] Card payment details:', JSON.stringify({
+        orderId: payload.orderId,
+        value: payload.value,
+        installmentCount: payload.installmentCount,
+        paymentMethodId: payload.paymentMethodId || 'NOT_SET',
+        issuerId: payload.issuerId || 'NOT_SET',
+        hasToken: !!(payload.creditCard?.token),
+        tokenPreview: payload.creditCard?.token ? payload.creditCard.token.substring(0, 8) + '...' : null,
+        payerEmail: payload.creditCardHolderInfo?.email || 'NOT_SET',
+        description: payload.description,
+      }));
+    }
+
+    if (action === 'create_pix_payment') {
+      console.log('[payment-checkout] PIX payment details:', JSON.stringify({
+        orderId: payload.orderId,
+        value: payload.value,
+        payerEmail: payload.creditCardHolderInfo?.email || 'NOT_SET',
+        description: payload.description,
+      }));
+    }
+
     const { gateway, gatewayName } = await createGateway(supabaseUrl, supabaseKey);
+    console.log(`[payment-checkout] Gateway resolved: ${gatewayName}`);
 
     let result;
 
