@@ -62,20 +62,38 @@ export function MercadoPagoCardForm({
               try {
                 const data = cardForm.getCardFormData();
 
-                const { data: result, error } = await supabase.functions.invoke('payment-checkout', {
-                  body: {
-                    action: 'create_card_payment',
-                    orderId,
-                    value: amount,
-                    creditCard: { token: data.token },
-                    creditCardHolderInfo: {
-                      email: data.cardholderEmail,
-                      cpfCnpj: data.identificationNumber,
-                    },
-                    installmentCount: Number(data.installments),
-                    paymentMethodId: data.paymentMethodId,
-                    issuerId: data.issuerId,
+                console.log('[MP CardForm] Raw cardFormData:', JSON.stringify({
+                  token: data.token ? `${data.token.substring(0, 8)}...` : null,
+                  paymentMethodId: data.paymentMethodId,
+                  issuerId: data.issuerId,
+                  installments: data.installments,
+                  cardholderEmail: data.cardholderEmail,
+                  identificationType: data.identificationType,
+                  identificationNumber: data.identificationNumber ? '***' : null,
+                }));
+
+                const requestBody = {
+                  action: 'create_card_payment',
+                  orderId,
+                  value: amount,
+                  creditCard: { token: data.token },
+                  creditCardHolderInfo: {
+                    email: data.cardholderEmail,
+                    cpfCnpj: data.identificationNumber,
                   },
+                  installmentCount: Number(data.installments),
+                  paymentMethodId: data.paymentMethodId,
+                  issuerId: data.issuerId,
+                };
+
+                console.log('[MP CardForm] Sending to edge function:', JSON.stringify({
+                  ...requestBody,
+                  creditCard: { token: '***' },
+                  creditCardHolderInfo: { ...requestBody.creditCardHolderInfo, cpfCnpj: '***' },
+                }));
+
+                const { data: result, error } = await supabase.functions.invoke('payment-checkout', {
+                  body: requestBody,
                 });
 
                 if (error) throw new Error(error.message);
