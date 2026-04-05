@@ -170,7 +170,9 @@ export function MercadoPagoCardForm({
 
                 onSuccess(result);
               } catch (err) {
-                onError(err instanceof Error ? err.message : 'Erro inesperado');
+                const rawMsg = err instanceof Error ? err.message : 'Erro inesperado';
+                console.error('[MP CardForm] Payment error (raw):', rawMsg);
+                onError(friendlyPaymentError(rawMsg));
               }
             },
             onError: (errors: unknown) => {
