@@ -12,6 +12,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import logoImg from '@/assets/liberty-pharma-logo.png';
 import { gerarOpcoesParcelamento, InstallmentResult } from '@/lib/installments';
+import { mapPaymentErrorMessage } from '@/lib/paymentErrors';
 import { fetchSetting } from '@/lib/api';
 import { useMercadoPago } from '@/hooks/useMercadoPago';
 
@@ -316,7 +317,8 @@ export default function PaymentLinkCheckout() {
       toast({ title: paymentMethod === 'pix' ? 'PIX gerado com sucesso!' : 'Pagamento processado!' });
     } catch (err: any) {
       const rawMsg = err?.message || 'Não foi possível processar o pagamento';
-      toast({ title: 'Erro no pagamento', description: rawMsg, variant: 'destructive' });
+      const friendlyMsg = mapPaymentErrorMessage(rawMsg);
+      toast({ title: 'Erro no pagamento', description: friendlyMsg, variant: 'destructive' });
 
       // Log payment failure for admin diagnostics
       try {

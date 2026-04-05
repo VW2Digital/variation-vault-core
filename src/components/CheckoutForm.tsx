@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { fetchSetting } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 import { gerarOpcoesParcelamento, type InstallmentResult } from '@/lib/installments';
+import { mapPaymentErrorMessage } from '@/lib/paymentErrors';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -322,22 +323,8 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
     );
   };
 
-  const mapPaymentErrorMessage = (message: string) => {
-    const normalized = message.toLowerCase();
-
-    if (normalized.includes('cpf')) return 'CPF inválido. Revise os dados do titular e tente novamente.';
-    if (normalized.includes('credit card') || normalized.includes('cartão') || normalized.includes('ccv') || normalized.includes('cvv')) {
-      return 'Dados do cartão inválidos. Confira número, validade e CVV.';
-    }
-    if (normalized.includes('insufficient') || normalized.includes('saldo') || normalized.includes('funds')) {
-      return 'Cartão sem limite/saldo suficiente para concluir a compra.';
-    }
-    if (normalized.includes('não possui permissão para utilizar este recurso') || normalized.includes('nao possui permissao para utilizar este recurso') || normalized.includes('forbidden')) {
-      return 'Pagamento com cartão indisponível nesta conta no momento. Tente PIX ou contate o suporte.';
-    }
-
-    return message;
-  };
+  // Error mapping imported from shared utility
+  // (mapPaymentErrorMessage is now in src/lib/paymentErrors.ts)
 
   const invokeGateway = async (action: string, payload: any) => {
     const { data, error } = await supabase.functions.invoke('payment-checkout', {
