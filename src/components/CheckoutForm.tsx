@@ -194,9 +194,63 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
   const [loadingInstallments, setLoadingInstallments] = useState(false);
 
   const shippingCost = qualifiesForFreeShipping ? 0 : (selectedShipping?.price || 0);
-  const totalValue = baseProductTotal + shippingCost;
+  const subtotalBeforeCoupon = baseProductTotal + shippingCost;
+  const totalValue = subtotalBeforeCoupon - couponDiscount;
   const pixDiscountValue = pixDiscountPercent > 0 ? totalValue * (pixDiscountPercent / 100) : 0;
   const pixTotalValue = totalValue - pixDiscountValue;
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setValidatingCoupon(true);
+    try {
+      const { data, error } = await supabase
+        .from('coupons' as any)
+        .select('*')
+        .eq('active', true)
+        .ilike('code', couponCode.trim())
+        .maybeSingle();
+
+      if (error || !data) {
+        toast({ title: 'Cupom inválido ou inexistente.', variant: 'destructive' });
+        setCouponDiscount(0);
+        setAppliedCouponCode('');
+        setCouponLabel('');
+        return;
+      }
+
+      const coupon = data as any;
+      if (coupon.current_uses >= coupon.max_uses) {
+        toast({ title: 'Este cupom já atingiu o limite de usos.', variant: 'destructive' });
+        setCouponDiscount(0);
+        setAppliedCouponCode('');
+        setCouponLabel('');
+        return;
+      }
+
+      let discount = 0;
+      if (coupon.discount_type === 'percentage') {
+        discount = subtotalBeforeCoupon * (Number(coupon.discount_value) / 100);
+        setCouponLabel(`${coupon.discount_value}%`);
+      } else {
+        discount = Math.min(Number(coupon.discount_value), subtotalBeforeCoupon);
+        setCouponLabel(`R$ ${Number(coupon.discount_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
+      }
+      setCouponDiscount(Number(discount.toFixed(2)));
+      setAppliedCouponCode(coupon.code);
+      toast({ title: `Cupom "${coupon.code}" aplicado!` });
+    } catch {
+      toast({ title: 'Erro ao validar cupom.', variant: 'destructive' });
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode('');
+    setCouponDiscount(0);
+    setAppliedCouponCode('');
+    setCouponLabel('');
+  };
 
   // Load payment settings from props (per-product)
   useEffect(() => {
