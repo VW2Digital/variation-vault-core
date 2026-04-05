@@ -13,6 +13,7 @@ import Footer from '@/components/Footer';
 import logoImg from '@/assets/liberty-pharma-logo.png';
 import { gerarOpcoesParcelamento, InstallmentResult } from '@/lib/installments';
 import { fetchSetting } from '@/lib/api';
+import { useMercadoPago } from '@/hooks/useMercadoPago';
 
 interface PaymentLink {
   id: string;
@@ -29,6 +30,7 @@ export default function PaymentLinkCheckout() {
   const { slug } = useParams<{ slug: string }>();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { isReady: mercadoPagoReady, tokenizeCard } = useMercadoPago();
   const [link, setLink] = useState<PaymentLink | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -213,7 +215,7 @@ export default function PaymentLinkCheckout() {
       if (orderError) throw orderError;
       const orderId = orderData.id;
 
-      // 2. Create or find Asaas customer
+      // 2. Create or find customer in the active gateway
       const { data: customerData, error: customerError } = await supabase.functions.invoke('payment-checkout', {
         body: {
           action: 'create_customer',
@@ -225,16 +227,16 @@ export default function PaymentLinkCheckout() {
       });
 
       if (customerError) throw customerError;
-      const asaasCustomerId = customerData.id;
+      const checkoutCustomerId = customerData.id;
 
-      await supabase.from('orders').update({ asaas_customer_id: asaasCustomerId }).eq('id', orderId);
+      await supabase.from('orders').update({ asaas_customer_id: checkoutCustomerId }).eq('id', orderId);
 
       // 3. Create payment
       if (paymentMethod === 'pix') {
         const { data: pixResult, error: pixError } = await supabase.functions.invoke('payment-checkout', {
           body: {
             action: 'create_pix_payment',
-            customer: asaasCustomerId,
+            customer: checkoutCustomerId,
             value: pixTotalValue,
             description: link.fantasy_name || link.title,
             orderId,
@@ -250,22 +252,49 @@ export default function PaymentLinkCheckout() {
         }
       } else {
         const [expMonth, expYear] = cardExpiry.split('/');
+        const normalizedExpYear = expYear?.length === 2 ? `20${expYear}` : expYear;
+        let creditCardPayload: Record<string, string>;
+        let paymentMethodId: string | undefined;
+        let issuerId: string | undefined;
+
+        if (activeGw === 'mercadopago') {
+          if (!mercadoPagoReady) {
+            throw new Error('O formulário de cartão do Mercado Pago ainda está carregando. Tente novamente em alguns segundos.');
+          }
+
+          const tokenResult = await tokenizeCard({
+            cardNumber: cardNumber.replace(/\s/g, ''),
+            cardholderName: cardName.trim(),
+            expirationMonth: expMonth,
+            expirationYear: normalizedExpYear || '',
+            securityCode: cardCvv,
+            identificationType: 'CPF',
+            identificationNumber: cpf.replace(/\D/g, ''),
+          });
+
+          creditCardPayload = { token: tokenResult.token };
+          paymentMethodId = tokenResult.paymentMethodId;
+          issuerId = tokenResult.issuerId;
+        } else {
+          creditCardPayload = {
+            holderName: cardName.trim(),
+            number: cardNumber.replace(/\s/g, ''),
+            expiryMonth: expMonth,
+            expiryYear: normalizedExpYear || '',
+            ccv: cardCvv,
+          };
+        }
+
         const { data: cardResult, error: cardError } = await supabase.functions.invoke('payment-checkout', {
           body: {
             action: 'create_card_payment',
-            customer: asaasCustomerId,
+            customer: checkoutCustomerId,
             value: finalValue,
             description: link.fantasy_name || link.title,
             orderId,
             installmentCount: installments,
             installmentValue: installmentValue,
-            creditCard: {
-              holderName: cardName.trim(),
-              number: cardNumber.replace(/\s/g, ''),
-              expiryMonth: expMonth,
-              expiryYear: expYear?.length === 2 ? `20${expYear}` : expYear,
-              ccv: cardCvv,
-            },
+            creditCard: creditCardPayload,
             creditCardHolderInfo: {
               name: name.trim(),
               email: email.trim(),
@@ -275,6 +304,8 @@ export default function PaymentLinkCheckout() {
               address: address.trim(),
               addressNumber: addressNumber.trim(),
             },
+            ...(paymentMethodId ? { paymentMethodId } : {}),
+            ...(issuerId ? { issuerId } : {}),
           },
         });
 
