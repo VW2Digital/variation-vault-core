@@ -11,6 +11,67 @@ async function getSetting(supabase: any, key: string) {
   return data?.value || '';
 }
 
+// Shared state for token refresh within a single request
+let _currentToken = '';
+let _currentBaseUrl = '';
+let _currentEnv = '';
+let _supabaseRef: any = null;
+let _tokenRefreshed = false;
+
+async function attemptTokenRefresh(): Promise<string | null> {
+  if (_tokenRefreshed || !_supabaseRef || !_currentEnv) return null;
+  _tokenRefreshed = true; // Only try once per request
+
+  console.log('[ME] 🔄 Attempting automatic token refresh after 401...');
+  const refreshToken = await getSetting(_supabaseRef, `melhor_envio_refresh_token_${_currentEnv}`);
+  const clientId = await getSetting(_supabaseRef, `melhor_envio_client_id_${_currentEnv}`);
+  const clientSecret = await getSetting(_supabaseRef, `melhor_envio_client_secret_${_currentEnv}`);
+
+  if (!refreshToken || !clientId || !clientSecret) {
+    console.error('[ME] Missing refresh credentials. Manual reconnection required.');
+    return null;
+  }
+
+  try {
+    const tokenRes = await fetch(`${_currentBaseUrl}/oauth/token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'LibertyPharma (libertyluminaepharma@gmail.com)',
+      },
+      body: JSON.stringify({
+        grant_type: 'refresh_token',
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+      }),
+    });
+
+    const tokenText = await tokenRes.text();
+    if (!tokenRes.ok) {
+      console.error(`[ME] Token refresh failed [${tokenRes.status}]: ${tokenText}`);
+      return null;
+    }
+
+    const tokenData = JSON.parse(tokenText);
+    const newExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
+
+    await Promise.all([
+      _supabaseRef.from('site_settings').update({ value: tokenData.access_token }).eq('key', `melhor_envio_token_${_currentEnv}`),
+      _supabaseRef.from('site_settings').update({ value: tokenData.refresh_token }).eq('key', `melhor_envio_refresh_token_${_currentEnv}`),
+      _supabaseRef.from('site_settings').update({ value: newExpiresAt }).eq('key', `melhor_envio_token_expires_at_${_currentEnv}`),
+    ]);
+
+    _currentToken = tokenData.access_token;
+    console.log(`[ME] ✅ Token auto-refreshed successfully. New expiry: ${newExpiresAt}`);
+    return tokenData.access_token;
+  } catch (err: any) {
+    console.error('[ME] Token refresh error:', err.message);
+    return null;
+  }
+}
+
 async function getMelhorEnvioConfig(supabase: any) {
   const env = await getSetting(supabase, 'melhor_envio_environment') || 'sandbox';
   const token = await getSetting(supabase, `melhor_envio_token_${env}`);
@@ -22,93 +83,37 @@ async function getMelhorEnvioConfig(supabase: any) {
     ? 'https://www.melhorenvio.com.br'
     : 'https://sandbox.melhorenvio.com.br';
 
+  // Store refs for auto-refresh
+  _currentToken = token;
+  _currentBaseUrl = baseUrl;
+  _currentEnv = env;
+  _supabaseRef = supabase;
+  _tokenRefreshed = false;
+
   // Auto-refresh if token expires within 5 minutes
   if (expiresAt) {
     const expiryDate = new Date(expiresAt);
     const fiveMinFromNow = new Date(Date.now() + 5 * 60 * 1000);
     if (expiryDate <= fiveMinFromNow) {
-      console.log('[ME] Token expiring soon, attempting refresh...');
-      try {
-        const refreshToken = await getSetting(supabase, `melhor_envio_refresh_token_${env}`);
-        const clientId = await getSetting(supabase, `melhor_envio_client_id_${env}`);
-        const clientSecret = await getSetting(supabase, `melhor_envio_client_secret_${env}`);
-        
-        if (refreshToken && clientId && clientSecret) {
-          const tokenRes = await fetch(`${baseUrl}/oauth/token`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'User-Agent': 'LibertyPharma (libertyluminaepharma@gmail.com)',
-            },
-            body: JSON.stringify({
-              grant_type: 'refresh_token',
-              client_id: clientId,
-              client_secret: clientSecret,
-              refresh_token: refreshToken,
-            }),
-          });
-
-          if (tokenRes.ok) {
-            const tokenData = JSON.parse(await tokenRes.text());
-            const newExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
-
-            await Promise.all([
-              supabase.from('site_settings').update({ value: tokenData.access_token }).eq('key', `melhor_envio_token_${env}`),
-              supabase.from('site_settings').update({ value: tokenData.refresh_token }).eq('key', `melhor_envio_refresh_token_${env}`),
-              supabase.from('site_settings').update({ value: newExpiresAt }).eq('key', `melhor_envio_token_expires_at_${env}`),
-            ]);
-
-            console.log(`[ME] Token auto-refreshed. New expiry: ${newExpiresAt}`);
-            return { token: tokenData.access_token, baseUrl };
-          } else {
-            console.error('[ME] Auto-refresh failed:', await tokenRes.text());
-          }
-        }
-      } catch (err: any) {
-        console.error('[ME] Auto-refresh error:', err.message);
+      console.log('[ME] Token expiring soon, attempting proactive refresh...');
+      const newToken = await attemptTokenRefresh();
+      if (newToken) {
+        return { token: newToken, baseUrl };
       }
     }
   }
 
   // Log token diagnostics
   const tokenPreview = token ? token.substring(0, 10) + '...' : 'EMPTY';
-  const tokenLength = token ? token.length : 0;
   console.log(`[ME] Environment: ${env}`);
-  console.log(`[ME] Token preview: ${tokenPreview} (length: ${tokenLength})`);
+  console.log(`[ME] Token preview: ${tokenPreview} (length: ${token.length})`);
   console.log(`[ME] Token expires at: ${expiresAt || 'not set'}`);
   console.log(`[ME] Base URL: ${baseUrl}`);
-
-  // Check token scopes by calling /api/v2/me
-  try {
-    const meRes = await fetch(`${baseUrl}/api/v2/me`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json',
-        'User-Agent': 'LibertyPharma (libertyluminaepharma@gmail.com)',
-      },
-    });
-    const meText = await meRes.text();
-    if (meRes.ok) {
-      try {
-        const meData = JSON.parse(meText);
-        console.log(`[ME] Authenticated as: ${meData.firstname} ${meData.lastname} (${meData.email})`);
-        console.log(`[ME] Account ID: ${meData.id}`);
-      } catch {
-        console.log(`[ME] /me response (raw): ${meText.substring(0, 200)}`);
-      }
-    } else {
-      console.error(`[ME] /me check failed [${meRes.status}]: ${meText.substring(0, 300)}`);
-    }
-  } catch (err: any) {
-    console.error(`[ME] /me check error: ${err.message}`);
-  }
 
   return { token, baseUrl };
 }
 
-async function melhorEnvioFetch(baseUrl: string, token: string, path: string, method: string, body?: any) {
-  console.log(`[ME] ${method} ${path}`);
+async function rawFetch(baseUrl: string, token: string, path: string, method: string, body?: any) {
   const res = await fetch(`${baseUrl}${path}`, {
     method,
     headers: {
@@ -120,11 +125,30 @@ async function melhorEnvioFetch(baseUrl: string, token: string, path: string, me
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const text = await res.text();
+  return { status: res.status, ok: res.ok, text };
+}
+
+async function melhorEnvioFetch(baseUrl: string, token: string, path: string, method: string, body?: any) {
+  console.log(`[ME] ${method} ${path}`);
+  let result = await rawFetch(baseUrl, token, path, method, body);
+
+  // If 401, attempt token refresh and retry once
+  if (result.status === 401) {
+    console.log(`[ME] ⚠️ Got 401 on ${path}, attempting auto-refresh...`);
+    const newToken = await attemptTokenRefresh();
+    if (newToken) {
+      console.log(`[ME] 🔁 Retrying ${method} ${path} with refreshed token...`);
+      result = await rawFetch(baseUrl, newToken, path, method, body);
+      // Update the token ref used by subsequent calls in the same request
+      token = newToken;
+    }
+  }
+
   let data;
-  try { data = JSON.parse(text); } catch { data = { raw: text }; }
-  if (!res.ok) {
-    console.error('[ME] API error:', text);
-    throw new Error(`Melhor Envio error [${res.status}]: ${text}`);
+  try { data = JSON.parse(result.text); } catch { data = { raw: result.text }; }
+  if (!result.ok) {
+    console.error('[ME] API error:', result.text);
+    throw new Error(`Melhor Envio error [${result.status}]: ${result.text}`);
   }
   return data;
 }
