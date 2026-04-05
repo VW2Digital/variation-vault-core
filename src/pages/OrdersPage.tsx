@@ -477,9 +477,14 @@ const OrdersPage = () => {
     }
   };
 
+  const uniqueCoupons = Array.from(new Set(orders.map(o => o.coupon_code).filter(Boolean))) as string[];
+
   const filteredOrders = orders.filter(order => {
     if (filterPayment !== 'ALL' && order.status !== filterPayment) return false;
     if (filterDelivery !== 'ALL' && (order.delivery_status || 'PROCESSING') !== filterDelivery) return false;
+    if (filterCoupon === 'WITH_COUPON' && !order.coupon_code) return false;
+    if (filterCoupon === 'WITHOUT_COUPON' && order.coupon_code) return false;
+    if (filterCoupon !== 'ALL' && filterCoupon !== 'WITH_COUPON' && filterCoupon !== 'WITHOUT_COUPON' && order.coupon_code !== filterCoupon) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const nameMatch = (order.customer_name || '').toLowerCase().includes(q);
