@@ -39,6 +39,7 @@ const menuCategories = [
       { title: 'Falhas Pgto', url: '/admin/falhas-pagamento', icon: AlertTriangle },
       { title: 'Carrinho Abandonado', url: '/admin/carrinho-abandonado', icon: Mail },
       { title: 'Links de Pagamento', url: '/admin/links-pagamento', icon: LinkIcon },
+      { title: 'Cupons', url: '/admin/cupons', icon: Ticket },
     ],
   },
   {
