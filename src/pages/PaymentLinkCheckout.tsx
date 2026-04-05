@@ -326,7 +326,7 @@ export default function PaymentLinkCheckout() {
           payment_method: paymentMethod,
           error_message: rawMsg,
           error_source: 'payment_link',
-          request_payload: { slug, title: link?.title, amount: link?.amount, installments: selectedInstallments },
+          request_payload: { slug, title: link?.title, amount: link?.amount, installments },
         });
       } catch { /* non-blocking */ }
     } finally {
