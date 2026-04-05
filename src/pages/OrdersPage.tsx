@@ -938,6 +938,12 @@ const OrdersPage = () => {
                 <InfoRow label="Gateway" value={viewOrder.payment_gateway === 'mercadopago' ? 'Mercado Pago' : 'Asaas'} />
                 <InfoRow label="Ambiente" value={viewOrder.gateway_environment === 'production' ? '🟢 Produção' : '🟡 Sandbox (Teste)'} />
                 {viewOrder.asaas_payment_id && <InfoRow label="ID Asaas" value={viewOrder.asaas_payment_id} />}
+                {viewOrder.coupon_code && (
+                  <>
+                    <InfoRow label="Cupom" value={viewOrder.coupon_code} />
+                    <InfoRow label="Desconto cupom" value={`R$ ${Number(viewOrder.coupon_discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
+                  </>
+                )}
               </div>
               <Separator />
               <div>
