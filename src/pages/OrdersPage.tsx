@@ -90,6 +90,7 @@ const OrdersPage = () => {
   const [batchRefreshing, setBatchRefreshing] = useState(false);
   const [filterPayment, setFilterPayment] = useState('ALL');
   const [filterDelivery, setFilterDelivery] = useState('ALL');
+  const [filterCoupon, setFilterCoupon] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 15;
