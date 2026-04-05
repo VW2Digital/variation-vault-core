@@ -193,13 +193,8 @@ export default function PaymentLinkCheckout() {
         payment_method: paymentMethod,
         installments,
         status: 'PENDING',
-        payment_gateway: await fetchSetting('payment_gateway') || 'asaas',
-        gateway_environment: await (async () => {
-          const gw = await fetchSetting('payment_gateway') || 'asaas';
-          return gw === 'mercadopago'
-            ? (await fetchSetting('mercadopago_environment') || 'sandbox')
-            : (await fetchSetting('asaas_environment') || 'sandbox');
-        })(),
+        payment_gateway: activeGw,
+        gateway_environment: activeGwEnv,
         customer_address: address.trim(),
         customer_number: addressNumber.trim(),
         customer_complement: complement.trim() || null,
