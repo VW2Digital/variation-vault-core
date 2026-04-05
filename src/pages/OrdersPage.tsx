@@ -784,6 +784,15 @@ const OrdersPage = () => {
                           </div>
                         </TableCell>
                         <TableCell>
+                          {order.coupon_code ? (
+                            <Badge variant="outline" className="text-[10px] gap-0.5">
+                              <Ticket className="w-2.5 h-2.5" /> {order.coupon_code}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8">
