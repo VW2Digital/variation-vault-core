@@ -67,6 +67,13 @@ export default function PaymentLinkCheckout() {
   const [installmentOptions, setInstallmentOptions] = useState<InstallmentResult[]>([]);
   const [loadingInstallments, setLoadingInstallments] = useState(false);
 
+  // Coupon
+  const [couponCode, setCouponCode] = useState('');
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponLabel, setCouponLabel] = useState('');
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [appliedCouponCode, setAppliedCouponCode] = useState('');
+
   useEffect(() => {
     if (!slug) return;
     supabase
