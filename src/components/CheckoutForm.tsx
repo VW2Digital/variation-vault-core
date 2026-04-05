@@ -154,6 +154,13 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
   const [showPixFallback, setShowPixFallback] = useState(false);
   const [cardFailMessage, setCardFailMessage] = useState('');
 
+  // Coupon
+  const [couponCode, setCouponCode] = useState('');
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponLabel, setCouponLabel] = useState('');
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [appliedCouponCode, setAppliedCouponCode] = useState('');
+
   // Customer fields
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
