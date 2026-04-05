@@ -7,11 +7,31 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
+  const startTime = Date.now();
+  const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+  const userAgent = req.headers.get("user-agent") || "unknown";
+
+  const log = (status: number, message: string, extra?: Record<string, unknown>) => {
+    console.log(JSON.stringify({
+      timestamp: new Date().toISOString(),
+      ip: clientIp,
+      user_agent: userAgent,
+      method: req.method,
+      path: new URL(req.url).pathname,
+      status,
+      message,
+      duration_ms: Date.now() - startTime,
+      ...extra,
+    }));
+  };
+
   if (req.method === "OPTIONS") {
+    log(204, "CORS preflight");
     return new Response(null, { headers: corsHeaders });
   }
 
   if (req.method !== "GET") {
+    log(405, "Method not allowed");
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -21,6 +41,7 @@ Deno.serve(async (req) => {
   const apiKey = req.headers.get("x-api-key");
 
   if (!apiKey) {
+    log(401, "Missing API key");
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -40,6 +61,7 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   if (!keyRow?.value || apiKey !== keyRow.value) {
+    log(401, "Invalid API key");
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -114,11 +136,15 @@ Deno.serve(async (req) => {
   const { data, error, count } = await query;
 
   if (error) {
+    log(500, "Query error", { error: error.message });
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
+  const filters = Object.fromEntries([...params.entries()].filter(([k]) => !["page", "per_page", "sort_by", "sort_order"].includes(k)));
+  log(200, "Success", { results: data?.length ?? 0, filters, page, per_page });
 
   return new Response(
     JSON.stringify({
