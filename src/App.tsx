@@ -40,6 +40,7 @@ import PopupList from "./pages/PopupList";
 import PaymentLogsPage from "./pages/PaymentLogsPage";
 import CartAbandonmentLogsPage from "./pages/CartAbandonmentLogsPage";
 import PaymentLinksPage from "./pages/PaymentLinksPage";
+import CouponsPage from "./pages/CouponsPage";
 import PaymentLinkCheckout from "./pages/PaymentLinkCheckout";
 import PromoPopup from "./components/PromoPopup";
 import NotFound from "./pages/NotFound";
@@ -93,6 +94,7 @@ const App = () => (
             <Route path="falhas-pagamento" element={<PaymentLogsPage />} />
             <Route path="carrinho-abandonado" element={<CartAbandonmentLogsPage />} />
             <Route path="links-pagamento" element={<PaymentLinksPage />} />
+            <Route path="cupons" element={<CouponsPage />} />
             <Route path="configuracoes" element={<SettingsIndex />} />
             <Route path="configuracoes/design" element={<SettingsDesign />} />
             <Route path="configuracoes/cores" element={<SettingsColors />} />

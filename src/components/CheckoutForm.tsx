@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle, MapPin, Truck, ShoppingBag, User, Check } from 'lucide-react';
+import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle, MapPin, Truck, ShoppingBag, User, Check, Ticket } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCart } from '@/contexts/CartContext';
 import { useMercadoPago } from '@/hooks/useMercadoPago';
@@ -154,6 +154,13 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
   const [showPixFallback, setShowPixFallback] = useState(false);
   const [cardFailMessage, setCardFailMessage] = useState('');
 
+  // Coupon
+  const [couponCode, setCouponCode] = useState('');
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponLabel, setCouponLabel] = useState('');
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [appliedCouponCode, setAppliedCouponCode] = useState('');
+
   // Customer fields
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -187,9 +194,63 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
   const [loadingInstallments, setLoadingInstallments] = useState(false);
 
   const shippingCost = qualifiesForFreeShipping ? 0 : (selectedShipping?.price || 0);
-  const totalValue = baseProductTotal + shippingCost;
+  const subtotalBeforeCoupon = baseProductTotal + shippingCost;
+  const totalValue = subtotalBeforeCoupon - couponDiscount;
   const pixDiscountValue = pixDiscountPercent > 0 ? totalValue * (pixDiscountPercent / 100) : 0;
   const pixTotalValue = totalValue - pixDiscountValue;
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setValidatingCoupon(true);
+    try {
+      const { data, error } = await supabase
+        .from('coupons' as any)
+        .select('*')
+        .eq('active', true)
+        .ilike('code', couponCode.trim())
+        .maybeSingle();
+
+      if (error || !data) {
+        toast({ title: 'Cupom inválido ou inexistente.', variant: 'destructive' });
+        setCouponDiscount(0);
+        setAppliedCouponCode('');
+        setCouponLabel('');
+        return;
+      }
+
+      const coupon = data as any;
+      if (coupon.current_uses >= coupon.max_uses) {
+        toast({ title: 'Este cupom já atingiu o limite de usos.', variant: 'destructive' });
+        setCouponDiscount(0);
+        setAppliedCouponCode('');
+        setCouponLabel('');
+        return;
+      }
+
+      let discount = 0;
+      if (coupon.discount_type === 'percentage') {
+        discount = subtotalBeforeCoupon * (Number(coupon.discount_value) / 100);
+        setCouponLabel(`${coupon.discount_value}%`);
+      } else {
+        discount = Math.min(Number(coupon.discount_value), subtotalBeforeCoupon);
+        setCouponLabel(`R$ ${Number(coupon.discount_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
+      }
+      setCouponDiscount(Number(discount.toFixed(2)));
+      setAppliedCouponCode(coupon.code);
+      toast({ title: `Cupom "${coupon.code}" aplicado!` });
+    } catch {
+      toast({ title: 'Erro ao validar cupom.', variant: 'destructive' });
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode('');
+    setCouponDiscount(0);
+    setAppliedCouponCode('');
+    setCouponLabel('');
+  };
 
   // Load payment settings from props (per-product)
   useEffect(() => {
@@ -404,6 +465,8 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
       status: 'PENDING',
       payment_gateway: activeGateway || 'asaas',
       gateway_environment: gatewayEnv || 'sandbox',
+      coupon_code: appliedCouponCode || null,
+      coupon_discount: couponDiscount || 0,
     };
     if (session?.user?.id) {
       orderData.customer_user_id = session.user.id;
@@ -719,6 +782,22 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
           ...(mpIssuerId ? { issuerId: mpIssuerId } : {}),
         });
         setPaymentResult({ ...result, finalValue: valorFinalCartao, finalInstallments: installments, finalInstallmentValue: valorParcelaCartao });
+      }
+
+      // Increment coupon usage
+      if (appliedCouponCode) {
+        try {
+          const { data: couponRow } = await supabase
+            .from('coupons' as any)
+            .select('id, current_uses')
+            .ilike('code', appliedCouponCode)
+            .maybeSingle();
+          if (couponRow) {
+            await supabase.from('coupons' as any)
+              .update({ current_uses: (couponRow as any).current_uses + 1 })
+              .eq('id', (couponRow as any).id);
+          }
+        } catch { /* non-blocking */ }
       }
 
       setStep('success');
@@ -1336,6 +1415,34 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
           </div>
         )}
 
+        {/* Coupon */}
+        <div className="border-t border-border/50 pt-3 space-y-2">
+          <Label className="text-xs flex items-center gap-1"><Ticket className="w-3 h-3" /> Cupom de desconto</Label>
+          {appliedCouponCode ? (
+            <div className="flex items-center gap-2 bg-success/10 rounded-lg px-3 py-2">
+              <span className="text-sm font-medium text-success flex-1">
+                🎟️ {appliedCouponCode} ({couponLabel})
+              </span>
+              <Button type="button" variant="ghost" size="sm" onClick={handleRemoveCoupon} className="h-6 px-2 text-xs text-destructive hover:text-destructive">
+                Remover
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                placeholder="Digite o código"
+                className="flex-1"
+                onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
+              />
+              <Button type="button" variant="outline" size="sm" onClick={handleApplyCoupon} disabled={validatingCoupon || !couponCode.trim()}>
+                {validatingCoupon ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Aplicar'}
+              </Button>
+            </div>
+          )}
+        </div>
+
         <div className="border-t border-border/50 pt-3">
           <div className="space-y-1 mb-3">
             <div className="flex justify-between text-xs text-muted-foreground">
@@ -1353,6 +1460,12 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
                 ) : (
                   <span>R$ {shippingCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 )}
+              </div>
+            )}
+            {couponDiscount > 0 && (
+              <div className="flex justify-between text-xs text-success">
+                <span>Cupom {appliedCouponCode} ({couponLabel})</span>
+                <span>- R$ {couponDiscount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               </div>
             )}
             {paymentMethod === 'pix' && pixDiscountPercent > 0 && (

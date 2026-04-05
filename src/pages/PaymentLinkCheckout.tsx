@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ShieldCheck, CreditCard, QrCode, CheckCircle2 } from 'lucide-react';
+import { Loader2, ShieldCheck, CreditCard, QrCode, CheckCircle2, Ticket } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -66,6 +66,13 @@ export default function PaymentLinkCheckout() {
   const [installments, setInstallments] = useState(1);
   const [installmentOptions, setInstallmentOptions] = useState<InstallmentResult[]>([]);
   const [loadingInstallments, setLoadingInstallments] = useState(false);
+
+  // Coupon
+  const [couponCode, setCouponCode] = useState('');
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponLabel, setCouponLabel] = useState('');
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [appliedCouponCode, setAppliedCouponCode] = useState('');
 
   useEffect(() => {
     if (!slug) return;
@@ -153,6 +160,49 @@ export default function PaymentLinkCheckout() {
     setLoadingCep(false);
   };
 
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim() || !link) return;
+    setValidatingCoupon(true);
+    try {
+      const { data, error } = await supabase
+        .from('coupons' as any)
+        .select('*')
+        .eq('active', true)
+        .ilike('code', couponCode.trim())
+        .maybeSingle();
+      if (error || !data) {
+        toast({ title: 'Cupom inválido ou inexistente.', variant: 'destructive' });
+        setCouponDiscount(0); setAppliedCouponCode(''); setCouponLabel('');
+        return;
+      }
+      const coupon = data as any;
+      if (coupon.current_uses >= coupon.max_uses) {
+        toast({ title: 'Este cupom já atingiu o limite de usos.', variant: 'destructive' });
+        setCouponDiscount(0); setAppliedCouponCode(''); setCouponLabel('');
+        return;
+      }
+      let discount = 0;
+      if (coupon.discount_type === 'percentage') {
+        discount = link.amount * (Number(coupon.discount_value) / 100);
+        setCouponLabel(`${coupon.discount_value}%`);
+      } else {
+        discount = Math.min(Number(coupon.discount_value), link.amount);
+        setCouponLabel(`R$ ${Number(coupon.discount_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
+      }
+      setCouponDiscount(Number(discount.toFixed(2)));
+      setAppliedCouponCode(coupon.code);
+      toast({ title: `Cupom "${coupon.code}" aplicado!` });
+    } catch {
+      toast({ title: 'Erro ao validar cupom.', variant: 'destructive' });
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode(''); setCouponDiscount(0); setAppliedCouponCode(''); setCouponLabel('');
+  };
+
   const handleSubmit = async () => {
     if (!link || !name.trim() || !email.trim() || !cpf.trim() || !phone.trim()) {
       toast({ title: 'Preencha todos os campos obrigatórios.', variant: 'destructive' });
@@ -174,13 +224,14 @@ export default function PaymentLinkCheckout() {
 
     setSubmitting(true);
     try {
-      // Determine final value based on payment method
+      // Determine final value based on payment method (with coupon)
+      const baseAmount = link.amount - couponDiscount;
       const pixDiscountPct = link.pix_discount_percent || 0;
-      const pixDiscountValue = pixDiscountPct > 0 ? link.amount * (pixDiscountPct / 100) : 0;
-      const pixTotalValue = link.amount - pixDiscountValue;
+      const pixDiscountValue = pixDiscountPct > 0 ? baseAmount * (pixDiscountPct / 100) : 0;
+      const pixTotalValue = baseAmount - pixDiscountValue;
 
       const selectedOpt = installmentOptions.find(o => o.parcelas === installments);
-      const finalValue = paymentMethod === 'pix' ? pixTotalValue : (selectedOpt ? selectedOpt.valorFinal : link.amount);
+      const finalValue = paymentMethod === 'pix' ? pixTotalValue : (selectedOpt ? selectedOpt.valorFinal : baseAmount);
       const installmentValue = paymentMethod === 'credit_card' && selectedOpt ? selectedOpt.valorParcela : finalValue;
 
       // Detect active gateway
@@ -211,6 +262,8 @@ export default function PaymentLinkCheckout() {
         customer_city: city.trim(),
         customer_state: state.trim(),
         customer_postal_code: postalCode.replace(/\D/g, ''),
+        coupon_code: appliedCouponCode || null,
+        coupon_discount: couponDiscount || 0,
       }).select('id').single();
 
       if (orderError) throw orderError;
@@ -312,6 +365,22 @@ export default function PaymentLinkCheckout() {
 
         if (cardError) throw cardError;
         setSuccess(true);
+      }
+
+      // Increment coupon usage
+      if (appliedCouponCode) {
+        try {
+          const { data: couponRow } = await supabase
+            .from('coupons' as any)
+            .select('id, current_uses')
+            .ilike('code', appliedCouponCode)
+            .maybeSingle();
+          if (couponRow) {
+            await supabase.from('coupons' as any)
+              .update({ current_uses: (couponRow as any).current_uses + 1 })
+              .eq('id', (couponRow as any).id);
+          }
+        } catch { /* non-blocking */ }
       }
 
       toast({ title: paymentMethod === 'pix' ? 'PIX gerado com sucesso!' : 'Pagamento processado!' });
@@ -504,6 +573,46 @@ export default function PaymentLinkCheckout() {
                     <Input value={state} onChange={(e) => setState(e.target.value)} placeholder="SP" maxLength={2} disabled={loadingCep} />
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Coupon */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Ticket className="w-5 h-5" /> Cupom de Desconto
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {appliedCouponCode ? (
+                  <div className="flex items-center gap-2 bg-success/10 rounded-lg px-3 py-2">
+                    <span className="text-sm font-medium text-success flex-1">
+                      🎟️ {appliedCouponCode} ({couponLabel})
+                    </span>
+                    <Button type="button" variant="ghost" size="sm" onClick={handleRemoveCoupon} className="h-6 px-2 text-xs text-destructive hover:text-destructive">
+                      Remover
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      placeholder="Digite o código do cupom"
+                      className="flex-1"
+                      onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                    />
+                    <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={validatingCoupon || !couponCode.trim()}>
+                      {validatingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Aplicar'}
+                    </Button>
+                  </div>
+                )}
+                {couponDiscount > 0 && (
+                  <p className="text-xs text-success mt-2">
+                    Desconto: - R$ {couponDiscount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    {' '}• Novo total: R$ {(link!.amount - couponDiscount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                )}
               </CardContent>
             </Card>
 
