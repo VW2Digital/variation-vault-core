@@ -288,11 +288,16 @@ class MercadoPagoGateway implements PaymentGateway {
 
   async createCardPayment(dto: CheckoutDTO): Promise<PaymentResponse> {
     const parsedCount = Number(dto.installmentCount) || 1;
+
+    if (!dto.creditCard || !(dto.creditCard as any).token) {
+      throw new Error('Mercado Pago requer tokenização do cartão via SDK JavaScript no frontend.');
+    }
+
     const paymentBody: any = {
       transaction_amount: toCurrencyNumber(dto.value),
       description: sanitizeDescription(dto.description),
-      payment_method_id: 'master', // will be auto-detected from token
       installments: parsedCount,
+      token: (dto.creditCard as any).token,
       payer: {
         email: dto.creditCardHolderInfo?.email || 'customer@email.com',
         identification: {
@@ -303,14 +308,12 @@ class MercadoPagoGateway implements PaymentGateway {
       external_reference: dto.orderId || undefined,
     };
 
-    // MercadoPago uses card token from frontend SDK, not raw card data
-    // For transparent checkout, the token must come from the frontend
-    if (dto.creditCard && (dto.creditCard as any).token) {
-      paymentBody.token = (dto.creditCard as any).token;
-    } else {
-      // Fallback: raw card data (requires PCI compliance — not recommended)
-      // In practice, MercadoPago requires tokenization via JS SDK on client
-      throw new Error('Mercado Pago requer tokenização do cartão via SDK JavaScript no frontend. Configure o SDK do MercadoPago no checkout.');
+    // Use payment_method_id and issuer_id from frontend SDK cardForm
+    if ((dto as any).paymentMethodId) {
+      paymentBody.payment_method_id = (dto as any).paymentMethodId;
+    }
+    if ((dto as any).issuerId) {
+      paymentBody.issuer_id = Number((dto as any).issuerId);
     }
 
     const result = await this.fetch('/v1/payments', 'POST', paymentBody);
@@ -480,13 +483,15 @@ serve(async (req) => {
       }
 
       case 'create_card_payment': {
-        const { customer, value, description, creditCard, creditCardHolderInfo, installmentCount, orderId } = payload;
+        const { customer, value, description, creditCard, creditCardHolderInfo, installmentCount, orderId, paymentMethodId, issuerId } = payload;
         const remoteIp = getRemoteIp(req);
 
-        result = await gateway.createCardPayment({
+        const cardDto: any = {
           customer, value, description, creditCard, creditCardHolderInfo,
           installmentCount, orderId, remoteIp,
-        });
+          paymentMethodId, issuerId,
+        };
+        result = await gateway.createCardPayment(cardDto);
 
         if (orderId && result.id) {
           // For Asaas, the total_value is updated inside the gateway; for MP we update here
