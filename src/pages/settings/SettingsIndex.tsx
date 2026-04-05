@@ -54,6 +54,7 @@ const categories = [
     icon: Settings,
     items: [
       { title: 'Scripts & Widgets', description: 'Widget de chat, scripts customizados e configurações técnicas', icon: Code, path: 'avancado' },
+      { title: 'Integração API', description: 'Endpoint e credenciais para CRM e agentes de IA', icon: Plug, path: 'api' },
     ],
   },
 ];

@@ -107,6 +107,7 @@ const App = () => (
             <Route path="configuracoes/comunicacao" element={<SettingsCommunication />} />
             <Route path="configuracoes/rodape" element={<SettingsFooter />} />
             <Route path="configuracoes/avancado" element={<SettingsAdvanced />} />
+            <Route path="configuracoes/api" element={<SettingsAPI />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
