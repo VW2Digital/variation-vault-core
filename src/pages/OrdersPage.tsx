@@ -676,6 +676,11 @@ const OrdersPage = () => {
                       <Badge variant={status.variant} className={`text-[10px] ${status.badgeClass || ''}`}>{status.label}</Badge>
                       <Badge variant="outline" className={`text-[10px] ${delivery?.badgeClass || ''}`}>{delivery?.label || 'Processando'}</Badge>
                       {order.tracking_code && <Badge variant="secondary" className="text-[10px] font-mono">{order.tracking_code}</Badge>}
+                      {order.coupon_code && (
+                        <Badge variant="outline" className="text-[10px] gap-0.5">
+                          <Ticket className="w-2.5 h-2.5" /> {order.coupon_code}
+                        </Badge>
+                      )}
                       {order.shipping_status === 'insufficient_balance' && (
                         <Badge variant="destructive" className="text-[10px] animate-pulse">💰 Sem saldo ME</Badge>
                       )}
