@@ -576,6 +576,46 @@ export default function PaymentLinkCheckout() {
               </CardContent>
             </Card>
 
+            {/* Coupon */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Ticket className="w-5 h-5" /> Cupom de Desconto
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {appliedCouponCode ? (
+                  <div className="flex items-center gap-2 bg-success/10 rounded-lg px-3 py-2">
+                    <span className="text-sm font-medium text-success flex-1">
+                      🎟️ {appliedCouponCode} ({couponLabel})
+                    </span>
+                    <Button type="button" variant="ghost" size="sm" onClick={handleRemoveCoupon} className="h-6 px-2 text-xs text-destructive hover:text-destructive">
+                      Remover
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      placeholder="Digite o código do cupom"
+                      className="flex-1"
+                      onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                    />
+                    <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={validatingCoupon || !couponCode.trim()}>
+                      {validatingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Aplicar'}
+                    </Button>
+                  </div>
+                )}
+                {couponDiscount > 0 && (
+                  <p className="text-xs text-success mt-2">
+                    Desconto: - R$ {couponDiscount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    {' '}• Novo total: R$ {(link!.amount - couponDiscount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Payment Method */}
             <Card>
               <CardHeader>
