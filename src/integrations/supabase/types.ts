@@ -332,8 +332,10 @@ export type Database = {
           id: string
           max_installments: number | null
           pix_discount_percent: number | null
+          quantity: number
           slug: string
           title: string
+          unit_price: number
           updated_at: string
           user_id: string
         }
@@ -346,8 +348,10 @@ export type Database = {
           id?: string
           max_installments?: number | null
           pix_discount_percent?: number | null
+          quantity?: number
           slug: string
           title: string
+          unit_price?: number
           updated_at?: string
           user_id: string
         }
@@ -360,8 +364,10 @@ export type Database = {
           id?: string
           max_installments?: number | null
           pix_discount_percent?: number | null
+          quantity?: number
           slug?: string
           title?: string
+          unit_price?: number
           updated_at?: string
           user_id?: string
         }
