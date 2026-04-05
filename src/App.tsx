@@ -40,6 +40,7 @@ import PopupList from "./pages/PopupList";
 import PaymentLogsPage from "./pages/PaymentLogsPage";
 import CartAbandonmentLogsPage from "./pages/CartAbandonmentLogsPage";
 import PaymentLinksPage from "./pages/PaymentLinksPage";
+import CouponsPage from "./pages/CouponsPage";
 import PaymentLinkCheckout from "./pages/PaymentLinkCheckout";
 import PromoPopup from "./components/PromoPopup";
 import NotFound from "./pages/NotFound";
