@@ -483,13 +483,15 @@ serve(async (req) => {
       }
 
       case 'create_card_payment': {
-        const { customer, value, description, creditCard, creditCardHolderInfo, installmentCount, orderId } = payload;
+        const { customer, value, description, creditCard, creditCardHolderInfo, installmentCount, orderId, paymentMethodId, issuerId } = payload;
         const remoteIp = getRemoteIp(req);
 
-        result = await gateway.createCardPayment({
+        const cardDto: any = {
           customer, value, description, creditCard, creditCardHolderInfo,
           installmentCount, orderId, remoteIp,
-        });
+          paymentMethodId, issuerId,
+        };
+        result = await gateway.createCardPayment(cardDto);
 
         if (orderId && result.id) {
           // For Asaas, the total_value is updated inside the gateway; for MP we update here
