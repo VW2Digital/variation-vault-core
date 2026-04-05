@@ -38,10 +38,16 @@ export interface MpCardData {
   identificationNumber: string;
 }
 
+export interface MpTokenizeResult {
+  token: string;
+  paymentMethodId: string;
+  issuerId: string;
+}
+
 export interface UseMercadoPagoReturn {
   isReady: boolean;
   publicKey: string;
-  tokenizeCard: (data: MpCardData) => Promise<string>;
+  tokenizeCard: (data: MpCardData) => Promise<MpTokenizeResult>;
   activeGateway: string;
   gatewayEnvironment: string;
 }
