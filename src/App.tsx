@@ -26,6 +26,7 @@ import SettingsShipping from "./pages/settings/SettingsShipping";
 import SettingsCommunication from "./pages/settings/SettingsCommunication";
 import SettingsFooter from "./pages/settings/SettingsFooter";
 import SettingsAdvanced from "./pages/settings/SettingsAdvanced";
+import SettingsAPI from "./pages/settings/SettingsAPI";
 import OrdersPage from "./pages/OrdersPage";
 import UsersPage from "./pages/UsersPage";
 import Checkout from "./pages/Checkout";
