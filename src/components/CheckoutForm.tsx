@@ -748,7 +748,7 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
           customer_name: name.trim(),
           payment_method: paymentMethod,
           error_message: rawMessage,
-          error_source: 'frontend',
+          error_source: 'checkout',
           request_payload: { productName, dosage, quantity, totalValue, installments },
         });
       } catch { /* non-blocking */ }

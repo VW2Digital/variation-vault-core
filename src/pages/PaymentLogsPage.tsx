@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AlertTriangle, Search, Trash2, RefreshCw } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { AlertTriangle, Search, Trash2, RefreshCw, ShoppingCart, Link2, Server } from 'lucide-react';
 
 interface PaymentLog {
   id: string;
@@ -19,10 +20,20 @@ interface PaymentLog {
   created_at: string;
 }
 
+type SourceTab = 'all' | 'checkout' | 'payment_link' | 'backend';
+
+const SOURCE_LABELS: Record<SourceTab, { label: string; icon: React.ReactNode }> = {
+  all: { label: 'Todos', icon: <AlertTriangle className="w-4 h-4" /> },
+  checkout: { label: 'Checkout', icon: <ShoppingCart className="w-4 h-4" /> },
+  payment_link: { label: 'Link Pagto', icon: <Link2 className="w-4 h-4" /> },
+  backend: { label: 'Backend', icon: <Server className="w-4 h-4" /> },
+};
+
 const PaymentLogsPage = () => {
   const [logs, setLogs] = useState<PaymentLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<SourceTab>('all');
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -50,7 +61,15 @@ const PaymentLogsPage = () => {
     setLogs([]);
   };
 
+  const mapSource = (src: string): SourceTab => {
+    if (src === 'checkout' || src === 'frontend') return 'checkout';
+    if (src === 'payment_link') return 'payment_link';
+    if (src === 'backend') return 'backend';
+    return 'checkout';
+  };
+
   const filtered = logs.filter(l => {
+    if (activeTab !== 'all' && mapSource(l.error_source) !== activeTab) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return (
@@ -61,10 +80,91 @@ const PaymentLogsPage = () => {
     );
   });
 
+  const countBySource = (src: SourceTab) =>
+    src === 'all' ? logs.length : logs.filter(l => mapSource(l.error_source) === src).length;
+
   const formatDate = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
+
+  const sourceLabel = (src: string) => {
+    const mapped = mapSource(src);
+    return SOURCE_LABELS[mapped]?.label || src;
+  };
+
+  const sourceBadgeVariant = (src: string): 'default' | 'secondary' | 'outline' => {
+    const mapped = mapSource(src);
+    if (mapped === 'checkout') return 'default';
+    if (mapped === 'payment_link') return 'secondary';
+    return 'outline';
+  };
+
+  const renderLogCard = (log: PaymentLog) => (
+    <Card key={log.id} className="border-border/50">
+      <CardContent className="p-4 space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="font-medium text-sm text-foreground truncate">{log.customer_name || '—'}</p>
+            <p className="text-xs text-muted-foreground truncate">{log.customer_email || ''}</p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => handleDelete(log.id)} className="h-7 w-7 shrink-0">
+            <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+          </Button>
+        </div>
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>{formatDate(log.created_at)}</span>
+          <div className="flex gap-1.5">
+            <Badge variant={log.payment_method === 'credit_card' ? 'default' : 'secondary'} className="text-xs">
+              {log.payment_method === 'credit_card' ? 'Cartão' : log.payment_method === 'pix' ? 'PIX' : log.payment_method || '—'}
+            </Badge>
+            <Badge variant={sourceBadgeVariant(log.error_source)} className="text-[10px]">{sourceLabel(log.error_source)}</Badge>
+          </div>
+        </div>
+        <p className="text-sm text-destructive font-medium line-clamp-2">{log.error_message}</p>
+        {log.request_payload && (
+          <details className="mt-1">
+            <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground">Ver payload</summary>
+            <pre className="text-[10px] bg-muted p-2 rounded mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all">
+              {JSON.stringify(log.request_payload, null, 2)}
+            </pre>
+          </details>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  const renderLogRow = (log: PaymentLog) => (
+    <TableRow key={log.id}>
+      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(log.created_at)}</TableCell>
+      <TableCell>
+        <div className="text-sm font-medium">{log.customer_name || '—'}</div>
+        <div className="text-xs text-muted-foreground">{log.customer_email || ''}</div>
+      </TableCell>
+      <TableCell>
+        <Badge variant={log.payment_method === 'credit_card' ? 'default' : 'secondary'} className="text-xs">
+          {log.payment_method === 'credit_card' ? 'Cartão' : log.payment_method === 'pix' ? 'PIX' : log.payment_method || '—'}
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <p className="text-sm text-destructive font-medium line-clamp-2">{log.error_message}</p>
+        {log.request_payload && (
+          <details className="mt-1">
+            <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground">Ver payload</summary>
+            <pre className="text-[10px] bg-muted p-2 rounded mt-1 max-h-24 overflow-auto whitespace-pre-wrap">{JSON.stringify(log.request_payload, null, 2)}</pre>
+          </details>
+        )}
+      </TableCell>
+      <TableCell>
+        <Badge variant={sourceBadgeVariant(log.error_source)} className="text-[10px]">{sourceLabel(log.error_source)}</Badge>
+      </TableCell>
+      <TableCell>
+        <Button variant="ghost" size="icon" onClick={() => handleDelete(log.id)} className="h-7 w-7">
+          <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
 
   return (
     <div className="space-y-6">
@@ -90,14 +190,21 @@ const PaymentLogsPage = () => {
         </div>
       </div>
 
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as SourceTab)}>
+        <TabsList className="w-full sm:w-auto">
+          {(Object.keys(SOURCE_LABELS) as SourceTab[]).map(tab => (
+            <TabsTrigger key={tab} value={tab} className="gap-1.5 text-xs sm:text-sm">
+              {SOURCE_LABELS[tab].icon}
+              <span className="hidden sm:inline">{SOURCE_LABELS[tab].label}</span>
+              <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0">{countBySource(tab)}</Badge>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
       <div className="relative w-full sm:max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por email, nome, erro..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="pl-9"
-        />
+        <Input placeholder="Buscar por email, nome, erro..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
       </div>
 
       {filtered.length === 0 ? (
@@ -108,44 +215,7 @@ const PaymentLogsPage = () => {
         </Card>
       ) : (
         <>
-          {/* Mobile card view */}
-          <div className="space-y-3 md:hidden">
-            {filtered.map(log => (
-              <Card key={log.id} className="border-border/50">
-                <CardContent className="p-4 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm text-foreground truncate">{log.customer_name || '—'}</p>
-                      <p className="text-xs text-muted-foreground truncate">{log.customer_email || ''}</p>
-                    </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(log.id)} className="h-7 w-7 shrink-0">
-                      <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
-                    </Button>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{formatDate(log.created_at)}</span>
-                    <div className="flex gap-1.5">
-                      <Badge variant={log.payment_method === 'credit_card' ? 'default' : 'secondary'} className="text-xs">
-                        {log.payment_method === 'credit_card' ? 'Cartão' : log.payment_method === 'pix' ? 'PIX' : log.payment_method || '—'}
-                      </Badge>
-                      <Badge variant="outline" className="text-[10px]">{log.error_source}</Badge>
-                    </div>
-                  </div>
-                  <p className="text-sm text-destructive font-medium line-clamp-2">{log.error_message}</p>
-                  {log.request_payload && (
-                    <details className="mt-1">
-                      <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground">Ver payload</summary>
-                      <pre className="text-[10px] bg-muted p-2 rounded mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all">
-                        {JSON.stringify(log.request_payload, null, 2)}
-                      </pre>
-                    </details>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Desktop table view */}
+          <div className="space-y-3 md:hidden">{filtered.map(renderLogCard)}</div>
           <Card className="hidden md:block">
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -156,47 +226,11 @@ const PaymentLogsPage = () => {
                       <TableHead>Cliente</TableHead>
                       <TableHead className="w-[100px]">Método</TableHead>
                       <TableHead>Erro</TableHead>
-                      <TableHead className="w-[90px]">Origem</TableHead>
+                      <TableHead className="w-[100px]">Origem</TableHead>
                       <TableHead className="w-[60px]"></TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
-                    {filtered.map(log => (
-                      <TableRow key={log.id}>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                          {formatDate(log.created_at)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm font-medium">{log.customer_name || '—'}</div>
-                          <div className="text-xs text-muted-foreground">{log.customer_email || ''}</div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={log.payment_method === 'credit_card' ? 'default' : 'secondary'} className="text-xs">
-                            {log.payment_method === 'credit_card' ? 'Cartão' : log.payment_method === 'pix' ? 'PIX' : log.payment_method || '—'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-sm text-destructive font-medium line-clamp-2">{log.error_message}</p>
-                          {log.request_payload && (
-                            <details className="mt-1">
-                              <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground">Ver payload</summary>
-                              <pre className="text-[10px] bg-muted p-2 rounded mt-1 max-h-24 overflow-auto whitespace-pre-wrap">
-                                {JSON.stringify(log.request_payload, null, 2)}
-                              </pre>
-                            </details>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-[10px]">{log.error_source}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(log.id)} className="h-7 w-7">
-                            <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
+                  <TableBody>{filtered.map(renderLogRow)}</TableBody>
                 </Table>
               </div>
             </CardContent>
