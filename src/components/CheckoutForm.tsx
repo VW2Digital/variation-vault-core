@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { fetchSetting } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 import { gerarOpcoesParcelamento, type InstallmentResult } from '@/lib/installments';
+import { mapPaymentErrorMessage } from '@/lib/paymentErrors';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
