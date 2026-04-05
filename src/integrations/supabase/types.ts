@@ -205,10 +205,51 @@ export type Database = {
           },
         ]
       }
+      coupons: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          current_uses: number
+          discount_type: string
+          discount_value: number
+          id: string
+          max_uses: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          current_uses?: number
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          max_uses?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          current_uses?: number
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          max_uses?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           asaas_customer_id: string | null
           asaas_payment_id: string | null
+          coupon_code: string | null
+          coupon_discount: number | null
           created_at: string
           customer_address: string | null
           customer_city: string | null
@@ -247,6 +288,8 @@ export type Database = {
         Insert: {
           asaas_customer_id?: string | null
           asaas_payment_id?: string | null
+          coupon_code?: string | null
+          coupon_discount?: number | null
           created_at?: string
           customer_address?: string | null
           customer_city?: string | null
@@ -285,6 +328,8 @@ export type Database = {
         Update: {
           asaas_customer_id?: string | null
           asaas_payment_id?: string | null
+          coupon_code?: string | null
+          coupon_discount?: number | null
           created_at?: string
           customer_address?: string | null
           customer_city?: string | null
