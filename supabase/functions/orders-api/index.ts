@@ -117,15 +117,15 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const params = url.searchParams;
 
-  // Build query
-  let query = supabase.from("orders").select("*");
+  // Build query with exact count for pagination
+  let query = supabase.from("orders").select("*", { count: "exact" });
 
-  // Filters
+  // Filters (case-insensitive for status fields)
   const id = params.get("id");
   if (id) query = query.eq("id", id);
 
   const status = params.get("status");
-  if (status) query = query.eq("status", status);
+  if (status) query = query.ilike("status", status);
 
   const payment_method = params.get("payment_method");
   if (payment_method) query = query.eq("payment_method", payment_method);
