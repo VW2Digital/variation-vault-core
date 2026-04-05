@@ -1462,6 +1462,12 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
                 )}
               </div>
             )}
+            {couponDiscount > 0 && (
+              <div className="flex justify-between text-xs text-success">
+                <span>Cupom {appliedCouponCode} ({couponLabel})</span>
+                <span>- R$ {couponDiscount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              </div>
+            )}
             {paymentMethod === 'pix' && pixDiscountPercent > 0 && (
               <div className="flex justify-between text-xs text-success">
                 <span>Desconto PIX ({pixDiscountPercent}%)</span>
