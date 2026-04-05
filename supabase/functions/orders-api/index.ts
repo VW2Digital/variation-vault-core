@@ -117,21 +117,21 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const params = url.searchParams;
 
-  // Build query
-  let query = supabase.from("orders").select("*");
+  // Build query with exact count for pagination
+  let query = supabase.from("orders").select("*", { count: "exact" });
 
-  // Filters
+  // Filters (case-insensitive for status fields)
   const id = params.get("id");
   if (id) query = query.eq("id", id);
 
   const status = params.get("status");
-  if (status) query = query.eq("status", status);
+  if (status) query = query.ilike("status", status);
 
   const payment_method = params.get("payment_method");
-  if (payment_method) query = query.eq("payment_method", payment_method);
+  if (payment_method) query = query.ilike("payment_method", payment_method);
 
   const payment_gateway = params.get("payment_gateway");
-  if (payment_gateway) query = query.eq("payment_gateway", payment_gateway);
+  if (payment_gateway) query = query.ilike("payment_gateway", payment_gateway);
 
   const customer_email = params.get("customer_email");
   if (customer_email) query = query.ilike("customer_email", `%${customer_email}%`);
@@ -146,10 +146,10 @@ Deno.serve(async (req) => {
   if (product_name) query = query.ilike("product_name", `%${product_name}%`);
 
   const coupon_code = params.get("coupon_code");
-  if (coupon_code) query = query.eq("coupon_code", coupon_code);
+  if (coupon_code) query = query.ilike("coupon_code", coupon_code);
 
   const delivery_status = params.get("delivery_status");
-  if (delivery_status) query = query.eq("delivery_status", delivery_status);
+  if (delivery_status) query = query.ilike("delivery_status", delivery_status);
 
   const shipping_service = params.get("shipping_service");
   if (shipping_service) query = query.eq("shipping_service", shipping_service);
