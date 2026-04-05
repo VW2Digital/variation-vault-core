@@ -94,6 +94,7 @@ const App = () => (
             <Route path="falhas-pagamento" element={<PaymentLogsPage />} />
             <Route path="carrinho-abandonado" element={<CartAbandonmentLogsPage />} />
             <Route path="links-pagamento" element={<PaymentLinksPage />} />
+            <Route path="cupons" element={<CouponsPage />} />
             <Route path="configuracoes" element={<SettingsIndex />} />
             <Route path="configuracoes/design" element={<SettingsDesign />} />
             <Route path="configuracoes/cores" element={<SettingsColors />} />
