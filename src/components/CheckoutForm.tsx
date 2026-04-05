@@ -692,9 +692,12 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
 
         // Build credit card payload — Mercado Pago needs a token, Asaas uses raw data
         let creditCardPayload: any;
+        let mpPaymentMethodId: string | undefined;
+        let mpIssuerId: string | undefined;
+
         if (isMercadoPago) {
-          // Tokenize card via MP SDK
-          const cardToken = await tokenizeCard({
+          // Tokenize card via MP SDK — also returns paymentMethodId & issuerId
+          const tokenResult = await tokenizeCard({
             cardNumber: cardNumber.replace(/\s/g, ''),
             cardholderName: cardName.trim() || name.trim(),
             expirationMonth: cardExpMonth,
@@ -703,7 +706,9 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
             identificationType: 'CPF',
             identificationNumber: holderCpfDigits,
           });
-          creditCardPayload = { token: cardToken };
+          creditCardPayload = { token: tokenResult.token };
+          mpPaymentMethodId = tokenResult.paymentMethodId;
+          mpIssuerId = tokenResult.issuerId;
         } else {
           creditCardPayload = {
             holderName: cardName.trim() || name.trim(),
@@ -723,6 +728,8 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
           creditCard: creditCardPayload,
           creditCardHolderInfo: holderInfo,
           orderId,
+          ...(mpPaymentMethodId ? { paymentMethodId: mpPaymentMethodId } : {}),
+          ...(mpIssuerId ? { issuerId: mpIssuerId } : {}),
         });
         setPaymentResult({ ...result, finalValue: valorFinalCartao, finalInstallments: installments, finalInstallmentValue: valorParcelaCartao });
       }
