@@ -561,6 +561,20 @@ const OrdersPage = () => {
               ))}
             </SelectContent>
           </Select>
+          <Select value={filterCoupon} onValueChange={setFilterCoupon}>
+            <SelectTrigger className="flex-1 sm:w-[180px]">
+              <Ticket className="h-4 w-4 mr-1.5 text-muted-foreground" />
+              <SelectValue placeholder="Cupom" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todos os cupons</SelectItem>
+              <SelectItem value="WITH_COUPON">Com cupom</SelectItem>
+              <SelectItem value="WITHOUT_COUPON">Sem cupom</SelectItem>
+              {uniqueCoupons.map(code => (
+                <SelectItem key={code} value={code}>{code}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
