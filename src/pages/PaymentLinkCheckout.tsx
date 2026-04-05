@@ -180,6 +180,12 @@ export default function PaymentLinkCheckout() {
       const finalValue = paymentMethod === 'pix' ? pixTotalValue : (selectedOpt ? selectedOpt.valorFinal : link.amount);
       const installmentValue = paymentMethod === 'credit_card' && selectedOpt ? selectedOpt.valorParcela : finalValue;
 
+      // Detect active gateway
+      const activeGw = await fetchSetting('payment_gateway') || 'asaas';
+      const activeGwEnv = activeGw === 'mercadopago'
+        ? (await fetchSetting('mercadopago_environment') || 'sandbox')
+        : (await fetchSetting('asaas_environment') || 'sandbox');
+
       // 1. Create order
       const { data: orderData, error: orderError } = await supabase.from('orders').insert({
         customer_name: name.trim(),
