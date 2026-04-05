@@ -262,6 +262,8 @@ export default function PaymentLinkCheckout() {
         customer_city: city.trim(),
         customer_state: state.trim(),
         customer_postal_code: postalCode.replace(/\D/g, ''),
+        coupon_code: appliedCouponCode || null,
+        coupon_discount: couponDiscount || 0,
       }).select('id').single();
 
       if (orderError) throw orderError;
