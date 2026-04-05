@@ -315,8 +315,20 @@ export default function PaymentLinkCheckout() {
 
       toast({ title: paymentMethod === 'pix' ? 'PIX gerado com sucesso!' : 'Pagamento processado!' });
     } catch (err: any) {
-      const msg = err?.message || 'Não foi possível processar o pagamento';
-      toast({ title: 'Erro no pagamento', description: msg, variant: 'destructive' });
+      const rawMsg = err?.message || 'Não foi possível processar o pagamento';
+      toast({ title: 'Erro no pagamento', description: rawMsg, variant: 'destructive' });
+
+      // Log payment failure for admin diagnostics
+      try {
+        await supabase.from('payment_logs' as any).insert({
+          customer_email: email.trim(),
+          customer_name: name.trim(),
+          payment_method: paymentMethod,
+          error_message: rawMsg,
+          error_source: 'payment_link',
+          request_payload: { slug, title: link?.title, amount: link?.amount, installments: selectedInstallments },
+        });
+      } catch { /* non-blocking */ }
     } finally {
       setSubmitting(false);
     }
