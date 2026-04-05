@@ -136,11 +136,15 @@ Deno.serve(async (req) => {
   const { data, error, count } = await query;
 
   if (error) {
+    log(500, "Query error", { error: error.message });
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
+  const filters = Object.fromEntries([...params.entries()].filter(([k]) => !["page", "per_page", "sort_by", "sort_order"].includes(k)));
+  log(200, "Success", { results: data?.length ?? 0, filters, page, per_page });
 
   return new Response(
     JSON.stringify({
