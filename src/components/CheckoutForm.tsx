@@ -784,6 +784,22 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
         setPaymentResult({ ...result, finalValue: valorFinalCartao, finalInstallments: installments, finalInstallmentValue: valorParcelaCartao });
       }
 
+      // Increment coupon usage
+      if (appliedCouponCode) {
+        try {
+          const { data: couponRow } = await supabase
+            .from('coupons' as any)
+            .select('id, current_uses')
+            .ilike('code', appliedCouponCode)
+            .maybeSingle();
+          if (couponRow) {
+            await supabase.from('coupons' as any)
+              .update({ current_uses: (couponRow as any).current_uses + 1 })
+              .eq('id', (couponRow as any).id);
+          }
+        } catch { /* non-blocking */ }
+      }
+
       setStep('success');
       await clearCart();
       onSuccess?.();
