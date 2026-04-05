@@ -103,9 +103,8 @@ export default function PaymentLinksPage() {
     setTitle(link.title);
     setFantasyName(link.fantasy_name || '');
     setDescription(link.description || '');
-    const qty = (link as any).quantity || 1;
-    setQuantity(String(qty));
-    setUnitPrice(String(qty > 0 ? link.amount / qty : link.amount));
+    setQuantity(String((link as any).quantity || 1));
+    setUnitPrice(String((link as any).unit_price || link.amount));
     setActive(link.active);
     setPixDiscount(String(link.pix_discount_percent || 0));
     setMaxInstallments(String(link.max_installments || 1));
@@ -126,6 +125,8 @@ export default function PaymentLinksPage() {
       fantasy_name: fantasyName.trim() || null,
       description: description.trim(),
       amount: Number(totalAmount.toFixed(2)),
+      quantity: Number(quantity),
+      unit_price: Number(Number(unitPrice).toFixed(2)),
       active,
       pix_discount_percent: Number(pixDiscount) || 0,
       max_installments: Number(maxInstallments) || 1,
