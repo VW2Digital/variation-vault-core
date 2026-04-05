@@ -60,6 +60,22 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Rate limit check
+  const rateLimit = checkRateLimit(clientIp);
+  const rateLimitHeaders = {
+    "X-RateLimit-Limit": String(RATE_LIMIT_MAX),
+    "X-RateLimit-Remaining": String(rateLimit.remaining),
+    "Retry-After": String(rateLimit.resetIn),
+  };
+
+  if (rateLimit.limited) {
+    log(429, "Rate limited", { remaining: 0 });
+    return new Response(JSON.stringify({ error: "Too many requests. Try again later." }), {
+      status: 429,
+      headers: { ...corsHeaders, ...rateLimitHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   if (req.method !== "GET") {
     log(405, "Method not allowed");
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
