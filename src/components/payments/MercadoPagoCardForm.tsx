@@ -5,6 +5,75 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
+/**
+ * Maps known Mercado Pago error codes/messages to user-friendly Portuguese messages.
+ */
+function friendlyPaymentError(raw: string): string {
+  const lower = raw.toLowerCase();
+
+  const errorMap: Array<{ match: (s: string) => boolean; message: string }> = [
+    {
+      match: (s) => s.includes('diff_param_bins') || s.includes('bin'),
+      message: 'Os dados do cartão não correspondem à bandeira detectada. Verifique o número do cartão e tente novamente.',
+    },
+    {
+      match: (s) => s.includes('invalid_token') || s.includes('token'),
+      message: 'O token do cartão expirou ou é inválido. Preencha os dados do cartão novamente.',
+    },
+    {
+      match: (s) => s.includes('cc_rejected_insufficient_amount') || s.includes('insufficient'),
+      message: 'Saldo insuficiente no cartão. Tente outro cartão ou método de pagamento.',
+    },
+    {
+      match: (s) => s.includes('cc_rejected_bad_filled') || s.includes('bad_filled'),
+      message: 'Os dados do cartão estão incorretos. Verifique número, validade e CVV.',
+    },
+    {
+      match: (s) => s.includes('cc_rejected_call_for_authorize'),
+      message: 'O banco requer autorização prévia. Entre em contato com o banco emissor do cartão.',
+    },
+    {
+      match: (s) => s.includes('cc_rejected_card_disabled'),
+      message: 'O cartão está desabilitado. Entre em contato com o banco ou tente outro cartão.',
+    },
+    {
+      match: (s) => s.includes('cc_rejected_duplicated_payment'),
+      message: 'Pagamento duplicado detectado. Aguarde alguns minutos antes de tentar novamente.',
+    },
+    {
+      match: (s) => s.includes('cc_rejected_max_attempts'),
+      message: 'Limite de tentativas excedido. Aguarde alguns minutos ou tente outro cartão.',
+    },
+    {
+      match: (s) => s.includes('cc_rejected_high_risk'),
+      message: 'Pagamento recusado por segurança. Tente outro cartão ou método de pagamento.',
+    },
+    {
+      match: (s) => s.includes('cc_rejected_blacklist'),
+      message: 'Não foi possível processar o pagamento com este cartão. Tente outro cartão.',
+    },
+    {
+      match: (s) => s.includes('cc_rejected') || s.includes('rejected'),
+      message: 'Pagamento recusado pelo banco. Verifique os dados ou tente outro cartão.',
+    },
+    {
+      match: (s) => s.includes('timeout') || s.includes('timed out'),
+      message: 'O processamento demorou muito. Tente novamente em alguns instantes.',
+    },
+  ];
+
+  for (const entry of errorMap) {
+    if (entry.match(lower)) return entry.message;
+  }
+
+  // Fallback: if raw message is too technical, return generic
+  if (raw.length > 100 || /[{[\]"]/.test(raw)) {
+    return 'Não foi possível processar o pagamento. Verifique os dados do cartão e tente novamente.';
+  }
+
+  return raw;
+}
+
 type Props = {
   amount: number;
   email: string;
