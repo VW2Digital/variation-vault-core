@@ -105,8 +105,35 @@ export function useMercadoPago(): UseMercadoPagoReturn {
     return () => { cancelled = true; };
   }, []);
 
-  const tokenizeCard = useCallback(async (data: MpCardData): Promise<string> => {
+  const tokenizeCard = useCallback(async (data: MpCardData): Promise<MpTokenizeResult> => {
     if (!mpInstance) throw new Error('SDK do Mercado Pago não inicializado');
+
+    const bin = data.cardNumber.replace(/\s/g, '').substring(0, 6);
+
+    // Get payment method info from BIN
+    let paymentMethodId = '';
+    let issuerId = '';
+    try {
+      const pmResponse = await mpInstance.getPaymentMethods({ bin });
+      if (pmResponse?.results?.length > 0) {
+        paymentMethodId = pmResponse.results[0].id || '';
+        issuerId = pmResponse.results[0].issuer?.id ? String(pmResponse.results[0].issuer.id) : '';
+      }
+    } catch (e) {
+      console.warn('[MP] Could not detect payment method from BIN:', e);
+    }
+
+    // If no issuer from getPaymentMethods, try getIssuers
+    if (paymentMethodId && !issuerId) {
+      try {
+        const issuers = await mpInstance.getIssuers({ paymentMethodId, bin });
+        if (issuers?.length > 0) {
+          issuerId = String(issuers[0].id);
+        }
+      } catch (e) {
+        console.warn('[MP] Could not get issuers:', e);
+      }
+    }
 
     const cardTokenResponse = await mpInstance.createCardToken({
       cardNumber: data.cardNumber.replace(/\s/g, ''),
@@ -122,7 +149,17 @@ export function useMercadoPago(): UseMercadoPagoReturn {
       throw new Error('Falha na tokenização do cartão. Verifique os dados.');
     }
 
-    return cardTokenResponse.id;
+    console.log('[MP tokenizeCard] Result:', {
+      token: cardTokenResponse.id.substring(0, 8) + '...',
+      paymentMethodId,
+      issuerId,
+    });
+
+    return {
+      token: cardTokenResponse.id,
+      paymentMethodId,
+      issuerId,
+    };
   }, [mpInstance]);
 
   return { isReady, publicKey, tokenizeCard, activeGateway, gatewayEnvironment };
