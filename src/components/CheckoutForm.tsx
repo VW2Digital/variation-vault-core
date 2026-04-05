@@ -465,6 +465,8 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
       status: 'PENDING',
       payment_gateway: activeGateway || 'asaas',
       gateway_environment: gatewayEnv || 'sandbox',
+      coupon_code: appliedCouponCode || null,
+      coupon_discount: couponDiscount || 0,
     };
     if (session?.user?.id) {
       orderData.customer_user_id = session.user.id;
