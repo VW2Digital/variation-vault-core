@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw, MoreVertical, Eye, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, CheckSquare, MessageSquare, Send, FileText, AlertCircle, ChevronDown, ChevronUp, Star, Link as LinkIcon, CreditCard, QrCode } from 'lucide-react';
+import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw, MoreVertical, Eye, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, CheckSquare, MessageSquare, Send, FileText, AlertCircle, ChevronDown, ChevronUp, Star, Link as LinkIcon, CreditCard, QrCode, Ticket } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -676,6 +676,11 @@ const OrdersPage = () => {
                       <Badge variant={status.variant} className={`text-[10px] ${status.badgeClass || ''}`}>{status.label}</Badge>
                       <Badge variant="outline" className={`text-[10px] ${delivery?.badgeClass || ''}`}>{delivery?.label || 'Processando'}</Badge>
                       {order.tracking_code && <Badge variant="secondary" className="text-[10px] font-mono">{order.tracking_code}</Badge>}
+                      {order.coupon_code && (
+                        <Badge variant="outline" className="text-[10px] gap-0.5">
+                          <Ticket className="w-2.5 h-2.5" /> {order.coupon_code}
+                        </Badge>
+                      )}
                       {order.shipping_status === 'insufficient_balance' && (
                         <Badge variant="destructive" className="text-[10px] animate-pulse">💰 Sem saldo ME</Badge>
                       )}
@@ -709,6 +714,7 @@ const OrdersPage = () => {
                     <TableHead>Pagamento</TableHead>
                     <TableHead>Entrega</TableHead>
                     <TableHead>Rastreio</TableHead>
+                    <TableHead>Cupom</TableHead>
                     <TableHead className="w-[60px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -776,6 +782,15 @@ const OrdersPage = () => {
                               </Button>
                             )}
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {order.coupon_code ? (
+                            <Badge variant="outline" className="text-[10px] gap-0.5">
+                              <Ticket className="w-2.5 h-2.5" /> {order.coupon_code}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -923,6 +938,12 @@ const OrdersPage = () => {
                 <InfoRow label="Gateway" value={viewOrder.payment_gateway === 'mercadopago' ? 'Mercado Pago' : 'Asaas'} />
                 <InfoRow label="Ambiente" value={viewOrder.gateway_environment === 'production' ? '🟢 Produção' : '🟡 Sandbox (Teste)'} />
                 {viewOrder.asaas_payment_id && <InfoRow label="ID Asaas" value={viewOrder.asaas_payment_id} />}
+                {viewOrder.coupon_code && (
+                  <>
+                    <InfoRow label="Cupom" value={viewOrder.coupon_code} />
+                    <InfoRow label="Desconto cupom" value={`R$ ${Number(viewOrder.coupon_discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
+                  </>
+                )}
               </div>
               <Separator />
               <div>
