@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { AlertTriangle, Search, Trash2, RefreshCw, ShoppingCart, Link2, Server } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AlertTriangle, Search, Trash2, RefreshCw, ShoppingCart, Link2, Server, BarChart3, CreditCard, TrendingUp } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface PaymentLog {
   id: string;
@@ -29,11 +30,50 @@ const SOURCE_LABELS: Record<SourceTab, { label: string; icon: React.ReactNode }>
   backend: { label: 'Backend', icon: <Server className="w-4 h-4" /> },
 };
 
+// Categorize error messages into readable types
+function categorizeError(msg: string): string {
+  const n = msg.toLowerCase();
+  if (n.includes('bad_filled_card_number') || n.includes('número do cartão')) return 'Número do cartão';
+  if (n.includes('bad_filled_date') || n.includes('validade')) return 'Data de validade';
+  if (n.includes('bad_filled_security_code') || n.includes('cvv') || n.includes('ccv')) return 'CVV incorreto';
+  if (n.includes('bad_filled_other') || n.includes('bad_filled_card_data')) return 'Dados do cartão';
+  if (n.includes('insufficient_amount') || n.includes('insufficient') || n.includes('saldo') || n.includes('funds')) return 'Saldo insuficiente';
+  if (n.includes('call_for_authorize')) return 'Autorização banco';
+  if (n.includes('card_disabled')) return 'Cartão desabilitado';
+  if (n.includes('duplicated_payment')) return 'Pagamento duplicado';
+  if (n.includes('invalid_installments')) return 'Parcelas inválidas';
+  if (n.includes('max_attempts')) return 'Limite tentativas';
+  if (n.includes('high_risk') || n.includes('blacklist')) return 'Fraude / risco';
+  if (n.includes('rejected_by_issuer') || n.includes('cc_rejected_other')) return 'Recusado emissor';
+  if (n.includes('diff_param_bins') || n.includes('bin')) return 'Erro de BIN';
+  if (n.includes('token') || n.includes('tokeniz')) return 'Tokenização';
+  if (n.includes('cpf')) return 'CPF inválido';
+  if (n.includes('timeout') || n.includes('network') || n.includes('timed out')) return 'Conexão/timeout';
+  if (n.includes('forbidden') || n.includes('permissão') || n.includes('permissao')) return 'Sem permissão';
+  if (n.includes('rejected') || n.includes('recusad') || n.includes('refused')) return 'Recusado genérico';
+  if (n.includes('expired') || n.includes('expirad')) return 'Cartão expirado';
+  return 'Outros';
+}
+
+const CHART_COLORS = [
+  'hsl(var(--primary))',
+  'hsl(var(--destructive))',
+  'hsl(var(--accent))',
+  'hsl(25, 95%, 53%)',
+  'hsl(210, 40%, 50%)',
+  'hsl(150, 40%, 45%)',
+  'hsl(280, 40%, 50%)',
+  'hsl(340, 60%, 50%)',
+  'hsl(45, 80%, 50%)',
+  'hsl(190, 50%, 45%)',
+];
+
 const PaymentLogsPage = () => {
   const [logs, setLogs] = useState<PaymentLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<SourceTab>('all');
+  const [showStats, setShowStats] = useState(true);
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -82,6 +122,36 @@ const PaymentLogsPage = () => {
 
   const countBySource = (src: SourceTab) =>
     src === 'all' ? logs.length : logs.filter(l => mapSource(l.error_source) === src).length;
+
+  // ── Statistics ──
+  const stats = useMemo(() => {
+    if (logs.length === 0) return null;
+
+    // Error type distribution
+    const typeCounts: Record<string, number> = {};
+    logs.forEach(l => {
+      const cat = categorizeError(l.error_message);
+      typeCounts[cat] = (typeCounts[cat] || 0) + 1;
+    });
+    const chartData = Object.entries(typeCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    // Method split
+    const cardCount = logs.filter(l => l.payment_method === 'credit_card').length;
+    const pixCount = logs.filter(l => l.payment_method === 'pix').length;
+
+    // Last 24h vs older
+    const now = Date.now();
+    const last24h = logs.filter(l => now - new Date(l.created_at).getTime() < 86400000).length;
+    const last7d = logs.filter(l => now - new Date(l.created_at).getTime() < 7 * 86400000).length;
+
+    // Top error
+    const topError = chartData[0];
+
+    return { chartData, cardCount, pixCount, last24h, last7d, topError };
+  }, [logs]);
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);
@@ -179,6 +249,13 @@ const PaymentLogsPage = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant={showStats ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setShowStats(s => !s)}
+          >
+            <BarChart3 className="w-4 h-4 mr-1" /> Estatísticas
+          </Button>
           <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Atualizar
           </Button>
@@ -189,6 +266,80 @@ const PaymentLogsPage = () => {
           )}
         </div>
       </div>
+
+      {/* ── Statistics Panel ── */}
+      {showStats && stats && (
+        <div className="space-y-4">
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-2xl font-bold text-foreground">{stats.last24h}</p>
+                <p className="text-xs text-muted-foreground mt-1">Últimas 24h</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-2xl font-bold text-foreground">{stats.last7d}</p>
+                <p className="text-xs text-muted-foreground mt-1">Últimos 7 dias</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="flex items-center justify-center gap-1.5">
+                  <CreditCard className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-2xl font-bold text-foreground">{stats.cardCount}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Falhas Cartão</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="flex items-center justify-center gap-1.5">
+                  <TrendingUp className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-2xl font-bold text-foreground">{stats.topError?.name || '—'}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Erro mais frequente ({stats.topError?.count || 0}x)
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Bar Chart */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Tipos de Erro Mais Frequentes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pb-4">
+              <div className="h-[220px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={stats.chartData} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      width={130}
+                      tick={{ fontSize: 11 }}
+                    />
+                    <Tooltip
+                      formatter={(value: number) => [`${value} ocorrência${value !== 1 ? 's' : ''}`, 'Total']}
+                      contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                    />
+                    <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={24}>
+                      {stats.chartData.map((_, i) => (
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as SourceTab)}>
         <TabsList className="w-full sm:w-auto">
