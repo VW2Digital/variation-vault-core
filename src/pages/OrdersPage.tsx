@@ -714,6 +714,7 @@ const OrdersPage = () => {
                     <TableHead>Pagamento</TableHead>
                     <TableHead>Entrega</TableHead>
                     <TableHead>Rastreio</TableHead>
+                    <TableHead>Cupom</TableHead>
                     <TableHead className="w-[60px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
