@@ -90,6 +90,7 @@ const OrdersPage = () => {
   const [batchRefreshing, setBatchRefreshing] = useState(false);
   const [filterPayment, setFilterPayment] = useState('ALL');
   const [filterDelivery, setFilterDelivery] = useState('ALL');
+  const [filterCoupon, setFilterCoupon] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 15;
@@ -476,9 +477,14 @@ const OrdersPage = () => {
     }
   };
 
+  const uniqueCoupons = Array.from(new Set(orders.map(o => o.coupon_code).filter(Boolean))) as string[];
+
   const filteredOrders = orders.filter(order => {
     if (filterPayment !== 'ALL' && order.status !== filterPayment) return false;
     if (filterDelivery !== 'ALL' && (order.delivery_status || 'PROCESSING') !== filterDelivery) return false;
+    if (filterCoupon === 'WITH_COUPON' && !order.coupon_code) return false;
+    if (filterCoupon === 'WITHOUT_COUPON' && order.coupon_code) return false;
+    if (filterCoupon !== 'ALL' && filterCoupon !== 'WITH_COUPON' && filterCoupon !== 'WITHOUT_COUPON' && order.coupon_code !== filterCoupon) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const nameMatch = (order.customer_name || '').toLowerCase().includes(q);
@@ -494,7 +500,7 @@ const OrdersPage = () => {
   const paginatedOrders = filteredOrders.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
 
   // Reset page when filters or search change
-  useEffect(() => { setCurrentPage(1); }, [filterPayment, filterDelivery, searchQuery]);
+  useEffect(() => { setCurrentPage(1); }, [filterPayment, filterDelivery, filterCoupon, searchQuery]);
 
   const InfoRow = ({ label, value }: { label: string; value: string | number | null | undefined }) => (
     <div className="flex justify-between py-1.5">
@@ -552,6 +558,20 @@ const OrdersPage = () => {
               <SelectItem value="ALL">Todas as entregas</SelectItem>
               {deliveryStatuses.map(s => (
                 <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterCoupon} onValueChange={setFilterCoupon}>
+            <SelectTrigger className="flex-1 sm:w-[180px]">
+              <Ticket className="h-4 w-4 mr-1.5 text-muted-foreground" />
+              <SelectValue placeholder="Cupom" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todos os cupons</SelectItem>
+              <SelectItem value="WITH_COUPON">Com cupom</SelectItem>
+              <SelectItem value="WITHOUT_COUPON">Sem cupom</SelectItem>
+              {uniqueCoupons.map(code => (
+                <SelectItem key={code} value={code}>{code}</SelectItem>
               ))}
             </SelectContent>
           </Select>
