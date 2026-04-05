@@ -71,6 +71,39 @@ async function getMelhorEnvioConfig(supabase: any) {
     }
   }
 
+  // Log token diagnostics
+  const tokenPreview = token ? token.substring(0, 10) + '...' : 'EMPTY';
+  const tokenLength = token ? token.length : 0;
+  console.log(`[ME] Environment: ${env}`);
+  console.log(`[ME] Token preview: ${tokenPreview} (length: ${tokenLength})`);
+  console.log(`[ME] Token expires at: ${expiresAt || 'not set'}`);
+  console.log(`[ME] Base URL: ${baseUrl}`);
+
+  // Check token scopes by calling /api/v2/me
+  try {
+    const meRes = await fetch(`${baseUrl}/api/v2/me`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'User-Agent': 'LibertyPharma (libertyluminaepharma@gmail.com)',
+      },
+    });
+    const meText = await meRes.text();
+    if (meRes.ok) {
+      try {
+        const meData = JSON.parse(meText);
+        console.log(`[ME] Authenticated as: ${meData.firstname} ${meData.lastname} (${meData.email})`);
+        console.log(`[ME] Account ID: ${meData.id}`);
+      } catch {
+        console.log(`[ME] /me response (raw): ${meText.substring(0, 200)}`);
+      }
+    } else {
+      console.error(`[ME] /me check failed [${meRes.status}]: ${meText.substring(0, 300)}`);
+    }
+  } catch (err: any) {
+    console.error(`[ME] /me check error: ${err.message}`);
+  }
+
   return { token, baseUrl };
 }
 
