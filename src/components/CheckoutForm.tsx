@@ -780,6 +780,37 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
           orderId,
           ...(mpPaymentMethodId ? { paymentMethodId: mpPaymentMethodId } : {}),
           ...(mpIssuerId ? { issuerId: mpIssuerId } : {}),
+          // Additional info for MercadoPago antifraude
+          additionalInfo: {
+            payer: {
+              first_name: (cardName.trim() || name.trim()).split(' ')[0],
+              last_name: (cardName.trim() || name.trim()).split(' ').slice(1).join(' ') || (cardName.trim() || name.trim()).split(' ')[0],
+              phone: {
+                area_code: holderPhoneDigits.slice(0, 2),
+                number: holderPhoneDigits.slice(2),
+              },
+              address: {
+                zip_code: addrPostalCode.replace(/\D/g, ''),
+                street_name: addrStreet.trim(),
+                street_number: parseInt(addrNumber.trim()) || 0,
+              },
+            },
+            items: [{
+              id: orderId,
+              title: `${productName} ${dosage}`,
+              quantity,
+              unit_price: unitPrice,
+            }],
+            shipments: {
+              receiver_address: {
+                zip_code: addrPostalCode.replace(/\D/g, ''),
+                street_name: addrStreet.trim(),
+                street_number: parseInt(addrNumber.trim()) || 0,
+                city_name: addrCity.trim(),
+                state_name: addrState.trim().toUpperCase(),
+              },
+            },
+          },
         });
         setPaymentResult({ ...result, finalValue: valorFinalCartao, finalInstallments: installments, finalInstallmentValue: valorParcelaCartao });
       }

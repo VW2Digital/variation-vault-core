@@ -293,6 +293,9 @@ class MercadoPagoGateway implements PaymentGateway {
       throw new Error('Mercado Pago requer tokenização do cartão via SDK JavaScript no frontend.');
     }
 
+    const payerName = dto.creditCardHolderInfo?.name || '';
+    const nameParts = payerName.split(' ');
+
     const paymentBody: any = {
       transaction_amount: toCurrencyNumber(dto.value),
       description: sanitizeDescription(dto.description),
@@ -300,12 +303,38 @@ class MercadoPagoGateway implements PaymentGateway {
       token: (dto.creditCard as any).token,
       payer: {
         email: dto.creditCardHolderInfo?.email || 'customer@email.com',
+        first_name: nameParts[0] || '',
+        last_name: nameParts.slice(1).join(' ') || nameParts[0] || '',
         identification: {
           type: 'CPF',
           number: dto.creditCardHolderInfo?.cpfCnpj || '',
         },
+        phone: dto.creditCardHolderInfo?.phone ? {
+          area_code: dto.creditCardHolderInfo.phone.slice(0, 2),
+          number: dto.creditCardHolderInfo.phone.slice(2),
+        } : undefined,
+        address: (dto as any).additionalInfo?.payer?.address ? {
+          zip_code: (dto as any).additionalInfo.payer.address.zip_code,
+          street_name: (dto as any).additionalInfo.payer.address.street_name,
+          street_number: (dto as any).additionalInfo.payer.address.street_number,
+        } : undefined,
       },
       external_reference: dto.orderId || undefined,
+      additional_info: (dto as any).additionalInfo ? {
+        items: (dto as any).additionalInfo.items?.map((item: any) => ({
+          id: item.id || 'item',
+          title: sanitizeDescription(item.title),
+          quantity: item.quantity || 1,
+          unit_price: toCurrencyNumber(item.unit_price || dto.value),
+        })),
+        payer: {
+          first_name: nameParts[0] || '',
+          last_name: nameParts.slice(1).join(' ') || nameParts[0] || '',
+          phone: (dto as any).additionalInfo.payer?.phone || undefined,
+          address: (dto as any).additionalInfo.payer?.address || undefined,
+        },
+        shipments: (dto as any).additionalInfo.shipments || undefined,
+      } : undefined,
     };
 
     // Use payment_method_id and issuer_id from frontend SDK cardForm
@@ -315,6 +344,15 @@ class MercadoPagoGateway implements PaymentGateway {
     if ((dto as any).issuerId) {
       paymentBody.issuer_id = Number((dto as any).issuerId);
     }
+
+    console.log('[MercadoPago] Card payment body:', JSON.stringify({
+      transaction_amount: paymentBody.transaction_amount,
+      installments: paymentBody.installments,
+      has_additional_info: !!paymentBody.additional_info,
+      payer_name: `${paymentBody.payer.first_name} ${paymentBody.payer.last_name}`,
+      has_payer_phone: !!paymentBody.payer.phone,
+      has_payer_address: !!paymentBody.payer.address,
+    }));
 
     const result = await this.fetch('/v1/payments', 'POST', paymentBody);
     return {
