@@ -223,9 +223,11 @@ class AsaasGateway implements PaymentGateway {
 class MercadoPagoGateway implements PaymentGateway {
   private accessToken: string;
   private baseUrl = 'https://api.mercadopago.com';
+  private notificationUrl?: string;
 
-  constructor(accessToken: string) {
+  constructor(accessToken: string, notificationUrl?: string) {
     this.accessToken = accessToken;
+    this.notificationUrl = notificationUrl;
   }
 
   private async fetch(path: string, method: string, body?: any) {
@@ -290,14 +292,18 @@ class MercadoPagoGateway implements PaymentGateway {
         } : undefined,
       },
       external_reference: dto.orderId || undefined,
+      notification_url: this.notificationUrl || undefined,
     };
 
     // additional_info for antifraude scoring (same structure as card payments)
     if (additionalInfoRaw) {
       paymentBody.additional_info = {
+        ip_address: dto.remoteIp || undefined,
         items: additionalInfoRaw.items?.map((item: any) => ({
           id: String(item.id || 'item'),
           title: sanitizeDescription(item.title),
+          description: sanitizeDescription(item.description || item.title),
+          picture_url: item.picture_url || null,
           quantity: String(item.quantity || 1),
           unit_price: String(toCurrencyNumber(item.unit_price || dto.value)),
           category_id: 'others',
@@ -329,6 +335,8 @@ class MercadoPagoGateway implements PaymentGateway {
       payer_email: paymentBody.payer.email,
       has_additional_info: !!paymentBody.additional_info,
       has_identification: !!paymentBody.payer.identification,
+      has_notification_url: !!paymentBody.notification_url,
+      has_ip_address: !!paymentBody.additional_info?.ip_address,
     }));
 
     const result = await this.fetch('/v1/payments', 'POST', paymentBody);
@@ -363,15 +371,20 @@ class MercadoPagoGateway implements PaymentGateway {
     // Build additional_info with proper string types per MP docs
     const additionalInfoRaw = (dto as any).additionalInfo;
     const additionalInfo: any = {
+      ip_address: dto.remoteIp || undefined,
       items: additionalInfoRaw?.items?.map((item: any) => ({
         id: String(item.id || 'item'),
         title: sanitizeDescription(item.title),
+        description: sanitizeDescription(item.description || item.title),
+        picture_url: item.picture_url || null,
         quantity: String(item.quantity || 1),
         unit_price: String(toCurrencyNumber(item.unit_price || dto.value)),
         category_id: 'others',
       })) || [{
         id: dto.orderId || 'item',
         title: sanitizeDescription(dto.description),
+        description: sanitizeDescription(dto.description),
+        picture_url: null,
         quantity: '1',
         unit_price: String(toCurrencyNumber(dto.value)),
         category_id: 'others',
@@ -425,6 +438,7 @@ class MercadoPagoGateway implements PaymentGateway {
       },
       description: sanitizeDescription(dto.description),
       external_reference: dto.orderId || undefined,
+      notification_url: this.notificationUrl || undefined,
       // binary_mode: immediate approve/reject, no "in_process"
       binary_mode: true,
       // statement_descriptor: appears on buyer's card statement (max 22 chars)
@@ -455,6 +469,8 @@ class MercadoPagoGateway implements PaymentGateway {
       has_identification: !!paymentBody.payer.identification,
       has_payer_phone: !!paymentBody.payer.phone,
       has_payer_address: !!paymentBody.payer.address,
+      has_ip_address: !!additionalInfo.ip_address,
+      has_notification_url: !!paymentBody.notification_url,
     }));
 
     const result = await this.fetch('/v1/payments', 'POST', paymentBody);
@@ -561,8 +577,12 @@ async function createGateway(supabaseUrl: string, supabaseKey: string): Promise<
     }
 
     if (!accessToken) throw new Error('Access Token do Mercado Pago não configurado');
+
+    // Build webhook notification URL from Supabase URL
+    const notificationUrl = `${supabaseUrl}/functions/v1/mercadopago-webhook`;
+
     console.log(`[PaymentFactory] Using MercadoPago gateway (env: ${mpEnv})`);
-    return { gateway: new MercadoPagoGateway(accessToken), gatewayName };
+    return { gateway: new MercadoPagoGateway(accessToken, notificationUrl), gatewayName };
   }
 
   // Default: Asaas
@@ -649,7 +669,8 @@ serve(async (req) => {
 
       case 'create_pix_payment': {
         const { customer, value, description, orderId } = payload;
-        const pixDto: any = { customer, value, description, orderId, creditCardHolderInfo: payload.creditCardHolderInfo };
+        const remoteIpPix = getRemoteIp(req);
+        const pixDto: any = { customer, value, description, orderId, creditCardHolderInfo: payload.creditCardHolderInfo, remoteIp: remoteIpPix };
         if (payload.additionalInfo) pixDto.additionalInfo = payload.additionalInfo;
         result = await gateway.createPixPayment(pixDto);
 
