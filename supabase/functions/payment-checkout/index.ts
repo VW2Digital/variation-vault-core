@@ -292,14 +292,18 @@ class MercadoPagoGateway implements PaymentGateway {
         } : undefined,
       },
       external_reference: dto.orderId || undefined,
+      notification_url: this.notificationUrl || undefined,
     };
 
     // additional_info for antifraude scoring (same structure as card payments)
     if (additionalInfoRaw) {
       paymentBody.additional_info = {
+        ip_address: dto.remoteIp || undefined,
         items: additionalInfoRaw.items?.map((item: any) => ({
           id: String(item.id || 'item'),
           title: sanitizeDescription(item.title),
+          description: sanitizeDescription(item.description || item.title),
+          picture_url: item.picture_url || null,
           quantity: String(item.quantity || 1),
           unit_price: String(toCurrencyNumber(item.unit_price || dto.value)),
           category_id: 'others',
@@ -331,6 +335,8 @@ class MercadoPagoGateway implements PaymentGateway {
       payer_email: paymentBody.payer.email,
       has_additional_info: !!paymentBody.additional_info,
       has_identification: !!paymentBody.payer.identification,
+      has_notification_url: !!paymentBody.notification_url,
+      has_ip_address: !!paymentBody.additional_info?.ip_address,
     }));
 
     const result = await this.fetch('/v1/payments', 'POST', paymentBody);
