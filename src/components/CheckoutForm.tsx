@@ -706,12 +706,50 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
 
       if (paymentMethod === 'pix') {
         const orderId = await createOrder(paymentMethod, asaasCustomerId, pixTotalValue);
+        const holderPhoneDigits = (holderPhone || phone).replace(/\D/g, '');
         const result = await invokeGateway('create_pix_payment', {
           customer: asaasCustomerId,
           value: pixTotalValue,
           description,
           orderId,
-          creditCardHolderInfo: { email: email.trim() },
+          creditCardHolderInfo: {
+            email: email.trim(),
+            name: name.trim(),
+            cpfCnpj: cpf.replace(/\D/g, ''),
+            phone: holderPhoneDigits,
+            postalCode: addrPostalCode.replace(/\D/g, ''),
+            addressNumber: addrNumber.trim(),
+          },
+          additionalInfo: {
+            payer: {
+              first_name: name.trim().split(' ')[0],
+              last_name: name.trim().split(' ').slice(1).join(' ') || name.trim().split(' ')[0],
+              phone: {
+                area_code: holderPhoneDigits.slice(0, 2),
+                number: holderPhoneDigits.slice(2),
+              },
+              address: {
+                zip_code: addrPostalCode.replace(/\D/g, ''),
+                street_name: addrStreet.trim(),
+                street_number: parseInt(addrNumber.trim()) || 0,
+              },
+            },
+            items: [{
+              id: orderId,
+              title: `${productName} ${dosage}`,
+              quantity,
+              unit_price: unitPrice,
+            }],
+            shipments: {
+              receiver_address: {
+                zip_code: addrPostalCode.replace(/\D/g, ''),
+                street_name: addrStreet.trim(),
+                street_number: parseInt(addrNumber.trim()) || 0,
+                city_name: addrCity.trim(),
+                state_name: addrState.trim().toUpperCase(),
+              },
+            },
+          },
         });
         setPaymentResult({ ...result, orderId, finalValue: pixTotalValue, finalInstallments: 1 });
       } else {
