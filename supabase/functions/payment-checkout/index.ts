@@ -669,7 +669,8 @@ serve(async (req) => {
 
       case 'create_pix_payment': {
         const { customer, value, description, orderId } = payload;
-        const pixDto: any = { customer, value, description, orderId, creditCardHolderInfo: payload.creditCardHolderInfo };
+        const remoteIpPix = getRemoteIp(req);
+        const pixDto: any = { customer, value, description, orderId, creditCardHolderInfo: payload.creditCardHolderInfo, remoteIp: remoteIpPix };
         if (payload.additionalInfo) pixDto.additionalInfo = payload.additionalInfo;
         result = await gateway.createPixPayment(pixDto);
 
