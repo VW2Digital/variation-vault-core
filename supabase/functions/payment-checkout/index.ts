@@ -265,13 +265,73 @@ class MercadoPagoGateway implements PaymentGateway {
   }
 
   async createPixPayment(dto: CheckoutDTO): Promise<PaymentResponse> {
-    const result = await this.fetch('/v1/payments', 'POST', {
+    const payerName = dto.creditCardHolderInfo?.name || '';
+    const nameParts = payerName.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || firstName;
+    const cpfNumber = (dto.creditCardHolderInfo?.cpfCnpj || '').replace(/\D/g, '');
+    const phoneDigits = sanitizePhone(dto.creditCardHolderInfo?.phone);
+    const additionalInfoRaw = (dto as any).additionalInfo;
+
+    const paymentBody: any = {
       transaction_amount: toCurrencyNumber(dto.value),
       description: sanitizeDescription(dto.description),
       payment_method_id: 'pix',
-      payer: { email: (dto.creditCardHolderInfo as any)?.email || 'customer@email.com' },
+      payer: {
+        email: dto.creditCardHolderInfo?.email || 'customer@email.com',
+        first_name: firstName || undefined,
+        last_name: lastName || undefined,
+        identification: cpfNumber ? { type: 'CPF', number: cpfNumber } : undefined,
+        phone: phoneDigits ? { area_code: phoneDigits.slice(0, 2), number: phoneDigits.slice(2) } : undefined,
+        address: (additionalInfoRaw?.payer?.address || dto.creditCardHolderInfo?.postalCode) ? {
+          zip_code: String(additionalInfoRaw?.payer?.address?.zip_code || dto.creditCardHolderInfo?.postalCode || ''),
+          street_name: String(additionalInfoRaw?.payer?.address?.street_name || ''),
+          street_number: String(additionalInfoRaw?.payer?.address?.street_number || dto.creditCardHolderInfo?.addressNumber || ''),
+        } : undefined,
+      },
       external_reference: dto.orderId || undefined,
-    });
+    };
+
+    // additional_info for antifraude scoring (same structure as card payments)
+    if (additionalInfoRaw) {
+      paymentBody.additional_info = {
+        items: additionalInfoRaw.items?.map((item: any) => ({
+          id: String(item.id || 'item'),
+          title: sanitizeDescription(item.title),
+          quantity: String(item.quantity || 1),
+          unit_price: String(toCurrencyNumber(item.unit_price || dto.value)),
+          category_id: 'others',
+        })),
+        payer: {
+          first_name: firstName,
+          last_name: lastName,
+          phone: phoneDigits ? { area_code: phoneDigits.slice(0, 2), number: phoneDigits.slice(2) } : undefined,
+          address: additionalInfoRaw.payer?.address ? {
+            zip_code: String(additionalInfoRaw.payer.address.zip_code || ''),
+            street_name: String(additionalInfoRaw.payer.address.street_name || ''),
+            street_number: String(additionalInfoRaw.payer.address.street_number || ''),
+          } : undefined,
+        },
+        shipments: additionalInfoRaw.shipments ? {
+          receiver_address: {
+            zip_code: String(additionalInfoRaw.shipments.receiver_address?.zip_code || ''),
+            street_name: String(additionalInfoRaw.shipments.receiver_address?.street_name || ''),
+            street_number: String(additionalInfoRaw.shipments.receiver_address?.street_number || ''),
+            city_name: String(additionalInfoRaw.shipments.receiver_address?.city_name || ''),
+            state_name: String(additionalInfoRaw.shipments.receiver_address?.state_name || ''),
+          },
+        } : undefined,
+      };
+    }
+
+    console.log('[MercadoPago] PIX payment body:', JSON.stringify({
+      transaction_amount: paymentBody.transaction_amount,
+      payer_email: paymentBody.payer.email,
+      has_additional_info: !!paymentBody.additional_info,
+      has_identification: !!paymentBody.payer.identification,
+    }));
+
+    const result = await this.fetch('/v1/payments', 'POST', paymentBody);
 
     // Build compatible pixQrCode response
     const pixInfo = result.point_of_interaction?.transaction_data;
