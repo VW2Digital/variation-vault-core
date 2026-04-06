@@ -577,8 +577,12 @@ async function createGateway(supabaseUrl: string, supabaseKey: string): Promise<
     }
 
     if (!accessToken) throw new Error('Access Token do Mercado Pago não configurado');
+
+    // Build webhook notification URL from Supabase URL
+    const notificationUrl = `${supabaseUrl}/functions/v1/mercadopago-webhook`;
+
     console.log(`[PaymentFactory] Using MercadoPago gateway (env: ${mpEnv})`);
-    return { gateway: new MercadoPagoGateway(accessToken), gatewayName };
+    return { gateway: new MercadoPagoGateway(accessToken, notificationUrl), gatewayName };
   }
 
   // Default: Asaas
