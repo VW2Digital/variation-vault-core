@@ -371,15 +371,20 @@ class MercadoPagoGateway implements PaymentGateway {
     // Build additional_info with proper string types per MP docs
     const additionalInfoRaw = (dto as any).additionalInfo;
     const additionalInfo: any = {
+      ip_address: dto.remoteIp || undefined,
       items: additionalInfoRaw?.items?.map((item: any) => ({
         id: String(item.id || 'item'),
         title: sanitizeDescription(item.title),
+        description: sanitizeDescription(item.description || item.title),
+        picture_url: item.picture_url || null,
         quantity: String(item.quantity || 1),
         unit_price: String(toCurrencyNumber(item.unit_price || dto.value)),
         category_id: 'others',
       })) || [{
         id: dto.orderId || 'item',
         title: sanitizeDescription(dto.description),
+        description: sanitizeDescription(dto.description),
+        picture_url: null,
         quantity: '1',
         unit_price: String(toCurrencyNumber(dto.value)),
         category_id: 'others',
@@ -433,6 +438,7 @@ class MercadoPagoGateway implements PaymentGateway {
       },
       description: sanitizeDescription(dto.description),
       external_reference: dto.orderId || undefined,
+      notification_url: this.notificationUrl || undefined,
       // binary_mode: immediate approve/reject, no "in_process"
       binary_mode: true,
       // statement_descriptor: appears on buyer's card statement (max 22 chars)
@@ -463,6 +469,8 @@ class MercadoPagoGateway implements PaymentGateway {
       has_identification: !!paymentBody.payer.identification,
       has_payer_phone: !!paymentBody.payer.phone,
       has_payer_address: !!paymentBody.payer.address,
+      has_ip_address: !!additionalInfo.ip_address,
+      has_notification_url: !!paymentBody.notification_url,
     }));
 
     const result = await this.fetch('/v1/payments', 'POST', paymentBody);
