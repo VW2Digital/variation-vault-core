@@ -223,9 +223,11 @@ class AsaasGateway implements PaymentGateway {
 class MercadoPagoGateway implements PaymentGateway {
   private accessToken: string;
   private baseUrl = 'https://api.mercadopago.com';
+  private notificationUrl?: string;
 
-  constructor(accessToken: string) {
+  constructor(accessToken: string, notificationUrl?: string) {
     this.accessToken = accessToken;
+    this.notificationUrl = notificationUrl;
   }
 
   private async fetch(path: string, method: string, body?: any) {
