@@ -295,49 +295,87 @@ class MercadoPagoGateway implements PaymentGateway {
 
     const payerName = dto.creditCardHolderInfo?.name || '';
     const nameParts = payerName.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || firstName;
+    const cpfNumber = (dto.creditCardHolderInfo?.cpfCnpj || '').replace(/\D/g, '');
+    const phoneDigits = sanitizePhone(dto.creditCardHolderInfo?.phone);
 
-    const paymentBody: any = {
-      transaction_amount: toCurrencyNumber(dto.value),
-      description: sanitizeDescription(dto.description),
-      installments: parsedCount,
-      token: (dto.creditCard as any).token,
+    // Build additional_info with proper string types per MP docs
+    const additionalInfoRaw = (dto as any).additionalInfo;
+    const additionalInfo: any = {
+      items: additionalInfoRaw?.items?.map((item: any) => ({
+        id: String(item.id || 'item'),
+        title: sanitizeDescription(item.title),
+        quantity: String(item.quantity || 1),
+        unit_price: String(toCurrencyNumber(item.unit_price || dto.value)),
+        category_id: 'others',
+      })) || [{
+        id: dto.orderId || 'item',
+        title: sanitizeDescription(dto.description),
+        quantity: '1',
+        unit_price: String(toCurrencyNumber(dto.value)),
+        category_id: 'others',
+      }],
       payer: {
-        email: dto.creditCardHolderInfo?.email || 'customer@email.com',
-        first_name: nameParts[0] || '',
-        last_name: nameParts.slice(1).join(' ') || nameParts[0] || '',
-        identification: {
-          type: 'CPF',
-          number: dto.creditCardHolderInfo?.cpfCnpj || '',
-        },
-        phone: dto.creditCardHolderInfo?.phone ? {
-          area_code: dto.creditCardHolderInfo.phone.slice(0, 2),
-          number: dto.creditCardHolderInfo.phone.slice(2),
+        first_name: firstName,
+        last_name: lastName,
+        phone: phoneDigits ? {
+          area_code: phoneDigits.slice(0, 2),
+          number: phoneDigits.slice(2),
         } : undefined,
-        address: (dto as any).additionalInfo?.payer?.address ? {
-          zip_code: (dto as any).additionalInfo.payer.address.zip_code,
-          street_name: (dto as any).additionalInfo.payer.address.street_name,
-          street_number: (dto as any).additionalInfo.payer.address.street_number,
+        address: additionalInfoRaw?.payer?.address ? {
+          zip_code: String(additionalInfoRaw.payer.address.zip_code || ''),
+          street_name: String(additionalInfoRaw.payer.address.street_name || ''),
+          street_number: String(additionalInfoRaw.payer.address.street_number || ''),
         } : undefined,
       },
-      external_reference: dto.orderId || undefined,
-      additional_info: (dto as any).additionalInfo ? {
-        items: (dto as any).additionalInfo.items?.map((item: any) => ({
-          id: item.id || 'item',
-          title: sanitizeDescription(item.title),
-          quantity: item.quantity || 1,
-          unit_price: toCurrencyNumber(item.unit_price || dto.value),
-        })),
-        payer: {
-          first_name: nameParts[0] || '',
-          last_name: nameParts.slice(1).join(' ') || nameParts[0] || '',
-          phone: (dto as any).additionalInfo.payer?.phone || undefined,
-          address: (dto as any).additionalInfo.payer?.address || undefined,
+      shipments: additionalInfoRaw?.shipments ? {
+        receiver_address: {
+          zip_code: String(additionalInfoRaw.shipments.receiver_address?.zip_code || ''),
+          street_name: String(additionalInfoRaw.shipments.receiver_address?.street_name || ''),
+          street_number: String(additionalInfoRaw.shipments.receiver_address?.street_number || ''),
+          city_name: String(additionalInfoRaw.shipments.receiver_address?.city_name || ''),
+          state_name: String(additionalInfoRaw.shipments.receiver_address?.state_name || ''),
         },
-        shipments: (dto as any).additionalInfo.shipments || undefined,
       } : undefined,
     };
 
-    // Use payment_method_id and issuer_id from frontend SDK cardForm
+    const paymentBody: any = {
+      // Required fields per MP docs
+      transaction_amount: toCurrencyNumber(dto.value),
+      token: (dto.creditCard as any).token,
+      installments: parsedCount,
+      payer: {
+        email: dto.creditCardHolderInfo?.email || 'customer@email.com',
+        first_name: firstName,
+        last_name: lastName,
+        identification: cpfNumber ? {
+          type: 'CPF',
+          number: cpfNumber,
+        } : undefined,
+        phone: phoneDigits ? {
+          area_code: phoneDigits.slice(0, 2),
+          number: phoneDigits.slice(2),
+        } : undefined,
+        address: additionalInfoRaw?.payer?.address ? {
+          zip_code: String(additionalInfoRaw.payer.address.zip_code || ''),
+          street_name: String(additionalInfoRaw.payer.address.street_name || ''),
+          street_number: String(additionalInfoRaw.payer.address.street_number || ''),
+        } : undefined,
+      },
+      description: sanitizeDescription(dto.description),
+      external_reference: dto.orderId || undefined,
+      // binary_mode: immediate approve/reject, no "in_process"
+      binary_mode: true,
+      // statement_descriptor: appears on buyer's card statement (max 22 chars)
+      statement_descriptor: 'LOJA ONLINE',
+      // capture: true ensures payment is captured immediately
+      capture: true,
+      // additional_info for antifraude scoring
+      additional_info: additionalInfo,
+    };
+
+    // payment_method_id and issuer_id from frontend SDK (required per docs)
     if ((dto as any).paymentMethodId) {
       paymentBody.payment_method_id = (dto as any).paymentMethodId;
     }
@@ -348,16 +386,28 @@ class MercadoPagoGateway implements PaymentGateway {
     console.log('[MercadoPago] Card payment body:', JSON.stringify({
       transaction_amount: paymentBody.transaction_amount,
       installments: paymentBody.installments,
-      has_additional_info: !!paymentBody.additional_info,
-      payer_name: `${paymentBody.payer.first_name} ${paymentBody.payer.last_name}`,
+      binary_mode: paymentBody.binary_mode,
+      payment_method_id: paymentBody.payment_method_id || 'NOT_SET',
+      issuer_id: paymentBody.issuer_id || 'NOT_SET',
+      has_additional_info: true,
+      items_count: additionalInfo.items?.length,
+      payer_email: paymentBody.payer.email,
+      has_identification: !!paymentBody.payer.identification,
       has_payer_phone: !!paymentBody.payer.phone,
       has_payer_address: !!paymentBody.payer.address,
     }));
 
     const result = await this.fetch('/v1/payments', 'POST', paymentBody);
+
+    // Log MP response details for diagnostics
+    if (result.status_detail) {
+      console.log(`[MercadoPago] Payment result: status=${result.status}, detail=${result.status_detail}, id=${result.id}`);
+    }
+
     return {
       id: String(result.id),
       status: this.mapStatus(result.status),
+      statusDetail: result.status_detail,
     };
   }
 
