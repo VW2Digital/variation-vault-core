@@ -357,10 +357,10 @@ class MercadoPagoGateway implements PaymentGateway {
           area_code: phoneDigits.slice(0, 2),
           number: phoneDigits.slice(2),
         } : undefined,
-        address: additionalInfoRaw?.payer?.address ? {
-          zip_code: String(additionalInfoRaw.payer.address.zip_code || ''),
-          street_name: String(additionalInfoRaw.payer.address.street_name || ''),
-          street_number: String(additionalInfoRaw.payer.address.street_number || ''),
+        address: (additionalInfoRaw?.payer?.address || dto.creditCardHolderInfo?.postalCode) ? {
+          zip_code: String(additionalInfoRaw?.payer?.address?.zip_code || dto.creditCardHolderInfo?.postalCode || ''),
+          street_name: String(additionalInfoRaw?.payer?.address?.street_name || ''),
+          street_number: String(additionalInfoRaw?.payer?.address?.street_number || dto.creditCardHolderInfo?.addressNumber || ''),
         } : undefined,
       },
       description: sanitizeDescription(dto.description),
