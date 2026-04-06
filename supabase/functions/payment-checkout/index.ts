@@ -649,7 +649,9 @@ serve(async (req) => {
 
       case 'create_pix_payment': {
         const { customer, value, description, orderId } = payload;
-        result = await gateway.createPixPayment({ customer, value, description, orderId, creditCardHolderInfo: payload.creditCardHolderInfo });
+        const pixDto: any = { customer, value, description, orderId, creditCardHolderInfo: payload.creditCardHolderInfo };
+        if (payload.additionalInfo) pixDto.additionalInfo = payload.additionalInfo;
+        result = await gateway.createPixPayment(pixDto);
 
         if (orderId && result.id) {
           await supabase.from('orders').update({
