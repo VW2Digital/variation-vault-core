@@ -224,20 +224,29 @@ class MercadoPagoGateway implements PaymentGateway {
   private accessToken: string;
   private baseUrl = 'https://api.mercadopago.com';
   private notificationUrl?: string;
+  private currentDeviceSessionId?: string;
 
   constructor(accessToken: string, notificationUrl?: string) {
     this.accessToken = accessToken;
     this.notificationUrl = notificationUrl;
   }
 
+  setDeviceSessionId(id: string) {
+    this.currentDeviceSessionId = id;
+  }
+
   private async fetch(path: string, method: string, body?: any) {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${this.accessToken}`,
+      'X-Idempotency-Key': crypto.randomUUID(),
+    };
+    if (this.currentDeviceSessionId) {
+      headers['X-meli-session-id'] = this.currentDeviceSessionId;
+    }
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.accessToken}`,
-        'X-Idempotency-Key': crypto.randomUUID(),
-      },
+      headers,
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
     const raw = await res.text();
