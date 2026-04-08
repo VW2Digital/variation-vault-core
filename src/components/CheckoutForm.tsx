@@ -971,7 +971,13 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
     return (
       <Card className="border-primary/30 bg-primary/5">
         <CardContent className="pt-6 space-y-4 text-center">
-          <CheckCircle2 className="w-12 h-12 text-primary mx-auto" />
+          {paymentResult?.status === 'IN_REVIEW' || paymentResult?.mpStatus === 'in_process' ? (
+            <div className="w-12 h-12 mx-auto rounded-full bg-amber-100 flex items-center justify-center">
+              <Clock className="w-7 h-7 text-amber-600" />
+            </div>
+          ) : (
+            <CheckCircle2 className="w-12 h-12 text-primary mx-auto" />
+          )}
           {paymentMethod === 'pix' && paymentResult?.pixQrCode ? (
             <>
               <h3 className="text-lg font-bold text-foreground">PIX Gerado!</h3>
