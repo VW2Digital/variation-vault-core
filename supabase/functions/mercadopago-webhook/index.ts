@@ -185,7 +185,7 @@ serve(async (req) => {
       approved: 'PAID',
       authorized: 'PENDING',
       pending: 'PENDING',
-      in_process: 'PENDING',
+      in_process: 'IN_REVIEW',
       in_mediation: 'PENDING',
       rejected: 'REFUSED',
       cancelled: 'CANCELLED',
@@ -198,6 +198,7 @@ serve(async (req) => {
     // Status priority to prevent downgrades
     const statusPriority: Record<string, number> = {
       'PENDING': 1,
+      'IN_REVIEW': 2,
       'AWAITING_RISK_ANALYSIS': 2,
       'OVERDUE': 3,
       'REFUSED': 5,
