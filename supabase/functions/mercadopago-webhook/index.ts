@@ -217,30 +217,49 @@ serve(async (req) => {
       // Find order by external_reference (our order ID)
       const { data: existingOrder } = await supabase
         .from('orders')
-        .select('status')
+        .select('status, customer_name, customer_email, customer_phone, product_name, total_value, payment_method, dosage, quantity')
         .eq('id', externalRef)
         .maybeSingle();
 
       if (existingOrder) {
-        const currentPriority = statusPriority[existingOrder.status] ?? 0;
+        const previousStatus = existingOrder.status;
+        const currentPriority = statusPriority[previousStatus] ?? 0;
         const newPriority = statusPriority[newStatus] ?? 1;
 
-        if (newPriority > currentPriority || existingOrder.status === newStatus) {
+        if (newPriority > currentPriority || previousStatus === newStatus) {
           const { error } = await supabase
             .from('orders')
             .update({
               status: newStatus,
-              asaas_payment_id: paymentId, // store MP payment ID in same field for compatibility
+              asaas_payment_id: paymentId,
             })
             .eq('id', externalRef);
 
           if (error) {
             console.error(`[MP Webhook] DB update error: ${error.message}`);
           } else {
-            console.log(`[MP Webhook] Order ${externalRef} updated: ${existingOrder.status} → ${newStatus}`);
+            console.log(`[MP Webhook] Order ${externalRef} updated: ${previousStatus} → ${newStatus}`);
+
+            // Send notifications when transitioning FROM IN_REVIEW
+            if (previousStatus === 'IN_REVIEW' && (newStatus === 'PAID' || newStatus === 'REFUSED')) {
+              try {
+                await sendReviewResultNotification(supabase, {
+                  orderId: externalRef,
+                  customerName: existingOrder.customer_name,
+                  customerEmail: existingOrder.customer_email,
+                  customerPhone: existingOrder.customer_phone,
+                  productName: existingOrder.product_name,
+                  totalValue: existingOrder.total_value,
+                  paymentMethod: existingOrder.payment_method,
+                  newStatus,
+                });
+              } catch (notifErr: any) {
+                console.error(`[MP Webhook] Notification error: ${notifErr.message}`);
+              }
+            }
           }
         } else {
-          console.log(`[MP Webhook] Skipping downgrade: ${existingOrder.status} (${currentPriority}) → ${newStatus} (${newPriority})`);
+          console.log(`[MP Webhook] Skipping downgrade: ${previousStatus} (${currentPriority}) → ${newStatus} (${newPriority})`);
         }
       } else {
         console.log(`[MP Webhook] Order not found for external_reference: ${externalRef}`);
@@ -250,12 +269,13 @@ serve(async (req) => {
     // Also try to find by asaas_payment_id (which stores MP payment ID too)
     const { data: orderByPaymentId } = await supabase
       .from('orders')
-      .select('id, status')
+      .select('id, status, customer_name, customer_email, customer_phone, product_name, total_value, payment_method')
       .eq('asaas_payment_id', paymentId)
       .maybeSingle();
 
     if (orderByPaymentId && orderByPaymentId.id !== externalRef) {
-      const currentPriority = statusPriority[orderByPaymentId.status] ?? 0;
+      const previousStatus = orderByPaymentId.status;
+      const currentPriority = statusPriority[previousStatus] ?? 0;
       const newPriority = statusPriority[newStatus] ?? 1;
 
       if (newPriority > currentPriority) {
@@ -264,6 +284,24 @@ serve(async (req) => {
           .update({ status: newStatus })
           .eq('id', orderByPaymentId.id);
         console.log(`[MP Webhook] Order ${orderByPaymentId.id} updated via payment_id lookup`);
+
+        // Send notifications when transitioning FROM IN_REVIEW
+        if (previousStatus === 'IN_REVIEW' && (newStatus === 'PAID' || newStatus === 'REFUSED')) {
+          try {
+            await sendReviewResultNotification(supabase, {
+              orderId: orderByPaymentId.id,
+              customerName: orderByPaymentId.customer_name,
+              customerEmail: orderByPaymentId.customer_email,
+              customerPhone: orderByPaymentId.customer_phone,
+              productName: orderByPaymentId.product_name,
+              totalValue: orderByPaymentId.total_value,
+              paymentMethod: orderByPaymentId.payment_method,
+              newStatus,
+            });
+          } catch (notifErr: any) {
+            console.error(`[MP Webhook] Notification error: ${notifErr.message}`);
+          }
+        }
       }
     }
 
