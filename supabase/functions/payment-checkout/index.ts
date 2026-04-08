@@ -448,8 +448,9 @@ class MercadoPagoGateway implements PaymentGateway {
       description: sanitizeDescription(dto.description),
       external_reference: dto.orderId || undefined,
       notification_url: this.notificationUrl || undefined,
-      // binary_mode: immediate approve/reject, no "in_process"
-      binary_mode: true,
+      // binary_mode: false allows payments to go to "in_process" for manual review
+      // instead of immediate rejection, increasing approval rates
+      binary_mode: false,
       // statement_descriptor: appears on buyer's card statement (max 22 chars)
       statement_descriptor: 'LOJA ONLINE',
       // capture: true ensures payment is captured immediately
