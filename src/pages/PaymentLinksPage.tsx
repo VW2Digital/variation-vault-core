@@ -167,18 +167,18 @@ export default function PaymentLinksPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-foreground">Links de Pagamento</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Links de Pagamento</h1>
           {activeGateway && (
-            <Badge variant="outline" className="text-xs gap-1">
+            <Badge variant="outline" className="text-xs gap-1 w-fit">
               {activeGateway === 'mercadopago' ? 'Mercado Pago' : 'Asaas'}
               <span className={`inline-block w-2 h-2 rounded-full ${gatewayEnv === 'production' ? 'bg-green-500' : 'bg-yellow-500'}`} />
               <span className="text-muted-foreground">{gatewayEnv === 'production' ? 'Produção' : 'Sandbox'}</span>
             </Badge>
           )}
         </div>
-        <Button onClick={openCreate} className="gap-2">
+        <Button onClick={openCreate} className="gap-2 w-full sm:w-auto">
           <Plus className="w-4 h-4" /> Novo Link
         </Button>
       </div>
@@ -217,11 +217,11 @@ export default function PaymentLinksPage() {
                     <p className="text-lg font-bold text-primary">
                       R$ {Number(link.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
-                    <p className="text-xs text-muted-foreground font-mono">
+                    <p className="text-xs text-muted-foreground font-mono break-all">
                       {window.location.origin}/pagar/{link.slug}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
                     <Button variant="outline" size="sm" onClick={() => copyLink(link.slug)} className="gap-1">
                       <Copy className="w-3.5 h-3.5" /> Copiar
                     </Button>
