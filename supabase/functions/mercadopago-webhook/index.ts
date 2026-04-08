@@ -65,6 +65,195 @@ async function verifyWebhookSignature(req: Request, body: string): Promise<boole
   return true;
 }
 
+interface ReviewNotificationData {
+  orderId: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string | null;
+  productName: string;
+  totalValue: number;
+  paymentMethod: string;
+  newStatus: string;
+}
+
+async function sendReviewResultNotification(supabase: any, data: ReviewNotificationData) {
+  const { data: settings } = await supabase
+    .from('site_settings')
+    .select('key, value')
+    .in('key', [
+      'evolution_api_url', 'evolution_api_key', 'evolution_instance_name',
+      'whatsapp_number', 'resend_api_key', 'resend_from_email',
+    ]);
+
+  const cfg: Record<string, string> = {};
+  for (const s of settings || []) cfg[s.key] = s.value;
+
+  const now = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const valueFormatted = Number(data.totalValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const isApproved = data.newStatus === 'PAID';
+  const statusEmoji = isApproved ? '✅' : '❌';
+  const statusLabel = isApproved ? 'APROVADO' : 'RECUSADO';
+  const method = data.paymentMethod === 'credit_card' ? 'Cartão de Crédito' : 'PIX';
+
+  // ── WhatsApp to admin ──
+  const apiUrl = cfg['evolution_api_url'];
+  const apiKey = cfg['evolution_api_key'];
+  const instanceName = cfg['evolution_instance_name'];
+  const adminWhatsapp = cfg['whatsapp_number'];
+
+  if (apiUrl && apiKey && instanceName && adminWhatsapp) {
+    try {
+      const baseUrl = apiUrl.replace(/\/+$/, '');
+      const adminText = [
+        `${statusEmoji} *Pagamento ${statusLabel}* (após análise)`,
+        ``,
+        `👤 *Cliente:* ${data.customerName || 'N/A'}`,
+        `📧 *Email:* ${data.customerEmail || 'N/A'}`,
+        `📱 *Telefone:* ${data.customerPhone || 'N/A'}`,
+        ``,
+        `🛒 *Produto:* ${data.productName || 'N/A'}`,
+        `💰 *Valor:* ${valueFormatted}`,
+        `💳 *Método:* ${method}`,
+        `🆔 *Pedido:* ${data.orderId}`,
+        `🕐 *Horário:* ${now}`,
+      ].join('\n');
+
+      const res = await fetch(`${baseUrl}/message/sendText/${encodeURIComponent(instanceName)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
+        body: JSON.stringify({ number: adminWhatsapp.replace(/\D/g, ''), text: adminText }),
+      });
+      console.log(`[MP Webhook] Admin WhatsApp notification: ${res.ok ? 'sent' : `error:${res.status}`}`);
+    } catch (e: any) {
+      console.error(`[MP Webhook] Admin WhatsApp error: ${e.message}`);
+    }
+
+    // WhatsApp to customer (if phone available)
+    if (data.customerPhone) {
+      try {
+        const baseUrl = apiUrl.replace(/\/+$/, '');
+        const customerPhone = data.customerPhone.replace(/\D/g, '');
+        const phoneWithCountry = customerPhone.startsWith('55') ? customerPhone : `55${customerPhone}`;
+
+        const customerText = isApproved
+          ? [
+              `✅ *Pagamento Aprovado!*`,
+              ``,
+              `Olá ${data.customerName?.split(' ')[0] || 'Cliente'}! 🎉`,
+              ``,
+              `Seu pagamento de ${valueFormatted} para o pedido "${data.productName}" foi *aprovado*!`,
+              ``,
+              `Agora vamos preparar seu pedido para envio. Você receberá o código de rastreio em breve.`,
+              ``,
+              `Obrigado por comprar conosco! 💚`,
+            ].join('\n')
+          : [
+              `❌ *Pagamento Não Aprovado*`,
+              ``,
+              `Olá ${data.customerName?.split(' ')[0] || 'Cliente'},`,
+              ``,
+              `Infelizmente, seu pagamento de ${valueFormatted} para "${data.productName}" não foi aprovado pela operadora do cartão.`,
+              ``,
+              `Você pode tentar novamente com outro cartão ou pagar via PIX para aprovação imediata.`,
+              ``,
+              `Se precisar de ajuda, estamos à disposição! 🤝`,
+            ].join('\n');
+
+        const res = await fetch(`${baseUrl}/message/sendText/${encodeURIComponent(instanceName)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
+          body: JSON.stringify({ number: phoneWithCountry, text: customerText }),
+        });
+        console.log(`[MP Webhook] Customer WhatsApp notification: ${res.ok ? 'sent' : `error:${res.status}`}`);
+      } catch (e: any) {
+        console.error(`[MP Webhook] Customer WhatsApp error: ${e.message}`);
+      }
+    }
+  }
+
+  // ── Email notification ──
+  const resendKey = cfg['resend_api_key'] || Deno.env.get('RESEND_API_KEY');
+  const fromEmail = cfg['resend_from_email'];
+
+  if (resendKey && fromEmail) {
+    // Email to admin
+    try {
+      const adminHtml = `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+          <h2 style="color:${isApproved ? '#38a169' : '#e53e3e'};">${statusEmoji} Pagamento ${statusLabel} (após análise)</h2>
+          <table style="width:100%;border-collapse:collapse;">
+            <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Cliente</td><td style="padding:8px;border-bottom:1px solid #eee;">${data.customerName || 'N/A'}</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Email</td><td style="padding:8px;border-bottom:1px solid #eee;">${data.customerEmail || 'N/A'}</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Telefone</td><td style="padding:8px;border-bottom:1px solid #eee;">${data.customerPhone || 'N/A'}</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Produto</td><td style="padding:8px;border-bottom:1px solid #eee;">${data.productName || 'N/A'}</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Valor</td><td style="padding:8px;border-bottom:1px solid #eee;">${valueFormatted}</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Método</td><td style="padding:8px;border-bottom:1px solid #eee;">${method}</td></tr>
+            <tr><td style="padding:8px;font-weight:bold;">Pedido</td><td style="padding:8px;">${data.orderId}</td></tr>
+          </table>
+          <p style="color:#666;font-size:12px;margin-top:16px;">Horário: ${now}</p>
+        </div>
+      `;
+
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendKey}` },
+        body: JSON.stringify({
+          from: `Liberty Pharma <${fromEmail}>`,
+          to: [fromEmail],
+          subject: `${statusEmoji} Pagamento ${statusLabel} - ${data.customerName || 'Cliente'} - ${valueFormatted}`,
+          html: adminHtml,
+        }),
+      });
+      console.log(`[MP Webhook] Admin email notification: ${res.ok ? 'sent' : `error:${res.status}`}`);
+    } catch (e: any) {
+      console.error(`[MP Webhook] Admin email error: ${e.message}`);
+    }
+
+    // Email to customer
+    if (data.customerEmail) {
+      try {
+        const customerHtml = isApproved
+          ? `
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+              <h2 style="color:#38a169;">✅ Pagamento Aprovado!</h2>
+              <p>Olá ${data.customerName?.split(' ')[0] || 'Cliente'},</p>
+              <p>Seu pagamento de <strong>${valueFormatted}</strong> para o pedido <strong>"${data.productName}"</strong> foi <strong>aprovado</strong>!</p>
+              <p>Agora vamos preparar seu pedido para envio. Você receberá o código de rastreio em breve.</p>
+              <p>Obrigado por comprar conosco! 💚</p>
+            </div>
+          `
+          : `
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+              <h2 style="color:#e53e3e;">Pagamento Não Aprovado</h2>
+              <p>Olá ${data.customerName?.split(' ')[0] || 'Cliente'},</p>
+              <p>Infelizmente, seu pagamento de <strong>${valueFormatted}</strong> para <strong>"${data.productName}"</strong> não foi aprovado pela operadora do cartão.</p>
+              <p>Você pode tentar novamente com outro cartão ou pagar via PIX para aprovação imediata.</p>
+              <p>Se precisar de ajuda, estamos à disposição!</p>
+            </div>
+          `;
+
+        const res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendKey}` },
+          body: JSON.stringify({
+            from: `Liberty Pharma <${fromEmail}>`,
+            to: [data.customerEmail],
+            subject: isApproved
+              ? `✅ Pagamento Aprovado - ${data.productName}`
+              : `Pagamento Não Aprovado - ${data.productName}`,
+            html: customerHtml,
+          }),
+        });
+        console.log(`[MP Webhook] Customer email notification: ${res.ok ? 'sent' : `error:${res.status}`}`);
+      } catch (e: any) {
+        console.error(`[MP Webhook] Customer email error: ${e.message}`);
+      }
+    }
+  }
+
+  console.log(`[MP Webhook] Review result notifications sent for order ${data.orderId}: ${statusLabel}`);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -217,30 +406,49 @@ serve(async (req) => {
       // Find order by external_reference (our order ID)
       const { data: existingOrder } = await supabase
         .from('orders')
-        .select('status')
+        .select('status, customer_name, customer_email, customer_phone, product_name, total_value, payment_method, dosage, quantity')
         .eq('id', externalRef)
         .maybeSingle();
 
       if (existingOrder) {
-        const currentPriority = statusPriority[existingOrder.status] ?? 0;
+        const previousStatus = existingOrder.status;
+        const currentPriority = statusPriority[previousStatus] ?? 0;
         const newPriority = statusPriority[newStatus] ?? 1;
 
-        if (newPriority > currentPriority || existingOrder.status === newStatus) {
+        if (newPriority > currentPriority || previousStatus === newStatus) {
           const { error } = await supabase
             .from('orders')
             .update({
               status: newStatus,
-              asaas_payment_id: paymentId, // store MP payment ID in same field for compatibility
+              asaas_payment_id: paymentId,
             })
             .eq('id', externalRef);
 
           if (error) {
             console.error(`[MP Webhook] DB update error: ${error.message}`);
           } else {
-            console.log(`[MP Webhook] Order ${externalRef} updated: ${existingOrder.status} → ${newStatus}`);
+            console.log(`[MP Webhook] Order ${externalRef} updated: ${previousStatus} → ${newStatus}`);
+
+            // Send notifications when transitioning FROM IN_REVIEW
+            if (previousStatus === 'IN_REVIEW' && (newStatus === 'PAID' || newStatus === 'REFUSED')) {
+              try {
+                await sendReviewResultNotification(supabase, {
+                  orderId: externalRef,
+                  customerName: existingOrder.customer_name,
+                  customerEmail: existingOrder.customer_email,
+                  customerPhone: existingOrder.customer_phone,
+                  productName: existingOrder.product_name,
+                  totalValue: existingOrder.total_value,
+                  paymentMethod: existingOrder.payment_method,
+                  newStatus,
+                });
+              } catch (notifErr: any) {
+                console.error(`[MP Webhook] Notification error: ${notifErr.message}`);
+              }
+            }
           }
         } else {
-          console.log(`[MP Webhook] Skipping downgrade: ${existingOrder.status} (${currentPriority}) → ${newStatus} (${newPriority})`);
+          console.log(`[MP Webhook] Skipping downgrade: ${previousStatus} (${currentPriority}) → ${newStatus} (${newPriority})`);
         }
       } else {
         console.log(`[MP Webhook] Order not found for external_reference: ${externalRef}`);
@@ -250,12 +458,13 @@ serve(async (req) => {
     // Also try to find by asaas_payment_id (which stores MP payment ID too)
     const { data: orderByPaymentId } = await supabase
       .from('orders')
-      .select('id, status')
+      .select('id, status, customer_name, customer_email, customer_phone, product_name, total_value, payment_method')
       .eq('asaas_payment_id', paymentId)
       .maybeSingle();
 
     if (orderByPaymentId && orderByPaymentId.id !== externalRef) {
-      const currentPriority = statusPriority[orderByPaymentId.status] ?? 0;
+      const previousStatus = orderByPaymentId.status;
+      const currentPriority = statusPriority[previousStatus] ?? 0;
       const newPriority = statusPriority[newStatus] ?? 1;
 
       if (newPriority > currentPriority) {
@@ -264,6 +473,24 @@ serve(async (req) => {
           .update({ status: newStatus })
           .eq('id', orderByPaymentId.id);
         console.log(`[MP Webhook] Order ${orderByPaymentId.id} updated via payment_id lookup`);
+
+        // Send notifications when transitioning FROM IN_REVIEW
+        if (previousStatus === 'IN_REVIEW' && (newStatus === 'PAID' || newStatus === 'REFUSED')) {
+          try {
+            await sendReviewResultNotification(supabase, {
+              orderId: orderByPaymentId.id,
+              customerName: orderByPaymentId.customer_name,
+              customerEmail: orderByPaymentId.customer_email,
+              customerPhone: orderByPaymentId.customer_phone,
+              productName: orderByPaymentId.product_name,
+              totalValue: orderByPaymentId.total_value,
+              paymentMethod: orderByPaymentId.payment_method,
+              newStatus,
+            });
+          } catch (notifErr: any) {
+            console.error(`[MP Webhook] Notification error: ${notifErr.message}`);
+          }
+        }
       }
     }
 
