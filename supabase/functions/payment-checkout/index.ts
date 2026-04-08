@@ -495,6 +495,7 @@ class MercadoPagoGateway implements PaymentGateway {
       id: String(result.id),
       status: this.mapStatus(result.status),
       statusDetail: result.status_detail,
+      mpStatus: result.status, // raw MP status for frontend (e.g. 'in_process', 'approved')
     };
   }
 
