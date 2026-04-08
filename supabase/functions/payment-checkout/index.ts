@@ -657,6 +657,12 @@ serve(async (req) => {
     const { gateway, gatewayName } = await createGateway(supabaseUrl, supabaseKey);
     console.log(`[payment-checkout] Gateway resolved: ${gatewayName}`);
 
+    // Set device session ID for anti-fraud (Mercado Pago only)
+    if (gatewayName === 'mercadopago' && payload.deviceSessionId) {
+      (gateway as MercadoPagoGateway).setDeviceSessionId(payload.deviceSessionId);
+      console.log(`[payment-checkout] Device Session ID set: ${payload.deviceSessionId.substring(0, 12)}...`);
+    }
+
     let result;
 
     switch (action) {
@@ -693,7 +699,7 @@ serve(async (req) => {
       }
 
       case 'create_card_payment': {
-        const { customer, value, description, creditCard, creditCardHolderInfo, installmentCount, orderId, paymentMethodId, issuerId } = payload;
+        const { customer, value, description, creditCard, creditCardHolderInfo, installmentCount, orderId, paymentMethodId, issuerId, deviceSessionId } = payload;
         const remoteIp = getRemoteIp(req);
 
         const cardDto: any = {
@@ -701,6 +707,7 @@ serve(async (req) => {
           installmentCount, orderId, remoteIp,
           paymentMethodId, issuerId,
         };
+        if (payload.additionalInfo) cardDto.additionalInfo = payload.additionalInfo;
         result = await gateway.createCardPayment(cardDto);
 
         if (orderId && result.id) {
