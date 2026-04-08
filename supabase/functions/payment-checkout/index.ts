@@ -224,20 +224,29 @@ class MercadoPagoGateway implements PaymentGateway {
   private accessToken: string;
   private baseUrl = 'https://api.mercadopago.com';
   private notificationUrl?: string;
+  private currentDeviceSessionId?: string;
 
   constructor(accessToken: string, notificationUrl?: string) {
     this.accessToken = accessToken;
     this.notificationUrl = notificationUrl;
   }
 
+  setDeviceSessionId(id: string) {
+    this.currentDeviceSessionId = id;
+  }
+
   private async fetch(path: string, method: string, body?: any) {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${this.accessToken}`,
+      'X-Idempotency-Key': crypto.randomUUID(),
+    };
+    if (this.currentDeviceSessionId) {
+      headers['X-meli-session-id'] = this.currentDeviceSessionId;
+    }
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.accessToken}`,
-        'X-Idempotency-Key': crypto.randomUUID(),
-      },
+      headers,
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
     const raw = await res.text();
@@ -471,6 +480,7 @@ class MercadoPagoGateway implements PaymentGateway {
       has_payer_address: !!paymentBody.payer.address,
       has_ip_address: !!additionalInfo.ip_address,
       has_notification_url: !!paymentBody.notification_url,
+      has_device_session_id: !!this.currentDeviceSessionId,
     }));
 
     const result = await this.fetch('/v1/payments', 'POST', paymentBody);
@@ -648,6 +658,12 @@ serve(async (req) => {
     const { gateway, gatewayName } = await createGateway(supabaseUrl, supabaseKey);
     console.log(`[payment-checkout] Gateway resolved: ${gatewayName}`);
 
+    // Set device session ID for anti-fraud (Mercado Pago only)
+    if (gatewayName === 'mercadopago' && payload.deviceSessionId) {
+      (gateway as MercadoPagoGateway).setDeviceSessionId(payload.deviceSessionId);
+      console.log(`[payment-checkout] Device Session ID set: ${payload.deviceSessionId.substring(0, 12)}...`);
+    }
+
     let result;
 
     switch (action) {
@@ -684,7 +700,7 @@ serve(async (req) => {
       }
 
       case 'create_card_payment': {
-        const { customer, value, description, creditCard, creditCardHolderInfo, installmentCount, orderId, paymentMethodId, issuerId } = payload;
+        const { customer, value, description, creditCard, creditCardHolderInfo, installmentCount, orderId, paymentMethodId, issuerId, deviceSessionId } = payload;
         const remoteIp = getRemoteIp(req);
 
         const cardDto: any = {
@@ -692,6 +708,7 @@ serve(async (req) => {
           installmentCount, orderId, remoteIp,
           paymentMethodId, issuerId,
         };
+        if (payload.additionalInfo) cardDto.additionalInfo = payload.additionalInfo;
         result = await gateway.createCardPayment(cardDto);
 
         if (orderId && result.id) {

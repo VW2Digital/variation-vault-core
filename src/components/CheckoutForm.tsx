@@ -138,7 +138,7 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
   const { t } = useLanguage();
   const { clearCart } = useCart();
   const navigate = useNavigate();
-  const { activeGateway, gatewayEnvironment: gatewayEnv, tokenizeCard } = useMercadoPago();
+  const { activeGateway, gatewayEnvironment: gatewayEnv, tokenizeCard, deviceSessionId } = useMercadoPago();
   const isMercadoPago = activeGateway === 'mercadopago';
   const safeUnitPrice = Number(unitPrice) || 0;
   const safeQuantity = Number(quantity) || 1;
@@ -818,6 +818,8 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
           orderId,
           ...(mpPaymentMethodId ? { paymentMethodId: mpPaymentMethodId } : {}),
           ...(mpIssuerId ? { issuerId: mpIssuerId } : {}),
+          // Device fingerprint for antifraude
+          ...(deviceSessionId ? { deviceSessionId } : {}),
           // Additional info for MercadoPago antifraude
           additionalInfo: {
             payer: {
