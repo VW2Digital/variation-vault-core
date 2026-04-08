@@ -480,6 +480,7 @@ class MercadoPagoGateway implements PaymentGateway {
       has_payer_address: !!paymentBody.payer.address,
       has_ip_address: !!additionalInfo.ip_address,
       has_notification_url: !!paymentBody.notification_url,
+      has_device_session_id: !!this.currentDeviceSessionId,
     }));
 
     const result = await this.fetch('/v1/payments', 'POST', paymentBody);
