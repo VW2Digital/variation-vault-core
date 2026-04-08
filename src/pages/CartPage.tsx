@@ -42,73 +42,77 @@ const CartPage = () => {
             <div className="lg:col-span-2 space-y-3">
               {items.map((item) => (
                 <Card key={item.variation_id} className="border-border/50 overflow-hidden">
-                  <CardContent className="p-4 flex items-center gap-4">
-                    <img
-                      src={item.image_url || productHeroImg}
-                      alt={item.product_name}
-                      className="w-20 h-20 object-contain rounded-lg border border-border/50 bg-muted p-1 shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-foreground text-sm truncate">{item.product_name}</h3>
-                      {item.dosage && !item.product_name.toLowerCase().includes(item.dosage.toLowerCase()) && (
-                        <p className="text-xs text-muted-foreground">{item.dosage}</p>
-                      )}
-                      {item.is_offer && (
-                        <p className="text-xs text-muted-foreground line-through">
-                          R$ {item.original_price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  <CardContent className="p-4">
+                    {/* Top row: image + info */}
+                    <div className="flex items-start gap-3">
+                      <img
+                        src={item.image_url || productHeroImg}
+                        alt={item.product_name}
+                        className="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded-lg border border-border/50 bg-muted p-1 shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-foreground text-sm leading-tight">{item.product_name}</h3>
+                        {item.dosage && !item.product_name.toLowerCase().includes(item.dosage.toLowerCase()) && (
+                          <p className="text-xs text-muted-foreground">{item.dosage}</p>
+                        )}
+                        {item.is_offer && (
+                          <p className="text-xs text-muted-foreground line-through">
+                            R$ {item.original_price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </p>
+                        )}
+                        <p className={`font-bold text-sm mt-0.5 ${item.is_offer ? 'text-destructive' : 'text-primary'}`}>
+                          R$ {item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </p>
-                      )}
-                      <p className={`font-bold mt-1 ${item.is_offer ? 'text-destructive' : 'text-primary'}`}>
-                        R$ {item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </p>
-                      {!item.in_stock && (
-                        <p className="text-xs text-destructive font-medium mt-1">Fora de estoque</p>
-                      )}
-                      {item.wholesale_prices.length > 0 && (
-                        <Badge variant="outline" className="mt-1 text-[10px] border-primary/40 text-primary bg-primary/5 font-medium">
-                          Atacado · mín. {Math.min(...item.wholesale_prices.map(t => t.min_quantity))} unid.
-                        </Badge>
-                      )}
+                        {!item.in_stock && (
+                          <p className="text-xs text-destructive font-medium mt-1">Fora de estoque</p>
+                        )}
+                        {item.wholesale_prices.length > 0 && (
+                          <Badge variant="outline" className="mt-1 text-[10px] border-primary/40 text-primary bg-primary/5 font-medium">
+                            Atacado · mín. {Math.min(...item.wholesale_prices.map(t => t.min_quantity))} unid.
+                          </Badge>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Quantity */}
-                    {(() => {
-                      const minQty = item.wholesale_prices.length > 0
-                        ? Math.min(...item.wholesale_prices.map(t => t.min_quantity))
-                        : 1;
-                      return (
-                        <div className="flex items-center gap-0 shrink-0">
-                          <button
-                            onClick={() => updateQuantity(item.variation_id, Math.max(minQty, item.quantity - 1))}
-                            disabled={item.quantity <= minQty}
-                            className="w-8 h-8 border border-border rounded-l-lg flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                          >
-                            <Minus className="w-3 h-3 text-foreground" />
-                          </button>
-                          <div className="w-10 h-8 border-y border-border flex items-center justify-center text-foreground font-medium text-sm">
-                            {item.quantity}
+                    {/* Bottom row: quantity + subtotal + remove */}
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/30">
+                      {(() => {
+                        const minQty = item.wholesale_prices.length > 0
+                          ? Math.min(...item.wholesale_prices.map(t => t.min_quantity))
+                          : 1;
+                        return (
+                          <div className="flex items-center gap-0">
+                            <button
+                              onClick={() => updateQuantity(item.variation_id, Math.max(minQty, item.quantity - 1))}
+                              disabled={item.quantity <= minQty}
+                              className="w-8 h-8 border border-border rounded-l-lg flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              <Minus className="w-3 h-3 text-foreground" />
+                            </button>
+                            <div className="w-10 h-8 border-y border-border flex items-center justify-center text-foreground font-medium text-sm">
+                              {item.quantity}
+                            </div>
+                            <button
+                              onClick={() => updateQuantity(item.variation_id, item.quantity + 1)}
+                              className="w-8 h-8 border border-border rounded-r-lg flex items-center justify-center hover:bg-muted transition-colors"
+                            >
+                              <Plus className="w-3 h-3 text-foreground" />
+                            </button>
                           </div>
-                          <button
-                            onClick={() => updateQuantity(item.variation_id, item.quantity + 1)}
-                            className="w-8 h-8 border border-border rounded-r-lg flex items-center justify-center hover:bg-muted transition-colors"
-                          >
-                            <Plus className="w-3 h-3 text-foreground" />
-                          </button>
-                        </div>
-                      );
-                    })()}
+                        );
+                      })()}
 
-                    {/* Subtotal + Remove */}
-                    <div className="text-right shrink-0">
-                      <p className="font-bold text-foreground text-sm">
-                        R$ {(item.price * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </p>
-                      <button
-                        onClick={() => removeFromCart(item.variation_id)}
-                        className="text-destructive hover:text-destructive/80 mt-1"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <p className="font-bold text-foreground text-sm">
+                          R$ {(item.price * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                        <button
+                          onClick={() => removeFromCart(item.variation_id)}
+                          className="text-destructive hover:text-destructive/80 p-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
