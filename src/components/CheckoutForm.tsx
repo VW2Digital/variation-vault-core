@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle, MapPin, Truck, ShoppingBag, User, Check, Ticket } from 'lucide-react';
+import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle, MapPin, Truck, ShoppingBag, User, Check, Ticket, Clock } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCart } from '@/contexts/CartContext';
 import { useMercadoPago } from '@/hooks/useMercadoPago';
