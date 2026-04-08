@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ShieldCheck, CreditCard, QrCode, CheckCircle2, Ticket } from 'lucide-react';
+import { Loader2, ShieldCheck, CreditCard, QrCode, CheckCircle2, Ticket, Clock } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -45,6 +45,7 @@ export default function PaymentLinkCheckout() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [pixData, setPixData] = useState<any>(null);
+  const [cardResultData, setCardResultData] = useState<any>(null);
 
   // Card fields
   const [cardNumber, setCardNumber] = useState('');
@@ -366,6 +367,7 @@ export default function PaymentLinkCheckout() {
         });
 
         if (cardError) throw cardError;
+        setCardResultData(cardResult);
         setSuccess(true);
       }
 
@@ -430,13 +432,34 @@ export default function PaymentLinkCheckout() {
   }
 
   if (success) {
+    const isInReview = cardResultData?.status === 'IN_REVIEW' || cardResultData?.mpStatus === 'in_process';
     return (
       <div className="min-h-screen bg-background">
         <Header />
         <div className="max-w-lg mx-auto px-4 py-20 text-center space-y-4">
-          <CheckCircle2 className="w-16 h-16 text-primary mx-auto" />
-          <h1 className="text-2xl font-bold text-foreground">Pagamento Realizado!</h1>
-          <p className="text-muted-foreground">Seu pagamento foi processado com sucesso.</p>
+          {isInReview ? (
+            <>
+              <div className="w-16 h-16 mx-auto rounded-full bg-amber-100 flex items-center justify-center">
+                <Clock className="w-9 h-9 text-amber-600" />
+              </div>
+              <h1 className="text-2xl font-bold text-foreground">Pagamento em Análise</h1>
+              <p className="text-muted-foreground">Seu pagamento está sendo analisado pela operadora do cartão. Isso pode levar algumas horas.</p>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-left space-y-1 mx-auto max-w-sm">
+                <p className="text-sm font-medium text-amber-800">O que acontece agora?</p>
+                <ul className="text-sm text-amber-700 space-y-0.5 list-disc list-inside">
+                  <li>Você receberá uma notificação quando aprovado</li>
+                  <li>Caso recusado, poderá tentar novamente</li>
+                  <li>Seu pedido ficará reservado</li>
+                </ul>
+              </div>
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className="w-16 h-16 text-primary mx-auto" />
+              <h1 className="text-2xl font-bold text-foreground">Pagamento Realizado!</h1>
+              <p className="text-muted-foreground">Seu pagamento foi processado com sucesso.</p>
+            </>
+          )}
         </div>
         <Footer />
       </div>
