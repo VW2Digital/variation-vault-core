@@ -31,7 +31,7 @@ export default function PaymentLinkCheckout() {
   const { slug } = useParams<{ slug: string }>();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { isReady: mercadoPagoReady, tokenizeCard } = useMercadoPago();
+  const { isReady: mercadoPagoReady, tokenizeCard, deviceSessionId } = useMercadoPago();
   const [link, setLink] = useState<PaymentLink | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -360,6 +360,8 @@ export default function PaymentLinkCheckout() {
             },
             ...(paymentMethodId ? { paymentMethodId } : {}),
             ...(issuerId ? { issuerId } : {}),
+            // Device fingerprint for antifraude
+            ...(deviceSessionId ? { deviceSessionId } : {}),
           },
         });
 
