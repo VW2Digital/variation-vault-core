@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle, MapPin, Truck, ShoppingBag, User, Check, Ticket } from 'lucide-react';
+import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle, MapPin, Truck, ShoppingBag, User, Check, Ticket, Clock } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCart } from '@/contexts/CartContext';
 import { useMercadoPago } from '@/hooks/useMercadoPago';
@@ -971,7 +971,13 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
     return (
       <Card className="border-primary/30 bg-primary/5">
         <CardContent className="pt-6 space-y-4 text-center">
-          <CheckCircle2 className="w-12 h-12 text-primary mx-auto" />
+          {paymentResult?.status === 'IN_REVIEW' || paymentResult?.mpStatus === 'in_process' ? (
+            <div className="w-12 h-12 mx-auto rounded-full bg-amber-100 flex items-center justify-center">
+              <Clock className="w-7 h-7 text-amber-600" />
+            </div>
+          ) : (
+            <CheckCircle2 className="w-12 h-12 text-primary mx-auto" />
+          )}
           {paymentMethod === 'pix' && paymentResult?.pixQrCode ? (
             <>
               <h3 className="text-lg font-bold text-foreground">PIX Gerado!</h3>
@@ -993,6 +999,28 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
               ) : (
                 <p className="text-xs text-muted-foreground mt-2">Aguardando confirmação do pagamento...</p>
               )}
+            </>
+          ) : paymentResult?.status === 'IN_REVIEW' || paymentResult?.mpStatus === 'in_process' ? (
+            <>
+              <h3 className="text-lg font-bold text-foreground">Pagamento em Análise</h3>
+              <p className="text-sm text-muted-foreground">
+                Seu pagamento está sendo analisado pela operadora do cartão. Isso pode levar algumas horas.
+              </p>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-left space-y-1">
+                <p className="text-xs font-medium text-amber-800">O que acontece agora?</p>
+                <ul className="text-xs text-amber-700 space-y-0.5 list-disc list-inside">
+                  <li>Você receberá uma notificação quando o pagamento for aprovado</li>
+                  <li>Caso seja recusado, você poderá tentar novamente</li>
+                  <li>Seu pedido ficará reservado enquanto isso</li>
+                </ul>
+              </div>
+              {(paymentResult?.finalInstallments ?? installments) > 1 && (
+                <p className="text-xs text-muted-foreground">
+                  {paymentResult?.finalInstallments ?? installments}x de R$ {(paymentResult?.finalInstallmentValue ?? (totalValue / installments)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  {' '}• Total: R$ {(paymentResult?.finalValue ?? totalValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-2">Você será redirecionado em 5 segundos...</p>
             </>
           ) : (
             <>

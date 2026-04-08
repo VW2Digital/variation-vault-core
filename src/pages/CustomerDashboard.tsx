@@ -29,6 +29,8 @@ const paymentStatusMap: Record<string, { label: string; variant: 'default' | 'se
   CONFIRMED: { label: 'Pago', variant: 'default', icon: CheckCircle2, color: 'text-emerald-500', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
   OVERDUE: { label: 'Vencido', variant: 'destructive', icon: XCircle, color: 'text-red-500' },
   REFUNDED: { label: 'Estornado', variant: 'secondary', icon: XCircle, color: 'text-muted-foreground' },
+  IN_REVIEW: { label: 'Em Análise', variant: 'outline', icon: Clock, color: 'text-amber-500' },
+  DECLINED: { label: 'Recusado', variant: 'destructive', icon: XCircle, color: 'text-red-500' },
 };
 
 const deliveryStatusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; color: string }> = {
