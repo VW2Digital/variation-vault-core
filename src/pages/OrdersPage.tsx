@@ -42,6 +42,8 @@ const statusMap: Record<string, { label: string; variant: 'default' | 'secondary
   DUNNING_REQUESTED: { label: 'Cobrança solicitada', variant: 'outline' },
   DUNNING_RECEIVED: { label: 'Cobrança recebida', variant: 'default', badgeClass: 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' },
   AWAITING_RISK_ANALYSIS: { label: 'Análise de risco', variant: 'outline' },
+  IN_REVIEW: { label: 'Em análise', variant: 'outline', badgeClass: 'bg-amber-100 text-amber-800 border-amber-300' },
+  DECLINED: { label: 'Recusado', variant: 'destructive' },
 };
 
 const deliveryStatuses = [
