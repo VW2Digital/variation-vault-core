@@ -535,7 +535,7 @@ class MercadoPagoGateway implements PaymentGateway {
       approved: 'CONFIRMED',
       pending: 'PENDING',
       authorized: 'PENDING',
-      in_process: 'PENDING',
+      in_process: 'IN_REVIEW',
       in_mediation: 'PENDING',
       rejected: 'DECLINED',
       cancelled: 'CANCELLED',
