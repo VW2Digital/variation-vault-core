@@ -283,9 +283,9 @@ const Dashboard = () => {
                 <div className="rounded-lg border border-border/50 p-4 space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <XCircle className="w-4 h-4 text-destructive" />
-                    <span className="text-xs">Falhas</span>
+                    <span className="text-xs">Recusados</span>
                   </div>
-                  <p className="text-xl sm:text-2xl font-bold text-destructive">{metrics.failedPayments}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-destructive">{metrics.refused}</p>
                 </div>
                 <div className="rounded-lg border border-border/50 p-4 space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground">
@@ -295,6 +295,29 @@ const Dashboard = () => {
                   <p className="text-xl sm:text-2xl font-bold text-primary">{metrics.conversionRate.toFixed(1)}%</p>
                 </div>
               </div>
+
+              {(metrics.inReview > 0 || metrics.pendingOrders > 0 || metrics.refunded > 0) && (
+                <div className="grid grid-cols-3 gap-3">
+                  {metrics.pendingOrders > 0 && (
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
+                      <span className="text-xs text-muted-foreground">Pendentes</span>
+                      <p className="text-lg font-bold text-amber-500">{metrics.pendingOrders}</p>
+                    </div>
+                  )}
+                  {metrics.inReview > 0 && (
+                    <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-3 space-y-1">
+                      <span className="text-xs text-muted-foreground">Em Análise</span>
+                      <p className="text-lg font-bold text-blue-500">{metrics.inReview}</p>
+                    </div>
+                  )}
+                  {metrics.refunded > 0 && (
+                    <div className="rounded-lg border border-muted-foreground/30 bg-muted/30 p-3 space-y-1">
+                      <span className="text-xs text-muted-foreground">Reembolsados</span>
+                      <p className="text-lg font-bold text-muted-foreground">{metrics.refunded}</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 sm:p-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -308,7 +331,7 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="rounded-lg border border-border/50 p-4 space-y-3">
                   <div className="flex items-center gap-2">
                     <QrCode className="w-5 h-5 text-primary" />
@@ -320,8 +343,8 @@ const Dashboard = () => {
                       <p className="text-lg font-bold text-foreground">{metrics.pixOrders}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Falhas</p>
-                      <p className="text-lg font-bold text-destructive">{metrics.pixFailures}</p>
+                      <p className="text-xs text-muted-foreground">Recusados</p>
+                      <p className="text-lg font-bold text-destructive">{metrics.pixRefused}</p>
                     </div>
                   </div>
                 </div>
@@ -336,8 +359,8 @@ const Dashboard = () => {
                       <p className="text-lg font-bold text-foreground">{metrics.cardOrders}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Falhas</p>
-                      <p className="text-lg font-bold text-destructive">{metrics.cardFailures}</p>
+                      <p className="text-xs text-muted-foreground">Recusados</p>
+                      <p className="text-lg font-bold text-destructive">{metrics.cardRefused}</p>
                     </div>
                   </div>
                 </div>
