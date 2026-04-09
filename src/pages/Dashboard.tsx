@@ -113,31 +113,41 @@ const Dashboard = () => {
     const orders = filterByPeriod(allOrders, period);
     const logs = filterByPeriod(allLogs, period);
 
+    const confirmedStatuses = ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH', 'PAID'];
+    const failedStatuses = ['REFUSED', 'OVERDUE'];
+
     const totalOrders = orders.length;
-    const confirmed = orders.filter(o => ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH', 'PAID'].includes(o.status)).length;
+    const confirmed = orders.filter(o => confirmedStatuses.includes(o.status)).length;
+    const refused = orders.filter(o => failedStatuses.includes(o.status)).length;
     const pending = orders.filter(o => o.status === 'PENDING').length;
+    const inReview = orders.filter(o => o.status === 'IN_REVIEW').length;
+    const refunded = orders.filter(o => o.status === 'REFUNDED').length;
+
     const pixOrders = orders.filter(o => o.payment_method === 'pix').length;
     const cardOrders = orders.filter(o => o.payment_method === 'credit_card').length;
+    const pixRefused = orders.filter(o => o.payment_method === 'pix' && failedStatuses.includes(o.status)).length;
+    const cardRefused = orders.filter(o => o.payment_method === 'credit_card' && failedStatuses.includes(o.status)).length;
+
     const totalRevenue = orders
-      .filter(o => ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH', 'PAID'].includes(o.status))
+      .filter(o => confirmedStatuses.includes(o.status))
       .reduce((sum, o) => sum + Number(o.total_value || 0), 0);
 
-    const failedPayments = logs.length;
-    const pixFailures = logs.filter(l => l.payment_method === 'pix').length;
-    const cardFailures = logs.filter(l => l.payment_method === 'credit_card').length;
+    const paymentErrors = logs.length;
 
-    const cardFailEmails = new Set(
-      logs.filter(l => l.payment_method === 'credit_card' && l.customer_email).map(l => l.customer_email!.toLowerCase())
-    );
+    // Recuperações via PIX: clientes que tiveram falha no cartão (REFUSED ou log de erro) e depois pagaram via PIX
+    const cardFailEmails = new Set([
+      ...orders.filter(o => o.payment_method === 'credit_card' && failedStatuses.includes(o.status) && o.customer_email).map(o => o.customer_email.toLowerCase()),
+      ...logs.filter(l => l.payment_method === 'credit_card' && l.customer_email).map(l => l.customer_email!.toLowerCase()),
+    ]);
     const pixSuccessEmails = new Set(
-      orders.filter(o => o.payment_method === 'pix' && ['CONFIRMED', 'RECEIVED', 'PENDING'].includes(o.status) && o.customer_email).map(o => o.customer_email.toLowerCase())
+      orders.filter(o => o.payment_method === 'pix' && confirmedStatuses.includes(o.status) && o.customer_email).map(o => o.customer_email.toLowerCase())
     );
     let pixRecoveries = 0;
     cardFailEmails.forEach(email => { if (pixSuccessEmails.has(email)) pixRecoveries++; });
 
     const conversionRate = totalOrders > 0 ? (confirmed / totalOrders) * 100 : 0;
 
-    return { totalOrders, confirmedOrders: confirmed, pendingOrders: pending, failedPayments, pixOrders, cardOrders, pixFailures, cardFailures, pixRecoveries, totalRevenue, conversionRate };
+    return { totalOrders, confirmedOrders: confirmed, refused, pendingOrders: pending, inReview, refunded, paymentErrors, pixOrders, cardOrders, pixRefused, cardRefused, pixRecoveries, totalRevenue, conversionRate };
   }, [allOrders, allLogs, period]);
 
   const chartData = useMemo(() => {
@@ -273,9 +283,9 @@ const Dashboard = () => {
                 <div className="rounded-lg border border-border/50 p-4 space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <XCircle className="w-4 h-4 text-destructive" />
-                    <span className="text-xs">Falhas</span>
+                    <span className="text-xs">Recusados</span>
                   </div>
-                  <p className="text-xl sm:text-2xl font-bold text-destructive">{metrics.failedPayments}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-destructive">{metrics.refused}</p>
                 </div>
                 <div className="rounded-lg border border-border/50 p-4 space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground">
@@ -285,6 +295,29 @@ const Dashboard = () => {
                   <p className="text-xl sm:text-2xl font-bold text-primary">{metrics.conversionRate.toFixed(1)}%</p>
                 </div>
               </div>
+
+              {(metrics.inReview > 0 || metrics.pendingOrders > 0 || metrics.refunded > 0) && (
+                <div className="grid grid-cols-3 gap-3">
+                  {metrics.pendingOrders > 0 && (
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
+                      <span className="text-xs text-muted-foreground">Pendentes</span>
+                      <p className="text-lg font-bold text-amber-500">{metrics.pendingOrders}</p>
+                    </div>
+                  )}
+                  {metrics.inReview > 0 && (
+                    <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-3 space-y-1">
+                      <span className="text-xs text-muted-foreground">Em Análise</span>
+                      <p className="text-lg font-bold text-blue-500">{metrics.inReview}</p>
+                    </div>
+                  )}
+                  {metrics.refunded > 0 && (
+                    <div className="rounded-lg border border-muted-foreground/30 bg-muted/30 p-3 space-y-1">
+                      <span className="text-xs text-muted-foreground">Reembolsados</span>
+                      <p className="text-lg font-bold text-muted-foreground">{metrics.refunded}</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 sm:p-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -298,7 +331,7 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="rounded-lg border border-border/50 p-4 space-y-3">
                   <div className="flex items-center gap-2">
                     <QrCode className="w-5 h-5 text-primary" />
@@ -310,8 +343,8 @@ const Dashboard = () => {
                       <p className="text-lg font-bold text-foreground">{metrics.pixOrders}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Falhas</p>
-                      <p className="text-lg font-bold text-destructive">{metrics.pixFailures}</p>
+                      <p className="text-xs text-muted-foreground">Recusados</p>
+                      <p className="text-lg font-bold text-destructive">{metrics.pixRefused}</p>
                     </div>
                   </div>
                 </div>
@@ -326,8 +359,8 @@ const Dashboard = () => {
                       <p className="text-lg font-bold text-foreground">{metrics.cardOrders}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Falhas</p>
-                      <p className="text-lg font-bold text-destructive">{metrics.cardFailures}</p>
+                      <p className="text-xs text-muted-foreground">Recusados</p>
+                      <p className="text-lg font-bold text-destructive">{metrics.cardRefused}</p>
                     </div>
                   </div>
                 </div>
