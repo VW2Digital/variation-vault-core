@@ -264,30 +264,31 @@ const Dashboard = () => {
               <RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div className="rounded-lg border border-border/50 p-4 space-y-1">
+            <div className="space-y-4">
+              {/* Row 1: KPIs principais */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-border/50 p-3 sm:p-4 space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <ShoppingCart className="w-4 h-4" />
                     <span className="text-xs">Total Pedidos</span>
                   </div>
                   <p className="text-xl sm:text-2xl font-bold text-foreground">{metrics.totalOrders}</p>
                 </div>
-                <div className="rounded-lg border border-border/50 p-4 space-y-1">
+                <div className="rounded-lg border border-border/50 p-3 sm:p-4 space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <CheckCircle2 className="w-4 h-4 text-green-500" />
                     <span className="text-xs">Confirmados</span>
                   </div>
                   <p className="text-xl sm:text-2xl font-bold text-green-500">{metrics.confirmedOrders}</p>
                 </div>
-                <div className="rounded-lg border border-border/50 p-4 space-y-1">
+                <div className="rounded-lg border border-border/50 p-3 sm:p-4 space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <XCircle className="w-4 h-4 text-destructive" />
                     <span className="text-xs">Recusados</span>
                   </div>
                   <p className="text-xl sm:text-2xl font-bold text-destructive">{metrics.refused}</p>
                 </div>
-                <div className="rounded-lg border border-border/50 p-4 space-y-1">
+                <div className="rounded-lg border border-border/50 p-3 sm:p-4 space-y-1">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <TrendingUp className="w-4 h-4 text-primary" />
                     <span className="text-xs">Taxa Conversão</span>
@@ -296,8 +297,9 @@ const Dashboard = () => {
                 </div>
               </div>
 
+              {/* Row 2: Status secundários */}
               {(metrics.inReview > 0 || metrics.pendingOrders > 0 || metrics.refunded > 0) && (
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {metrics.pendingOrders > 0 && (
                     <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
                       <span className="text-xs text-muted-foreground">Pendentes</span>
@@ -319,8 +321,9 @@ const Dashboard = () => {
                 </div>
               )}
 
+              {/* Row 3: Receita */}
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 sm:p-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-5 h-5 text-primary" />
                     <span className="text-sm font-medium text-foreground">Receita Confirmada</span>
@@ -331,35 +334,36 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="rounded-lg border border-border/50 p-4 space-y-3">
+              {/* Row 4: PIX e Cartão lado a lado */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-border/50 p-3 sm:p-4 space-y-2">
                   <div className="flex items-center gap-2">
-                    <QrCode className="w-5 h-5 text-primary" />
-                    <span className="font-medium text-sm text-foreground">PIX</span>
+                    <QrCode className="w-4 h-4 text-primary" />
+                    <span className="font-medium text-xs sm:text-sm text-foreground">PIX</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-muted-foreground">Pedidos</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Pedidos</p>
                       <p className="text-lg font-bold text-foreground">{metrics.pixOrders}</p>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Recusados</p>
+                    <div className="text-right">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Recusados</p>
                       <p className="text-lg font-bold text-destructive">{metrics.pixRefused}</p>
                     </div>
                   </div>
                 </div>
-                <div className="rounded-lg border border-border/50 p-4 space-y-3">
+                <div className="rounded-lg border border-border/50 p-3 sm:p-4 space-y-2">
                   <div className="flex items-center gap-2">
-                    <CreditCard className="w-5 h-5 text-primary" />
-                    <span className="font-medium text-sm text-foreground">Cartão de Crédito</span>
+                    <CreditCard className="w-4 h-4 text-primary" />
+                    <span className="font-medium text-xs sm:text-sm text-foreground">Cartão</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-muted-foreground">Pedidos</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Pedidos</p>
                       <p className="text-lg font-bold text-foreground">{metrics.cardOrders}</p>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Recusados</p>
+                    <div className="text-right">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Recusados</p>
                       <p className="text-lg font-bold text-destructive">{metrics.cardRefused}</p>
                     </div>
                   </div>
