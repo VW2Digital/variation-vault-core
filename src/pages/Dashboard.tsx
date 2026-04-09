@@ -113,31 +113,41 @@ const Dashboard = () => {
     const orders = filterByPeriod(allOrders, period);
     const logs = filterByPeriod(allLogs, period);
 
+    const confirmedStatuses = ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH', 'PAID'];
+    const failedStatuses = ['REFUSED', 'OVERDUE'];
+
     const totalOrders = orders.length;
-    const confirmed = orders.filter(o => ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH', 'PAID'].includes(o.status)).length;
+    const confirmed = orders.filter(o => confirmedStatuses.includes(o.status)).length;
+    const refused = orders.filter(o => failedStatuses.includes(o.status)).length;
     const pending = orders.filter(o => o.status === 'PENDING').length;
+    const inReview = orders.filter(o => o.status === 'IN_REVIEW').length;
+    const refunded = orders.filter(o => o.status === 'REFUNDED').length;
+
     const pixOrders = orders.filter(o => o.payment_method === 'pix').length;
     const cardOrders = orders.filter(o => o.payment_method === 'credit_card').length;
+    const pixRefused = orders.filter(o => o.payment_method === 'pix' && failedStatuses.includes(o.status)).length;
+    const cardRefused = orders.filter(o => o.payment_method === 'credit_card' && failedStatuses.includes(o.status)).length;
+
     const totalRevenue = orders
-      .filter(o => ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH', 'PAID'].includes(o.status))
+      .filter(o => confirmedStatuses.includes(o.status))
       .reduce((sum, o) => sum + Number(o.total_value || 0), 0);
 
-    const failedPayments = logs.length;
-    const pixFailures = logs.filter(l => l.payment_method === 'pix').length;
-    const cardFailures = logs.filter(l => l.payment_method === 'credit_card').length;
+    const paymentErrors = logs.length;
 
-    const cardFailEmails = new Set(
-      logs.filter(l => l.payment_method === 'credit_card' && l.customer_email).map(l => l.customer_email!.toLowerCase())
-    );
+    // Recuperações via PIX: clientes que tiveram falha no cartão (REFUSED ou log de erro) e depois pagaram via PIX
+    const cardFailEmails = new Set([
+      ...orders.filter(o => o.payment_method === 'credit_card' && failedStatuses.includes(o.status) && o.customer_email).map(o => o.customer_email.toLowerCase()),
+      ...logs.filter(l => l.payment_method === 'credit_card' && l.customer_email).map(l => l.customer_email!.toLowerCase()),
+    ]);
     const pixSuccessEmails = new Set(
-      orders.filter(o => o.payment_method === 'pix' && ['CONFIRMED', 'RECEIVED', 'PENDING'].includes(o.status) && o.customer_email).map(o => o.customer_email.toLowerCase())
+      orders.filter(o => o.payment_method === 'pix' && confirmedStatuses.includes(o.status) && o.customer_email).map(o => o.customer_email.toLowerCase())
     );
     let pixRecoveries = 0;
     cardFailEmails.forEach(email => { if (pixSuccessEmails.has(email)) pixRecoveries++; });
 
     const conversionRate = totalOrders > 0 ? (confirmed / totalOrders) * 100 : 0;
 
-    return { totalOrders, confirmedOrders: confirmed, pendingOrders: pending, failedPayments, pixOrders, cardOrders, pixFailures, cardFailures, pixRecoveries, totalRevenue, conversionRate };
+    return { totalOrders, confirmedOrders: confirmed, refused, pendingOrders: pending, inReview, refunded, paymentErrors, pixOrders, cardOrders, pixRefused, cardRefused, pixRecoveries, totalRevenue, conversionRate };
   }, [allOrders, allLogs, period]);
 
   const chartData = useMemo(() => {
