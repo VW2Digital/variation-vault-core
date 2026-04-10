@@ -229,7 +229,7 @@ export default function CouponsPage() {
                   <SelectContent>
                     <SelectItem value="all">Todos os produtos</SelectItem>
                     {products.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      <SelectItem key={p.id} value={p.id}>{getProductLabel(p)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
