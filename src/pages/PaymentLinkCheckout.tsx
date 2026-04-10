@@ -374,16 +374,7 @@ export default function PaymentLinkCheckout() {
       // Increment coupon usage
       if (appliedCouponCode) {
         try {
-          const { data: couponRow } = await supabase
-            .from('coupons' as any)
-            .select('id, current_uses')
-            .ilike('code', appliedCouponCode)
-            .maybeSingle();
-          if (couponRow) {
-            await supabase.from('coupons' as any)
-              .update({ current_uses: (couponRow as any).current_uses + 1 })
-              .eq('id', (couponRow as any).id);
-          }
+          await supabase.rpc('increment_coupon_usage', { _coupon_code: appliedCouponCode });
         } catch { /* non-blocking */ }
       }
 
