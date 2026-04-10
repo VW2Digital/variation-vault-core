@@ -157,6 +157,10 @@ const ProductList = () => {
                       <Pencil className="mr-2 h-3.5 w-3.5" />
                       Editar
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDuplicate(product); }} disabled={duplicating === product.id}>
+                      {duplicating === product.id ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Copy className="mr-2 h-3.5 w-3.5" />}
+                      Copiar
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive"
                       onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: product.id, name: product.name }); }}
