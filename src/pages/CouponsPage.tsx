@@ -6,8 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, Pencil, Ticket, Loader2, X, Check } from 'lucide-react';
+import { Plus, Trash2, Pencil, Ticket, Loader2, X, Check, Package } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Coupon {
   id: string;
@@ -18,11 +19,18 @@ interface Coupon {
   current_uses: number;
   active: boolean;
   created_at: string;
+  product_id: string | null;
+}
+
+interface Product {
+  id: string;
+  name: string;
 }
 
 export default function CouponsPage() {
   const { toast } = useToast();
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Coupon | null>(null);
@@ -32,6 +40,7 @@ export default function CouponsPage() {
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState('');
   const [maxUses, setMaxUses] = useState('1');
+  const [productId, setProductId] = useState<string>('all');
   const [saving, setSaving] = useState(false);
 
   const fetchCoupons = async () => {
@@ -43,13 +52,22 @@ export default function CouponsPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchCoupons(); }, []);
+  const fetchProducts = async () => {
+    const { data } = await supabase
+      .from('products')
+      .select('id, name')
+      .order('name');
+    setProducts(data || []);
+  };
+
+  useEffect(() => { fetchCoupons(); fetchProducts(); }, []);
 
   const resetForm = () => {
     setCode('');
     setDiscountType('percentage');
     setDiscountValue('');
     setMaxUses('1');
+    setProductId('all');
     setEditing(null);
   };
 
@@ -59,6 +77,7 @@ export default function CouponsPage() {
     setDiscountType(c.discount_type);
     setDiscountValue(String(c.discount_value));
     setMaxUses(String(c.max_uses));
+    setProductId(c.product_id || 'all');
     setDialogOpen(true);
   };
 
@@ -82,6 +101,7 @@ export default function CouponsPage() {
         discount_type: discountType,
         discount_value: Number(discountValue),
         max_uses: Number(maxUses),
+        product_id: productId === 'all' ? null : productId,
         user_id: session.user.id,
       };
 
@@ -127,6 +147,11 @@ export default function CouponsPage() {
     await supabase.from('coupons' as any).delete().eq('id', id);
     fetchCoupons();
     toast({ title: 'Cupom excluído.' });
+  };
+
+  const getProductName = (pid: string | null) => {
+    if (!pid) return null;
+    return products.find(p => p.id === pid)?.name || 'Produto removido';
   };
 
   return (
@@ -186,6 +211,21 @@ export default function CouponsPage() {
                 />
               </div>
               <div className="space-y-1.5">
+                <Label>Produto associado</Label>
+                <Select value={productId} onValueChange={setProductId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um produto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os produtos</SelectItem>
+                    {products.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Deixe "Todos os produtos" para não restringir</p>
+              </div>
+              <div className="space-y-1.5">
                 <Label>Limite de usos</Label>
                 <Input
                   type="number"
@@ -240,6 +280,12 @@ export default function CouponsPage() {
                     }
                   </span>
                 </div>
+                {c.product_id && (
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <Package className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-muted-foreground truncate">{getProductName(c.product_id)}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Usos</span>
                   <span className="font-medium text-foreground">
