@@ -57,9 +57,9 @@ export default function CouponsPage() {
   const fetchProducts = async () => {
     const { data } = await supabase
       .from('products')
-      .select('id, name')
+      .select('id, name, subtitle, product_variations(dosage, subtitle)')
       .order('name');
-    setProducts(data || []);
+    setProducts((data as any) || []);
   };
 
   useEffect(() => { fetchCoupons(); fetchProducts(); }, []);
