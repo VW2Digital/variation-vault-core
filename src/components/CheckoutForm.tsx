@@ -228,6 +228,15 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
         return;
       }
 
+      // Check product restriction
+      if (coupon.product_id && productId && coupon.product_id !== productId) {
+        toast({ title: 'Este cupom não é válido para este produto.', variant: 'destructive' });
+        setCouponDiscount(0);
+        setAppliedCouponCode('');
+        setCouponLabel('');
+        return;
+      }
+
       let discount = 0;
       if (coupon.discount_type === 'percentage') {
         discount = subtotalBeforeCoupon * (Number(coupon.discount_value) / 100);
