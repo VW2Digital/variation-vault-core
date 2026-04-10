@@ -16,6 +16,7 @@ import { useMercadoPago } from '@/hooks/useMercadoPago';
 
 interface CheckoutFormProps {
   productName: string;
+  productId?: string;
   paymentDescription?: string;
   dosage: string;
   quantity: number;
@@ -133,7 +134,7 @@ const StepIndicator = ({ currentStep }: { currentStep: CheckoutStep }) => {
   );
 };
 
-const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitPrice, freeShipping, freeShippingMinValue, pixDiscountPercentProp, maxInstallmentsProp, installmentsInterestProp, onSuccess }: CheckoutFormProps) => {
+const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quantity, unitPrice, freeShipping, freeShippingMinValue, pixDiscountPercentProp, maxInstallmentsProp, installmentsInterestProp, onSuccess }: CheckoutFormProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { clearCart } = useCart();
@@ -221,6 +222,15 @@ const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitP
       const coupon = data as any;
       if (coupon.current_uses >= coupon.max_uses) {
         toast({ title: 'Este cupom já atingiu o limite de usos.', variant: 'destructive' });
+        setCouponDiscount(0);
+        setAppliedCouponCode('');
+        setCouponLabel('');
+        return;
+      }
+
+      // Check product restriction
+      if (coupon.product_id && productId && coupon.product_id !== productId) {
+        toast({ title: 'Este cupom não é válido para este produto.', variant: 'destructive' });
         setCouponDiscount(0);
         setAppliedCouponCode('');
         setCouponLabel('');
