@@ -215,6 +215,7 @@ export type Database = {
           discount_value: number
           id: string
           max_uses: number
+          product_id: string | null
           updated_at: string
           user_id: string
         }
@@ -227,6 +228,7 @@ export type Database = {
           discount_value?: number
           id?: string
           max_uses?: number
+          product_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -239,10 +241,19 @@ export type Database = {
           discount_value?: number
           id?: string
           max_uses?: number
+          product_id?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "coupons_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       orders: {
         Row: {
