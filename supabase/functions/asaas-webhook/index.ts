@@ -145,6 +145,21 @@ serve(async (req) => {
       // Auto-shipping disabled — labels are created manually via admin panel
       if (newStatus === 'PAID') {
         console.log('[Webhook] Payment confirmed. Auto-shipping disabled — label must be created manually.');
+
+        // Increment coupon usage for confirmed payments
+        const orderId = payment.externalReference;
+        if (orderId) {
+          const { data: orderData } = await supabase
+            .from('orders')
+            .select('coupon_code')
+            .eq('id', orderId)
+            .maybeSingle();
+
+          if (orderData?.coupon_code) {
+            await supabase.rpc('increment_coupon_usage', { _coupon_code: orderData.coupon_code });
+            console.log(`[Webhook] Coupon usage incremented for: ${orderData.coupon_code}`);
+          }
+        }
       }
     }
 

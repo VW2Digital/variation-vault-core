@@ -496,6 +496,21 @@ serve(async (req) => {
 
     if (newStatus === 'PAID') {
       console.log(`[MP Webhook] Payment ${paymentId} confirmed. Auto-shipping disabled — label must be created manually.`);
+
+      // Increment coupon usage for confirmed payments
+      const targetOrderId = externalRef || orderByPaymentId?.id;
+      if (targetOrderId) {
+        const { data: orderForCoupon } = await supabase
+          .from('orders')
+          .select('coupon_code')
+          .eq('id', targetOrderId)
+          .maybeSingle();
+
+        if (orderForCoupon?.coupon_code) {
+          await supabase.rpc('increment_coupon_usage', { _coupon_code: orderForCoupon.coupon_code });
+          console.log(`[MP Webhook] Coupon usage incremented for: ${orderForCoupon.coupon_code}`);
+        }
+      }
     }
 
     return new Response(JSON.stringify({ received: true }), {
