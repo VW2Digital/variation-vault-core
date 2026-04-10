@@ -25,6 +25,8 @@ interface Coupon {
 interface Product {
   id: string;
   name: string;
+  subtitle: string | null;
+  variations: { dosage: string; subtitle: string | null }[];
 }
 
 export default function CouponsPage() {
