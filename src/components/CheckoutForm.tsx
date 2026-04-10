@@ -228,13 +228,20 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
         return;
       }
 
-      // Check product restriction
-      if (coupon.product_id && productId && coupon.product_id !== productId) {
-        toast({ title: 'Este cupom não é válido para este produto.', variant: 'destructive' });
-        setCouponDiscount(0);
-        setAppliedCouponCode('');
-        setCouponLabel('');
-        return;
+      // Check product restriction via coupon_products table
+      if (productId) {
+        const { data: couponProducts } = await supabase
+          .from('coupon_products' as any)
+          .select('product_id')
+          .eq('coupon_id', coupon.id);
+        const linkedIds = ((couponProducts as any[]) || []).map((cp: any) => cp.product_id);
+        if (linkedIds.length > 0 && !linkedIds.includes(productId)) {
+          toast({ title: 'Este cupom não é válido para este produto.', variant: 'destructive' });
+          setCouponDiscount(0);
+          setAppliedCouponCode('');
+          setCouponLabel('');
+          return;
+        }
       }
 
       let discount = 0;
