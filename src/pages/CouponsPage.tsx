@@ -25,6 +25,8 @@ interface Coupon {
 interface Product {
   id: string;
   name: string;
+  subtitle: string | null;
+  variations: { dosage: string; subtitle: string | null }[];
 }
 
 export default function CouponsPage() {
@@ -55,9 +57,9 @@ export default function CouponsPage() {
   const fetchProducts = async () => {
     const { data } = await supabase
       .from('products')
-      .select('id, name')
+      .select('id, name, subtitle, product_variations(dosage, subtitle)')
       .order('name');
-    setProducts(data || []);
+    setProducts((data as any) || []);
   };
 
   useEffect(() => { fetchCoupons(); fetchProducts(); }, []);
@@ -149,9 +151,17 @@ export default function CouponsPage() {
     toast({ title: 'Cupom excluído.' });
   };
 
+  const getProductLabel = (p: Product) => {
+    const variations = p.variations || [];
+    const varInfo = variations.map(v => v.subtitle || v.dosage).filter(Boolean);
+    const suffix = varInfo.length > 0 ? ` (${varInfo.join(', ')})` : '';
+    return `${p.name}${p.subtitle ? ` - ${p.subtitle}` : ''}${suffix}`;
+  };
+
   const getProductName = (pid: string | null) => {
     if (!pid) return null;
-    return products.find(p => p.id === pid)?.name || 'Produto removido';
+    const p = products.find(pr => pr.id === pid);
+    return p ? getProductLabel(p) : 'Produto removido';
   };
 
   return (
@@ -219,7 +229,7 @@ export default function CouponsPage() {
                   <SelectContent>
                     <SelectItem value="all">Todos os produtos</SelectItem>
                     {products.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      <SelectItem key={p.id} value={p.id}>{getProductLabel(p)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
