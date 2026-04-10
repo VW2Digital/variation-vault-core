@@ -955,7 +955,7 @@ export type Database = {
       }
       increment_coupon_usage: {
         Args: { _coupon_code: string }
-        Returns: undefined
+        Returns: boolean
       }
     }
     Enums: {
