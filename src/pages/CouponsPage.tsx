@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2, Pencil, Ticket, Loader2, X, Check, Package } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface Coupon {
   id: string;
@@ -20,6 +20,7 @@ interface Coupon {
   active: boolean;
   created_at: string;
   product_id: string | null;
+  product_ids: string[];
 }
 
 interface Product {
@@ -42,15 +43,30 @@ export default function CouponsPage() {
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState('');
   const [maxUses, setMaxUses] = useState('1');
-  const [productId, setProductId] = useState<string>('all');
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   const fetchCoupons = async () => {
-    const { data } = await supabase
+    const { data: couponsData } = await supabase
       .from('coupons' as any)
       .select('*')
       .order('created_at', { ascending: false });
-    setCoupons((data as any) || []);
+
+    const couponsList = (couponsData as any[]) || [];
+
+    // Fetch associated products for each coupon
+    const { data: couponProducts } = await supabase
+      .from('coupon_products' as any)
+      .select('coupon_id, product_id');
+
+    const cpMap = new Map<string, string[]>();
+    ((couponProducts as any[]) || []).forEach((cp: any) => {
+      const arr = cpMap.get(cp.coupon_id) || [];
+      arr.push(cp.product_id);
+      cpMap.set(cp.coupon_id, arr);
+    });
+
+    setCoupons(couponsList.map(c => ({ ...c, product_ids: cpMap.get(c.id) || [] })));
     setLoading(false);
   };
 
@@ -69,7 +85,7 @@ export default function CouponsPage() {
     setDiscountType('percentage');
     setDiscountValue('');
     setMaxUses('1');
-    setProductId('all');
+    setSelectedProductIds([]);
     setEditing(null);
   };
 
@@ -79,7 +95,7 @@ export default function CouponsPage() {
     setDiscountType(c.discount_type);
     setDiscountValue(String(c.discount_value));
     setMaxUses(String(c.max_uses));
-    setProductId(c.product_id || 'all');
+    setSelectedProductIds(c.product_ids || []);
     setDialogOpen(true);
   };
 
@@ -103,9 +119,11 @@ export default function CouponsPage() {
         discount_type: discountType,
         discount_value: Number(discountValue),
         max_uses: Number(maxUses),
-        product_id: productId === 'all' ? null : productId,
+        product_id: selectedProductIds.length === 1 ? selectedProductIds[0] : null,
         user_id: session.user.id,
       };
+
+      let couponId: string;
 
       if (editing) {
         const { error } = await supabase
@@ -113,11 +131,13 @@ export default function CouponsPage() {
           .update(payload)
           .eq('id', editing.id);
         if (error) throw error;
-        toast({ title: 'Cupom atualizado!' });
+        couponId = editing.id;
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('coupons' as any)
-          .insert(payload);
+          .insert(payload)
+          .select('id')
+          .single();
         if (error) {
           if (error.message?.includes('duplicate') || error.code === '23505') {
             toast({ title: 'Já existe um cupom com esse código.', variant: 'destructive' });
@@ -126,9 +146,17 @@ export default function CouponsPage() {
           }
           throw error;
         }
-        toast({ title: 'Cupom criado!' });
+        couponId = (data as any).id;
       }
 
+      // Sync coupon_products
+      await supabase.from('coupon_products' as any).delete().eq('coupon_id', couponId);
+      if (selectedProductIds.length > 0) {
+        const rows = selectedProductIds.map(pid => ({ coupon_id: couponId, product_id: pid }));
+        await supabase.from('coupon_products' as any).insert(rows);
+      }
+
+      toast({ title: editing ? 'Cupom atualizado!' : 'Cupom criado!' });
       resetForm();
       setDialogOpen(false);
       fetchCoupons();
@@ -158,10 +186,15 @@ export default function CouponsPage() {
     return `${p.name}${p.subtitle ? ` - ${p.subtitle}` : ''}${suffix}`;
   };
 
-  const getProductName = (pid: string | null) => {
-    if (!pid) return null;
+  const getProductName = (pid: string) => {
     const p = products.find(pr => pr.id === pid);
     return p ? getProductLabel(p) : 'Produto removido';
+  };
+
+  const toggleProductSelection = (pid: string) => {
+    setSelectedProductIds(prev =>
+      prev.includes(pid) ? prev.filter(id => id !== pid) : [...prev, pid]
+    );
   };
 
   return (
@@ -175,7 +208,7 @@ export default function CouponsPage() {
           <DialogTrigger asChild>
             <Button className="gap-2"><Plus className="w-4 h-4" /> Novo Cupom</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editing ? 'Editar Cupom' : 'Novo Cupom'}</DialogTitle>
             </DialogHeader>
@@ -221,19 +254,26 @@ export default function CouponsPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Produto associado</Label>
-                <Select value={productId} onValueChange={setProductId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um produto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os produtos</SelectItem>
-                    {products.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{getProductLabel(p)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">Deixe "Todos os produtos" para não restringir</p>
+                <Label>Produtos associados</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  {selectedProductIds.length === 0
+                    ? 'Nenhum produto selecionado — cupom válido para todos'
+                    : `${selectedProductIds.length} produto(s) selecionado(s)`}
+                </p>
+                <div className="border rounded-lg max-h-48 overflow-y-auto divide-y">
+                  {products.map(p => (
+                    <label
+                      key={p.id}
+                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent/50 cursor-pointer transition-colors"
+                    >
+                      <Checkbox
+                        checked={selectedProductIds.includes(p.id)}
+                        onCheckedChange={() => toggleProductSelection(p.id)}
+                      />
+                      <span className="text-sm text-foreground leading-tight">{getProductLabel(p)}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Limite de usos</Label>
@@ -290,10 +330,14 @@ export default function CouponsPage() {
                     }
                   </span>
                 </div>
-                {c.product_id && (
-                  <div className="flex items-center gap-1.5 text-sm">
-                    <Package className="w-3.5 h-3.5 text-primary" />
-                    <span className="text-muted-foreground truncate">{getProductName(c.product_id)}</span>
+                {c.product_ids.length > 0 && (
+                  <div className="space-y-1">
+                    {c.product_ids.map(pid => (
+                      <div key={pid} className="flex items-center gap-1.5 text-sm">
+                        <Package className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span className="text-muted-foreground truncate">{getProductName(pid)}</span>
+                      </div>
+                    ))}
                   </div>
                 )}
                 <div className="flex items-center justify-between text-sm">
