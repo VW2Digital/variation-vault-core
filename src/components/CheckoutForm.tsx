@@ -872,12 +872,7 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
         setPaymentResult({ ...result, finalValue: valorFinalCartao, finalInstallments: installments, finalInstallmentValue: valorParcelaCartao });
       }
 
-      // Increment coupon usage
-      if (appliedCouponCode) {
-        try {
-          await supabase.rpc('increment_coupon_usage', { _coupon_code: appliedCouponCode });
-        } catch { /* non-blocking */ }
-      }
+      // Coupon usage is incremented server-side when payment is confirmed (webhook)
 
       setStep('success');
       await clearCart();

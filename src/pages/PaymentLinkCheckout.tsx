@@ -371,12 +371,7 @@ export default function PaymentLinkCheckout() {
         setSuccess(true);
       }
 
-      // Increment coupon usage
-      if (appliedCouponCode) {
-        try {
-          await supabase.rpc('increment_coupon_usage', { _coupon_code: appliedCouponCode });
-        } catch { /* non-blocking */ }
-      }
+      // Coupon usage is incremented server-side when payment is confirmed (webhook)
 
       toast({ title: paymentMethod === 'pix' ? 'PIX gerado com sucesso!' : 'Pagamento processado!' });
     } catch (err: any) {
