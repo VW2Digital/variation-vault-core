@@ -4,8 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, Package, MoreVertical } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, MoreVertical, Copy, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -17,6 +18,7 @@ import {
 const ProductList = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [duplicating, setDuplicating] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -42,6 +44,57 @@ const ProductList = () => {
       load();
     } catch (err: any) {
       toast({ title: 'Erro ao excluir', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const handleDuplicate = async (product: any) => {
+    setDuplicating(product.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Não autenticado');
+
+      // Duplicate product
+      const { id, created_at, updated_at, product_variations, ...productData } = product;
+      const { data: newProduct, error } = await supabase
+        .from('products')
+        .insert({ ...productData, name: `${product.name} (Cópia)`, user_id: session.user.id })
+        .select('id')
+        .single();
+      if (error || !newProduct) throw error || new Error('Erro ao duplicar');
+
+      // Duplicate variations
+      if (product_variations?.length) {
+        for (const v of product_variations) {
+          const { id: vId, created_at: vCa, product_id, ...varData } = v;
+          const { data: newVar, error: varErr } = await supabase
+            .from('product_variations')
+            .insert({ ...varData, product_id: newProduct.id })
+            .select('id')
+            .single();
+          if (varErr) console.error('Erro ao duplicar variação:', varErr);
+
+          // Duplicate wholesale prices
+          if (newVar) {
+            const { data: wholesalePrices } = await supabase
+              .from('wholesale_prices')
+              .select('*')
+              .eq('variation_id', vId);
+            if (wholesalePrices?.length) {
+              for (const wp of wholesalePrices) {
+                const { id: wpId, created_at: wpCa, variation_id, ...wpData } = wp;
+                await supabase.from('wholesale_prices').insert({ ...wpData, variation_id: newVar.id });
+              }
+            }
+          }
+        }
+      }
+
+      toast({ title: `Produto "${product.name}" duplicado!` });
+      load();
+    } catch (err: any) {
+      toast({ title: 'Erro ao duplicar', description: err.message, variant: 'destructive' });
+    } finally {
+      setDuplicating(null);
     }
   };
 
