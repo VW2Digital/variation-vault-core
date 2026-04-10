@@ -16,6 +16,7 @@ import { useMercadoPago } from '@/hooks/useMercadoPago';
 
 interface CheckoutFormProps {
   productName: string;
+  productId?: string;
   paymentDescription?: string;
   dosage: string;
   quantity: number;
@@ -133,7 +134,7 @@ const StepIndicator = ({ currentStep }: { currentStep: CheckoutStep }) => {
   );
 };
 
-const CheckoutForm = ({ productName, paymentDescription, dosage, quantity, unitPrice, freeShipping, freeShippingMinValue, pixDiscountPercentProp, maxInstallmentsProp, installmentsInterestProp, onSuccess }: CheckoutFormProps) => {
+const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quantity, unitPrice, freeShipping, freeShippingMinValue, pixDiscountPercentProp, maxInstallmentsProp, installmentsInterestProp, onSuccess }: CheckoutFormProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { clearCart } = useCart();
