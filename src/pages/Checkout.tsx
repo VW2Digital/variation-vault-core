@@ -151,6 +151,7 @@ const Checkout = () => {
           {/* Checkout Form */}
           <CheckoutForm
             productName={product.name}
+            productId={product.id}
             paymentDescription={(product as any).fantasy_name || undefined}
             dosage={variation?.dosage || ''}
             quantity={quantity}
