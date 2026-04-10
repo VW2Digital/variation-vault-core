@@ -151,9 +151,17 @@ export default function CouponsPage() {
     toast({ title: 'Cupom excluído.' });
   };
 
+  const getProductLabel = (p: Product) => {
+    const variations = p.variations || [];
+    const varInfo = variations.map(v => v.subtitle || v.dosage).filter(Boolean);
+    const suffix = varInfo.length > 0 ? ` (${varInfo.join(', ')})` : '';
+    return `${p.name}${p.subtitle ? ` - ${p.subtitle}` : ''}${suffix}`;
+  };
+
   const getProductName = (pid: string | null) => {
     if (!pid) return null;
-    return products.find(p => p.id === pid)?.name || 'Produto removido';
+    const p = products.find(pr => pr.id === pid);
+    return p ? getProductLabel(p) : 'Produto removido';
   };
 
   return (
