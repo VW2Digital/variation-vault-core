@@ -55,8 +55,8 @@ const Footer = () => {
           <div className="space-y-3">
             <h4 className="font-semibold text-primary md:text-foreground">Selos de Segurança</h4>
             <div className="flex flex-row md:flex-col items-center md:items-start gap-3">
-              <img src={seloSiteProtegido} alt="Compra Segura - Site Protegido - Certificado SSL" className="h-10 object-contain" />
-              <img src={seloSafeBrowsing} alt="Safe Browsing Google" className="h-10 object-contain" />
+              <img src={seloSiteProtegido} alt="Compra Segura - Site Protegido - Certificado SSL" className="w-1/2 md:h-10 md:w-auto object-contain" />
+              <img src={seloSafeBrowsing} alt="Safe Browsing Google" className="w-1/2 md:h-10 md:w-auto object-contain" />
             </div>
           </div>
 
@@ -65,8 +65,8 @@ const Footer = () => {
             <h4 className="font-semibold text-primary md:text-foreground">Formas de Envio</h4>
             {/* Mobile: inline logos */}
             <div className="grid md:hidden grid-cols-2 gap-3">
-              <img src={logoSedex} alt="SEDEX" className="h-8 object-contain object-left" />
-              <img src={logoPac} alt="PAC" className="h-8 object-contain object-left" />
+              <img src={logoSedex} alt="SEDEX" className="w-full object-contain object-left" />
+              <img src={logoPac} alt="PAC" className="w-full object-contain object-left" />
               <img src={logoJadlog} alt="Jadlog" className="w-4/5 object-contain object-left" />
               <img src={logoJtExpress} alt="J&T Express" className="w-4/5 object-contain object-left" />
             </div>
