@@ -6,6 +6,10 @@ import logoImg from '@/assets/liberty-pharma-logo.png';
 import paymentMethodsImg from '@/assets/payment-methods.png';
 import seloSiteProtegido from '@/assets/selo-site-protegido.png';
 import seloSafeBrowsing from '@/assets/selo-safe-browsing.png';
+import logoSedex from '@/assets/logo-sedex.png';
+import logoPac from '@/assets/logo-pac.png';
+import logoJadlog from '@/assets/logo-jadlog.png';
+import logoJtExpress from '@/assets/logo-jt-express.png';
 import { Shield, ShieldCheck } from 'lucide-react';
 
 const Footer = () => {
@@ -59,9 +63,11 @@ const Footer = () => {
           {/* Column 4 - Shipping Methods */}
           <div className="space-y-3">
             <h4 className="font-semibold text-foreground">Formas de Envio</h4>
-            <div className="flex flex-wrap gap-2">
-              <span className="bg-primary text-primary-foreground rounded px-3 py-1.5 text-sm font-bold tracking-wide">SEDEX</span>
-              <span className="bg-primary text-primary-foreground rounded px-3 py-1.5 text-sm font-bold tracking-wide">PAC</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <img src={logoSedex} alt="SEDEX" className="h-7 object-contain" />
+              <img src={logoPac} alt="PAC" className="h-7 object-contain" />
+              <img src={logoJadlog} alt="Jadlog" className="h-7 object-contain" />
+              <img src={logoJtExpress} alt="J&T Express" className="h-7 object-contain" />
             </div>
           </div>
         </div>
