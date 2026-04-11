@@ -67,8 +67,8 @@ const Footer = () => {
             <div className="grid md:hidden grid-cols-2 gap-3">
               <img src={logoSedex} alt="SEDEX" className="h-8 object-contain object-left" />
               <img src={logoPac} alt="PAC" className="h-8 object-contain object-left" />
-              <img src={logoJadlog} alt="Jadlog" className="h-8 object-contain object-left" />
-              <img src={logoJtExpress} alt="J&T Express" className="h-8 object-contain object-left" />
+              <img src={logoJadlog} alt="Jadlog" className="h-10 object-contain object-left" />
+              <img src={logoJtExpress} alt="J&T Express" className="h-10 object-contain object-left" />
             </div>
             {/* Desktop: card grid */}
             <div className="hidden md:grid grid-cols-2 gap-3">
