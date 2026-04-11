@@ -36,8 +36,8 @@ const Footer = () => {
         {/* Main grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
           {/* Column 1 - Company Info */}
-          <div className="space-y-3">
-            <img src={logoImg} alt="Liberty Pharma" className="h-12 object-contain" />
+          <div className="space-y-3 text-center md:text-left">
+            <img src={logoImg} alt="Liberty Pharma" className="h-12 object-contain mx-auto md:mx-0" />
             <div className="text-sm text-muted-foreground leading-relaxed">
               {footerText && <p>{footerText}</p>}
               {footerEmail && <p>E-mail: {footerEmail}</p>}
@@ -46,24 +46,24 @@ const Footer = () => {
           </div>
 
           {/* Column 2 - Payment Methods */}
-          <div className="space-y-3">
+          <div className="space-y-3 text-center md:text-left">
             <h4 className="font-semibold text-foreground">Formas de Pagamento</h4>
-            <img src={paymentMethodsImg} alt="Formas de pagamento: Visa, Mastercard, Elo, Diners, American Express, Boleto Bancário e Pix" className="max-w-[220px]" />
+            <img src={paymentMethodsImg} alt="Formas de pagamento: Visa, Mastercard, Elo, Diners, American Express, Boleto Bancário e Pix" className="max-w-[220px] mx-auto md:mx-0" />
           </div>
 
           {/* Column 3 - Security Seals */}
-          <div className="space-y-3">
+          <div className="space-y-3 text-center md:text-left">
             <h4 className="font-semibold text-foreground">Selos de Segurança</h4>
-            <div className="flex flex-col gap-3">
-              <img src={seloSiteProtegido} alt="Compra Segura - Site Protegido - Certificado SSL" className="h-10 object-contain object-left" />
-              <img src={seloSafeBrowsing} alt="Safe Browsing Google" className="h-10 object-contain object-left" />
+            <div className="flex flex-col gap-3 items-center md:items-start">
+              <img src={seloSiteProtegido} alt="Compra Segura - Site Protegido - Certificado SSL" className="h-10 object-contain" />
+              <img src={seloSafeBrowsing} alt="Safe Browsing Google" className="h-10 object-contain" />
             </div>
           </div>
 
           {/* Column 4 - Shipping Methods */}
-          <div className="space-y-3">
+          <div className="space-y-3 text-center md:text-left">
             <h4 className="font-semibold text-foreground">Formas de Envio</h4>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 max-w-[220px] mx-auto md:mx-0">
               <div className="bg-card border border-border/50 rounded-lg p-2 flex items-center justify-center h-12">
                 <img src={logoSedex} alt="SEDEX" className="h-6 object-contain" />
               </div>
@@ -81,11 +81,11 @@ const Footer = () => {
         </div>
 
         {/* Bottom bar */}
-        <div className="border-t border-border/50 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="border-t border-border/50 pt-6 flex flex-col items-center gap-4 text-center">
           <p className="text-sm text-muted-foreground">
             © {new Date().getFullYear()} Liberty Pharma — {t('allRights')}
           </p>
-          <nav className="flex items-center gap-4 text-sm">
+          <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm">
             <Link to="/politica-de-privacidade" className="text-muted-foreground hover:text-foreground transition-colors">
               Política de Privacidade
             </Link>
