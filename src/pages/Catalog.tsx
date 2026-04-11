@@ -113,7 +113,11 @@ const Catalog = () => {
         (p) =>
           p.name.toLowerCase().includes(q) ||
           p.subtitle?.toLowerCase().includes(q) ||
-          p.active_ingredient?.toLowerCase().includes(q)
+          p.active_ingredient?.toLowerCase().includes(q) ||
+          p.product_variations?.some((v: any) =>
+            v.dosage?.toLowerCase().includes(q) ||
+            v.subtitle?.toLowerCase().includes(q)
+          )
       );
     }
 
