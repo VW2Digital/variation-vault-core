@@ -337,6 +337,11 @@ const Catalog = () => {
                           )}
                         </div>
                         <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+                          {product.is_bestseller && (
+                            <Badge className="bg-success text-white text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5">
+                              Mais Vendido
+                            </Badge>
+                          )}
                           {hasWholesale && (
                             <Badge className="bg-primary/90 text-primary-foreground text-[10px] font-bold gap-1">
                               <Layers className="w-3 h-3" /> Atacado
@@ -344,15 +349,6 @@ const Catalog = () => {
                           )}
                         </div>
                       </div>
-
-                      {/* Mais Vendido badge below image */}
-                      {product.is_bestseller && (
-                        <div className="px-3 pt-2">
-                          <Badge className="bg-success text-white text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5">
-                            Mais Vendido
-                          </Badge>
-                        </div>
-                      )}
 
                       {/* Content */}
                       <div className="p-3 pt-1.5 space-y-1 flex-1 flex flex-col">
