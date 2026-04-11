@@ -151,6 +151,7 @@ const Catalog = () => {
           <div className="flex animate-marquee whitespace-nowrap">
             {[...Array(2)].map((_, repeat) => (
               <div key={repeat} className="flex items-center shrink-0">
+                <span className="text-border mx-4 md:mx-8 text-lg">|</span>
                 {[
                   { icon: ShieldCheck, title: 'QUALIDADE GARANTIDA', desc: 'Controle e qualificação de alto padrão.' },
                   { icon: CreditCard, title: 'PAGAMENTO FACILITADO', desc: 'Até 3x sem juros no cartão.' },
