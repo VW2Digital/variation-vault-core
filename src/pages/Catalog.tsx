@@ -342,12 +342,14 @@ const Catalog = () => {
                               Mais Vendido
                             </Badge>
                           )}
-                          {hasWholesale && (
-                            <Badge className="bg-primary/90 text-primary-foreground text-[10px] font-bold gap-1">
-                              <Layers className="w-3 h-3" /> Atacado
-                            </Badge>
-                          )}
                         </div>
+                        {hasWholesale && wholesaleMinQty && (
+                          <div className="absolute bottom-2 left-2">
+                            <Badge variant="outline" className="bg-background/80 backdrop-blur-sm text-[9px] text-primary border-primary/30 font-bold gap-0.5 px-1.5">
+                              <Layers className="w-2.5 h-2.5" /> Atacado a partir de {wholesaleMinQty} unid.
+                            </Badge>
+                          </div>
+                        )}
                       </div>
 
                       {/* Content */}
@@ -434,13 +436,6 @@ const Catalog = () => {
                           <p className="text-muted-foreground text-sm">{t('consult')}</p>
                         )}
 
-                        {hasWholesale && wholesaleMinQty && (
-                          <div className="pt-0.5">
-                            <Badge variant="outline" className="text-[9px] text-primary border-primary/30 font-bold gap-0.5 px-1.5">
-                              <Layers className="w-2.5 h-2.5" /> Atacado a partir de {wholesaleMinQty} unid.
-                            </Badge>
-                          </div>
-                        )}
                         <div className="flex-1" /> {/* Spacer to push buttons down */}
                       </div>
                     </Link>
