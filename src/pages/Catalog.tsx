@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchProducts, fetchSetting } from '@/lib/api';
 import { WholesaleTier } from '@/contexts/CartContext';
 import { calcularParcelamento, parseInterestTable } from '@/lib/installments';
@@ -27,11 +27,12 @@ import { useLanguage } from '@/contexts/LanguageContext';
 const Catalog = () => {
   const { totalItems, addToCart } = useCart();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [wholesaleMap, setWholesaleMap] = useState<Record<string, number>>({});
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('busca') || '');
   const [pharmaFilter, setPharmaFilter] = useState('all');
   const [routeFilter, setRouteFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
