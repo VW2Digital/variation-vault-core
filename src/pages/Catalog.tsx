@@ -33,6 +33,12 @@ const Catalog = () => {
   const [loading, setLoading] = useState(true);
   const [wholesaleMap, setWholesaleMap] = useState<Record<string, number>>({});
   const [search, setSearch] = useState(searchParams.get('busca') || '');
+
+  // Sync search state with URL params
+  useEffect(() => {
+    const busca = searchParams.get('busca') || '';
+    setSearch(busca);
+  }, [searchParams]);
   const [pharmaFilter, setPharmaFilter] = useState('all');
   const [routeFilter, setRouteFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
