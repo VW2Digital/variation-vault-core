@@ -3,7 +3,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useEffect, useState } from 'react';
 import { fetchSetting } from '@/lib/api';
 import logoImg from '@/assets/liberty-pharma-logo.png';
-import { Shield, ShieldCheck, Lock } from 'lucide-react';
+import paymentMethodsImg from '@/assets/payment-methods.png';
+import { Shield, ShieldCheck } from 'lucide-react';
 
 const Footer = () => {
   const { t } = useLanguage();
@@ -41,18 +42,7 @@ const Footer = () => {
           {/* Column 2 - Payment Methods */}
           <div className="space-y-3">
             <h4 className="font-semibold text-foreground">Formas de Pagamento</h4>
-            <div className="flex flex-wrap gap-2">
-              {/* Card brand badges */}
-              <span className="bg-white border border-border rounded px-2 py-1 text-xs font-bold text-[hsl(var(--foreground))]">VISA</span>
-              <span className="bg-white border border-border rounded px-2 py-1 text-xs font-bold text-[hsl(var(--foreground))]">Mastercard</span>
-              <span className="bg-white border border-border rounded px-2 py-1 text-xs font-bold text-[hsl(var(--foreground))]">Elo</span>
-              <span className="bg-white border border-border rounded px-2 py-1 text-xs font-bold text-[hsl(var(--foreground))]">Amex</span>
-              <span className="bg-white border border-border rounded px-2 py-1 text-xs font-bold text-[hsl(var(--foreground))]">Diners</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <span className="bg-white border border-border rounded px-2 py-1 text-xs font-bold text-[hsl(var(--foreground))]">Boleto Bancário</span>
-              <span className="bg-white border border-border rounded px-2 py-1 text-xs font-bold text-[hsl(var(--foreground))]">Pix</span>
-            </div>
+            <img src={paymentMethodsImg} alt="Formas de pagamento: Visa, Mastercard, Elo, Diners, American Express, Boleto Bancário e Pix" className="max-w-[220px]" />
           </div>
 
           {/* Column 3 - Security Seals */}
