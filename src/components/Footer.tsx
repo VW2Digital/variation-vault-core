@@ -60,16 +60,16 @@ const Footer = () => {
             <h4 className="font-semibold text-foreground">Selos de Segurança</h4>
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-8 h-8 text-green-600" />
+                <ShieldCheck className="w-8 h-8 text-[hsl(var(--success))]" />
                 <div>
-                  <p className="text-xs font-bold text-green-700 uppercase">Compra Segura</p>
+                  <p className="text-xs font-bold text-[hsl(var(--success))] uppercase">Compra Segura</p>
                   <p className="text-[10px] text-muted-foreground">Site Protegido — Certificado SSL</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Shield className="w-8 h-8 text-green-600" />
+                <Shield className="w-8 h-8 text-[hsl(var(--success))]" />
                 <div>
-                  <p className="text-xs font-bold text-green-700 uppercase">Safe Browsing</p>
+                  <p className="text-xs font-bold text-[hsl(var(--success))] uppercase">Safe Browsing</p>
                   <p className="text-[10px] text-muted-foreground">Navegação Segura Verificada</p>
                 </div>
               </div>
