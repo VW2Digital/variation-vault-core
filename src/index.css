@@ -107,3 +107,12 @@ div[class*="chat-widget"] {
   animation: none !important;
   filter: brightness(0) invert(1) !important;
 }
+
+@keyframes chat-pulse {
+  0%, 100% {
+    box-shadow: 0 4px 14px hsla(36, 80%, 45%, 0.4), 0 0 0 0 hsla(36, 80%, 45%, 0.5);
+  }
+  50% {
+    box-shadow: 0 4px 14px hsla(36, 80%, 45%, 0.4), 0 0 0 10px hsla(36, 80%, 45%, 0);
+  }
+}
