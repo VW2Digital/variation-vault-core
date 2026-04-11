@@ -91,7 +91,8 @@ div[class*="chat-widget"] {
 #wc-btn {
   background: hsl(36, 80%, 45%) !important;
   border: none !important;
-  box-shadow: 0 4px 14px hsla(36, 80%, 45%, 0.4) !important;
+  box-shadow: 0 4px 14px hsla(36, 80%, 45%, 0.4), 0 0 0 0 hsla(36, 80%, 45%, 0.5) !important;
+  animation: chat-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
   transition: all 0.3s ease !important;
 }
 
@@ -103,5 +104,6 @@ div[class*="chat-widget"] {
 
 #wc-btn svg,
 #wc-btn img {
+  animation: none !important;
   filter: brightness(0) invert(1) !important;
 }
