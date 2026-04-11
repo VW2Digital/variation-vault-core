@@ -64,11 +64,11 @@ const Footer = () => {
           <div className="space-y-3">
             <h4 className="font-semibold text-primary md:text-foreground">Formas de Envio</h4>
             {/* Mobile: inline logos */}
-            <div className="flex md:hidden flex-wrap items-center gap-3">
-              <img src={logoSedex} alt="SEDEX" className="h-8 object-contain" />
-              <img src={logoPac} alt="PAC" className="h-8 object-contain" />
-              <img src={logoJadlog} alt="Jadlog" className="h-8 object-contain" />
-              <img src={logoJtExpress} alt="J&T Express" className="h-8 object-contain" />
+            <div className="grid md:hidden grid-cols-2 gap-3">
+              <img src={logoSedex} alt="SEDEX" className="h-8 object-contain object-left" />
+              <img src={logoPac} alt="PAC" className="h-8 object-contain object-left" />
+              <img src={logoJadlog} alt="Jadlog" className="h-8 object-contain object-left" />
+              <img src={logoJtExpress} alt="J&T Express" className="h-8 object-contain object-left" />
             </div>
             {/* Desktop: card grid */}
             <div className="hidden md:grid grid-cols-2 gap-3">
