@@ -151,19 +151,23 @@ const Catalog = () => {
           <div className="flex animate-marquee whitespace-nowrap">
             {[...Array(2)].map((_, repeat) => (
               <div key={repeat} className="flex items-center shrink-0">
+                <span className="text-border mx-4 md:mx-8 text-lg">|</span>
                 {[
                   { icon: ShieldCheck, title: 'QUALIDADE GARANTIDA', desc: 'Controle e qualificação de alto padrão.' },
                   { icon: CreditCard, title: 'PAGAMENTO FACILITADO', desc: 'Até 3x sem juros no cartão.' },
                   { icon: Shield, title: 'COMPRA SEGURA', desc: 'Ambiente seguro e certificado.' },
                   { icon: Truck, title: 'FRETE GRÁTIS', desc: 'Em compras acima de R$299 para todo o Brasil.' },
-                ].map((item) => (
-                  <div key={item.title} className="flex items-center gap-2 mx-6 shrink-0">
-                    <div className="bg-card rounded-lg p-2 shrink-0 shadow-sm">
-                      <item.icon className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="whitespace-nowrap">
-                      <p className="text-xs font-bold text-foreground uppercase leading-tight">{item.title}</p>
-                      <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{item.desc}</p>
+                ].map((item, i) => (
+                  <div key={item.title} className="flex items-center shrink-0">
+                    {i > 0 && <span className="text-border mx-4 md:mx-8 text-lg">|</span>}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="bg-card rounded-lg p-2 shrink-0 shadow-sm">
+                        <item.icon className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="whitespace-nowrap">
+                        <p className="text-xs font-bold text-foreground uppercase leading-tight">{item.title}</p>
+                        <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{item.desc}</p>
+                      </div>
                     </div>
                   </div>
                 ))}
