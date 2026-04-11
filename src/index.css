@@ -86,3 +86,22 @@ div[id*="chat-widget"],
 div[class*="chat-widget"] {
   max-height: 500px !important;
 }
+
+/* Estilizar botão do widget de chat com identidade visual */
+#wc-btn {
+  background: hsl(36, 80%, 45%) !important;
+  border: none !important;
+  box-shadow: 0 4px 14px hsla(36, 80%, 45%, 0.4) !important;
+  transition: all 0.3s ease !important;
+}
+
+#wc-btn:hover {
+  background: hsl(36, 80%, 38%) !important;
+  box-shadow: 0 6px 20px hsla(36, 80%, 45%, 0.5) !important;
+  transform: scale(1.05) !important;
+}
+
+#wc-btn svg,
+#wc-btn img {
+  filter: brightness(0) invert(1) !important;
+}
