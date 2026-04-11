@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { fetchSetting } from '@/lib/api';
 import logoImg from '@/assets/liberty-pharma-logo.png';
 import paymentMethodsImg from '@/assets/payment-methods.png';
+import seloSiteProtegido from '@/assets/selo-site-protegido.png';
+import seloSafeBrowsing from '@/assets/selo-safe-browsing.png';
 import { Shield, ShieldCheck } from 'lucide-react';
 
 const Footer = () => {
@@ -49,20 +51,8 @@ const Footer = () => {
           <div className="space-y-3">
             <h4 className="font-semibold text-foreground">Selos de Segurança</h4>
             <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-8 h-8 text-[hsl(var(--success))]" />
-                <div>
-                  <p className="text-xs font-bold text-[hsl(var(--success))] uppercase">Compra Segura</p>
-                  <p className="text-[10px] text-muted-foreground">Site Protegido — Certificado SSL</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Shield className="w-8 h-8 text-[hsl(var(--success))]" />
-                <div>
-                  <p className="text-xs font-bold text-[hsl(var(--success))] uppercase">Safe Browsing</p>
-                  <p className="text-[10px] text-muted-foreground">Navegação Segura Verificada</p>
-                </div>
-              </div>
+              <img src={seloSiteProtegido} alt="Compra Segura - Site Protegido - Certificado SSL" className="h-10 object-contain object-left" />
+              <img src={seloSafeBrowsing} alt="Safe Browsing Google" className="h-10 object-contain object-left" />
             </div>
           </div>
 
