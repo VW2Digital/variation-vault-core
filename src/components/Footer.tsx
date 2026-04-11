@@ -35,9 +35,9 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-4 py-10">
         {/* Main grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
-          {/* Column 1 - Company Info */}
-          <div className="space-y-3 text-center md:text-left">
-            <img src={logoImg} alt="Liberty Pharma" className="h-12 object-contain mx-auto md:mx-0" />
+          {/* Column 1 - Company Info (hidden on mobile) */}
+          <div className="hidden md:block space-y-3">
+            <img src={logoImg} alt="Liberty Pharma" className="h-12 object-contain" />
             <div className="text-sm text-muted-foreground leading-relaxed">
               {footerText && <p>{footerText}</p>}
               {footerEmail && <p>E-mail: {footerEmail}</p>}
@@ -46,24 +46,32 @@ const Footer = () => {
           </div>
 
           {/* Column 2 - Payment Methods */}
-          <div className="space-y-3 text-center md:text-left">
-            <h4 className="font-semibold text-foreground">Formas de Pagamento</h4>
-            <img src={paymentMethodsImg} alt="Formas de pagamento: Visa, Mastercard, Elo, Diners, American Express, Boleto Bancário e Pix" className="max-w-[220px] mx-auto md:mx-0" />
+          <div className="space-y-3">
+            <h4 className="font-semibold text-primary md:text-foreground">Formas de Pagamento</h4>
+            <img src={paymentMethodsImg} alt="Formas de pagamento: Visa, Mastercard, Elo, Diners, American Express, Boleto Bancário e Pix" className="max-w-[220px]" />
           </div>
 
           {/* Column 3 - Security Seals */}
-          <div className="space-y-3 text-center md:text-left">
-            <h4 className="font-semibold text-foreground">Selos de Segurança</h4>
-            <div className="flex flex-col gap-3 items-center md:items-start">
+          <div className="space-y-3">
+            <h4 className="font-semibold text-primary md:text-foreground">Selos de Segurança</h4>
+            <div className="flex flex-row md:flex-col items-center md:items-start gap-3">
               <img src={seloSiteProtegido} alt="Compra Segura - Site Protegido - Certificado SSL" className="h-10 object-contain" />
               <img src={seloSafeBrowsing} alt="Safe Browsing Google" className="h-10 object-contain" />
             </div>
           </div>
 
           {/* Column 4 - Shipping Methods */}
-          <div className="space-y-3 text-center md:text-left">
-            <h4 className="font-semibold text-foreground">Formas de Envio</h4>
-            <div className="grid grid-cols-2 gap-3 max-w-[220px] mx-auto md:mx-0">
+          <div className="space-y-3">
+            <h4 className="font-semibold text-primary md:text-foreground">Formas de Envio</h4>
+            {/* Mobile: inline logos */}
+            <div className="flex md:hidden flex-wrap items-center gap-3">
+              <img src={logoSedex} alt="SEDEX" className="h-8 object-contain" />
+              <img src={logoPac} alt="PAC" className="h-8 object-contain" />
+              <img src={logoJadlog} alt="Jadlog" className="h-8 object-contain" />
+              <img src={logoJtExpress} alt="J&T Express" className="h-8 object-contain" />
+            </div>
+            {/* Desktop: card grid */}
+            <div className="hidden md:grid grid-cols-2 gap-3">
               <div className="bg-card border border-border/50 rounded-lg p-2 flex items-center justify-center h-12">
                 <img src={logoSedex} alt="SEDEX" className="h-6 object-contain" />
               </div>
