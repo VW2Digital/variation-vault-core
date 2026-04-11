@@ -145,24 +145,28 @@ const Catalog = () => {
       {/* Banner Carousel */}
       <BannerCarousel />
 
-      {/* Trust Bar */}
-      <div className="bg-secondary/50 border-b border-border/30">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { icon: ShieldCheck, title: 'QUALIDADE GARANTIDA', desc: 'Controle e qualificação de alto padrão.' },
-              { icon: CreditCard, title: 'PAGAMENTO FACILITADO', desc: 'Até 3x sem juros no cartão.' },
-              { icon: Shield, title: 'COMPRA SEGURA', desc: 'Ambiente seguro e certificado.' },
-              { icon: Truck, title: 'FRETE GRÁTIS', desc: 'Em compras acima de R$299 para todo o Brasil.' },
-            ].map((item) => (
-              <div key={item.title} className="flex items-center gap-3">
-                <div className="bg-card rounded-lg p-2.5 shrink-0 shadow-sm">
-                  <item.icon className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-foreground uppercase leading-tight">{item.title}</p>
-                  <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{item.desc}</p>
-                </div>
+      {/* Trust Bar - Marquee */}
+      <div className="bg-secondary/50 border-b border-border/30 overflow-hidden">
+        <div className="py-3">
+          <div className="flex animate-marquee whitespace-nowrap">
+            {[...Array(2)].map((_, repeat) => (
+              <div key={repeat} className="flex items-center shrink-0">
+                {[
+                  { icon: ShieldCheck, title: 'QUALIDADE GARANTIDA', desc: 'Controle e qualificação de alto padrão.' },
+                  { icon: CreditCard, title: 'PAGAMENTO FACILITADO', desc: 'Até 3x sem juros no cartão.' },
+                  { icon: Shield, title: 'COMPRA SEGURA', desc: 'Ambiente seguro e certificado.' },
+                  { icon: Truck, title: 'FRETE GRÁTIS', desc: 'Em compras acima de R$299 para todo o Brasil.' },
+                ].map((item) => (
+                  <div key={item.title} className="flex items-center gap-2 mx-6 shrink-0">
+                    <div className="bg-card rounded-lg p-2 shrink-0 shadow-sm">
+                      <item.icon className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="whitespace-nowrap">
+                      <p className="text-xs font-bold text-foreground uppercase leading-tight">{item.title}</p>
+                      <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
