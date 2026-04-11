@@ -76,7 +76,8 @@
 
 .animate-marquee {
   animation: marquee 20s linear infinite;
-  display: inline-block;
+  display: flex;
+  width: max-content;
 }
 
 /* Limitar altura do widget de chat externo */
