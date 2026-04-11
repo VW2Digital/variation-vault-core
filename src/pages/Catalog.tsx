@@ -157,7 +157,7 @@ const Catalog = () => {
                   { icon: Shield, title: 'COMPRA SEGURA', desc: 'Ambiente seguro e certificado.' },
                   { icon: Truck, title: 'FRETE GRÁTIS', desc: 'Em compras acima de R$299 para todo o Brasil.' },
                 ].map((item) => (
-                  <div key={item.title} className="flex items-center gap-2 mx-6 shrink-0">
+                  <div key={item.title} className="flex items-center gap-2 mx-8 md:mx-12 shrink-0">
                     <div className="bg-card rounded-lg p-2 shrink-0 shadow-sm">
                       <item.icon className="w-5 h-5 text-primary" />
                     </div>
