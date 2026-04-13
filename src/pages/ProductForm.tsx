@@ -403,6 +403,12 @@ const ProductForm = () => {
                     </div>
                   )}
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Qtd. em Estoque</Label>
+                    <Input type="number" min={0} value={v.stock_quantity || ''} onChange={(e) => updateVariation(i, 'stock_quantity', Number(e.target.value))} placeholder="0" />
+                  </div>
+                </div>
                 <div className="flex items-center gap-4 flex-wrap">
                   <div className="flex items-center gap-2">
                     <Switch checked={v.in_stock} onCheckedChange={(val) => updateVariation(i, 'in_stock', val)} />
