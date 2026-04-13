@@ -4,8 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, RefreshCw, X, Calendar } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
+import { Download, RefreshCw, X, Calendar, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 
 interface RawOrder {
   status: string;
@@ -101,6 +101,65 @@ const ReportsPage = () => {
     const conversion = filtered.length > 0 ? (orders / filtered.length) * 100 : 0;
     return { revenue, orders, avgTicket, shippingTotal, discountTotal, conversion };
   }, [filtered]);
+
+  // Previous period (same duration, shifted back)
+  const prevFiltered = useMemo(() => {
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T23:59:59');
+    const duration = end.getTime() - start.getTime();
+    const prevStart = new Date(start.getTime() - duration - 86400000);
+    const prevEnd = new Date(start.getTime() - 86400000);
+    return allOrders.filter(o => {
+      const d = new Date(o.created_at);
+      return d >= prevStart && d <= prevEnd;
+    });
+  }, [allOrders, startDate, endDate]);
+
+  const prevMetrics = useMemo(() => {
+    const confirmed = prevFiltered.filter(o => CONFIRMED.includes(o.status));
+    const revenue = confirmed.reduce((s, o) => s + Number(o.total_value || 0), 0);
+    const orders = confirmed.length;
+    const avgTicket = orders > 0 ? revenue / orders : 0;
+    const shippingTotal = confirmed.reduce((s, o) => s + Number(o.shipping_cost || 0), 0);
+    const discountTotal = confirmed.reduce((s, o) => s + Number(o.coupon_discount || 0), 0);
+    const conversion = prevFiltered.length > 0 ? (orders / prevFiltered.length) * 100 : 0;
+    return { revenue, orders, avgTicket, shippingTotal, discountTotal, conversion };
+  }, [prevFiltered]);
+
+  // Comparison chart data (current vs previous revenue by day offset)
+  const comparisonData = useMemo(() => {
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T23:59:59');
+    const duration = end.getTime() - start.getTime();
+    const prevStart = new Date(start.getTime() - duration - 86400000);
+    const numDays = Math.round(duration / 86400000) + 1;
+
+    const currentMap = new Map<number, number>();
+    const prevMap = new Map<number, number>();
+    for (let i = 0; i < numDays; i++) { currentMap.set(i, 0); prevMap.set(i, 0); }
+
+    filtered.filter(o => CONFIRMED.includes(o.status)).forEach(o => {
+      const dayIdx = Math.floor((new Date(o.created_at).getTime() - start.getTime()) / 86400000);
+      if (dayIdx >= 0 && dayIdx < numDays) currentMap.set(dayIdx, (currentMap.get(dayIdx) || 0) + Number(o.total_value || 0));
+    });
+
+    prevFiltered.filter(o => CONFIRMED.includes(o.status)).forEach(o => {
+      const dayIdx = Math.floor((new Date(o.created_at).getTime() - prevStart.getTime()) / 86400000);
+      if (dayIdx >= 0 && dayIdx < numDays) prevMap.set(dayIdx, (prevMap.get(dayIdx) || 0) + Number(o.total_value || 0));
+    });
+
+    const result = [];
+    for (let i = 0; i < numDays; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      result.push({
+        label: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`,
+        atual: currentMap.get(i) || 0,
+        anterior: prevMap.get(i) || 0,
+      });
+    }
+    return result;
+  }, [filtered, prevFiltered, startDate, endDate]);
 
   // Revenue chart data
   const chartData = useMemo(() => {
@@ -227,13 +286,18 @@ const ReportsPage = () => {
     );
   }
 
+  const pctChange = (cur: number, prev: number) => {
+    if (prev === 0) return cur > 0 ? 100 : 0;
+    return ((cur - prev) / prev) * 100;
+  };
+
   const kpis = [
-    { label: 'Receita', value: formatCurrency(metrics.revenue) },
-    { label: 'Pedidos', value: String(metrics.orders) },
-    { label: 'Ticket Médio', value: formatCurrency(metrics.avgTicket) },
-    { label: 'Frete Total', value: formatCurrency(metrics.shippingTotal) },
-    { label: 'Descontos', value: formatCurrency(metrics.discountTotal) },
-    { label: 'Conversão', value: `${metrics.conversion.toFixed(1)}%` },
+    { label: 'Receita', value: formatCurrency(metrics.revenue), change: pctChange(metrics.revenue, prevMetrics.revenue) },
+    { label: 'Pedidos', value: String(metrics.orders), change: pctChange(metrics.orders, prevMetrics.orders) },
+    { label: 'Ticket Médio', value: formatCurrency(metrics.avgTicket), change: pctChange(metrics.avgTicket, prevMetrics.avgTicket) },
+    { label: 'Frete Total', value: formatCurrency(metrics.shippingTotal), change: pctChange(metrics.shippingTotal, prevMetrics.shippingTotal) },
+    { label: 'Descontos', value: formatCurrency(metrics.discountTotal), change: pctChange(metrics.discountTotal, prevMetrics.discountTotal) },
+    { label: 'Conversão', value: `${metrics.conversion.toFixed(1)}%`, change: pctChange(metrics.conversion, prevMetrics.conversion) },
   ];
 
   return (
@@ -324,6 +388,11 @@ const ReportsPage = () => {
             <CardContent className="p-4">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{kpi.label}</p>
               <p className="text-lg sm:text-xl font-black text-foreground tracking-tight">{kpi.value}</p>
+              <div className={`flex items-center gap-1 mt-1 text-[10px] font-semibold ${kpi.change > 0 ? 'text-green-600' : kpi.change < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {kpi.change > 0 ? <TrendingUp className="w-3 h-3" /> : kpi.change < 0 ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
+                <span>{kpi.change > 0 ? '+' : ''}{kpi.change.toFixed(1)}%</span>
+                <span className="text-muted-foreground font-normal">vs anterior</span>
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -374,6 +443,46 @@ const ReportsPage = () => {
                   fill="url(#colorRevenue)"
                   strokeWidth={2.5}
                 />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Comparação: Período Atual vs Anterior */}
+      <Card className="border-border/40 shadow-sm">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Comparação: Período Atual vs Anterior</p>
+            <div className="flex items-center gap-4 text-[10px]">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-0.5 rounded bg-[hsl(38_92%_50%)]" />
+                <span className="text-muted-foreground">Atual</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-0.5 rounded bg-muted-foreground/40 border-dashed" />
+                <span className="text-muted-foreground">Anterior</span>
+              </div>
+            </div>
+          </div>
+          <div className="h-72 sm:h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={comparisonData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorAtual" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(38 92% 50%)" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="hsl(38 92% 50%)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} width={50} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  formatter={(v: number, name: string) => [formatCurrency(v), name === 'atual' ? 'Período Atual' : 'Período Anterior']}
+                />
+                <Area type="monotone" dataKey="atual" stroke="hsl(38 92% 50%)" fill="url(#colorAtual)" strokeWidth={2.5} />
+                <Area type="monotone" dataKey="anterior" stroke="hsl(var(--muted-foreground))" fill="none" strokeWidth={1.5} strokeDasharray="5 5" strokeOpacity={0.5} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
