@@ -537,7 +537,80 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Produto Stats (com estoque) */}
+      {/* Saúde do Estoque + Receita por Categoria */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Saúde do Estoque */}
+        <Card className="border-border/40 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              Saúde do Estoque
+            </CardTitle>
+            <p className="text-[10px] text-muted-foreground">Produtos com menor estoque</p>
+          </CardHeader>
+          <CardContent>
+            {lowStockItems.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">Nenhuma variação cadastrada</p>
+            ) : (
+              <div className="space-y-3">
+                {lowStockItems.map((item, idx) => {
+                  const maxStock = Math.max(...lowStockItems.map(i => i.stock), 1);
+                  const pct = (item.stock / maxStock) * 100;
+                  const barColor = item.stock <= 5 ? 'bg-destructive' : item.stock <= 20 ? 'bg-amber-500' : 'bg-primary';
+                  return (
+                    <div key={idx} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-foreground truncate max-w-[60%]">{item.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-foreground">{item.stock} un.</span>
+                          <button
+                            onClick={() => navigate(`/admin/produtos/${item.productId}`)}
+                            className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className={`h-full rounded-full ${barColor} transition-all duration-500`} style={{ width: `${Math.max(pct, 3)}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Receita por Categoria */}
+        <Card className="border-border/40 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Receita por Categoria</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {revenueByCategoryData.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">Nenhuma venda no período</p>
+            ) : (
+              <div className="h-52">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={revenueByCategoryData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} tickFormatter={(v) => formatCompact(v)} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickLine={false} axisLine={false} width={100} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))' }}
+                      formatter={(v: number) => formatCurrency(v)}
+                    />
+                    <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={20} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Alerta de estoque */}
       {stats.outOfStock > 0 && (
         <div className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3.5">
           <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
