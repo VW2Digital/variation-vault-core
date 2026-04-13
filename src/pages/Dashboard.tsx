@@ -3,11 +3,14 @@ import { fetchProducts } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, DollarSign, AlertTriangle, TrendingUp, CreditCard, QrCode, RefreshCw, ShoppingCart, CheckCircle2, XCircle, ArrowRightLeft, BarChart3, Tag, Clock, Eye, Undo2, Users, Wallet, Target, Pencil } from 'lucide-react';
+import { Package, DollarSign, AlertTriangle, TrendingUp, CreditCard, QrCode, RefreshCw, ShoppingCart, CheckCircle2, XCircle, ArrowRightLeft, BarChart3, Tag, Clock, Eye, Undo2, Users, Wallet, Target, Pencil, Search } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, BarChart, Bar } from 'recharts';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useNavigate } from 'react-router-dom';
-import { Progress } from '@/components/ui/progress';
+  import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+  import { useNavigate } from 'react-router-dom';
+  import { Progress } from '@/components/ui/progress';
+  import { Input } from '@/components/ui/input';
+  import { Badge } from '@/components/ui/badge';
+  import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type PeriodKey = '7' | '30' | '90';
 
@@ -87,6 +90,7 @@ const Dashboard = () => {
   const [period, setPeriod] = useState<PeriodKey>('30');
   const [paidWithoutLabel, setPaidWithoutLabel] = useState(0);
   const [totalClients, setTotalClients] = useState(0);
+  const [stockSearch, setStockSearch] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -192,16 +196,32 @@ const Dashboard = () => {
     return data;
   }, [metrics]);
 
-  // Stock health: variations with lowest stock_quantity
-  const lowStockItems = useMemo(() => {
-    const items: { name: string; dosage: string; stock: number; productId: string }[] = [];
+  // Stock monitoring: all variations with product info
+  const allStockItems = useMemo(() => {
+    const items: { name: string; dosage: string; stock: number; productId: string; price: number; category: string; image: string | null }[] = [];
     allProducts.forEach((p: any) => {
       (p.product_variations || []).forEach((v: any) => {
-        items.push({ name: p.name, dosage: v.dosage, stock: Number(v.stock_quantity || 0), productId: p.id });
+        items.push({
+          name: p.name,
+          dosage: v.dosage,
+          stock: Number(v.stock_quantity || 0),
+          productId: p.id,
+          price: Number(v.is_offer && v.offer_price ? v.offer_price : v.price || 0),
+          category: (p as any).category || '',
+          image: v.image_url || (p.images && p.images[0]) || null,
+        });
       });
     });
-    return items.sort((a, b) => a.stock - b.stock).slice(0, 5);
+    return items.sort((a, b) => a.stock - b.stock);
   }, [allProducts]);
+
+  const filteredStockItems = useMemo(() => {
+    if (!stockSearch.trim()) return allStockItems;
+    const q = stockSearch.toLowerCase();
+    return allStockItems.filter(i => i.name.toLowerCase().includes(q));
+  }, [allStockItems, stockSearch]);
+
+  const lowStockItems = useMemo(() => allStockItems.slice(0, 5), [allStockItems]);
 
   // Revenue by category
   const revenueByCategoryData = useMemo(() => {
@@ -537,78 +557,143 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Saúde do Estoque + Receita por Categoria */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Saúde do Estoque */}
-        <Card className="border-border/40 shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4" />
-              Saúde do Estoque
-            </CardTitle>
-            <p className="text-[10px] text-muted-foreground">Produtos com menor estoque</p>
-          </CardHeader>
-          <CardContent>
-            {lowStockItems.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-4">Nenhuma variação cadastrada</p>
-            ) : (
-              <div className="space-y-3">
-                {lowStockItems.map((item, idx) => {
-                  const maxStock = Math.max(...lowStockItems.map(i => i.stock), 1);
-                  const pct = (item.stock / maxStock) * 100;
-                  const barColor = item.stock <= 5 ? 'bg-destructive' : item.stock <= 20 ? 'bg-amber-500' : 'bg-primary';
-                  return (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-foreground truncate max-w-[60%]">{item.name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-foreground">{item.stock} un.</span>
+      {/* Monitoramento de Estoque */}
+      <Card className="border-border/40 shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-foreground flex items-center gap-2">
+                <Package className="w-4 h-4" />
+                Monitoramento de Estoque
+              </CardTitle>
+              <p className="text-[11px] text-muted-foreground mt-1">{allStockItems.length} produto(s) cadastrado(s)</p>
+            </div>
+            <div className="relative w-full sm:w-56">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome..."
+                value={stockSearch}
+                onChange={(e) => setStockSearch(e.target.value)}
+                className="pl-9 h-9 text-sm"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="px-0 sm:px-6">
+          {filteredStockItems.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-8">Nenhum produto encontrado</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="text-[10px] uppercase tracking-wider font-semibold">Produto</TableHead>
+                    <TableHead className="text-[10px] uppercase tracking-wider font-semibold">Categoria</TableHead>
+                    <TableHead className="text-[10px] uppercase tracking-wider font-semibold">Preço</TableHead>
+                    <TableHead className="text-[10px] uppercase tracking-wider font-semibold">Estoque</TableHead>
+                    <TableHead className="text-[10px] uppercase tracking-wider font-semibold text-center">Status</TableHead>
+                    <TableHead className="w-10" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredStockItems.map((item, idx) => {
+                    const maxStock = Math.max(...allStockItems.map(i => i.stock), 100);
+                    const pct = Math.min((item.stock / maxStock) * 100, 100);
+                    const isCritical = item.stock <= 10;
+                    const isLow = item.stock <= 30;
+                    return (
+                      <TableRow key={idx} className="group">
+                        <TableCell className="py-3">
+                          <div className="flex items-center gap-3">
+                            {item.image ? (
+                              <img src={item.image} alt={item.name} className="w-10 h-10 rounded-lg object-cover border border-border/40" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                                <Package className="w-4 h-4 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">{item.name}</p>
+                              {item.dosage && <p className="text-[10px] text-muted-foreground">{item.dosage}</p>}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {item.category ? (
+                            <Badge variant="secondary" className="text-[10px] font-medium">{item.category}</Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm font-medium text-foreground whitespace-nowrap">
+                          {formatCurrency(item.price)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3 min-w-[160px]">
+                            <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  isCritical ? 'bg-destructive' : isLow ? 'bg-amber-500' : 'bg-primary'
+                                }`}
+                                style={{ width: `${Math.max(pct, 3)}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-bold text-foreground whitespace-nowrap">{item.stock} unid.</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {isCritical ? (
+                            <Badge variant="destructive" className="text-[10px] font-bold uppercase">Crítico</Badge>
+                          ) : isLow ? (
+                            <Badge className="text-[10px] font-bold uppercase bg-amber-500/15 text-amber-600 border-amber-500/30 hover:bg-amber-500/20">Baixo</Badge>
+                          ) : (
+                            <Badge className="text-[10px] font-bold uppercase bg-primary/15 text-primary border-primary/30 hover:bg-primary/20">Ativo</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           <button
                             onClick={() => navigate(`/admin/produtos/${item.productId}`)}
-                            className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-50 group-hover:opacity-100"
                           >
-                            <Pencil className="w-3.5 h-3.5" />
+                            <Pencil className="w-4 h-4" />
                           </button>
-                        </div>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div className={`h-full rounded-full ${barColor} transition-all duration-500`} style={{ width: `${Math.max(pct, 3)}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        {/* Receita por Categoria */}
-        <Card className="border-border/40 shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Receita por Categoria</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {revenueByCategoryData.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-4">Nenhuma venda no período</p>
-            ) : (
-              <div className="h-52">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={revenueByCategoryData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} tickFormatter={(v) => formatCompact(v)} />
-                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickLine={false} axisLine={false} width={100} />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))' }}
-                      formatter={(v: number) => formatCurrency(v)}
-                    />
-                    <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={20} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      {/* Receita por Categoria */}
+      <Card className="border-border/40 shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Receita por Categoria</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {revenueByCategoryData.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">Nenhuma venda no período</p>
+          ) : (
+            <div className="h-52">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={revenueByCategoryData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} tickFormatter={(v) => formatCompact(v)} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickLine={false} axisLine={false} width={100} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))' }}
+                    formatter={(v: number) => formatCurrency(v)}
+                  />
+                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Alerta de estoque */}
       {stats.outOfStock > 0 && (
