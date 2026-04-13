@@ -102,32 +102,107 @@ const ReportsPage = () => {
     return { revenue, orders, avgTicket, shippingTotal, discountTotal, conversion };
   }, [filtered]);
 
+  // Revenue chart data
   const chartData = useMemo(() => {
     const map = new Map<string, number>();
-
-    // Build all keys in the range
     const start = new Date(startDate + 'T00:00:00');
     const end = new Date(endDate + 'T23:59:59');
-
     if (grouping === 'day') {
       const cur = new Date(start);
-      while (cur <= end) {
-        map.set(fmt(cur), 0);
-        cur.setDate(cur.getDate() + 1);
-      }
+      while (cur <= end) { map.set(fmt(cur), 0); cur.setDate(cur.getDate() + 1); }
     }
-
-    filtered
-      .filter(o => CONFIRMED.includes(o.status))
-      .forEach(o => {
-        const key = groupKey(o.created_at, grouping);
-        map.set(key, (map.get(key) || 0) + Number(o.total_value || 0));
-      });
-
-    return Array.from(map.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
+    filtered.filter(o => CONFIRMED.includes(o.status)).forEach(o => {
+      const key = groupKey(o.created_at, grouping);
+      map.set(key, (map.get(key) || 0) + Number(o.total_value || 0));
+    });
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
       .map(([key, value]) => ({ label: formatLabel(key, grouping), value }));
   }, [filtered, grouping, startDate, endDate]);
+
+  // Orders per period (bar chart)
+  const ordersPerPeriod = useMemo(() => {
+    const map = new Map<string, number>();
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T23:59:59');
+    if (grouping === 'day') {
+      const cur = new Date(start);
+      while (cur <= end) { map.set(fmt(cur), 0); cur.setDate(cur.getDate() + 1); }
+    }
+    filtered.forEach(o => {
+      const key = groupKey(o.created_at, grouping);
+      map.set(key, (map.get(key) || 0) + 1);
+    });
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, value]) => ({ label: formatLabel(key, grouping), value }));
+  }, [filtered, grouping, startDate, endDate]);
+
+  // Avg ticket per period (line chart)
+  const ticketPerPeriod = useMemo(() => {
+    const countMap = new Map<string, number>();
+    const sumMap = new Map<string, number>();
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T23:59:59');
+    if (grouping === 'day') {
+      const cur = new Date(start);
+      while (cur <= end) { const k = fmt(cur); countMap.set(k, 0); sumMap.set(k, 0); cur.setDate(cur.getDate() + 1); }
+    }
+    filtered.filter(o => CONFIRMED.includes(o.status)).forEach(o => {
+      const key = groupKey(o.created_at, grouping);
+      countMap.set(key, (countMap.get(key) || 0) + 1);
+      sumMap.set(key, (sumMap.get(key) || 0) + Number(o.total_value || 0));
+    });
+    return Array.from(countMap.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, count]) => ({ label: formatLabel(key, grouping), value: count > 0 ? (sumMap.get(key) || 0) / count : 0 }));
+  }, [filtered, grouping, startDate, endDate]);
+
+  // Orders by status (donut)
+  const ordersByStatus = useMemo(() => {
+    const map = new Map<string, number>();
+    filtered.forEach(o => {
+      let label = 'Outro';
+      if (CONFIRMED.includes(o.status)) label = 'Confirmado';
+      else if (o.status === 'PENDING') label = 'Pendente';
+      else if (FAILED.includes(o.status)) label = 'Cancelado';
+      else if (o.status === 'REFUNDED') label = 'Reembolsado';
+      map.set(label, (map.get(label) || 0) + 1);
+    });
+    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
+  }, [filtered]);
+
+  // Payment status (donut)
+  const paymentStatus = useMemo(() => {
+    const map = new Map<string, number>();
+    filtered.forEach(o => {
+      let label = 'Outro';
+      if (CONFIRMED.includes(o.status)) label = 'Pago';
+      else if (o.status === 'PENDING') label = 'Pendente';
+      else if (FAILED.includes(o.status)) label = 'Falhou';
+      map.set(label, (map.get(label) || 0) + 1);
+    });
+    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
+  }, [filtered]);
+
+  // Revenue by method (donut)
+  const revenueByMethod = useMemo(() => {
+    const map = new Map<string, number>();
+    filtered.filter(o => CONFIRMED.includes(o.status)).forEach(o => {
+      const method = o.payment_method === 'pix' ? 'PIX' : o.payment_method === 'credit_card' ? 'Cartão' : o.payment_method || 'Outro';
+      map.set(method, (map.get(method) || 0) + Number(o.total_value || 0));
+    });
+    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
+  }, [filtered]);
+
+  // Top 10 products
+  const topProducts = useMemo(() => {
+    const map = new Map<string, number>();
+    filtered.filter(o => CONFIRMED.includes(o.status)).forEach(o => {
+      map.set(o.product_name, (map.get(o.product_name) || 0) + Number(o.total_value || 0));
+    });
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+  }, [filtered]);
 
   const exportCSV = () => {
     const confirmed = filtered.filter(o => CONFIRMED.includes(o.status));
