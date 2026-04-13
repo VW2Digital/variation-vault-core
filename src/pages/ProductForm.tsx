@@ -34,6 +34,7 @@ interface Variation {
   is_offer: boolean;
   image_url: string;
   images: string[];
+  stock_quantity: number;
   wholesale_prices: WholesaleTier[];
 }
 
@@ -46,6 +47,7 @@ const emptyVariation = (): Variation => ({
   is_offer: false,
   image_url: '',
   images: [],
+  stock_quantity: 0,
   wholesale_prices: [],
 });
 
@@ -70,6 +72,7 @@ const ProductForm = () => {
   const [maxInstallments, setMaxInstallments] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
   const [variations, setVariations] = useState<Variation[]>([emptyVariation()]);
+  const [category, setCategory] = useState('');
   const [saving, setSaving] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
 
@@ -91,7 +94,7 @@ const ProductForm = () => {
         setMaxInstallments(Number((p as any).max_installments) || 6);
         setInstallmentsInterest((p as any).installments_interest || 'sem_juros');
         setIsBestseller(p.is_bestseller || false);
-        // Fetch wholesale prices for all variations
+        setCategory((p as any).category || '');
         const varIds = (p.product_variations || []).map((v: any) => v.id);
         let wholesaleMap: Record<string, WholesaleTier[]> = {};
         if (varIds.length > 0) {
@@ -117,6 +120,7 @@ const ProductForm = () => {
                 is_offer: v.is_offer,
                 image_url: v.image_url || '',
                 images: v.images || [],
+                stock_quantity: Number(v.stock_quantity || 0),
                 wholesale_prices: wholesaleMap[v.id] || [],
               }))
             : [emptyVariation()]
@@ -148,7 +152,11 @@ const ProductForm = () => {
         pix_discount_percent: pixDiscountPercent,
         max_installments: maxInstallments,
         installments_interest: installmentsInterest,
-        variations: variations.filter((v) => v.dosage.trim() !== ''),
+        category,
+        variations: variations.filter((v) => v.dosage.trim() !== '').map(v => ({
+          ...v,
+          stock_quantity: v.stock_quantity,
+        })),
       };
 
       let savedProduct: any;
@@ -217,7 +225,7 @@ const ProductForm = () => {
         <Card className="border-border/50">
           <CardHeader><CardTitle className="text-lg">Informações Básicas</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Nome do Produto</Label>
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Liberty Pharma 5mg" required />
@@ -225,6 +233,10 @@ const ProductForm = () => {
               <div className="space-y-2">
                 <Label>Princípio Ativo</Label>
                 <Input value={activeIngredient} onChange={(e) => setActiveIngredient(e.target.value)} placeholder="Ex: Tirzepatide" />
+              </div>
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Ex: Emagrecimento, Saúde" />
               </div>
             </div>
             <div className="space-y-2">
@@ -390,6 +402,12 @@ const ProductForm = () => {
                       <Input type="number" value={v.offer_price || ''} onChange={(e) => updateVariation(i, 'offer_price', Number(e.target.value))} className="border-destructive/50" />
                     </div>
                   )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Qtd. em Estoque</Label>
+                    <Input type="number" min={0} value={v.stock_quantity || ''} onChange={(e) => updateVariation(i, 'stock_quantity', Number(e.target.value))} placeholder="0" />
+                  </div>
                 </div>
                 <div className="flex items-center gap-4 flex-wrap">
                   <div className="flex items-center gap-2">

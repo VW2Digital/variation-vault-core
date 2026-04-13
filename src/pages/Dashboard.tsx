@@ -3,8 +3,8 @@ import { fetchProducts } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, DollarSign, AlertTriangle, TrendingUp, CreditCard, QrCode, RefreshCw, ShoppingCart, CheckCircle2, XCircle, ArrowRightLeft, BarChart3, Tag, Clock, Eye, Undo2, Users, Wallet, Target } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { Package, DollarSign, AlertTriangle, TrendingUp, CreditCard, QrCode, RefreshCw, ShoppingCart, CheckCircle2, XCircle, ArrowRightLeft, BarChart3, Tag, Clock, Eye, Undo2, Users, Wallet, Target, Pencil } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, BarChart, Bar } from 'recharts';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useNavigate } from 'react-router-dom';
 import { Progress } from '@/components/ui/progress';
@@ -16,6 +16,7 @@ interface RawOrder {
   payment_method: string;
   total_value: number;
   customer_email: string;
+  product_name: string;
   created_at: string;
 }
 
@@ -81,6 +82,7 @@ const Dashboard = () => {
   const [stats, setStats] = useState({ total: 0, variations: 0, outOfStock: 0 });
   const [allOrders, setAllOrders] = useState<RawOrder[]>([]);
   const [allLogs, setAllLogs] = useState<RawLog[]>([]);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodKey>('30');
   const [paidWithoutLabel, setPaidWithoutLabel] = useState(0);
@@ -96,10 +98,10 @@ const Dashboard = () => {
         0
       );
       setStats({ total: products.length, variations, outOfStock });
-
+      setAllProducts(products);
       const { data: orders } = await supabase
         .from('orders')
-        .select('status, payment_method, total_value, customer_email, created_at');
+        .select('status, payment_method, total_value, customer_email, product_name, created_at');
       setAllOrders((orders as RawOrder[]) || []);
 
       const { count } = await supabase
@@ -189,6 +191,39 @@ const Dashboard = () => {
     if (other > 0) data.push({ name: 'Outros', value: other });
     return data;
   }, [metrics]);
+
+  // Stock health: variations with lowest stock_quantity
+  const lowStockItems = useMemo(() => {
+    const items: { name: string; dosage: string; stock: number; productId: string }[] = [];
+    allProducts.forEach((p: any) => {
+      (p.product_variations || []).forEach((v: any) => {
+        items.push({ name: p.name, dosage: v.dosage, stock: Number(v.stock_quantity || 0), productId: p.id });
+      });
+    });
+    return items.sort((a, b) => a.stock - b.stock).slice(0, 5);
+  }, [allProducts]);
+
+  // Revenue by category
+  const revenueByCategoryData = useMemo(() => {
+    const orders = filterByPeriod(allOrders, period);
+    const catMap = new Map<string, number>();
+    
+    // Build product name -> category map
+    const productCategoryMap = new Map<string, string>();
+    allProducts.forEach((p: any) => {
+      const cat = (p as any).category || 'Sem Categoria';
+      productCategoryMap.set(p.name, cat);
+    });
+
+    orders.filter(o => CONFIRMED_STATUSES.includes(o.status)).forEach(o => {
+      const cat = productCategoryMap.get(o.product_name) || 'Sem Categoria';
+      catMap.set(cat, (catMap.get(cat) || 0) + Number(o.total_value || 0));
+    });
+
+    return Array.from(catMap.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [allOrders, allProducts, period]);
 
   const statusBarData = useMemo(() => [
     { name: 'Confirmados', value: metrics.confirmedOrders, fill: 'hsl(142 71% 45%)' },
@@ -502,7 +537,80 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Produto Stats (com estoque) */}
+      {/* Saúde do Estoque + Receita por Categoria */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Saúde do Estoque */}
+        <Card className="border-border/40 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              Saúde do Estoque
+            </CardTitle>
+            <p className="text-[10px] text-muted-foreground">Produtos com menor estoque</p>
+          </CardHeader>
+          <CardContent>
+            {lowStockItems.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">Nenhuma variação cadastrada</p>
+            ) : (
+              <div className="space-y-3">
+                {lowStockItems.map((item, idx) => {
+                  const maxStock = Math.max(...lowStockItems.map(i => i.stock), 1);
+                  const pct = (item.stock / maxStock) * 100;
+                  const barColor = item.stock <= 5 ? 'bg-destructive' : item.stock <= 20 ? 'bg-amber-500' : 'bg-primary';
+                  return (
+                    <div key={idx} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-foreground truncate max-w-[60%]">{item.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-foreground">{item.stock} un.</span>
+                          <button
+                            onClick={() => navigate(`/admin/produtos/${item.productId}`)}
+                            className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className={`h-full rounded-full ${barColor} transition-all duration-500`} style={{ width: `${Math.max(pct, 3)}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Receita por Categoria */}
+        <Card className="border-border/40 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Receita por Categoria</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {revenueByCategoryData.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">Nenhuma venda no período</p>
+            ) : (
+              <div className="h-52">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={revenueByCategoryData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} tickFormatter={(v) => formatCompact(v)} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickLine={false} axisLine={false} width={100} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))' }}
+                      formatter={(v: number) => formatCurrency(v)}
+                    />
+                    <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={20} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Alerta de estoque */}
       {stats.outOfStock > 0 && (
         <div className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3.5">
           <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
