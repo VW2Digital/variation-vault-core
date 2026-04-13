@@ -88,7 +88,7 @@ export function AdminSidebar() {
                           <NavLink
                             to={item.url}
                             end
-                            className="hover:bg-sidebar-accent/50 flex items-center justify-center gap-2"
+                            className={`hover:bg-sidebar-accent/50 flex items-center gap-2 ${collapsed ? 'justify-center' : 'justify-start'}`}
                             activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                           >
                             <item.icon className="h-4 w-4 shrink-0" />
@@ -115,7 +115,7 @@ export function AdminSidebar() {
             <Button
               variant="ghost"
               onClick={handleLogout}
-              className="w-full justify-center text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 gap-2"
+              className={`w-full text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 gap-2 ${collapsed ? 'justify-center' : 'justify-start'}`}
             >
               <LogOut className="h-4 w-4 shrink-0" />
               {!collapsed && <span>Sair</span>}
