@@ -34,6 +34,7 @@ interface Variation {
   is_offer: boolean;
   image_url: string;
   images: string[];
+  stock_quantity: number;
   wholesale_prices: WholesaleTier[];
 }
 
@@ -46,6 +47,7 @@ const emptyVariation = (): Variation => ({
   is_offer: false,
   image_url: '',
   images: [],
+  stock_quantity: 0,
   wholesale_prices: [],
 });
 
