@@ -379,7 +379,98 @@ const ReportsPage = () => {
           </div>
         </CardContent>
       </Card>
-    </div>
+
+      {/* Pedidos por Período + Ticket Médio por Período */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="border-border/40 shadow-sm">
+          <CardContent className="p-4 sm:p-6">
+            <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">Pedidos por Período</p>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={ordersPerPeriod} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                  <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} width={30} allowDecimals={false} />
+                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))' }} formatter={(v: number) => [v, 'Pedidos']} />
+                  <Bar dataKey="value" fill="hsl(38 92% 50%)" radius={[4, 4, 0, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/40 shadow-sm">
+          <CardContent className="p-4 sm:p-6">
+            <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">Ticket Médio por Período</p>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={ticketPerPeriod} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorTicket" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(38 92% 50%)" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="hsl(38 92% 50%)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                  <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} width={50} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
+                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))' }} formatter={(v: number) => [formatCurrency(v), 'Ticket Médio']} />
+                  <Area type="monotone" dataKey="value" stroke="hsl(38 92% 50%)" fill="url(#colorTicket)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Donuts: Status, Pagamento, Método */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { title: 'Pedidos por Status', data: ordersByStatus },
+          { title: 'Status de Pagamento', data: paymentStatus },
+          { title: 'Receita por Método', data: revenueByMethod },
+        ].map((chart) => (
+          <Card key={chart.title} className="border-border/40 shadow-sm">
+            <CardContent className="p-4 sm:p-6">
+              <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">{chart.title}</p>
+              <div className="h-52">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={chart.data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={3} strokeWidth={0} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                      {chart.data.map((_, idx) => (
+                        <Cell key={idx} fill={DONUT_COLORS[idx % DONUT_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))' }} formatter={(v: number, name: string) => [chart.title.includes('Receita') ? formatCurrency(v) : v, name]} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Top 10 Produtos */}
+      <Card className="border-border/40 shadow-sm">
+        <CardContent className="p-4 sm:p-6">
+          <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">Top 10 Produtos Mais Vendidos</p>
+          {topProducts.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-8">Nenhuma venda no período</p>
+          ) : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topProducts} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickLine={false} axisLine={false} width={150} />
+                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))' }} formatter={(v: number) => [formatCurrency(v), 'Receita']} />
+                  <Bar dataKey="value" fill="hsl(38 92% 50%)" radius={[0, 4, 4, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </CardContent>
+      </Card>
   );
 };
 
