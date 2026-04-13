@@ -13,10 +13,13 @@ interface RawOrder {
   total_value: number;
   shipping_cost: number | null;
   coupon_discount: number | null;
+  product_name: string;
   created_at: string;
 }
 
 const CONFIRMED = ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH', 'PAID'];
+const FAILED = ['REFUSED', 'OVERDUE'];
+const DONUT_COLORS = ['hsl(38 92% 50%)', 'hsl(174 60% 40%)', 'hsl(0 60% 50%)', 'hsl(217 91% 60%)', 'hsl(220 9% 46%)'];
 
 const formatCurrency = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
