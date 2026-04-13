@@ -565,6 +565,7 @@ export type Database = {
           offer_price: number | null
           price: number
           product_id: string
+          stock_quantity: number
           subtitle: string | null
         }
         Insert: {
@@ -578,6 +579,7 @@ export type Database = {
           offer_price?: number | null
           price?: number
           product_id: string
+          stock_quantity?: number
           subtitle?: string | null
         }
         Update: {
@@ -591,6 +593,7 @@ export type Database = {
           offer_price?: number | null
           price?: number
           product_id?: string
+          stock_quantity?: number
           subtitle?: string | null
         }
         Relationships: [
@@ -607,6 +610,7 @@ export type Database = {
         Row: {
           active_ingredient: string | null
           administration_route: string | null
+          category: string | null
           created_at: string
           description: string | null
           fantasy_name: string | null
@@ -629,6 +633,7 @@ export type Database = {
         Insert: {
           active_ingredient?: string | null
           administration_route?: string | null
+          category?: string | null
           created_at?: string
           description?: string | null
           fantasy_name?: string | null
@@ -651,6 +656,7 @@ export type Database = {
         Update: {
           active_ingredient?: string | null
           administration_route?: string | null
+          category?: string | null
           created_at?: string
           description?: string | null
           fantasy_name?: string | null
