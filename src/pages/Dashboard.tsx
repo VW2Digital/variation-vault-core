@@ -16,6 +16,7 @@ interface RawOrder {
   payment_method: string;
   total_value: number;
   customer_email: string;
+  product_name: string;
   created_at: string;
 }
 
@@ -100,7 +101,7 @@ const Dashboard = () => {
       setAllProducts(products);
       const { data: orders } = await supabase
         .from('orders')
-        .select('status, payment_method, total_value, customer_email, created_at');
+        .select('status, payment_method, total_value, customer_email, product_name, created_at');
       setAllOrders((orders as RawOrder[]) || []);
 
       const { count } = await supabase
