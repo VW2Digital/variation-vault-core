@@ -81,6 +81,7 @@ const Dashboard = () => {
   const [stats, setStats] = useState({ total: 0, variations: 0, outOfStock: 0 });
   const [allOrders, setAllOrders] = useState<RawOrder[]>([]);
   const [allLogs, setAllLogs] = useState<RawLog[]>([]);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodKey>('30');
   const [paidWithoutLabel, setPaidWithoutLabel] = useState(0);
