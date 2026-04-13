@@ -196,16 +196,32 @@ const Dashboard = () => {
     return data;
   }, [metrics]);
 
-  // Stock health: variations with lowest stock_quantity
-  const lowStockItems = useMemo(() => {
-    const items: { name: string; dosage: string; stock: number; productId: string }[] = [];
+  // Stock monitoring: all variations with product info
+  const allStockItems = useMemo(() => {
+    const items: { name: string; dosage: string; stock: number; productId: string; price: number; category: string; image: string | null }[] = [];
     allProducts.forEach((p: any) => {
       (p.product_variations || []).forEach((v: any) => {
-        items.push({ name: p.name, dosage: v.dosage, stock: Number(v.stock_quantity || 0), productId: p.id });
+        items.push({
+          name: p.name,
+          dosage: v.dosage,
+          stock: Number(v.stock_quantity || 0),
+          productId: p.id,
+          price: Number(v.is_offer && v.offer_price ? v.offer_price : v.price || 0),
+          category: (p as any).category || '',
+          image: v.image_url || (p.images && p.images[0]) || null,
+        });
       });
     });
-    return items.sort((a, b) => a.stock - b.stock).slice(0, 5);
+    return items.sort((a, b) => a.stock - b.stock);
   }, [allProducts]);
+
+  const filteredStockItems = useMemo(() => {
+    if (!stockSearch.trim()) return allStockItems;
+    const q = stockSearch.toLowerCase();
+    return allStockItems.filter(i => i.name.toLowerCase().includes(q));
+  }, [allStockItems, stockSearch]);
+
+  const lowStockItems = useMemo(() => allStockItems.slice(0, 5), [allStockItems]);
 
   // Revenue by category
   const revenueByCategoryData = useMemo(() => {
