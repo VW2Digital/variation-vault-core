@@ -126,40 +126,6 @@ const ReportsPage = () => {
     return { revenue, orders, avgTicket, shippingTotal, discountTotal, conversion };
   }, [prevFiltered]);
 
-  // Comparison chart data (current vs previous revenue by day offset)
-  const comparisonData = useMemo(() => {
-    const start = new Date(startDate + 'T00:00:00');
-    const end = new Date(endDate + 'T23:59:59');
-    const duration = end.getTime() - start.getTime();
-    const prevStart = new Date(start.getTime() - duration - 86400000);
-    const numDays = Math.round(duration / 86400000) + 1;
-
-    const currentMap = new Map<number, number>();
-    const prevMap = new Map<number, number>();
-    for (let i = 0; i < numDays; i++) { currentMap.set(i, 0); prevMap.set(i, 0); }
-
-    filtered.filter(o => CONFIRMED.includes(o.status)).forEach(o => {
-      const dayIdx = Math.floor((new Date(o.created_at).getTime() - start.getTime()) / 86400000);
-      if (dayIdx >= 0 && dayIdx < numDays) currentMap.set(dayIdx, (currentMap.get(dayIdx) || 0) + Number(o.total_value || 0));
-    });
-
-    prevFiltered.filter(o => CONFIRMED.includes(o.status)).forEach(o => {
-      const dayIdx = Math.floor((new Date(o.created_at).getTime() - prevStart.getTime()) / 86400000);
-      if (dayIdx >= 0 && dayIdx < numDays) prevMap.set(dayIdx, (prevMap.get(dayIdx) || 0) + Number(o.total_value || 0));
-    });
-
-    const result = [];
-    for (let i = 0; i < numDays; i++) {
-      const d = new Date(start);
-      d.setDate(d.getDate() + i);
-      result.push({
-        label: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`,
-        atual: currentMap.get(i) || 0,
-        anterior: prevMap.get(i) || 0,
-      });
-    }
-    return result;
-  }, [filtered, prevFiltered, startDate, endDate]);
 
   // Revenue chart data
   const chartData = useMemo(() => {
@@ -451,45 +417,7 @@ const ReportsPage = () => {
         </CardContent>
       </Card>
 
-      {/* Comparação: Período Atual vs Anterior */}
-      <Card className="border-border/40 shadow-sm">
-        <CardContent className="p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Comparação: Período Atual vs Anterior</p>
-            <div className="flex items-center gap-4 text-[10px]">
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-0.5 rounded bg-[hsl(38_92%_50%)]" />
-                <span className="text-muted-foreground">Atual</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-0.5 rounded bg-muted-foreground/40 border-dashed" />
-                <span className="text-muted-foreground">Anterior</span>
-              </div>
-            </div>
-          </div>
-          <div className="h-72 sm:h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={comparisonData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorAtual" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(38 92% 50%)" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="hsl(38 92% 50%)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} width={50} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                  formatter={(v: number, name: string) => [formatCurrency(v), name === 'atual' ? 'Período Atual' : 'Período Anterior']}
-                />
-                <Area type="monotone" dataKey="atual" stroke="hsl(38 92% 50%)" fill="url(#colorAtual)" strokeWidth={2.5} />
-                <Area type="monotone" dataKey="anterior" stroke="hsl(var(--muted-foreground))" fill="none" strokeWidth={1.5} strokeDasharray="5 5" strokeOpacity={0.5} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+
 
       {/* Pedidos por Período + Ticket Médio por Período */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
