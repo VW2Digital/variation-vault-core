@@ -72,6 +72,7 @@ const ProductForm = () => {
   const [maxInstallments, setMaxInstallments] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
   const [variations, setVariations] = useState<Variation[]>([emptyVariation()]);
+  const [category, setCategory] = useState('');
   const [saving, setSaving] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
 
