@@ -102,6 +102,65 @@ const ReportsPage = () => {
     return { revenue, orders, avgTicket, shippingTotal, discountTotal, conversion };
   }, [filtered]);
 
+  // Previous period (same duration, shifted back)
+  const prevFiltered = useMemo(() => {
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T23:59:59');
+    const duration = end.getTime() - start.getTime();
+    const prevStart = new Date(start.getTime() - duration - 86400000);
+    const prevEnd = new Date(start.getTime() - 86400000);
+    return allOrders.filter(o => {
+      const d = new Date(o.created_at);
+      return d >= prevStart && d <= prevEnd;
+    });
+  }, [allOrders, startDate, endDate]);
+
+  const prevMetrics = useMemo(() => {
+    const confirmed = prevFiltered.filter(o => CONFIRMED.includes(o.status));
+    const revenue = confirmed.reduce((s, o) => s + Number(o.total_value || 0), 0);
+    const orders = confirmed.length;
+    const avgTicket = orders > 0 ? revenue / orders : 0;
+    const shippingTotal = confirmed.reduce((s, o) => s + Number(o.shipping_cost || 0), 0);
+    const discountTotal = confirmed.reduce((s, o) => s + Number(o.coupon_discount || 0), 0);
+    const conversion = prevFiltered.length > 0 ? (orders / prevFiltered.length) * 100 : 0;
+    return { revenue, orders, avgTicket, shippingTotal, discountTotal, conversion };
+  }, [prevFiltered]);
+
+  // Comparison chart data (current vs previous revenue by day offset)
+  const comparisonData = useMemo(() => {
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T23:59:59');
+    const duration = end.getTime() - start.getTime();
+    const prevStart = new Date(start.getTime() - duration - 86400000);
+    const numDays = Math.round(duration / 86400000) + 1;
+
+    const currentMap = new Map<number, number>();
+    const prevMap = new Map<number, number>();
+    for (let i = 0; i < numDays; i++) { currentMap.set(i, 0); prevMap.set(i, 0); }
+
+    filtered.filter(o => CONFIRMED.includes(o.status)).forEach(o => {
+      const dayIdx = Math.floor((new Date(o.created_at).getTime() - start.getTime()) / 86400000);
+      if (dayIdx >= 0 && dayIdx < numDays) currentMap.set(dayIdx, (currentMap.get(dayIdx) || 0) + Number(o.total_value || 0));
+    });
+
+    prevFiltered.filter(o => CONFIRMED.includes(o.status)).forEach(o => {
+      const dayIdx = Math.floor((new Date(o.created_at).getTime() - prevStart.getTime()) / 86400000);
+      if (dayIdx >= 0 && dayIdx < numDays) prevMap.set(dayIdx, (prevMap.get(dayIdx) || 0) + Number(o.total_value || 0));
+    });
+
+    const result = [];
+    for (let i = 0; i < numDays; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      result.push({
+        label: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`,
+        atual: currentMap.get(i) || 0,
+        anterior: prevMap.get(i) || 0,
+      });
+    }
+    return result;
+  }, [filtered, prevFiltered, startDate, endDate]);
+
   // Revenue chart data
   const chartData = useMemo(() => {
     const map = new Map<string, number>();
