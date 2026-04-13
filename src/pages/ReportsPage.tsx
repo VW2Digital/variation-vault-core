@@ -286,13 +286,18 @@ const ReportsPage = () => {
     );
   }
 
+  const pctChange = (cur: number, prev: number) => {
+    if (prev === 0) return cur > 0 ? 100 : 0;
+    return ((cur - prev) / prev) * 100;
+  };
+
   const kpis = [
-    { label: 'Receita', value: formatCurrency(metrics.revenue) },
-    { label: 'Pedidos', value: String(metrics.orders) },
-    { label: 'Ticket Médio', value: formatCurrency(metrics.avgTicket) },
-    { label: 'Frete Total', value: formatCurrency(metrics.shippingTotal) },
-    { label: 'Descontos', value: formatCurrency(metrics.discountTotal) },
-    { label: 'Conversão', value: `${metrics.conversion.toFixed(1)}%` },
+    { label: 'Receita', value: formatCurrency(metrics.revenue), change: pctChange(metrics.revenue, prevMetrics.revenue) },
+    { label: 'Pedidos', value: String(metrics.orders), change: pctChange(metrics.orders, prevMetrics.orders) },
+    { label: 'Ticket Médio', value: formatCurrency(metrics.avgTicket), change: pctChange(metrics.avgTicket, prevMetrics.avgTicket) },
+    { label: 'Frete Total', value: formatCurrency(metrics.shippingTotal), change: pctChange(metrics.shippingTotal, prevMetrics.shippingTotal) },
+    { label: 'Descontos', value: formatCurrency(metrics.discountTotal), change: pctChange(metrics.discountTotal, prevMetrics.discountTotal) },
+    { label: 'Conversão', value: `${metrics.conversion.toFixed(1)}%`, change: pctChange(metrics.conversion, prevMetrics.conversion) },
   ];
 
   return (
