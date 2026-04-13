@@ -64,7 +64,7 @@ const ReportsPage = () => {
     const load = async () => {
       const { data } = await supabase
         .from('orders')
-        .select('status, payment_method, total_value, shipping_cost, coupon_discount, created_at');
+        .select('status, payment_method, total_value, shipping_cost, coupon_discount, product_name, created_at');
       setAllOrders((data as RawOrder[]) || []);
       setLoading(false);
     };
