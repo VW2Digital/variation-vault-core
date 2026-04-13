@@ -119,6 +119,7 @@ const ProductForm = () => {
                 is_offer: v.is_offer,
                 image_url: v.image_url || '',
                 images: v.images || [],
+                stock_quantity: Number(v.stock_quantity || 0),
                 wholesale_prices: wholesaleMap[v.id] || [],
               }))
             : [emptyVariation()]
