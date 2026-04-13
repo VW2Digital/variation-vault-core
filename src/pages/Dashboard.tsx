@@ -90,6 +90,7 @@ const Dashboard = () => {
   const [period, setPeriod] = useState<PeriodKey>('30');
   const [paidWithoutLabel, setPaidWithoutLabel] = useState(0);
   const [totalClients, setTotalClients] = useState(0);
+  const [stockSearch, setStockSearch] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
