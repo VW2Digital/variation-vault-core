@@ -11,7 +11,6 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
   import { Input } from '@/components/ui/input';
   import { Badge } from '@/components/ui/badge';
   import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Progress } from '@/components/ui/progress';
 
 type PeriodKey = '7' | '30' | '90';
 
