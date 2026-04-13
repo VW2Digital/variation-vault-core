@@ -372,10 +372,12 @@ const ReportsPage = () => {
                   {p.label}
                 </Button>
               ))}
-              <Button variant="ghost" size="sm" className="text-xs h-8 gap-1 text-muted-foreground" onClick={clearFilters}>
-                <X className="w-3 h-3" />
-                Limpar
-              </Button>
+              {(startDate !== fmt(subDays(today, 30)) || endDate !== fmt(today) || grouping !== 'day') && (
+                <Button variant="ghost" size="sm" className="text-xs h-8 gap-1 text-muted-foreground" onClick={clearFilters}>
+                  <X className="w-3 h-3" />
+                  Limpar
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
