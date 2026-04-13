@@ -28,7 +28,7 @@ export const fetchProducts = async () => {
   const { data, error } = await supabase
     .from('products')
     .select('*, product_variations(*)')
-    .order('created_at', { ascending: false });
+    .order('sort_order', { ascending: true });
   if (error) throw error;
   return data;
 };
