@@ -388,6 +388,11 @@ const ReportsPage = () => {
             <CardContent className="p-4">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{kpi.label}</p>
               <p className="text-lg sm:text-xl font-black text-foreground tracking-tight">{kpi.value}</p>
+              <div className={`flex items-center gap-1 mt-1 text-[10px] font-semibold ${kpi.change > 0 ? 'text-green-600' : kpi.change < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {kpi.change > 0 ? <TrendingUp className="w-3 h-3" /> : kpi.change < 0 ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
+                <span>{kpi.change > 0 ? '+' : ''}{kpi.change.toFixed(1)}%</span>
+                <span className="text-muted-foreground font-normal">vs anterior</span>
+              </div>
             </CardContent>
           </Card>
         ))}
