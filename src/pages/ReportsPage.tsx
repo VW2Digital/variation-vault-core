@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Download, RefreshCw, X, Calendar } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
 
 interface RawOrder {
   status: string;
@@ -13,10 +13,13 @@ interface RawOrder {
   total_value: number;
   shipping_cost: number | null;
   coupon_discount: number | null;
+  product_name: string;
   created_at: string;
 }
 
 const CONFIRMED = ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH', 'PAID'];
+const FAILED = ['REFUSED', 'OVERDUE'];
+const DONUT_COLORS = ['hsl(38 92% 50%)', 'hsl(174 60% 40%)', 'hsl(0 60% 50%)', 'hsl(217 91% 60%)', 'hsl(220 9% 46%)'];
 
 const formatCurrency = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
@@ -61,7 +64,7 @@ const ReportsPage = () => {
     const load = async () => {
       const { data } = await supabase
         .from('orders')
-        .select('status, payment_method, total_value, shipping_cost, coupon_discount, created_at');
+        .select('status, payment_method, total_value, shipping_cost, coupon_discount, product_name, created_at');
       setAllOrders((data as RawOrder[]) || []);
       setLoading(false);
     };
@@ -99,32 +102,107 @@ const ReportsPage = () => {
     return { revenue, orders, avgTicket, shippingTotal, discountTotal, conversion };
   }, [filtered]);
 
+  // Revenue chart data
   const chartData = useMemo(() => {
     const map = new Map<string, number>();
-
-    // Build all keys in the range
     const start = new Date(startDate + 'T00:00:00');
     const end = new Date(endDate + 'T23:59:59');
-
     if (grouping === 'day') {
       const cur = new Date(start);
-      while (cur <= end) {
-        map.set(fmt(cur), 0);
-        cur.setDate(cur.getDate() + 1);
-      }
+      while (cur <= end) { map.set(fmt(cur), 0); cur.setDate(cur.getDate() + 1); }
     }
-
-    filtered
-      .filter(o => CONFIRMED.includes(o.status))
-      .forEach(o => {
-        const key = groupKey(o.created_at, grouping);
-        map.set(key, (map.get(key) || 0) + Number(o.total_value || 0));
-      });
-
-    return Array.from(map.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
+    filtered.filter(o => CONFIRMED.includes(o.status)).forEach(o => {
+      const key = groupKey(o.created_at, grouping);
+      map.set(key, (map.get(key) || 0) + Number(o.total_value || 0));
+    });
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
       .map(([key, value]) => ({ label: formatLabel(key, grouping), value }));
   }, [filtered, grouping, startDate, endDate]);
+
+  // Orders per period (bar chart)
+  const ordersPerPeriod = useMemo(() => {
+    const map = new Map<string, number>();
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T23:59:59');
+    if (grouping === 'day') {
+      const cur = new Date(start);
+      while (cur <= end) { map.set(fmt(cur), 0); cur.setDate(cur.getDate() + 1); }
+    }
+    filtered.forEach(o => {
+      const key = groupKey(o.created_at, grouping);
+      map.set(key, (map.get(key) || 0) + 1);
+    });
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, value]) => ({ label: formatLabel(key, grouping), value }));
+  }, [filtered, grouping, startDate, endDate]);
+
+  // Avg ticket per period (line chart)
+  const ticketPerPeriod = useMemo(() => {
+    const countMap = new Map<string, number>();
+    const sumMap = new Map<string, number>();
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T23:59:59');
+    if (grouping === 'day') {
+      const cur = new Date(start);
+      while (cur <= end) { const k = fmt(cur); countMap.set(k, 0); sumMap.set(k, 0); cur.setDate(cur.getDate() + 1); }
+    }
+    filtered.filter(o => CONFIRMED.includes(o.status)).forEach(o => {
+      const key = groupKey(o.created_at, grouping);
+      countMap.set(key, (countMap.get(key) || 0) + 1);
+      sumMap.set(key, (sumMap.get(key) || 0) + Number(o.total_value || 0));
+    });
+    return Array.from(countMap.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, count]) => ({ label: formatLabel(key, grouping), value: count > 0 ? (sumMap.get(key) || 0) / count : 0 }));
+  }, [filtered, grouping, startDate, endDate]);
+
+  // Orders by status (donut)
+  const ordersByStatus = useMemo(() => {
+    const map = new Map<string, number>();
+    filtered.forEach(o => {
+      let label = 'Outro';
+      if (CONFIRMED.includes(o.status)) label = 'Confirmado';
+      else if (o.status === 'PENDING') label = 'Pendente';
+      else if (FAILED.includes(o.status)) label = 'Cancelado';
+      else if (o.status === 'REFUNDED') label = 'Reembolsado';
+      map.set(label, (map.get(label) || 0) + 1);
+    });
+    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
+  }, [filtered]);
+
+  // Payment status (donut)
+  const paymentStatus = useMemo(() => {
+    const map = new Map<string, number>();
+    filtered.forEach(o => {
+      let label = 'Outro';
+      if (CONFIRMED.includes(o.status)) label = 'Pago';
+      else if (o.status === 'PENDING') label = 'Pendente';
+      else if (FAILED.includes(o.status)) label = 'Falhou';
+      map.set(label, (map.get(label) || 0) + 1);
+    });
+    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
+  }, [filtered]);
+
+  // Revenue by method (donut)
+  const revenueByMethod = useMemo(() => {
+    const map = new Map<string, number>();
+    filtered.filter(o => CONFIRMED.includes(o.status)).forEach(o => {
+      const method = o.payment_method === 'pix' ? 'PIX' : o.payment_method === 'credit_card' ? 'Cartão' : o.payment_method || 'Outro';
+      map.set(method, (map.get(method) || 0) + Number(o.total_value || 0));
+    });
+    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
+  }, [filtered]);
+
+  // Top 10 products
+  const topProducts = useMemo(() => {
+    const map = new Map<string, number>();
+    filtered.filter(o => CONFIRMED.includes(o.status)).forEach(o => {
+      map.set(o.product_name, (map.get(o.product_name) || 0) + Number(o.total_value || 0));
+    });
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+  }, [filtered]);
 
   const exportCSV = () => {
     const confirmed = filtered.filter(o => CONFIRMED.includes(o.status));
@@ -299,6 +377,98 @@ const ReportsPage = () => {
               </AreaChart>
             </ResponsiveContainer>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Pedidos por Período + Ticket Médio por Período */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="border-border/40 shadow-sm">
+          <CardContent className="p-4 sm:p-6">
+            <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">Pedidos por Período</p>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={ordersPerPeriod} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                  <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} width={30} allowDecimals={false} />
+                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))' }} formatter={(v: number) => [v, 'Pedidos']} />
+                  <Bar dataKey="value" fill="hsl(38 92% 50%)" radius={[4, 4, 0, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/40 shadow-sm">
+          <CardContent className="p-4 sm:p-6">
+            <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">Ticket Médio por Período</p>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={ticketPerPeriod} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorTicket" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(38 92% 50%)" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="hsl(38 92% 50%)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                  <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} width={50} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
+                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))' }} formatter={(v: number) => [formatCurrency(v), 'Ticket Médio']} />
+                  <Area type="monotone" dataKey="value" stroke="hsl(38 92% 50%)" fill="url(#colorTicket)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Donuts: Status, Pagamento, Método */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { title: 'Pedidos por Status', data: ordersByStatus },
+          { title: 'Status de Pagamento', data: paymentStatus },
+          { title: 'Receita por Método', data: revenueByMethod },
+        ].map((chart) => (
+          <Card key={chart.title} className="border-border/40 shadow-sm">
+            <CardContent className="p-4 sm:p-6">
+              <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">{chart.title}</p>
+              <div className="h-52">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={chart.data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={3} strokeWidth={0} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                      {chart.data.map((_, idx) => (
+                        <Cell key={idx} fill={DONUT_COLORS[idx % DONUT_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))' }} formatter={(v: number, name: string) => [chart.title.includes('Receita') ? formatCurrency(v) : v, name]} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Top 10 Produtos */}
+      <Card className="border-border/40 shadow-sm">
+        <CardContent className="p-4 sm:p-6">
+          <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">Top 10 Produtos Mais Vendidos</p>
+          {topProducts.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-8">Nenhuma venda no período</p>
+          ) : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topProducts} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickLine={false} axisLine={false} width={150} />
+                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))' }} formatter={(v: number) => [formatCurrency(v), 'Receita']} />
+                  <Bar dataKey="value" fill="hsl(38 92% 50%)" radius={[0, 4, 4, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
