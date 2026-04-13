@@ -97,7 +97,7 @@ const Dashboard = () => {
         0
       );
       setStats({ total: products.length, variations, outOfStock });
-
+      setAllProducts(products);
       const { data: orders } = await supabase
         .from('orders')
         .select('status, payment_method, total_value, customer_email, created_at');
