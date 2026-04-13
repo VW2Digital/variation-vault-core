@@ -191,6 +191,39 @@ const Dashboard = () => {
     return data;
   }, [metrics]);
 
+  // Stock health: variations with lowest stock_quantity
+  const lowStockItems = useMemo(() => {
+    const items: { name: string; dosage: string; stock: number; productId: string }[] = [];
+    allProducts.forEach((p: any) => {
+      (p.product_variations || []).forEach((v: any) => {
+        items.push({ name: p.name, dosage: v.dosage, stock: Number(v.stock_quantity || 0), productId: p.id });
+      });
+    });
+    return items.sort((a, b) => a.stock - b.stock).slice(0, 5);
+  }, [allProducts]);
+
+  // Revenue by category
+  const revenueByCategoryData = useMemo(() => {
+    const orders = filterByPeriod(allOrders, period);
+    const catMap = new Map<string, number>();
+    
+    // Build product name -> category map
+    const productCategoryMap = new Map<string, string>();
+    allProducts.forEach((p: any) => {
+      const cat = (p as any).category || 'Sem Categoria';
+      productCategoryMap.set(p.name, cat);
+    });
+
+    orders.filter(o => CONFIRMED_STATUSES.includes(o.status)).forEach(o => {
+      const cat = productCategoryMap.get(o.product_name) || 'Sem Categoria';
+      catMap.set(cat, (catMap.get(cat) || 0) + Number(o.total_value || 0));
+    });
+
+    return Array.from(catMap.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [allOrders, allProducts, period]);
+
   const statusBarData = useMemo(() => [
     { name: 'Confirmados', value: metrics.confirmedOrders, fill: 'hsl(142 71% 45%)' },
     { name: 'Pendentes', value: metrics.pendingOrders, fill: 'hsl(38 92% 50%)' },
