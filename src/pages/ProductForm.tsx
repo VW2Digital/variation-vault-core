@@ -94,7 +94,7 @@ const ProductForm = () => {
         setMaxInstallments(Number((p as any).max_installments) || 6);
         setInstallmentsInterest((p as any).installments_interest || 'sem_juros');
         setIsBestseller(p.is_bestseller || false);
-        // Fetch wholesale prices for all variations
+        setCategory((p as any).category || '');
         const varIds = (p.product_variations || []).map((v: any) => v.id);
         let wholesaleMap: Record<string, WholesaleTier[]> = {};
         if (varIds.length > 0) {
@@ -152,7 +152,11 @@ const ProductForm = () => {
         pix_discount_percent: pixDiscountPercent,
         max_installments: maxInstallments,
         installments_interest: installmentsInterest,
-        variations: variations.filter((v) => v.dosage.trim() !== ''),
+        category,
+        variations: variations.filter((v) => v.dosage.trim() !== '').map(v => ({
+          ...v,
+          stock_quantity: v.stock_quantity,
+        })),
       };
 
       let savedProduct: any;
