@@ -621,6 +621,7 @@ export type Database = {
           name: string
           pharma_form: string | null
           pix_discount_percent: number | null
+          sort_order: number
           subtitle: string | null
           updated_at: string
           user_id: string
@@ -642,6 +643,7 @@ export type Database = {
           name: string
           pharma_form?: string | null
           pix_discount_percent?: number | null
+          sort_order?: number
           subtitle?: string | null
           updated_at?: string
           user_id: string
@@ -663,6 +665,7 @@ export type Database = {
           name?: string
           pharma_form?: string | null
           pix_discount_percent?: number | null
+          sort_order?: number
           subtitle?: string | null
           updated_at?: string
           user_id?: string
