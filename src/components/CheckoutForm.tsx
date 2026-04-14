@@ -713,6 +713,7 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
       items: [{ item_id: productId || '', item_name: productName, price: unitPrice, quantity }],
     });
     setStep('payment');
+  };
 
   const handlePayment = async () => {
     if (!validateCard()) return;
