@@ -121,6 +121,12 @@ const Dashboard = () => {
         .select('id', { count: 'exact', head: true });
       setTotalClients(profileCount || 0);
 
+      const { data: cartData } = await supabase
+        .from('cart_items')
+        .select('user_id');
+      const uniqueCartUsers = new Set((cartData || []).map((c: any) => c.user_id));
+      setCartUsers(uniqueCartUsers.size);
+
       const { data: logs } = await supabase
         .from('payment_logs')
         .select('payment_method, customer_email, created_at');
