@@ -67,6 +67,7 @@ const App = () => (
         <SessionGuard />
         <PromoPopup />
         <ChatWidgetEmbed />
+        <MercadoPagoSecurity />
         <Routes>
           <Route path="/" element={<Catalog />} />
           <Route path="/catalogo" element={<Catalog />} />
