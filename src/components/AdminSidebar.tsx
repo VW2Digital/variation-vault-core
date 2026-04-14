@@ -97,7 +97,7 @@ export function AdminSidebar() {
                         </SidebarMenuButton>
                       </TooltipTrigger>
                       {collapsed && (
-                        <TooltipContent side="right" className="text-xs font-medium">
+                        <TooltipContent side="right" className="text-xs font-medium z-[1000]">
                           {item.title}
                         </TooltipContent>
                       )}
@@ -122,7 +122,7 @@ export function AdminSidebar() {
             </Button>
           </TooltipTrigger>
           {collapsed && (
-            <TooltipContent side="right" className="text-xs font-medium">
+            <TooltipContent side="right" className="text-xs font-medium z-[1000]">
               Sair
             </TooltipContent>
           )}
