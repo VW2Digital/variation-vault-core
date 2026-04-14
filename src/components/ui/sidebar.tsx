@@ -137,7 +137,43 @@ const Sidebar = React.forwardRef<
     collapsible?: "offcanvas" | "icon" | "none";
   }
 >(({ side = "left", variant = "sidebar", collapsible = "offcanvas", className, children, ...props }, ref) => {
-  const { isMobile, state, openMobile, setOpenMobile, toggleSidebar } = useSidebar();
+  const { isMobile, state, openMobile, setOpenMobile, toggleSidebar, sidebarWidth, setSidebarWidth, setOpen } = useSidebar();
+  const isDragging = React.useRef(false);
+  const startX = React.useRef(0);
+  const startWidth = React.useRef(0);
+
+  const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    startX.current = e.clientX;
+    startWidth.current = sidebarWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+      const delta = side === "left" ? e.clientX - startX.current : startX.current - e.clientX;
+      const newWidth = Math.max(SIDEBAR_WIDTH_MIN, Math.min(SIDEBAR_WIDTH_MAX, startWidth.current + delta));
+      
+      if (newWidth <= SIDEBAR_WIDTH_ICON + 20) {
+        setOpen(false);
+      } else {
+        setOpen(true);
+        setSidebarWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      isDragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [sidebarWidth, setSidebarWidth, setOpen, side]);
 
   if (collapsible === "none") {
     return (
