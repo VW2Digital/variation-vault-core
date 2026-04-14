@@ -210,6 +210,16 @@ const Sidebar = React.forwardRef<
         >
           {children}
         </div>
+        <button
+          onClick={toggleSidebar}
+          className={cn(
+            "absolute top-0 h-full w-1 cursor-col-resize hover:w-1.5 transition-all duration-150",
+            "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:bg-sidebar-border after:transition-colors",
+            "hover:after:bg-sidebar-foreground/20",
+            side === "left" ? "right-0" : "left-0",
+          )}
+          aria-label="Toggle sidebar"
+        />
       </div>
     </div>
   );
