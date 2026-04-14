@@ -199,14 +199,14 @@ export default function CouponsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Cupons de Desconto</h1>
-          <p className="text-sm text-muted-foreground">Gerencie cupons com limite de uso</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Cupons de Desconto</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Gerencie cupons com limite de uso</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="w-4 h-4" /> Novo Cupom</Button>
+            <Button className="gap-2 w-full sm:w-auto"><Plus className="w-4 h-4" /> Novo Cupom</Button>
           </DialogTrigger>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
