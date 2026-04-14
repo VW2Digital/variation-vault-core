@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { gtagAddToCart } from '@/lib/gtag';
 
 export interface WholesaleTier {
   min_quantity: number;
@@ -156,6 +157,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         if (error) throw error;
       }
       await fetchCart();
+      // Google Ads: add_to_cart - fire after fetchCart so we have enriched item data
+      const added = items.find(i => i.variation_id === variationId);
+      gtagAddToCart({
+        id: productId,
+        name: added?.product_name || '',
+        price: added?.price || 0,
+        quantity,
+        variant: added?.dosage || '',
+      });
       toast({ title: 'Adicionado ao carrinho!' });
     } catch (err: any) {
       toast({ title: 'Erro ao adicionar', description: err.message, variant: 'destructive' });

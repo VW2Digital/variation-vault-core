@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { gtagViewItemList } from '@/lib/gtag';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchProducts, fetchSetting } from '@/lib/api';
 import { WholesaleTier } from '@/contexts/CartContext';
@@ -55,7 +56,12 @@ const Catalog = () => {
     fetchProducts()
       .then(async (prods) => {
         setProducts(prods);
-        // Fetch which variations have wholesale prices
+        // Google Ads: view_item_list
+        gtagViewItemList(prods.map((p: any) => {
+          const v = p.product_variations?.[0];
+          const price = v?.is_offer && v?.offer_price ? Number(v.offer_price) : Number(v?.price || 0);
+          return { id: p.id, name: p.name, category: p.category || '', price };
+        }));
         const allVarIds = prods.flatMap((p: any) => (p.product_variations || []).map((v: any) => v.id));
         if (allVarIds.length > 0) {
           const { data: wpData } = await supabase
