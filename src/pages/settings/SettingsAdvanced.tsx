@@ -4,23 +4,100 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Code } from 'lucide-react';
+import { Code, Plus, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import SettingsBackButton from './SettingsBackButton';
+
+interface ScriptEntry {
+  id: string;
+  label: string;
+  code: string;
+}
+
+const generateId = () => crypto.randomUUID();
+
+const parseScripts = (raw: string): ScriptEntry[] => {
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+  } catch { /* ignore */ }
+  if (raw?.trim()) return [{ id: generateId(), label: 'Script 1', code: raw }];
+  return [];
+};
+
+const ScriptList = ({
+  scripts,
+  onChange,
+  placeholder,
+}: {
+  scripts: ScriptEntry[];
+  onChange: (s: ScriptEntry[]) => void;
+  placeholder: string;
+}) => {
+  const addScript = () => {
+    onChange([...scripts, { id: generateId(), label: `Script ${scripts.length + 1}`, code: '' }]);
+  };
+
+  const removeScript = (id: string) => {
+    onChange(scripts.filter((s) => s.id !== id));
+  };
+
+  const updateScript = (id: string, field: 'label' | 'code', value: string) => {
+    onChange(scripts.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
+  };
+
+  return (
+    <div className="space-y-4">
+      {scripts.map((script, index) => (
+        <div key={script.id} className="space-y-2 border border-border/50 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <Input
+              className="flex-1 font-medium"
+              value={script.label}
+              onChange={(e) => updateScript(script.id, 'label', e.target.value)}
+              placeholder={`Nome do script ${index + 1}`}
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => removeScript(script.id)}
+              className="text-destructive hover:text-destructive shrink-0"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+          <textarea
+            className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 font-mono"
+            value={script.code}
+            onChange={(e) => updateScript(script.id, 'code', e.target.value)}
+            placeholder={placeholder}
+          />
+        </div>
+      ))}
+      <Button variant="outline" onClick={addScript} className="w-full gap-2">
+        <Plus className="w-4 h-4" /> Adicionar script
+      </Button>
+    </div>
+  );
+};
 
 const SettingsAdvanced = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [chatWidgetCode, setChatWidgetCode] = useState('');
-  const [headScript, setHeadScript] = useState('');
+  const [headScripts, setHeadScripts] = useState<ScriptEntry[]>([]);
+  const [footerScripts, setFooterScripts] = useState<ScriptEntry[]>([]);
 
   useEffect(() => {
     Promise.all([
       fetchSetting('chat_widget_code'),
       fetchSetting('head_script'),
-    ]).then(([widget, head]) => {
+      fetchSetting('footer_script'),
+    ]).then(([widget, head, footer]) => {
       setChatWidgetCode(widget || '');
-      setHeadScript(head || '');
+      setHeadScripts(parseScripts(head || ''));
+      setFooterScripts(parseScripts(footer || ''));
     }).finally(() => setLoading(false));
   }, []);
 
@@ -32,7 +109,8 @@ const SettingsAdvanced = () => {
       const uid = user.id;
       await Promise.all([
         upsertSetting('chat_widget_code', chatWidgetCode, uid),
-        upsertSetting('head_script', headScript, uid),
+        upsertSetting('head_script', JSON.stringify(headScripts), uid),
+        upsertSetting('footer_script', JSON.stringify(footerScripts), uid),
       ]);
       toast({ title: 'Configurações avançadas salvas!' });
     } catch (err: any) {
@@ -64,17 +142,25 @@ const SettingsAdvanced = () => {
 
       <Card className="border-border/50">
         <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Code className="w-5 h-5" /> Scripts no Head</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Scripts para o &lt;head&gt;</Label>
-            <p className="text-xs text-muted-foreground">Google Analytics, Facebook Pixel, etc. Serão inseridos no &lt;head&gt; de todas as páginas.</p>
-            <textarea
-              className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 font-mono"
-              value={headScript}
-              onChange={(e) => setHeadScript(e.target.value)}
-              placeholder='<!-- Google Analytics -->'
-            />
-          </div>
+        <CardContent className="space-y-2">
+          <p className="text-xs text-muted-foreground">Google Analytics, Facebook Pixel, etc. Serão inseridos no &lt;head&gt; de todas as páginas.</p>
+          <ScriptList
+            scripts={headScripts}
+            onChange={setHeadScripts}
+            placeholder='<!-- Google Analytics -->'
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
+        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Code className="w-5 h-5" /> Scripts no Footer</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-xs text-muted-foreground">Scripts que serão inseridos antes do &lt;/body&gt;. Ideal para pixels de conversão, chatbots, etc.</p>
+          <ScriptList
+            scripts={footerScripts}
+            onChange={setFooterScripts}
+            placeholder='<!-- Pixel de conversão -->'
+          />
         </CardContent>
       </Card>
 
