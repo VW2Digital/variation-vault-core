@@ -94,7 +94,7 @@ const AdminLayout = () => {
       <div className="min-h-screen flex w-full overflow-x-hidden">
         <AdminSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 flex items-center border-b border-border/50 bg-card px-3 sm:px-4 sticky top-0 z-30">
+          <header className="h-14 flex items-center border-b border-border/50 bg-card px-3 sm:px-4 sticky top-0 z-[998]">
             <SidebarTrigger />
             <Link to="/admin" className="ml-3 flex items-center gap-2">
               <img src={logoImg} alt="Liberty Pharma" className="h-7 sm:h-8 object-contain" />
