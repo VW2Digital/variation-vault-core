@@ -247,15 +247,17 @@ const Sidebar = React.forwardRef<
         >
           {children}
         </div>
-        <button
-          onClick={toggleSidebar}
+        <div
+          onMouseDown={handleMouseDown}
+          onDoubleClick={toggleSidebar}
           className={cn(
-            "absolute top-0 h-full w-1 cursor-col-resize hover:w-1.5 transition-all duration-150",
+            "absolute top-0 h-full w-1.5 cursor-col-resize transition-all duration-150 z-20",
             "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:bg-sidebar-border after:transition-colors",
-            "hover:after:bg-sidebar-foreground/20",
-            side === "left" ? "right-0" : "left-0",
+            "hover:w-2 hover:after:w-[2px] hover:after:bg-sidebar-foreground/30",
+            "active:after:bg-sidebar-foreground/50",
+            side === "left" ? "-right-0.5" : "-left-0.5",
           )}
-          aria-label="Toggle sidebar"
+          aria-label="Resize sidebar"
         />
       </div>
     </div>
