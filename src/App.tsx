@@ -27,6 +27,7 @@ import SettingsCommunication from "./pages/settings/SettingsCommunication";
 import SettingsFooter from "./pages/settings/SettingsFooter";
 import SettingsAdvanced from "./pages/settings/SettingsAdvanced";
 import SettingsAPI from "./pages/settings/SettingsAPI";
+import SettingsCategories from "./pages/settings/SettingsCategories";
 import OrdersPage from "./pages/OrdersPage";
 import UsersPage from "./pages/UsersPage";
 import Checkout from "./pages/Checkout";
@@ -112,6 +113,7 @@ const App = () => (
             <Route path="configuracoes/rodape" element={<SettingsFooter />} />
             <Route path="configuracoes/avancado" element={<SettingsAdvanced />} />
             <Route path="configuracoes/api" element={<SettingsAPI />} />
+            <Route path="configuracoes/categorias" element={<SettingsCategories />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

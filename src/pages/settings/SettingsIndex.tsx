@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Image, Palette, Type, Code, LayoutDashboard, CreditCard, Truck, MessageSquare, FileText, Settings, Plug } from 'lucide-react';
+import { Image, Palette, Type, Code, LayoutDashboard, CreditCard, Truck, MessageSquare, FileText, Settings, Plug, Tags } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ChevronRight } from 'lucide-react';
 
@@ -26,6 +26,13 @@ const categories = [
     icon: CreditCard,
     items: [
       { title: 'Gateways de Pagamento', description: 'Asaas, Mercado Pago, parcelamento e descontos PIX', icon: CreditCard, path: 'pagamento' },
+    ],
+  },
+  {
+    label: 'CATÁLOGO',
+    icon: Tags,
+    items: [
+      { title: 'Categorias de Produtos', description: 'Crie e gerencie categorias para organizar seus produtos', icon: Tags, path: 'categorias' },
     ],
   },
   {
