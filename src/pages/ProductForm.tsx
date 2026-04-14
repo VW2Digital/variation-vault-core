@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchProduct, createProduct, updateProduct, uploadFile } from '@/lib/api';
+import { fetchProduct, createProduct, updateProduct, uploadFile, fetchSetting } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -75,8 +75,18 @@ const ProductForm = () => {
   const [category, setCategory] = useState('');
   const [saving, setSaving] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
 
   useEffect(() => {
+    fetchSetting('product_categories').then((val) => {
+      if (val) {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) setCategoryOptions(parsed);
+        } catch {}
+      }
+    });
+  }, []);
     if (id) {
       setLoadingProduct(true);
       fetchProduct(id).then(async (p) => {
@@ -236,7 +246,20 @@ const ProductForm = () => {
               </div>
               <div className="space-y-2">
                 <Label>Categoria</Label>
-                <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Ex: Emagrecimento, Saúde" />
+                {categoryOptions.length > 0 ? (
+                  <Select value={category} onValueChange={setCategory}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoryOptions.map((cat) => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Ex: Emagrecimento, Saúde" />
+                )}
               </div>
             </div>
             <div className="space-y-2">
