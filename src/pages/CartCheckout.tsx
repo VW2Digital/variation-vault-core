@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { gtagBeginCheckout } from '@/lib/gtag';
+import { fbInitiateCheckout } from '@/lib/fbPixel';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart, getEffectivePrice } from '@/contexts/CartContext';
@@ -32,10 +33,10 @@ const CartCheckout = () => {
     if (!loading && items.length > 0) {
       setReady(true);
       // Google Ads: begin_checkout
-      gtagBeginCheckout(
-        items.reduce((sum, i) => sum + i.price * i.quantity, 0),
-        items.map(i => ({ id: i.product_id, name: i.product_name, price: i.price, quantity: i.quantity }))
-      );
+      const checkoutValue = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+      const checkoutItems = items.map(i => ({ id: i.product_id, name: i.product_name, price: i.price, quantity: i.quantity }));
+      gtagBeginCheckout(checkoutValue, checkoutItems);
+      fbInitiateCheckout(checkoutValue, checkoutItems);
     }
   }, [loading, items, navigate, ready]);
 
