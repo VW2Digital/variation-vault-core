@@ -260,6 +260,28 @@ const Dashboard = () => {
     { name: 'Reembolsados', value: metrics.refunded, fill: 'hsl(220 9% 46%)' },
   ].filter(d => d.value > 0), [metrics]);
 
+  const funnelData = useMemo(() => {
+    const uniqueOrderUsers = new Set(filterByPeriod(allOrders, period).map(o => o.customer_email?.toLowerCase())).size;
+    const checkoutStarted = filterByPeriod(allOrders, period).length;
+    const purchased = filterByPeriod(allOrders, period).filter(o => CONFIRMED_STATUSES.includes(o.status)).length;
+
+    const stages = [
+      { label: 'Clientes Cadastrados', value: totalClients, icon: Users, color: 'hsl(217 91% 60%)' },
+      { label: 'Adicionaram ao Carrinho', value: cartUsers + uniqueOrderUsers, icon: ShoppingCart, color: 'hsl(38 92% 50%)' },
+      { label: 'Iniciaram Checkout', value: checkoutStarted, icon: CreditCard, color: 'hsl(var(--primary))' },
+      { label: 'Compraram', value: purchased, icon: CheckCircle2, color: 'hsl(142 71% 45%)' },
+    ];
+
+    const maxValue = Math.max(...stages.map(s => s.value), 1);
+    return stages.map((s, i) => ({
+      ...s,
+      pct: (s.value / maxValue) * 100,
+      conversionFromPrev: i > 0 && stages[i - 1].value > 0
+        ? ((s.value / stages[i - 1].value) * 100).toFixed(1)
+        : null,
+    }));
+  }, [totalClients, cartUsers, allOrders, period]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
