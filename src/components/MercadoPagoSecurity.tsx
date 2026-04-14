@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, forwardRef } from 'react';
 import { useLocation } from 'react-router-dom';
 
 const SCRIPT_SRC = 'https://www.mercadopago.com/v2/security.js';
@@ -28,12 +28,11 @@ function getView(pathname: string): string {
   return 'home';
 }
 
-const MercadoPagoSecurity = () => {
+const MercadoPagoSecurity = forwardRef<HTMLDivElement>((_props, _ref) => {
   const { pathname } = useLocation();
   const view = getView(pathname);
 
   useEffect(() => {
-    // Remove existing security script if view changed
     const existing = document.querySelector(`script[src="${SCRIPT_SRC}"]`);
     if (existing) {
       existing.remove();
@@ -51,6 +50,8 @@ const MercadoPagoSecurity = () => {
   }, [view]);
 
   return null;
-};
+});
+
+MercadoPagoSecurity.displayName = 'MercadoPagoSecurity';
 
 export default MercadoPagoSecurity;
