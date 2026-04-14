@@ -443,6 +443,57 @@ const Dashboard = () => {
         </CardContent>
       </Card>
 
+      {/* Funil de Conversão */}
+      <Card className="border-border/40 shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <Filter className="w-4 h-4" />
+            Funil de Conversão
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {funnelData.map((stage, idx) => (
+              <div key={stage.label}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <stage.icon className="w-4 h-4" style={{ color: stage.color }} />
+                    <span className="text-xs font-semibold text-foreground">{stage.label}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-black text-foreground">{stage.value}</span>
+                    {stage.conversionFromPrev && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full border" style={{ color: stage.color, borderColor: stage.color }}>
+                        {stage.conversionFromPrev}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="h-3 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-700 ease-out"
+                    style={{ width: `${Math.max(stage.pct, 2)}%`, backgroundColor: stage.color, opacity: 0.85 }}
+                  />
+                </div>
+                {idx < funnelData.length - 1 && (
+                  <div className="flex justify-center my-1">
+                    <div className="w-px h-3 bg-border" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          {funnelData.length >= 4 && funnelData[0].value > 0 && (
+            <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between">
+              <span className="text-[11px] text-muted-foreground">Taxa geral (Cadastro → Compra)</span>
+              <span className="text-sm font-black text-foreground">
+                {((funnelData[3].value / funnelData[0].value) * 100).toFixed(1)}%
+              </span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Gráfico de Evolução */}
       <Card className="border-border/40 shadow-sm">
         <CardHeader className="pb-3">
