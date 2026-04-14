@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchSetting } from '@/lib/api';
 import { gtagEvent } from '@/lib/gtag';
+import { fbAddPaymentInfo, fbPurchase } from '@/lib/fbPixel';
 import { supabase } from '@/integrations/supabase/client';
 import { gerarOpcoesParcelamento, type InstallmentResult } from '@/lib/installments';
 import { mapPaymentErrorMessage } from '@/lib/paymentErrors';
@@ -712,6 +713,7 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
       payment_type: paymentMethod,
       items: [{ item_id: productId || '', item_name: productName, price: unitPrice, quantity }],
     });
+    fbAddPaymentInfo();
     setStep('payment');
   };
 
@@ -902,6 +904,9 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
           });
         }
       } catch { /* non-blocking */ }
+
+      // Facebook Pixel: Purchase
+      fbPurchase(totalValue, [{ id: productId || '', name: productName, price: unitPrice, quantity }]);
 
       onSuccess?.();
     } catch (err: any) {

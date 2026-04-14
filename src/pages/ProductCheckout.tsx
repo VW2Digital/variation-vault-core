@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { gtagViewItem } from '@/lib/gtag';
+import { fbViewContent } from '@/lib/fbPixel';
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
@@ -159,6 +160,7 @@ const ProductCheckout = () => {
       const firstVar = prod.product_variations?.[0];
       const viewPrice = firstVar?.is_offer && firstVar?.offer_price ? Number(firstVar.offer_price) : Number(firstVar?.price || 0);
       gtagViewItem({ id: prod.id, name: prod.name, category: (prod as any).category || '', price: viewPrice, variant: firstVar?.dosage || '' });
+      fbViewContent({ id: prod.id, name: prod.name, category: (prod as any).category || '', price: viewPrice });
       // Fetch reviews for this product
       const { data: revData } = await supabase
         .from('reviews')

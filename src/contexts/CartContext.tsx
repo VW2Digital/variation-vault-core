@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { gtagAddToCart } from '@/lib/gtag';
+import { fbAddToCart } from '@/lib/fbPixel';
 
 export interface WholesaleTier {
   min_quantity: number;
@@ -165,6 +166,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         price: added?.price || 0,
         quantity,
         variant: added?.dosage || '',
+      });
+      fbAddToCart({
+        id: productId,
+        name: added?.product_name || '',
+        price: added?.price || 0,
+        quantity,
       });
       toast({ title: 'Adicionado ao carrinho!' });
     } catch (err: any) {
