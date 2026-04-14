@@ -74,7 +74,7 @@ export function AdminSidebar() {
     <Sidebar collapsible="icon" className="border-r-0">
       <SidebarContent className="gap-1">
         {menuCategories.map((category) => (
-          <SidebarGroup key={category.label}>
+          <SidebarGroup key={category.label} className="py-1 px-2">
             <SidebarGroupLabel className="text-sidebar-foreground/60 uppercase tracking-wider text-xs">
               {!collapsed && category.label}
             </SidebarGroupLabel>
