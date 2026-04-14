@@ -30,9 +30,9 @@ const categories = [
   },
   {
     label: 'CATÁLOGO',
-    icon: LayoutDashboard,
+    icon: Tags,
     items: [
-      { title: 'Categorias de Produtos', description: 'Crie e gerencie categorias para organizar seus produtos', icon: LayoutDashboard, path: 'categorias' },
+      { title: 'Categorias de Produtos', description: 'Crie e gerencie categorias para organizar seus produtos', icon: Tags, path: 'categorias' },
     ],
   },
   {

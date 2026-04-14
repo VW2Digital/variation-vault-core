@@ -89,11 +89,7 @@ const SettingsCategories = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <SettingsBackButton />
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">Categorias de Produtos</h1>
-        <p className="text-sm text-muted-foreground mt-1">Gerencie as categorias disponíveis para seus produtos.</p>
-      </div>
+      <SettingsBackButton title="Categorias de Produtos" description="Gerencie as categorias disponíveis para seus produtos." />
 
       <Card className="border-border/50">
         <CardHeader>
@@ -136,7 +132,7 @@ const SettingsCategories = () => {
                         autoFocus
                       />
                       <Button size="icon" variant="ghost" onClick={handleConfirmEdit} className="shrink-0 h-8 w-8">
-                        <Check className="w-4 h-4 text-green-500" />
+                        <Check className="w-4 h-4 text-primary" />
                       </Button>
                       <Button size="icon" variant="ghost" onClick={handleCancelEdit} className="shrink-0 h-8 w-8">
                         <X className="w-4 h-4 text-muted-foreground" />
