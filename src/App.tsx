@@ -53,6 +53,7 @@ import ContactPage from "./pages/ContactPage";
 import { SessionGuard } from "./components/SessionGuard";
 import ChatWidgetEmbed from "./components/ChatWidgetEmbed";
 import MercadoPagoSecurity from "./components/MercadoPagoSecurity";
+import HeadScriptInjector from "./components/HeadScriptInjector";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <SessionGuard />
+        <HeadScriptInjector />
         <PromoPopup />
         <ChatWidgetEmbed />
         <MercadoPagoSecurity />
