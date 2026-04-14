@@ -3,7 +3,7 @@ import { fetchProducts } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, DollarSign, AlertTriangle, TrendingUp, CreditCard, QrCode, RefreshCw, ShoppingCart, CheckCircle2, XCircle, ArrowRightLeft, BarChart3, Tag, Clock, Eye, Undo2, Users, Wallet, Target, Pencil, Search } from 'lucide-react';
+import { Package, DollarSign, AlertTriangle, TrendingUp, CreditCard, QrCode, RefreshCw, ShoppingCart, CheckCircle2, XCircle, ArrowRightLeft, BarChart3, Tag, Clock, Eye, Undo2, Users, Wallet, Target, Pencil, Search, Filter } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, BarChart, Bar } from 'recharts';
   import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
   import { useNavigate } from 'react-router-dom';
