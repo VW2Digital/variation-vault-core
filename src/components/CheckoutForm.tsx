@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchSetting } from '@/lib/api';
+import { gtagEvent } from '@/lib/gtag';
 import { supabase } from '@/integrations/supabase/client';
 import { gerarOpcoesParcelamento, type InstallmentResult } from '@/lib/installments';
 import { mapPaymentErrorMessage } from '@/lib/paymentErrors';
@@ -668,6 +669,12 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
 
     // Always fetch shipping options so customer can choose the carrier
     setLoadingShipping(true);
+    // Google Ads: add_shipping_info
+    gtagEvent('add_shipping_info', {
+      currency: 'BRL',
+      value: totalValue,
+      items: [{ item_id: productId || '', item_name: productName, price: unitPrice, quantity }],
+    });
     setStep('shipping');
 
     // Fetch shipping options
@@ -698,8 +705,14 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
       toast({ title: 'Selecione uma opção de frete', variant: 'destructive' });
       return;
     }
+    // Google Ads: add_payment_info
+    gtagEvent('add_payment_info', {
+      currency: 'BRL',
+      value: totalValue,
+      payment_type: paymentMethod,
+      items: [{ item_id: productId || '', item_name: productName, price: unitPrice, quantity }],
+    });
     setStep('payment');
-  };
 
   const handlePayment = async () => {
     if (!validateCard()) return;
