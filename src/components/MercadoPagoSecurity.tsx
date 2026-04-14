@@ -12,6 +12,10 @@ function getView(pathname: string): string {
   ) {
     return 'checkout';
   }
+  // cart page
+  if (pathname === '/carrinho') {
+    return 'search_results';
+  }
   // product page
   if (pathname.startsWith('/produto/')) {
     return 'item';
