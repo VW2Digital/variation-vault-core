@@ -91,6 +91,7 @@ const Dashboard = () => {
   const [paidWithoutLabel, setPaidWithoutLabel] = useState(0);
   const [totalClients, setTotalClients] = useState(0);
   const [stockSearch, setStockSearch] = useState('');
+  const [cartUsers, setCartUsers] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
