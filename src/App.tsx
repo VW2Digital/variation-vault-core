@@ -51,6 +51,7 @@ import TermsOfUse from "./pages/TermsOfUse";
 import ContactPage from "./pages/ContactPage";
 import { SessionGuard } from "./components/SessionGuard";
 import ChatWidgetEmbed from "./components/ChatWidgetEmbed";
+import MercadoPagoSecurity from "./components/MercadoPagoSecurity";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,7 @@ const App = () => (
         <SessionGuard />
         <PromoPopup />
         <ChatWidgetEmbed />
+        <MercadoPagoSecurity />
         <Routes>
           <Route path="/" element={<Catalog />} />
           <Route path="/catalogo" element={<Catalog />} />
