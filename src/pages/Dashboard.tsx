@@ -3,7 +3,7 @@ import { fetchProducts } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, DollarSign, AlertTriangle, TrendingUp, CreditCard, QrCode, RefreshCw, ShoppingCart, CheckCircle2, XCircle, ArrowRightLeft, BarChart3, Tag, Clock, Eye, Undo2, Users, Wallet, Target, Pencil, Search } from 'lucide-react';
+import { Package, DollarSign, AlertTriangle, TrendingUp, CreditCard, QrCode, RefreshCw, ShoppingCart, CheckCircle2, XCircle, ArrowRightLeft, BarChart3, Tag, Clock, Eye, Undo2, Users, Wallet, Target, Pencil, Search, Filter } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, BarChart, Bar } from 'recharts';
   import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
   import { useNavigate } from 'react-router-dom';
@@ -91,6 +91,7 @@ const Dashboard = () => {
   const [paidWithoutLabel, setPaidWithoutLabel] = useState(0);
   const [totalClients, setTotalClients] = useState(0);
   const [stockSearch, setStockSearch] = useState('');
+  const [cartUsers, setCartUsers] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -119,6 +120,12 @@ const Dashboard = () => {
         .from('profiles')
         .select('id', { count: 'exact', head: true });
       setTotalClients(profileCount || 0);
+
+      const { data: cartData } = await supabase
+        .from('cart_items')
+        .select('user_id');
+      const uniqueCartUsers = new Set((cartData || []).map((c: any) => c.user_id));
+      setCartUsers(uniqueCartUsers.size);
 
       const { data: logs } = await supabase
         .from('payment_logs')
@@ -252,6 +259,28 @@ const Dashboard = () => {
     { name: 'Recusados', value: metrics.refused, fill: 'hsl(0 72% 51%)' },
     { name: 'Reembolsados', value: metrics.refunded, fill: 'hsl(220 9% 46%)' },
   ].filter(d => d.value > 0), [metrics]);
+
+  const funnelData = useMemo(() => {
+    const uniqueOrderUsers = new Set(filterByPeriod(allOrders, period).map(o => o.customer_email?.toLowerCase())).size;
+    const checkoutStarted = filterByPeriod(allOrders, period).length;
+    const purchased = filterByPeriod(allOrders, period).filter(o => CONFIRMED_STATUSES.includes(o.status)).length;
+
+    const stages = [
+      { label: 'Clientes Cadastrados', value: totalClients, icon: Users, color: 'hsl(217 91% 60%)' },
+      { label: 'Adicionaram ao Carrinho', value: cartUsers + uniqueOrderUsers, icon: ShoppingCart, color: 'hsl(38 92% 50%)' },
+      { label: 'Iniciaram Checkout', value: checkoutStarted, icon: CreditCard, color: 'hsl(var(--primary))' },
+      { label: 'Compraram', value: purchased, icon: CheckCircle2, color: 'hsl(142 71% 45%)' },
+    ];
+
+    const maxValue = Math.max(...stages.map(s => s.value), 1);
+    return stages.map((s, i) => ({
+      ...s,
+      pct: (s.value / maxValue) * 100,
+      conversionFromPrev: i > 0 && stages[i - 1].value > 0
+        ? ((s.value / stages[i - 1].value) * 100).toFixed(1)
+        : null,
+    }));
+  }, [totalClients, cartUsers, allOrders, period]);
 
   if (loading) {
     return (
@@ -411,6 +440,57 @@ const Dashboard = () => {
               </div>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Funil de Conversão */}
+      <Card className="border-border/40 shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <Filter className="w-4 h-4" />
+            Funil de Conversão
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {funnelData.map((stage, idx) => (
+              <div key={stage.label}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <stage.icon className="w-4 h-4" style={{ color: stage.color }} />
+                    <span className="text-xs font-semibold text-foreground">{stage.label}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-black text-foreground">{stage.value}</span>
+                    {stage.conversionFromPrev && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full border" style={{ color: stage.color, borderColor: stage.color }}>
+                        {stage.conversionFromPrev}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="h-3 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-700 ease-out"
+                    style={{ width: `${Math.max(stage.pct, 2)}%`, backgroundColor: stage.color, opacity: 0.85 }}
+                  />
+                </div>
+                {idx < funnelData.length - 1 && (
+                  <div className="flex justify-center my-1">
+                    <div className="w-px h-3 bg-border" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          {funnelData.length >= 4 && funnelData[0].value > 0 && (
+            <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between">
+              <span className="text-[11px] text-muted-foreground">Taxa geral (Cadastro → Compra)</span>
+              <span className="text-sm font-black text-foreground">
+                {((funnelData[3].value / funnelData[0].value) * 100).toFixed(1)}%
+              </span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
