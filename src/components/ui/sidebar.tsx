@@ -14,9 +14,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 const SIDEBAR_COOKIE_NAME = "sidebar:state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
-const SIDEBAR_WIDTH = "16rem";
+const SIDEBAR_WIDTH_DEFAULT = 256; // 16rem in px
+const SIDEBAR_WIDTH_MIN = 180;
+const SIDEBAR_WIDTH_MAX = 360;
 const SIDEBAR_WIDTH_MOBILE = "18rem";
-const SIDEBAR_WIDTH_ICON = "3rem";
+const SIDEBAR_WIDTH_ICON = 48; // 3rem in px
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
 type SidebarContext = {
@@ -27,6 +29,8 @@ type SidebarContext = {
   setOpenMobile: (open: boolean) => void;
   isMobile: boolean;
   toggleSidebar: () => void;
+  sidebarWidth: number;
+  setSidebarWidth: (w: number) => void;
 };
 
 const SidebarContext = React.createContext<SidebarContext | null>(null);
@@ -50,9 +54,9 @@ const SidebarProvider = React.forwardRef<
 >(({ defaultOpen = true, open: openProp, onOpenChange: setOpenProp, className, style, children, ...props }, ref) => {
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
+  const [sidebarWidth, setSidebarWidth] = React.useState(SIDEBAR_WIDTH_DEFAULT);
 
   // This is the internal state of the sidebar.
-  // We use openProp and setOpenProp for control from outside the component.
   const [_open, _setOpen] = React.useState(defaultOpen);
   const open = openProp ?? _open;
   const setOpen = React.useCallback(
@@ -63,19 +67,15 @@ const SidebarProvider = React.forwardRef<
       } else {
         _setOpen(openState);
       }
-
-      // This sets the cookie to keep the sidebar state.
       document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
     },
     [setOpenProp, open],
   );
 
-  // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {
     return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open);
   }, [isMobile, setOpen, setOpenMobile]);
 
-  // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === SIDEBAR_KEYBOARD_SHORTCUT && (event.metaKey || event.ctrlKey)) {
@@ -83,13 +83,10 @@ const SidebarProvider = React.forwardRef<
         toggleSidebar();
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [toggleSidebar]);
 
-  // We add a state so that we can do data-state="expanded" or "collapsed".
-  // This makes it easier to style the sidebar with Tailwind classes.
   const state = open ? "expanded" : "collapsed";
 
   const contextValue = React.useMemo<SidebarContext>(
@@ -101,9 +98,13 @@ const SidebarProvider = React.forwardRef<
       openMobile,
       setOpenMobile,
       toggleSidebar,
+      sidebarWidth,
+      setSidebarWidth,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar],
+    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar, sidebarWidth],
   );
+
+  const currentWidth = open ? `${sidebarWidth}px` : `${SIDEBAR_WIDTH_ICON}px`;
 
   return (
     <SidebarContext.Provider value={contextValue}>
@@ -111,8 +112,8 @@ const SidebarProvider = React.forwardRef<
         <div
           style={
             {
-              "--sidebar-width": SIDEBAR_WIDTH,
-              "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
+              "--sidebar-width": currentWidth,
+              "--sidebar-width-icon": `${SIDEBAR_WIDTH_ICON}px`,
               ...style,
             } as React.CSSProperties
           }
@@ -136,7 +137,43 @@ const Sidebar = React.forwardRef<
     collapsible?: "offcanvas" | "icon" | "none";
   }
 >(({ side = "left", variant = "sidebar", collapsible = "offcanvas", className, children, ...props }, ref) => {
-  const { isMobile, state, openMobile, setOpenMobile, toggleSidebar } = useSidebar();
+  const { isMobile, state, openMobile, setOpenMobile, toggleSidebar, sidebarWidth, setSidebarWidth, setOpen } = useSidebar();
+  const isDragging = React.useRef(false);
+  const startX = React.useRef(0);
+  const startWidth = React.useRef(0);
+
+  const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    startX.current = e.clientX;
+    startWidth.current = sidebarWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+      const delta = side === "left" ? e.clientX - startX.current : startX.current - e.clientX;
+      const newWidth = Math.max(SIDEBAR_WIDTH_MIN, Math.min(SIDEBAR_WIDTH_MAX, startWidth.current + delta));
+      
+      if (newWidth <= SIDEBAR_WIDTH_ICON + 20) {
+        setOpen(false);
+      } else {
+        setOpen(true);
+        setSidebarWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      isDragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [sidebarWidth, setSidebarWidth, setOpen, side]);
 
   if (collapsible === "none") {
     return (
@@ -210,15 +247,17 @@ const Sidebar = React.forwardRef<
         >
           {children}
         </div>
-        <button
-          onClick={toggleSidebar}
+        <div
+          onMouseDown={handleMouseDown}
+          onDoubleClick={toggleSidebar}
           className={cn(
-            "absolute top-0 h-full w-1 cursor-col-resize hover:w-1.5 transition-all duration-150",
+            "absolute top-0 h-full w-1.5 cursor-col-resize transition-all duration-150 z-20",
             "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:bg-sidebar-border after:transition-colors",
-            "hover:after:bg-sidebar-foreground/20",
-            side === "left" ? "right-0" : "left-0",
+            "hover:w-2 hover:after:w-[2px] hover:after:bg-sidebar-foreground/30",
+            "active:after:bg-sidebar-foreground/50",
+            side === "left" ? "-right-0.5" : "-left-0.5",
           )}
-          aria-label="Toggle sidebar"
+          aria-label="Resize sidebar"
         />
       </div>
     </div>
