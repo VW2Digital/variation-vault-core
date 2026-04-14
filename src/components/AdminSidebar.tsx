@@ -72,7 +72,7 @@ export function AdminSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
-      <SidebarContent>
+      <SidebarContent className="gap-1">
         {menuCategories.map((category) => (
           <SidebarGroup key={category.label}>
             <SidebarGroupLabel className="text-sidebar-foreground/60 uppercase tracking-wider text-xs">
