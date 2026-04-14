@@ -87,6 +87,8 @@ const ProductForm = () => {
       }
     });
   }, []);
+
+  useEffect(() => {
     if (id) {
       setLoadingProduct(true);
       fetchProduct(id).then(async (p) => {
