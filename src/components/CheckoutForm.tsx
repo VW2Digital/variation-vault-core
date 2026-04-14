@@ -876,6 +876,19 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
 
       setStep('success');
       await clearCart();
+
+      // Google Ads conversion event
+      try {
+        if (typeof window !== 'undefined' && typeof (window as any).gtag === 'function') {
+          (window as any).gtag('event', 'conversion', {
+            send_to: 'AW-17791843489/purchase',
+            value: totalValue,
+            currency: 'BRL',
+            transaction_id: paymentResult?.orderId || undefined,
+          });
+        }
+      } catch { /* non-blocking */ }
+
       onSuccess?.();
     } catch (err: any) {
       const rawMessage = err?.message || 'Não foi possível processar o pagamento';
