@@ -307,7 +307,7 @@ export default function CouponsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {coupons.map((c) => (
             <Card key={c.id} className={`transition-opacity ${!c.active ? 'opacity-60' : ''}`}>
               <CardHeader className="pb-2">
