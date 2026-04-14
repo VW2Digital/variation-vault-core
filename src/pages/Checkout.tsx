@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchProduct } from '@/lib/api';
+import { gtagBeginCheckout } from '@/lib/gtag';
 import { AnimatedSection } from '@/components/AnimatedSection';
 import CheckoutForm from '@/components/CheckoutForm';
 import Header from '@/components/Header';
@@ -34,6 +35,10 @@ const Checkout = () => {
     if (!id) return;
     fetchProduct(id).then(async (prod) => {
       setProduct(prod);
+      // Google Ads: begin_checkout
+      const v0 = prod.product_variations?.[0];
+      const chkPrice = v0?.is_offer && v0?.offer_price ? Number(v0.offer_price) : Number(v0?.price || 0);
+      gtagBeginCheckout(chkPrice, [{ id: prod.id, name: prod.name, price: chkPrice, quantity: 1 }]);
       const vId = searchParams.get('v');
       let variationId = prod.product_variations?.[0]?.id;
       if (vId && prod.product_variations) {
