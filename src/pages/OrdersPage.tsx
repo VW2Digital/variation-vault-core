@@ -84,6 +84,7 @@ const whatsappTemplates = [
 ];
 
 const OrdersPage = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,7 +99,6 @@ const OrdersPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 15;
   // Dialog states
-  const [viewOrder, setViewOrder] = useState<any>(null);
   const [editOrder, setEditOrder] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
