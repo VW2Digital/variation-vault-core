@@ -350,34 +350,16 @@ const SettingsPayment = () => {
                   onClick={async () => {
                     setGeneratingPbKey(true);
                     try {
-                      const baseUrl = pbEnvironment === 'production'
-                        ? 'https://api.pagseguro.com'
-                        : 'https://sandbox.api.pagseguro.com';
-                      
-                      // Try to get existing key first
-                      let res = await fetch(`${baseUrl}/public-keys/card`, {
-                        headers: { 'Authorization': `Bearer ${pbToken}` },
+                      const { data, error } = await supabase.functions.invoke('payment-checkout', {
+                        body: {
+                          action: 'generate_pagbank_public_key',
+                          token: pbToken,
+                          environment: pbEnvironment,
+                        },
                       });
-                      
-                      if (res.status === 404) {
-                        // Create new key
-                        res = await fetch(`${baseUrl}/public-keys`, {
-                          method: 'POST',
-                          headers: {
-                            'Authorization': `Bearer ${pbToken}`,
-                            'Content-Type': 'application/json',
-                          },
-                          body: JSON.stringify({ type: 'card' }),
-                        });
-                      }
-                      
-                      if (!res.ok) {
-                        const err = await res.json().catch(() => ({}));
-                        throw new Error(err.error_messages?.[0]?.description || `HTTP ${res.status}`);
-                      }
-                      
-                      const data = await res.json();
-                      if (data.public_key) {
+                      if (error) throw new Error(error.message);
+                      if (data?.error) throw new Error(data.error);
+                      if (data?.public_key) {
                         setPbPublicKey(data.public_key);
                         toast({ title: 'Public Key gerada com sucesso!' });
                       } else {
