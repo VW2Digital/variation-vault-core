@@ -547,6 +547,203 @@ class MercadoPagoGateway implements PaymentGateway {
 }
 
 // ────────────────────────────────────────────────────────
+// PAGBANK GATEWAY
+// ────────────────────────────────────────────────────────
+
+class PagBankGateway implements PaymentGateway {
+  private token: string;
+  private baseUrl: string;
+
+  constructor(token: string, environment: string) {
+    this.token = token;
+    this.baseUrl = environment === 'production'
+      ? 'https://api.pagseguro.com'
+      : 'https://sandbox.api.pagseguro.com';
+  }
+
+  private async fetch(path: string, method: string, body?: any) {
+    const res = await fetch(`${this.baseUrl}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.token}`,
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+    const raw = await res.text();
+    let data: any = {};
+    if (raw) { try { data = JSON.parse(raw); } catch { data = { message: raw }; } }
+    if (!res.ok) {
+      const msgs = Array.isArray(data?.error_messages)
+        ? data.error_messages.map((e: any) => e?.description || e?.message).filter(Boolean).join(' | ')
+        : '';
+      throw new Error(msgs || data?.message || `PagBank error [${res.status}]`);
+    }
+    return data;
+  }
+
+  async createCustomer(dto: CustomerDTO) {
+    // PagBank doesn't have a standalone customer API like Asaas.
+    // Customer is sent inline with the order. Return a placeholder.
+    return { id: `pb_${dto.cpfCnpj}` };
+  }
+
+  async createPixPayment(dto: CheckoutDTO): Promise<PaymentResponse> {
+    const cpf = (dto.creditCardHolderInfo?.cpfCnpj || '').replace(/\D/g, '');
+    const phoneDigits = sanitizePhone(dto.creditCardHolderInfo?.phone);
+    const payload: any = {
+      reference_id: dto.orderId || crypto.randomUUID(),
+      customer: {
+        name: dto.creditCardHolderInfo?.name || 'Cliente',
+        email: dto.creditCardHolderInfo?.email || 'customer@email.com',
+        tax_id: cpf,
+        phones: phoneDigits ? [{ country: '55', area: phoneDigits.slice(0, 2), number: phoneDigits.slice(2), type: 'MOBILE' }] : [],
+      },
+      items: [{
+        reference_id: dto.orderId || 'item',
+        name: sanitizeDescription(dto.description),
+        quantity: 1,
+        unit_amount: Math.round(toCurrencyNumber(dto.value) * 100),
+      }],
+      qr_codes: [{
+        amount: { value: Math.round(toCurrencyNumber(dto.value) * 100) },
+        expiration_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      }],
+      notification_urls: [`${Deno.env.get('SUPABASE_URL')}/functions/v1/pagbank-webhook`],
+    };
+
+    const result = await this.fetch('/orders', 'POST', payload);
+    const qr = result.qr_codes?.[0];
+    return {
+      id: result.id,
+      status: this.mapStatus(result.charges?.[0]?.status || 'WAITING'),
+      pixQrCode: qr ? {
+        encodedImage: qr.links?.find((l: any) => l.media === 'image/png')?.href || '',
+        payload: qr.text || '',
+        expirationDate: qr.expiration_date,
+      } : undefined,
+    };
+  }
+
+  async createCardPayment(dto: CheckoutDTO): Promise<PaymentResponse> {
+    const parsedCount = Number(dto.installmentCount) || 1;
+    const cpf = (dto.creditCardHolderInfo?.cpfCnpj || '').replace(/\D/g, '');
+    const phoneDigits = sanitizePhone(dto.creditCardHolderInfo?.phone);
+
+    const { valorFinal, valorParcela } = this.simulateInstallmentsLocal(toCurrencyNumber(dto.value), parsedCount);
+
+    const payload: any = {
+      reference_id: dto.orderId || crypto.randomUUID(),
+      customer: {
+        name: dto.creditCardHolderInfo?.name || 'Cliente',
+        email: dto.creditCardHolderInfo?.email || 'customer@email.com',
+        tax_id: cpf,
+        phones: phoneDigits ? [{ country: '55', area: phoneDigits.slice(0, 2), number: phoneDigits.slice(2), type: 'MOBILE' }] : [],
+      },
+      items: [{
+        reference_id: dto.orderId || 'item',
+        name: sanitizeDescription(dto.description),
+        quantity: 1,
+        unit_amount: Math.round(valorFinal * 100),
+      }],
+      charges: [{
+        reference_id: dto.orderId || crypto.randomUUID(),
+        description: sanitizeDescription(dto.description),
+        amount: {
+          value: Math.round(valorFinal * 100),
+          currency: 'BRL',
+        },
+        payment_method: {
+          type: 'CREDIT_CARD',
+          installments: parsedCount,
+          capture: true,
+          card: {
+            encrypted: (dto.creditCard as any)?.encrypted || (dto.creditCard as any)?.token,
+          },
+        },
+      }],
+      notification_urls: [`${Deno.env.get('SUPABASE_URL')}/functions/v1/pagbank-webhook`],
+    };
+
+    console.log('[PagBank] Card payment:', JSON.stringify({
+      reference_id: payload.reference_id,
+      amount: payload.charges[0].amount.value,
+      installments: parsedCount,
+    }));
+
+    const result = await this.fetch('/orders', 'POST', payload);
+    const charge = result.charges?.[0];
+    return {
+      id: result.id,
+      status: this.mapStatus(charge?.status || 'WAITING'),
+    };
+  }
+
+  async getPaymentStatus(paymentId: string) {
+    const result = await this.fetch(`/orders/${paymentId}`, 'GET');
+    const charge = result.charges?.[0];
+    return { id: result.id, status: this.mapStatus(charge?.status || 'WAITING') };
+  }
+
+  async simulateInstallments(value: number, maxInstallments?: number) {
+    const max = Math.min(maxInstallments || 12, 12);
+    const installments = [];
+    for (let i = 1; i <= max; i++) {
+      const pct = DEFAULT_INTEREST_TABLE[i] ?? 0;
+      const total = toCurrencyNumber(value * (1 + pct));
+      installments.push({
+        installmentCount: i,
+        installmentValue: toCurrencyNumber(total / i),
+        totalValue: total,
+      });
+    }
+    return { creditCard: { installments } };
+  }
+
+  async testConnection() {
+    // PagBank doesn't have a simple balance/me endpoint for test.
+    // We'll try to list recent orders as a connectivity check.
+    try {
+      await this.fetch('/orders?reference_id=connectivity_test&limit=1', 'GET');
+      return { success: true };
+    } catch (e: any) {
+      // If we get a structured error, the connection itself works
+      if (e.message.includes('PagBank error')) return { success: true };
+      throw e;
+    }
+  }
+
+  async refund(paymentId: string) {
+    // Get order to find charge ID
+    const order = await this.fetch(`/orders/${paymentId}`, 'GET');
+    const chargeId = order.charges?.[0]?.id;
+    if (!chargeId) throw new Error('Charge não encontrada para reembolso');
+    await this.fetch(`/charges/${chargeId}/cancel`, 'POST', {
+      amount: { value: order.charges[0].amount.value },
+    });
+  }
+
+  private mapStatus(pbStatus: string): string {
+    const map: Record<string, string> = {
+      PAID: 'CONFIRMED',
+      AUTHORIZED: 'PENDING',
+      IN_ANALYSIS: 'IN_REVIEW',
+      DECLINED: 'DECLINED',
+      CANCELED: 'CANCELLED',
+      WAITING: 'PENDING',
+    };
+    return map[pbStatus] || 'PENDING';
+  }
+
+  private simulateInstallmentsLocal(valorBase: number, parcelas: number): SimulationResult {
+    if (parcelas <= 1) return { valorFinal: valorBase, valorParcela: valorBase };
+    const pct = DEFAULT_INTEREST_TABLE[parcelas] ?? 0;
+    const vf = toCurrencyNumber(valorBase * (1 + pct));
+    return { valorFinal: vf, valorParcela: toCurrencyNumber(vf / parcelas) };
+  }
+}
+
+// ────────────────────────────────────────────────────────
 // PAYMENT FACTORY
 // ────────────────────────────────────────────────────────
 
@@ -561,6 +758,23 @@ async function createGateway(supabaseUrl: string, supabaseKey: string): Promise<
     .maybeSingle();
 
   const gatewayName = gwRow?.value || 'asaas';
+
+  if (gatewayName === 'pagbank') {
+    const { data: pbTokenRow } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', 'pagbank_token')
+      .maybeSingle();
+    const { data: pbEnvRow } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', 'pagbank_environment')
+      .maybeSingle();
+
+    if (!pbTokenRow?.value) throw new Error('Token do PagBank não configurado');
+    console.log(`[PaymentFactory] Using PagBank gateway (env: ${pbEnvRow?.value || 'sandbox'})`);
+    return { gateway: new PagBankGateway(pbTokenRow.value, pbEnvRow?.value || 'sandbox'), gatewayName };
+  }
 
   if (gatewayName === 'mercadopago') {
     // Read environment

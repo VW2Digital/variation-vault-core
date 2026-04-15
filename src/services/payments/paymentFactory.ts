@@ -1,13 +1,15 @@
 import { fetchSetting } from '@/lib/api';
 
-export type CheckoutGateway = 'asaas' | 'mercadopago';
+export type CheckoutGateway = 'asaas' | 'mercadopago' | 'pagbank';
 
 /**
  * Returns the active payment gateway from site_settings.
  */
 export async function getActiveGateway(): Promise<CheckoutGateway> {
   const gateway = await fetchSetting('payment_gateway');
-  return (gateway === 'mercadopago' ? 'mercadopago' : 'asaas') as CheckoutGateway;
+  if (gateway === 'mercadopago') return 'mercadopago';
+  if (gateway === 'pagbank') return 'pagbank';
+  return 'asaas';
 }
 
 /**
@@ -16,6 +18,10 @@ export async function getActiveGateway(): Promise<CheckoutGateway> {
 export async function getGatewayEnvironment(gateway: CheckoutGateway): Promise<'sandbox' | 'production'> {
   if (gateway === 'mercadopago') {
     const env = await fetchSetting('mercadopago_environment');
+    return env === 'production' ? 'production' : 'sandbox';
+  }
+  if (gateway === 'pagbank') {
+    const env = await fetchSetting('pagbank_environment');
     return env === 'production' ? 'production' : 'sandbox';
   }
   const env = await fetchSetting('asaas_environment');
@@ -27,4 +33,11 @@ export async function getGatewayEnvironment(gateway: CheckoutGateway): Promise<'
  */
 export async function getMercadoPagoPublicKey(): Promise<string> {
   return await fetchSetting('mercadopago_public_key');
+}
+
+/**
+ * Returns the PagBank public key for frontend card encryption.
+ */
+export async function getPagBankPublicKey(): Promise<string> {
+  return await fetchSetting('pagbank_public_key');
 }
