@@ -141,8 +141,9 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
   const { t } = useLanguage();
   const { clearCart } = useCart();
   const navigate = useNavigate();
-  const { activeGateway, gatewayEnvironment: gatewayEnv, tokenizeCard, deviceSessionId } = useMercadoPago();
+  const { activeGateway, gatewayEnvironment: gatewayEnv, tokenizeCard, encryptPagBankCard, deviceSessionId } = useMercadoPago();
   const isMercadoPago = activeGateway === 'mercadopago';
+  const isPagBank = activeGateway === 'pagbank';
   const safeUnitPrice = Number(unitPrice) || 0;
   const safeQuantity = Number(quantity) || 1;
   const baseProductTotal = safeUnitPrice * safeQuantity;
@@ -830,6 +831,16 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
           creditCardPayload = { token: tokenResult.token };
           mpPaymentMethodId = tokenResult.paymentMethodId;
           mpIssuerId = tokenResult.issuerId;
+        } else if (isPagBank) {
+          // Encrypt card via PagBank SDK
+          const encResult = await encryptPagBankCard({
+            holder: cardName.trim() || name.trim(),
+            number: cardNumber.replace(/\s/g, ''),
+            expMonth: cardExpMonth,
+            expYear: cardExpYear,
+            securityCode: cardCcv,
+          });
+          creditCardPayload = { encrypted: encResult.encrypted };
         } else {
           creditCardPayload = {
             holderName: cardName.trim() || name.trim(),
