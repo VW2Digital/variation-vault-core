@@ -102,6 +102,7 @@ export interface UseMercadoPagoReturn {
   activeGateway: string;
   gatewayEnvironment: string;
   deviceSessionId: string;
+  checkoutMode: 'transparent' | 'redirect';
 }
 
 export function useMercadoPago(): UseMercadoPagoReturn {
@@ -112,22 +113,26 @@ export function useMercadoPago(): UseMercadoPagoReturn {
   const [mpInstance, setMpInstance] = useState<any>(null);
   const [deviceSessionId, setDeviceSessionId] = useState('');
   const [pbPublicKey, setPbPublicKey] = useState('');
+  const [checkoutMode, setCheckoutMode] = useState<'transparent' | 'redirect'>('transparent');
 
   useEffect(() => {
     let cancelled = false;
 
     const init = async () => {
       try {
-        const [gateway, mpEnv, asaasEnv, pbEnv] = await Promise.all([
+        const [gateway, mpEnv, asaasEnv, pbEnv, mpCheckoutMode] = await Promise.all([
           fetchSetting('payment_gateway'),
           fetchSetting('mercadopago_environment'),
           fetchSetting('asaas_environment'),
           fetchSetting('pagbank_environment'),
+          fetchSetting('mercadopago_checkout_mode'),
         ]);
 
         if (cancelled) return;
         const gw = gateway || 'asaas';
         setActiveGateway(gw);
+        const mode = (mpCheckoutMode === 'redirect') ? 'redirect' : 'transparent';
+        setCheckoutMode(mode);
         setGatewayEnvironment(
           gw === 'mercadopago' ? (mpEnv || 'sandbox')
             : gw === 'pagbank' ? (pbEnv || 'sandbox')
@@ -135,7 +140,7 @@ export function useMercadoPago(): UseMercadoPagoReturn {
         );
 
         // ── Mercado Pago init ──
-        if (gw === 'mercadopago') {
+        if (gw === 'mercadopago' && mode === 'transparent') {
           const currentEnv = mpEnv || 'sandbox';
           let mpPubKey = await fetchSetting(`mercadopago_public_key_${currentEnv}`);
           if (!mpPubKey) mpPubKey = await fetchSetting('mercadopago_public_key');
