@@ -173,6 +173,13 @@ export function useMercadoPago(): UseMercadoPagoReturn {
           return;
         }
 
+        // ── Mercado Pago redirect mode ──
+        if (gw === 'mercadopago' && mode === 'redirect') {
+          setIsReady(true);
+          console.log('[MercadoPago] Redirect mode — no SDK needed');
+          return;
+        }
+
         // ── PagBank init ──
         // PagBank now uses redirect checkout — no SDK needed
         if (gw === 'pagbank') {
