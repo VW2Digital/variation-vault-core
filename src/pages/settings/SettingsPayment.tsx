@@ -386,6 +386,14 @@ const SettingsPayment = () => {
                 toast({ title: 'URL copiada!' });
               }} />
             </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">URL de Redirecionamento (copie para o PagBank)</Label>
+              <Input readOnly value="https://variation-vault-core.lovable.app/minha-conta" className="bg-muted text-xs" onClick={(e) => {
+                (e.target as HTMLInputElement).select();
+                navigator.clipboard.writeText("https://variation-vault-core.lovable.app/minha-conta");
+                toast({ title: 'URL copiada!' });
+              }} />
+            </div>
             <Button variant="outline" size="sm" disabled={testingPb || !pbToken} onClick={async () => {
               setTestingPb(true);
               try {
