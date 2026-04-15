@@ -35,14 +35,40 @@ let pbSdkLoaded = false;
 let pbSdkPromise: Promise<void> | null = null;
 
 function loadPagBankSdk(): Promise<void> {
-  if (pbSdkLoaded) return Promise.resolve();
+  if (pbSdkLoaded && window.PagSeguro) return Promise.resolve();
   if (pbSdkPromise) return pbSdkPromise;
 
   pbSdkPromise = new Promise((resolve, reject) => {
+    // Check if already loaded by another instance
+    if (window.PagSeguro) {
+      pbSdkLoaded = true;
+      resolve();
+      return;
+    }
+
     const script = document.createElement('script');
     script.src = 'https://assets.pagseguro.com.br/checkout-sdk-js/rc/dist/browser/pagseguro.min.js';
-    script.onload = () => { pbSdkLoaded = true; resolve(); };
-    script.onerror = () => reject(new Error('Falha ao carregar SDK do PagBank'));
+    script.onload = () => {
+      // Wait for PagSeguro to be available on window
+      let attempts = 0;
+      const check = () => {
+        if (window.PagSeguro) {
+          pbSdkLoaded = true;
+          console.log('[PagBank] SDK available on window.PagSeguro');
+          resolve();
+        } else if (attempts < 50) {
+          attempts++;
+          setTimeout(check, 100);
+        } else {
+          reject(new Error('SDK do PagBank carregado mas PagSeguro não disponível no window'));
+        }
+      };
+      check();
+    };
+    script.onerror = () => {
+      pbSdkPromise = null;
+      reject(new Error('Falha ao carregar SDK do PagBank'));
+    };
     document.head.appendChild(script);
   });
   return pbSdkPromise;
