@@ -527,8 +527,8 @@ const OrdersPage = () => {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center">
-        <div className="relative flex-1 sm:flex-none">
+      <div className="flex flex-col gap-3">
+        <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar cliente, produto ou rastreio..."
@@ -537,9 +537,9 @@ const OrdersPage = () => {
             className="pl-9 w-full sm:w-[250px]"
           />
         </div>
-        <div className="flex gap-2 flex-1 sm:flex-none">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <Select value={filterPayment} onValueChange={setFilterPayment}>
-            <SelectTrigger className="flex-1 sm:w-[180px]">
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Pagamento" />
             </SelectTrigger>
             <SelectContent>
@@ -553,7 +553,7 @@ const OrdersPage = () => {
             </SelectContent>
           </Select>
           <Select value={filterDelivery} onValueChange={setFilterDelivery}>
-            <SelectTrigger className="flex-1 sm:w-[180px]">
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Entrega" />
             </SelectTrigger>
             <SelectContent>
@@ -564,7 +564,7 @@ const OrdersPage = () => {
             </SelectContent>
           </Select>
           <Select value={filterCoupon} onValueChange={setFilterCoupon}>
-            <SelectTrigger className="flex-1 sm:w-[180px]">
+            <SelectTrigger className="w-full">
               <Ticket className="h-4 w-4 mr-1.5 text-muted-foreground" />
               <SelectValue placeholder="Cupom" />
             </SelectTrigger>
@@ -582,17 +582,20 @@ const OrdersPage = () => {
 
       {/* Batch action bar */}
       {selectedIds.size > 0 && (
-        <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2 sm:gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
-          <span className="text-sm font-medium text-foreground">
-            <CheckSquare className="inline h-4 w-4 mr-1" />
-            {selectedIds.size} selecionado(s)
-          </span>
-          <Separator orientation="vertical" className="h-6 hidden sm:block" />
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Pagamento:</span>
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-foreground">
+              <CheckSquare className="inline h-4 w-4 mr-1" />
+              {selectedIds.size} selecionado(s)
+            </span>
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setSelectedIds(new Set())}>
+              <X className="h-3.5 w-3.5 mr-1" /> Limpar
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <Select onValueChange={(v) => batchUpdateStatus('status', v)}>
-              <SelectTrigger className="h-8 w-[140px] text-xs">
-                <SelectValue placeholder="Alterar status" />
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Pagamento" />
               </SelectTrigger>
               <SelectContent>
                 {Object.entries(statusMap).slice(0, 6).map(([key, val]) => (
@@ -600,12 +603,9 @@ const OrdersPage = () => {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Entrega:</span>
             <Select onValueChange={(v) => batchUpdateStatus('delivery_status', v)}>
-              <SelectTrigger className="h-8 w-[150px] text-xs">
-                <SelectValue placeholder="Alterar entrega" />
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Entrega" />
               </SelectTrigger>
               <SelectContent>
                 {deliveryStatuses.map(s => (
@@ -613,14 +613,11 @@ const OrdersPage = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={() => setShowBatchDelete(true)} disabled={batchDeleting}>
+              <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
+            </Button>
+            {batchUpdating && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
           </div>
-          <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={() => setShowBatchDelete(true)} disabled={batchDeleting}>
-            <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
-          </Button>
-          <Button variant="ghost" size="sm" className="h-8 text-xs ml-auto" onClick={() => setSelectedIds(new Set())}>
-            <X className="h-3.5 w-3.5 mr-1" /> Limpar
-          </Button>
-          {batchUpdating && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
         </div>
       )}
 
