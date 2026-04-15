@@ -374,8 +374,8 @@ const CustomerDashboard = () => {
             </div>
 
             {/* Tabs */}
-            <Tabs defaultValue={defaultTab} className="space-y-4">
-              <TabsList className="bg-muted/50">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+              <TabsList className="bg-muted/50 hidden md:inline-flex">
                 <TabsTrigger value="orders" className="flex items-center gap-1.5">
                   <Package className="w-4 h-4" /> Pedidos
                 </TabsTrigger>
