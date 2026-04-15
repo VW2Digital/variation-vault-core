@@ -1790,7 +1790,9 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
         </button>
       </CardContent>
     </Card>
+    )}
     </div>
+  );
   );
 };
 
