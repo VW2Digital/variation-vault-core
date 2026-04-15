@@ -141,8 +141,9 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
   const { t } = useLanguage();
   const { clearCart } = useCart();
   const navigate = useNavigate();
-  const { activeGateway, gatewayEnvironment: gatewayEnv, tokenizeCard, deviceSessionId } = useMercadoPago();
+  const { activeGateway, gatewayEnvironment: gatewayEnv, tokenizeCard, encryptPagBankCard, deviceSessionId } = useMercadoPago();
   const isMercadoPago = activeGateway === 'mercadopago';
+  const isPagBank = activeGateway === 'pagbank';
   const safeUnitPrice = Number(unitPrice) || 0;
   const safeQuantity = Number(quantity) || 1;
   const baseProductTotal = safeUnitPrice * safeQuantity;
