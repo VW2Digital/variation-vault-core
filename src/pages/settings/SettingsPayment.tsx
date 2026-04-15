@@ -102,10 +102,8 @@ const SettingsPayment = () => {
       fetchSetting('asaas_webhook_token'),
       fetchSetting('payment_gateway'),
       fetchSetting('mercadopago_environment'),
-      fetchSetting('pagbank_token'),
-      fetchSetting('pagbank_public_key'),
       fetchSetting('pagbank_environment'),
-    ]).then(async ([apiKey, env, webhookToken, pgw, mpEnv, pbTk, pbPk, pbEnv]) => {
+    ]).then(async ([apiKey, env, webhookToken, pgw, mpEnv, pbEnv]) => {
       setAsaasApiKey(apiKey || '');
       setAsaasEnv(env || 'sandbox');
       setAsaasWebhookToken(webhookToken || '');
@@ -117,9 +115,9 @@ const SettingsPayment = () => {
       const currentMpEnv = mpEnv || 'sandbox';
       setMpEnvironment(currentMpEnv);
       await loadMpCredentials(currentMpEnv);
-      setPbToken(pbTk || '');
-      setPbPublicKey(pbPk || '');
-      setPbEnvironment(pbEnv || 'sandbox');
+      const currentPbEnv = pbEnv || 'sandbox';
+      setPbEnvironment(currentPbEnv);
+      await loadPbCredentials(currentPbEnv);
     }).finally(() => setLoading(false));
   }, []);
 
