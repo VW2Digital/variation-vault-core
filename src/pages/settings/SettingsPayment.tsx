@@ -28,6 +28,7 @@ const SettingsPayment = () => {
   const [paymentGateway, setPaymentGateway] = useState('asaas');
   const [asaasEnabled, setAsaasEnabled] = useState(true);
   const [mpEnabled, setMpEnabled] = useState(false);
+  const [pbEnabled, setPbEnabled] = useState(false);
 
   // Mercado Pago
   const [mpAccessToken, setMpAccessToken] = useState('');
@@ -37,6 +38,12 @@ const SettingsPayment = () => {
   const [mpEnvironment, setMpEnvironment] = useState('sandbox');
   const [showMpToken, setShowMpToken] = useState(false);
   const [showMpClientSecret, setShowMpClientSecret] = useState(false);
+
+  // PagBank
+  const [pbToken, setPbToken] = useState('');
+  const [pbPublicKey, setPbPublicKey] = useState('');
+  const [pbEnvironment, setPbEnvironment] = useState('sandbox');
+  const [showPbToken, setShowPbToken] = useState(false);
 
   const loadMpCredentials = async (env: string) => {
     const [token, pubKey, clientId, clientSecret] = await Promise.all([
@@ -72,7 +79,10 @@ const SettingsPayment = () => {
       fetchSetting('asaas_webhook_token'),
       fetchSetting('payment_gateway'),
       fetchSetting('mercadopago_environment'),
-    ]).then(async ([apiKey, env, webhookToken, pgw, mpEnv]) => {
+      fetchSetting('pagbank_token'),
+      fetchSetting('pagbank_public_key'),
+      fetchSetting('pagbank_environment'),
+    ]).then(async ([apiKey, env, webhookToken, pgw, mpEnv, pbTk, pbPk, pbEnv]) => {
       setAsaasApiKey(apiKey || '');
       setAsaasEnv(env || 'sandbox');
       setAsaasWebhookToken(webhookToken || '');
@@ -80,9 +90,13 @@ const SettingsPayment = () => {
       setPaymentGateway(activeGw);
       setAsaasEnabled(activeGw === 'asaas');
       setMpEnabled(activeGw === 'mercadopago');
+      setPbEnabled(activeGw === 'pagbank');
       const currentMpEnv = mpEnv || 'sandbox';
       setMpEnvironment(currentMpEnv);
       await loadMpCredentials(currentMpEnv);
+      setPbToken(pbTk || '');
+      setPbPublicKey(pbPk || '');
+      setPbEnvironment(pbEnv || 'sandbox');
     }).finally(() => setLoading(false));
   }, []);
 
@@ -104,6 +118,9 @@ const SettingsPayment = () => {
         upsertSetting(`mercadopago_client_secret_${mpEnvironment}`, mpClientSecret, uid),
         upsertSetting('mercadopago_access_token', mpAccessToken, uid),
         upsertSetting('mercadopago_public_key', mpPublicKey, uid),
+        upsertSetting('pagbank_token', pbToken, uid),
+        upsertSetting('pagbank_public_key', pbPublicKey, uid),
+        upsertSetting('pagbank_environment', pbEnvironment, uid),
       ]);
       toast({ title: 'Configurações de pagamento salvas!' });
     } catch (err: any) {
@@ -117,7 +134,7 @@ const SettingsPayment = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <SettingsBackButton title="Gateways de Pagamento" description="Asaas, Mercado Pago, parcelamento e descontos PIX" />
+      <SettingsBackButton title="Gateways de Pagamento" description="Asaas, Mercado Pago, PagBank, parcelamento e descontos PIX" />
 
       {/* Asaas */}
       <Card className={`border-border/50 ${asaasEnabled ? 'border-2 border-primary/30' : 'opacity-60'}`}>
@@ -130,8 +147,8 @@ const SettingsPayment = () => {
               <span className="text-xs text-muted-foreground">{asaasEnabled ? 'Ativo' : 'Inativo'}</span>
               <Switch checked={asaasEnabled} onCheckedChange={(checked) => {
                 setAsaasEnabled(checked);
-                if (checked) { setMpEnabled(false); setPaymentGateway('asaas'); }
-                else if (!mpEnabled) { setMpEnabled(true); setPaymentGateway('mercadopago'); }
+                if (checked) { setMpEnabled(false); setPbEnabled(false); setPaymentGateway('asaas'); }
+                else if (!mpEnabled && !pbEnabled) { setMpEnabled(true); setPaymentGateway('mercadopago'); }
               }} />
             </div>
           </div>
@@ -205,8 +222,8 @@ const SettingsPayment = () => {
               <span className="text-xs text-muted-foreground">{mpEnabled ? 'Ativo' : 'Inativo'}</span>
               <Switch checked={mpEnabled} onCheckedChange={(checked) => {
                 setMpEnabled(checked);
-                if (checked) { setAsaasEnabled(false); setPaymentGateway('mercadopago'); }
-                else if (!asaasEnabled) { setAsaasEnabled(true); setPaymentGateway('asaas'); }
+                if (checked) { setAsaasEnabled(false); setPbEnabled(false); setPaymentGateway('mercadopago'); }
+                else if (!asaasEnabled && !pbEnabled) { setAsaasEnabled(true); setPaymentGateway('asaas'); }
               }} />
             </div>
           </div>
@@ -254,6 +271,60 @@ const SettingsPayment = () => {
               <Input readOnly value="https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/mercadopago-webhook" className="bg-muted text-xs" onClick={(e) => {
                 (e.target as HTMLInputElement).select();
                 navigator.clipboard.writeText("https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/mercadopago-webhook");
+                toast({ title: 'URL copiada!' });
+              }} />
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* PagBank */}
+      <Card className={`border-border/50 ${pbEnabled ? 'border-2 border-primary/30' : 'opacity-60'}`}>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CreditCard className="w-5 h-5" /> PagBank (PagSeguro)
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">{pbEnabled ? 'Ativo' : 'Inativo'}</span>
+              <Switch checked={pbEnabled} onCheckedChange={(checked) => {
+                setPbEnabled(checked);
+                if (checked) { setAsaasEnabled(false); setMpEnabled(false); setPaymentGateway('pagbank'); }
+                else if (!asaasEnabled && !mpEnabled) { setAsaasEnabled(true); setPaymentGateway('asaas'); }
+              }} />
+            </div>
+          </div>
+        </CardHeader>
+        {pbEnabled && (
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Ambiente</Label>
+              <Select value={pbEnvironment} onValueChange={setPbEnvironment}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sandbox">Sandbox (Testes)</SelectItem>
+                  <SelectItem value="production">Produção</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Token (Bearer)</Label>
+              <div className="relative">
+                <Input type={showPbToken ? 'text' : 'password'} value={pbToken} onChange={(e) => setPbToken(e.target.value)} placeholder="Token obtido no painel PagBank" className="pr-10" />
+                <button type="button" onClick={() => setShowPbToken(!showPbToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  {showPbToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Public Key (Criptografia de Cartão)</Label>
+              <Input value={pbPublicKey} onChange={(e) => setPbPublicKey(e.target.value)} placeholder="MIIBIjANBgkqhki..." />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">URL do Webhook (copie para o PagBank)</Label>
+              <Input readOnly value="https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/pagbank-webhook" className="bg-muted text-xs" onClick={(e) => {
+                (e.target as HTMLInputElement).select();
+                navigator.clipboard.writeText("https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/pagbank-webhook");
                 toast({ title: 'URL copiada!' });
               }} />
             </div>
