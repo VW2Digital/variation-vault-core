@@ -322,7 +322,7 @@ const SettingsPayment = () => {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Ambiente</Label>
-              <Select value={pbEnvironment} onValueChange={setPbEnvironment}>
+              <Select value={pbEnvironment} onValueChange={handlePbEnvChange}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="sandbox">Sandbox (Testes)</SelectItem>
