@@ -1049,7 +1049,7 @@ serve(async (req) => {
     } catch { /* non-blocking */ }
 
     return new Response(JSON.stringify({ error: error.message }), {
-      status: 400,
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
