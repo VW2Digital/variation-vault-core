@@ -236,9 +236,9 @@ export default function CartAbandonmentLogsPage() {
 
         <TabsContent value="active">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <CardTitle>Usuários com Itens no Carrinho (sem compra)</CardTitle>
-              <div className="flex items-center gap-2">
+            <CardHeader className="space-y-3 pb-4">
+              <CardTitle className="text-lg">Usuários com Itens no Carrinho (sem compra)</CardTitle>
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -285,12 +285,12 @@ export default function CartAbandonmentLogsPage() {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
+                  <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="range"
                       selected={dateRange}
                       onSelect={setDateRange}
-                      numberOfMonths={2}
+                      numberOfMonths={1}
                       locale={ptBR}
                       className={cn("p-3 pointer-events-auto")}
                     />
