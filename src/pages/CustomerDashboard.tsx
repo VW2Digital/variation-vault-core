@@ -21,6 +21,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AddressManager from '@/components/AddressManager';
 import SupportChat from '@/components/SupportChat';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const paymentStatusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: any; color: string; badgeClass?: string }> = {
   PENDING: { label: 'Aguardando Pagamento', variant: 'outline', icon: Clock, color: 'text-amber-500' },
