@@ -175,62 +175,62 @@ export default function CartAbandonmentLogsPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-foreground">Recuperação de Carrinho</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card>
-          <CardContent className="flex items-center gap-4 p-6">
-            <div className="rounded-full bg-destructive/10 p-3">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="rounded-full bg-destructive/10 p-2.5 shrink-0">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Carrinhos Ativos</p>
-              <p className="text-2xl font-bold text-foreground">{activeCartUsers}</p>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">Carrinhos Ativos</p>
+              <p className="text-xl font-bold text-foreground">{activeCartUsers}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-4 p-6">
-            <div className="rounded-full bg-primary/10 p-3">
-              <ShoppingCart className="h-5 w-5 text-primary" />
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="rounded-full bg-primary/10 p-2.5 shrink-0">
+              <ShoppingCart className="h-4 w-4 text-primary" />
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Valor Abandonado</p>
-              <p className="text-2xl font-bold text-foreground">
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">Valor Abandonado</p>
+              <p className="text-xl font-bold text-foreground">
                 R$ {activeCartValue.toFixed(2).replace('.', ',')}
               </p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-4 p-6">
-            <div className="rounded-full bg-primary/10 p-3">
-              <Mail className="h-5 w-5 text-primary" />
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="rounded-full bg-primary/10 p-2.5 shrink-0">
+              <Mail className="h-4 w-4 text-primary" />
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Emails Enviados</p>
-              <p className="text-2xl font-bold text-foreground">{totalEmails}</p>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">Emails Enviados</p>
+              <p className="text-xl font-bold text-foreground">{totalEmails}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-4 p-6">
-            <div className="rounded-full bg-primary/10 p-3">
-              <Users className="h-5 w-5 text-primary" />
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="rounded-full bg-primary/10 p-2.5 shrink-0">
+              <Users className="h-4 w-4 text-primary" />
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Usuários Impactados</p>
-              <p className="text-2xl font-bold text-foreground">{uniqueUsers}</p>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">Usuários Impactados</p>
+              <p className="text-xl font-bold text-foreground">{uniqueUsers}</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       <Tabs defaultValue="active" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="active">
-            Carrinhos Abandonados ({activeCartUsers})
+        <TabsList className="w-full grid grid-cols-2">
+          <TabsTrigger value="active" className="text-xs sm:text-sm">
+            Abandonados ({activeCartUsers})
           </TabsTrigger>
-          <TabsTrigger value="history">
-            Histórico de Envios ({totalEmails})
+          <TabsTrigger value="history" className="text-xs sm:text-sm">
+            Histórico ({totalEmails})
           </TabsTrigger>
         </TabsList>
 
