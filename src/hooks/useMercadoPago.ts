@@ -1,6 +1,6 @@
 /**
- * Hook para integração com o SDK do Mercado Pago no checkout transparente.
- * Carrega o SDK JS e fornece a função de tokenização de cartão.
+ * Hook para integração com SDKs de pagamento no checkout transparente.
+ * Suporta Mercado Pago e PagBank. Carrega o SDK correto e fornece a função de tokenização/criptografia.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { fetchSetting } from '@/lib/api';
@@ -8,24 +8,44 @@ import { fetchSetting } from '@/lib/api';
 declare global {
   interface Window {
     MercadoPago: any;
+    PagSeguro: any;
   }
 }
 
-let sdkLoaded = false;
-let sdkPromise: Promise<void> | null = null;
+// ── Mercado Pago SDK ──
+let mpSdkLoaded = false;
+let mpSdkPromise: Promise<void> | null = null;
 
 function loadMercadoPagoSdk(): Promise<void> {
-  if (sdkLoaded) return Promise.resolve();
-  if (sdkPromise) return sdkPromise;
+  if (mpSdkLoaded) return Promise.resolve();
+  if (mpSdkPromise) return mpSdkPromise;
 
-  sdkPromise = new Promise((resolve, reject) => {
+  mpSdkPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = 'https://sdk.mercadopago.com/js/v2';
-    script.onload = () => { sdkLoaded = true; resolve(); };
+    script.onload = () => { mpSdkLoaded = true; resolve(); };
     script.onerror = () => reject(new Error('Falha ao carregar SDK do Mercado Pago'));
     document.head.appendChild(script);
   });
-  return sdkPromise;
+  return mpSdkPromise;
+}
+
+// ── PagBank SDK ──
+let pbSdkLoaded = false;
+let pbSdkPromise: Promise<void> | null = null;
+
+function loadPagBankSdk(): Promise<void> {
+  if (pbSdkLoaded) return Promise.resolve();
+  if (pbSdkPromise) return pbSdkPromise;
+
+  pbSdkPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://assets.pagseguro.com.br/checkout-sdk-js/rc/dist/browser/pagseguro.min.js';
+    script.onload = () => { pbSdkLoaded = true; resolve(); };
+    script.onerror = () => reject(new Error('Falha ao carregar SDK do PagBank'));
+    document.head.appendChild(script);
+  });
+  return pbSdkPromise;
 }
 
 export interface MpCardData {
@@ -44,10 +64,15 @@ export interface MpTokenizeResult {
   issuerId: string;
 }
 
+export interface PbEncryptResult {
+  encrypted: string;
+}
+
 export interface UseMercadoPagoReturn {
   isReady: boolean;
   publicKey: string;
   tokenizeCard: (data: MpCardData) => Promise<MpTokenizeResult>;
+  encryptPagBankCard: (data: { holder: string; number: string; expMonth: string; expYear: string; securityCode: string }) => Promise<PbEncryptResult>;
   activeGateway: string;
   gatewayEnvironment: string;
   deviceSessionId: string;
@@ -60,64 +85,79 @@ export function useMercadoPago(): UseMercadoPagoReturn {
   const [gatewayEnvironment, setGatewayEnvironment] = useState('sandbox');
   const [mpInstance, setMpInstance] = useState<any>(null);
   const [deviceSessionId, setDeviceSessionId] = useState('');
+  const [pbPublicKey, setPbPublicKey] = useState('');
 
   useEffect(() => {
     let cancelled = false;
 
     const init = async () => {
       try {
-        const [gateway, mpEnv, asaasEnv] = await Promise.all([
+        const [gateway, mpEnv, asaasEnv, pbEnv] = await Promise.all([
           fetchSetting('payment_gateway'),
           fetchSetting('mercadopago_environment'),
           fetchSetting('asaas_environment'),
+          fetchSetting('pagbank_environment'),
         ]);
 
         if (cancelled) return;
-        setActiveGateway(gateway || 'asaas');
+        const gw = gateway || 'asaas';
+        setActiveGateway(gw);
         setGatewayEnvironment(
-          gateway === 'mercadopago' ? (mpEnv || 'sandbox') : (asaasEnv || 'sandbox')
+          gw === 'mercadopago' ? (mpEnv || 'sandbox')
+            : gw === 'pagbank' ? (pbEnv || 'sandbox')
+            : (asaasEnv || 'sandbox')
         );
 
-        if (gateway !== 'mercadopago') return;
+        // ── Mercado Pago init ──
+        if (gw === 'mercadopago') {
+          const currentEnv = mpEnv || 'sandbox';
+          let mpPubKey = await fetchSetting(`mercadopago_public_key_${currentEnv}`);
+          if (!mpPubKey) mpPubKey = await fetchSetting('mercadopago_public_key');
 
-        const currentEnv = mpEnv || 'sandbox';
+          if (cancelled || !mpPubKey) return;
+          setPublicKey(mpPubKey);
+          await loadMercadoPagoSdk();
+          if (cancelled) return;
 
-        // Try env-specific public key first, fallback to generic
-        let mpPubKey = await fetchSetting(`mercadopago_public_key_${currentEnv}`);
-        if (!mpPubKey) {
-          mpPubKey = await fetchSetting('mercadopago_public_key');
-        }
+          const mp = new window.MercadoPago(mpPubKey, { locale: 'pt-BR' });
+          setMpInstance(mp);
+          setIsReady(true);
 
-        if (cancelled || !mpPubKey) return;
-
-        setPublicKey(mpPubKey);
-        await loadMercadoPagoSdk();
-
-        if (cancelled) return;
-
-        const mp = new window.MercadoPago(mpPubKey, { locale: 'pt-BR' });
-        setMpInstance(mp);
-        setIsReady(true);
-
-        // Capture Device Session ID for anti-fraud (generated by MP SDK automatically)
-        const checkDeviceId = () => {
-          const did = (window as any).MP_DEVICE_SESSION_ID;
-          if (did) {
-            setDeviceSessionId(did);
-            console.log('[MP] Device Session ID captured:', did.substring(0, 12) + '...');
+          // Capture Device Session ID for anti-fraud
+          const checkDeviceId = () => {
+            const did = (window as any).MP_DEVICE_SESSION_ID;
+            if (did) {
+              setDeviceSessionId(did);
+              console.log('[MP] Device Session ID captured:', did.substring(0, 12) + '...');
+            }
+          };
+          checkDeviceId();
+          if (!(window as any).MP_DEVICE_SESSION_ID) {
+            const interval = setInterval(() => {
+              checkDeviceId();
+              if ((window as any).MP_DEVICE_SESSION_ID) clearInterval(interval);
+            }, 500);
+            setTimeout(() => clearInterval(interval), 10000);
           }
-        };
-        // SDK may take a moment to generate it
-        checkDeviceId();
-        if (!(window as any).MP_DEVICE_SESSION_ID) {
-          const interval = setInterval(() => {
-            checkDeviceId();
-            if ((window as any).MP_DEVICE_SESSION_ID) clearInterval(interval);
-          }, 500);
-          setTimeout(() => clearInterval(interval), 10000);
+          return;
         }
+
+        // ── PagBank init ──
+        if (gw === 'pagbank') {
+          const pbPk = await fetchSetting('pagbank_public_key');
+          if (cancelled || !pbPk) return;
+          setPbPublicKey(pbPk);
+          await loadPagBankSdk();
+          if (cancelled) return;
+          setIsReady(true);
+          console.log('[PagBank] SDK loaded and ready');
+          return;
+        }
+
+        // Asaas: no SDK needed
+        setIsReady(true);
       } catch (e) {
-        console.error('Erro ao inicializar Mercado Pago:', e);
+        console.error('Erro ao inicializar gateway de pagamento:', e);
       }
     };
 
@@ -125,12 +165,12 @@ export function useMercadoPago(): UseMercadoPagoReturn {
     return () => { cancelled = true; };
   }, []);
 
+  // ── Mercado Pago tokenization ──
   const tokenizeCard = useCallback(async (data: MpCardData): Promise<MpTokenizeResult> => {
     if (!mpInstance) throw new Error('SDK do Mercado Pago não inicializado');
 
     const bin = data.cardNumber.replace(/\s/g, '').substring(0, 6);
 
-    // Get payment method info from BIN
     let paymentMethodId = '';
     let issuerId = '';
     try {
@@ -143,13 +183,10 @@ export function useMercadoPago(): UseMercadoPagoReturn {
       console.warn('[MP] Could not detect payment method from BIN:', e);
     }
 
-    // If no issuer from getPaymentMethods, try getIssuers
     if (paymentMethodId && !issuerId) {
       try {
         const issuers = await mpInstance.getIssuers({ paymentMethodId, bin });
-        if (issuers?.length > 0) {
-          issuerId = String(issuers[0].id);
-        }
+        if (issuers?.length > 0) issuerId = String(issuers[0].id);
       } catch (e) {
         console.warn('[MP] Could not get issuers:', e);
       }
@@ -175,12 +212,31 @@ export function useMercadoPago(): UseMercadoPagoReturn {
       issuerId,
     });
 
-    return {
-      token: cardTokenResponse.id,
-      paymentMethodId,
-      issuerId,
-    };
+    return { token: cardTokenResponse.id, paymentMethodId, issuerId };
   }, [mpInstance]);
 
-  return { isReady, publicKey, tokenizeCard, activeGateway, gatewayEnvironment, deviceSessionId };
+  // ── PagBank card encryption ──
+  const encryptPagBankCard = useCallback(async (data: { holder: string; number: string; expMonth: string; expYear: string; securityCode: string }): Promise<PbEncryptResult> => {
+    if (!window.PagSeguro) throw new Error('SDK do PagBank não carregado');
+    if (!pbPublicKey) throw new Error('Public Key do PagBank não configurada');
+
+    const card = window.PagSeguro.encryptCard({
+      publicKey: pbPublicKey,
+      holder: data.holder,
+      number: data.number.replace(/\s/g, ''),
+      expMonth: data.expMonth.padStart(2, '0'),
+      expYear: data.expYear.length === 2 ? `20${data.expYear}` : data.expYear,
+      securityCode: data.securityCode,
+    });
+
+    if (card.hasErrors) {
+      const errors = card.errors?.map((e: any) => e.message || e.code).join(', ') || 'Dados do cartão inválidos';
+      throw new Error(`Erro na criptografia do cartão: ${errors}`);
+    }
+
+    console.log('[PagBank] Card encrypted successfully');
+    return { encrypted: card.encryptedCard };
+  }, [pbPublicKey]);
+
+  return { isReady, publicKey, tokenizeCard, encryptPagBankCard, activeGateway, gatewayEnvironment, deviceSessionId };
 }
