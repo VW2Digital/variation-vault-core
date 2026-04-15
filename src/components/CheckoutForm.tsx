@@ -831,6 +831,16 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
           creditCardPayload = { token: tokenResult.token };
           mpPaymentMethodId = tokenResult.paymentMethodId;
           mpIssuerId = tokenResult.issuerId;
+        } else if (isPagBank) {
+          // Encrypt card via PagBank SDK
+          const encResult = await encryptPagBankCard({
+            holder: cardName.trim() || name.trim(),
+            number: cardNumber.replace(/\s/g, ''),
+            expMonth: cardExpMonth,
+            expYear: cardExpYear,
+            securityCode: cardCcv,
+          });
+          creditCardPayload = { encrypted: encResult.encrypted };
         } else {
           creditCardPayload = {
             holderName: cardName.trim() || name.trim(),
