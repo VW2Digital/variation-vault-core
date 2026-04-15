@@ -47,6 +47,27 @@ const SettingsPayment = () => {
   const [showPbToken, setShowPbToken] = useState(false);
   const [generatingPbKey, setGeneratingPbKey] = useState(false);
 
+  const loadPbCredentials = async (env: string) => {
+    const [token, pubKey] = await Promise.all([
+      fetchSetting(`pagbank_token_${env}`),
+      fetchSetting(`pagbank_public_key_${env}`),
+    ]);
+    setPbToken(token || '');
+    setPbPublicKey(pubKey || '');
+  };
+
+  const handlePbEnvChange = async (newEnv: string) => {
+    const oldEnv = pbEnvironment;
+    if (pbToken || pbPublicKey) {
+      await Promise.all([
+        upsertSetting(`pagbank_token_${oldEnv}`, pbToken),
+        upsertSetting(`pagbank_public_key_${oldEnv}`, pbPublicKey),
+      ]);
+    }
+    setPbEnvironment(newEnv);
+    await loadPbCredentials(newEnv);
+  };
+
   const loadMpCredentials = async (env: string) => {
     const [token, pubKey, clientId, clientSecret] = await Promise.all([
       fetchSetting(`mercadopago_access_token_${env}`),
