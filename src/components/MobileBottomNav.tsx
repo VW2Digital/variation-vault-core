@@ -9,7 +9,7 @@ const navItems = [
   { path: '/minha-conta', icon: User, label: 'Conta' },
 ];
 
-const HIDDEN_ROUTES = ['/login', '/admin', '/cliente/login', '/checkout', '/checkout-carrinho', '/pagar'];
+const HIDDEN_ROUTES = ['/login', '/admin', '/cliente/login', '/checkout', '/checkout-carrinho', '/pagar', '/minha-conta'];
 
 const MobileBottomNav = () => {
   const isMobile = useIsMobile();
