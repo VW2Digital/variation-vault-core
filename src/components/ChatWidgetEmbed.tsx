@@ -14,7 +14,7 @@ const ChatWidgetEmbed = () => {
 
   useEffect(() => {
     if (!widgetCode) return;
-    if (location.pathname.startsWith('/admin') || location.pathname === '/login') return;
+    if (location.pathname.startsWith('/admin') || location.pathname === '/login' || location.pathname === '/minha-conta') return;
 
     // Check if already injected by looking for our marker
     if (document.getElementById('crm-chat-widget-injected')) return;
