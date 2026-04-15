@@ -45,6 +45,7 @@ const SettingsPayment = () => {
   const [pbPublicKey, setPbPublicKey] = useState('');
   const [pbEnvironment, setPbEnvironment] = useState('sandbox');
   const [showPbToken, setShowPbToken] = useState(false);
+  const [generatingPbKey, setGeneratingPbKey] = useState(false);
 
   const loadMpCredentials = async (env: string) => {
     const [token, pubKey, clientId, clientSecret] = await Promise.all([
