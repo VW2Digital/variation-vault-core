@@ -1793,7 +1793,6 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
     )}
     </div>
   );
-  );
 };
 
 export default CheckoutForm;
