@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +21,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AddressManager from '@/components/AddressManager';
 import SupportChat from '@/components/SupportChat';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const paymentStatusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: any; color: string; badgeClass?: string }> = {
   PENDING: { label: 'Aguardando Pagamento', variant: 'outline', icon: Clock, color: 'text-amber-500' },
@@ -69,7 +70,8 @@ const CustomerDashboard = () => {
   const [reviewSaving, setReviewSaving] = useState(false);
   const [payNowLoading, setPayNowLoading] = useState<string | null>(null);
   const [pixModal, setPixModal] = useState<{ orderId: string; qrCode: string; payload: string; value: number } | null>(null);
-
+  const isMobile = useIsMobile();
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const handlePayNow = async (order: any) => {
     setPayNowLoading(order.id);
     try {
@@ -284,7 +286,7 @@ const CustomerDashboard = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6 pb-24 md:pb-6">
         {/* Welcome */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -372,8 +374,8 @@ const CustomerDashboard = () => {
             </div>
 
             {/* Tabs */}
-            <Tabs defaultValue={defaultTab} className="space-y-4">
-              <TabsList className="bg-muted/50">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+              <TabsList className="bg-muted/50 hidden md:inline-flex">
                 <TabsTrigger value="orders" className="flex items-center gap-1.5">
                   <Package className="w-4 h-4" /> Pedidos
                 </TabsTrigger>
@@ -912,6 +914,34 @@ const CustomerDashboard = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Mobile Bottom Navigation */}
+      {isMobile && (
+        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border shadow-lg md:hidden">
+          <div className="flex items-center justify-around h-16">
+            {[
+              { value: 'orders', icon: Package, label: 'Pedidos' },
+              { value: 'addresses', icon: MapPin, label: 'Endereços' },
+              { value: 'reviews', icon: Star, label: 'Avaliações' },
+              { value: 'profile', icon: User, label: 'Perfil' },
+              { value: 'help', icon: HelpCircle, label: 'Ajuda' },
+            ].map(({ value, icon: Icon, label }) => (
+              <button
+                key={value}
+                onClick={() => setActiveTab(value)}
+                className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${
+                  activeTab === value
+                    ? 'text-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                <span className="text-[10px] font-medium">{label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+      )}
     </div>
   );
 };
