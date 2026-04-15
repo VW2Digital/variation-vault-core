@@ -268,6 +268,21 @@ const SettingsPayment = () => {
               </Select>
             </div>
             <div className="space-y-2">
+              <Label>Modo de Checkout</Label>
+              <Select value={mpCheckoutMode} onValueChange={(v) => setMpCheckoutMode(v as 'transparent' | 'redirect')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="transparent">Transparente (PIX + Cartão na loja)</SelectItem>
+                  <SelectItem value="redirect">Redirect (Checkout Pro do Mercado Pago)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {mpCheckoutMode === 'transparent'
+                  ? 'O cliente paga direto na sua loja, sem sair do site.'
+                  : 'O cliente é redirecionado para o Mercado Pago para pagar.'}
+              </p>
+            </div>
+            <div className="space-y-2">
               <Label>Access Token</Label>
               <div className="relative">
                 <Input type={showMpToken ? 'text' : 'password'} value={mpAccessToken} onChange={(e) => setMpAccessToken(e.target.value)} placeholder={mpEnvironment === 'sandbox' ? 'TEST-...' : 'APP_USR-...'} className="pr-10" />
