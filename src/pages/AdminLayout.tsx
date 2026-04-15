@@ -95,10 +95,13 @@ const AdminLayout = () => {
         <AdminSidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <header className="h-14 flex items-center justify-between border-b border-border/50 bg-card px-3 sm:px-4 fixed top-0 right-0 left-0 md:left-[var(--sidebar-width)] z-40 transition-[left] duration-200 ease-linear group-data-[state=collapsed]/sidebar-wrapper:md:left-[--sidebar-width-icon]">
-            <Link to="/admin" className="flex items-center gap-2">
-              <img src={logoImg} alt="Liberty Pharma" className="h-7 sm:h-8 object-contain" />
-            </Link>
-            <SidebarTrigger />
+            <div className="flex items-center gap-2">
+              <SidebarTrigger className="hidden md:inline-flex" />
+              <Link to="/admin" className="flex items-center gap-2">
+                <img src={logoImg} alt="Liberty Pharma" className="h-7 sm:h-8 object-contain" />
+              </Link>
+            </div>
+            <SidebarTrigger className="md:hidden" />
           </header>
           <main className="flex-1 p-3 sm:p-6 overflow-x-auto min-w-0 mt-14">
             <Outlet />
