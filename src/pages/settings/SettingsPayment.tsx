@@ -139,6 +139,8 @@ const SettingsPayment = () => {
         upsertSetting(`mercadopago_client_secret_${mpEnvironment}`, mpClientSecret, uid),
         upsertSetting('mercadopago_access_token', mpAccessToken, uid),
         upsertSetting('mercadopago_public_key', mpPublicKey, uid),
+        upsertSetting(`pagbank_token_${pbEnvironment}`, pbToken, uid),
+        upsertSetting(`pagbank_public_key_${pbEnvironment}`, pbPublicKey, uid),
         upsertSetting('pagbank_token', pbToken, uid),
         upsertSetting('pagbank_public_key', pbPublicKey, uid),
         upsertSetting('pagbank_environment', pbEnvironment, uid),
