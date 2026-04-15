@@ -701,8 +701,7 @@ class PagBankGateway implements PaymentGateway {
   }
 
   async testConnection() {
-    // Use the public-keys endpoint to validate the token.
-    // A successful response (or a structured PagBank error) means the credentials work.
+    // Validate credentials by calling /public-keys endpoint.
     try {
       const res = await fetch(`${this.baseUrl}/public-keys`, {
         method: 'POST',
@@ -712,19 +711,17 @@ class PagBankGateway implements PaymentGateway {
         },
         body: JSON.stringify({ type: 'card' }),
       });
-      const data = await res.json();
-      // Any response from PagBank (even 4xx) means the token connected successfully
-      if (res.ok || data?.error_messages) {
-        return { success: true };
-      }
-      // 401/403 means bad credentials
+
+      // 401/403 means bad credentials — check FIRST before anything else
       if (res.status === 401 || res.status === 403) {
         throw new Error('Token inválido ou sem permissão');
       }
+
+      // Any other response (2xx or structured 4xx error) means the token is valid
+      await res.text(); // consume body
       return { success: true };
     } catch (e: any) {
       if (e.message.includes('inválido') || e.message.includes('permissão')) throw e;
-      // Network-level errors
       throw new Error(`Falha ao conectar com PagBank: ${e.message}`);
     }
   }
