@@ -12,6 +12,20 @@ const ChatWidgetEmbed = () => {
     });
   }, []);
 
+  // Hide chat widget on certain routes
+  useEffect(() => {
+    const shouldHide = location.pathname === '/minha-conta';
+    const wcBtn = document.getElementById('wc-btn');
+    if (wcBtn) {
+      wcBtn.style.display = shouldHide ? 'none' : '';
+    }
+    // Also try common chat widget container selectors
+    const chatContainers = document.querySelectorAll('[id^="wc-"], [class*="wc-widget"]');
+    chatContainers.forEach((el) => {
+      (el as HTMLElement).style.display = shouldHide ? 'none' : '';
+    });
+  }, [location.pathname]);
+
   useEffect(() => {
     if (!widgetCode) return;
     if (location.pathname.startsWith('/admin') || location.pathname === '/login' || location.pathname === '/minha-conta') return;
