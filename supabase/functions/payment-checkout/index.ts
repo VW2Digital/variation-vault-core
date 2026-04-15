@@ -982,6 +982,42 @@ serve(async (req) => {
         break;
       }
 
+      case 'generate_pagbank_public_key': {
+        const pbToken = payload.token;
+        const pbEnv = payload.environment || 'sandbox';
+        if (!pbToken) throw new Error('Token do PagBank não fornecido');
+        const pbBase = pbEnv === 'production'
+          ? 'https://api.pagseguro.com'
+          : 'https://sandbox.api.pagseguro.com';
+        
+        // Try to get existing key first
+        let pkRes = await fetch(`${pbBase}/public-keys/card`, {
+          headers: { 'Authorization': `Bearer ${pbToken}` },
+        });
+        
+        if (pkRes.status === 404) {
+          // Create new key
+          pkRes = await fetch(`${pbBase}/public-keys`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${pbToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ type: 'card' }),
+          });
+        }
+        
+        if (!pkRes.ok) {
+          const errData = await pkRes.json().catch(() => ({}));
+          throw new Error(errData.error_messages?.[0]?.description || `PagBank HTTP ${pkRes.status}`);
+        }
+        
+        const pkData = await pkRes.json();
+        if (!pkData.public_key) throw new Error('Resposta sem public_key');
+        result = { public_key: pkData.public_key };
+        break;
+      }
+
       default:
         throw new Error(`Ação desconhecida: ${action}`);
     }
