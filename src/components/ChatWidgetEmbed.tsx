@@ -12,14 +12,20 @@ const ChatWidgetEmbed = () => {
     });
   }, []);
 
-  // Hide chat widget on certain routes
+  // Hide chat widget on certain routes + raise it above mobile bottom nav
   useEffect(() => {
     const shouldHide = location.pathname === '/minha-conta';
+    const isMobile = window.innerWidth < 768;
+
     const wcBtn = document.getElementById('wc-btn');
     if (wcBtn) {
       wcBtn.style.display = shouldHide ? 'none' : '';
+      if (!shouldHide && isMobile) {
+        wcBtn.style.bottom = '80px';
+      } else {
+        wcBtn.style.bottom = '';
+      }
     }
-    // Also try common chat widget container selectors
     const chatContainers = document.querySelectorAll('[id^="wc-"], [class*="wc-widget"]');
     chatContainers.forEach((el) => {
       (el as HTMLElement).style.display = shouldHide ? 'none' : '';
