@@ -914,6 +914,34 @@ const CustomerDashboard = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Mobile Bottom Navigation */}
+      {isMobile && (
+        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border shadow-lg md:hidden">
+          <div className="flex items-center justify-around h-16">
+            {[
+              { value: 'orders', icon: Package, label: 'Pedidos' },
+              { value: 'addresses', icon: MapPin, label: 'Endereços' },
+              { value: 'reviews', icon: Star, label: 'Avaliações' },
+              { value: 'profile', icon: User, label: 'Perfil' },
+              { value: 'help', icon: HelpCircle, label: 'Ajuda' },
+            ].map(({ value, icon: Icon, label }) => (
+              <button
+                key={value}
+                onClick={() => setActiveTab(value)}
+                className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors ${
+                  activeTab === value
+                    ? 'text-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                <span className="text-[10px] font-medium">{label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+      )}
     </div>
   );
 };
