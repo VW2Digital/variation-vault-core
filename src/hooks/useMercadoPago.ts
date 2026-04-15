@@ -220,17 +220,22 @@ export function useMercadoPago(): UseMercadoPagoReturn {
     if (!window.PagSeguro) throw new Error('SDK do PagBank não carregado');
     if (!pbPublicKey) throw new Error('Public Key do PagBank não configurada');
 
-    const card = window.PagSeguro.encryptCard({
+    const encryptPayload = {
       publicKey: pbPublicKey,
       holder: data.holder,
       number: data.number.replace(/\s/g, ''),
       expMonth: data.expMonth.padStart(2, '0'),
       expYear: data.expYear.length === 2 ? `20${data.expYear}` : data.expYear,
       securityCode: data.securityCode,
-    });
+    };
+    console.log('[PagBank] Encrypting card with payload:', { ...encryptPayload, number: encryptPayload.number.slice(0, 6) + '****', publicKey: encryptPayload.publicKey.slice(0, 20) + '...' });
+
+    const card = window.PagSeguro.encryptCard(encryptPayload);
+    console.log('[PagBank] encryptCard result:', { hasErrors: card.hasErrors, errors: card.errors, hasEncrypted: !!card.encryptedCard });
 
     if (card.hasErrors) {
       const errors = card.errors?.map((e: any) => e.message || e.code).join(', ') || 'Dados do cartão inválidos';
+      console.error('[PagBank] Card encryption failed:', errors);
       throw new Error(`Erro na criptografia do cartão: ${errors}`);
     }
 
