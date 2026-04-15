@@ -70,7 +70,8 @@ const CustomerDashboard = () => {
   const [reviewSaving, setReviewSaving] = useState(false);
   const [payNowLoading, setPayNowLoading] = useState<string | null>(null);
   const [pixModal, setPixModal] = useState<{ orderId: string; qrCode: string; payload: string; value: number } | null>(null);
-
+  const isMobile = useIsMobile();
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const handlePayNow = async (order: any) => {
     setPayNowLoading(order.id);
     try {
