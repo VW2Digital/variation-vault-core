@@ -278,6 +278,60 @@ const SettingsPayment = () => {
         )}
       </Card>
 
+      {/* PagBank */}
+      <Card className={`border-border/50 ${pbEnabled ? 'border-2 border-primary/30' : 'opacity-60'}`}>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CreditCard className="w-5 h-5" /> PagBank (PagSeguro)
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">{pbEnabled ? 'Ativo' : 'Inativo'}</span>
+              <Switch checked={pbEnabled} onCheckedChange={(checked) => {
+                setPbEnabled(checked);
+                if (checked) { setAsaasEnabled(false); setMpEnabled(false); setPaymentGateway('pagbank'); }
+                else if (!asaasEnabled && !mpEnabled) { setAsaasEnabled(true); setPaymentGateway('asaas'); }
+              }} />
+            </div>
+          </div>
+        </CardHeader>
+        {pbEnabled && (
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Ambiente</Label>
+              <Select value={pbEnvironment} onValueChange={setPbEnvironment}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sandbox">Sandbox (Testes)</SelectItem>
+                  <SelectItem value="production">Produção</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Token (Bearer)</Label>
+              <div className="relative">
+                <Input type={showPbToken ? 'text' : 'password'} value={pbToken} onChange={(e) => setPbToken(e.target.value)} placeholder="Token obtido no painel PagBank" className="pr-10" />
+                <button type="button" onClick={() => setShowPbToken(!showPbToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  {showPbToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Public Key (Criptografia de Cartão)</Label>
+              <Input value={pbPublicKey} onChange={(e) => setPbPublicKey(e.target.value)} placeholder="MIIBIjANBgkqhki..." />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">URL do Webhook (copie para o PagBank)</Label>
+              <Input readOnly value="https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/pagbank-webhook" className="bg-muted text-xs" onClick={(e) => {
+                (e.target as HTMLInputElement).select();
+                navigator.clipboard.writeText("https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/pagbank-webhook");
+                toast({ title: 'URL copiada!' });
+              }} />
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       <Button onClick={handleSave} disabled={saving} className="px-8">
         {saving ? 'Salvando...' : 'Salvar'}
       </Button>
