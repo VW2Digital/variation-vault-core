@@ -718,6 +718,74 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
     setStep('payment');
   };
 
+  // ── PagBank Redirect Checkout ──
+  const handlePagBankRedirect = async () => {
+    setProcessing(true);
+    try {
+      let asaasCustomerId = customerId;
+      if (!asaasCustomerId) {
+        const customer = await invokeGatewayWithRetry('create_customer', {
+          name: name.trim(),
+          email: email.trim(),
+          cpfCnpj: cpf.replace(/\D/g, ''),
+          phone: phone.replace(/\D/g, ''),
+        });
+        asaasCustomerId = customer.id;
+        setCustomerId(customer.id);
+      }
+
+      const description = `${paymentDescription || productName} ${dosage} x${quantity}`;
+      const orderId = await createOrder('pagbank_redirect', asaasCustomerId, totalValue);
+
+      const result = await invokeGateway('create_pagbank_checkout', {
+        value: totalValue,
+        description,
+        orderId,
+        quantity,
+        shippingCost,
+        maxInstallments: maxInstallments,
+        creditCardHolderInfo: {
+          email: email.trim(),
+          name: name.trim(),
+          cpfCnpj: cpf.replace(/\D/g, ''),
+          phone: (phone).replace(/\D/g, ''),
+        },
+        redirectUrl: window.location.origin + '/minha-conta',
+      });
+
+      if (result?.checkoutUrl) {
+        // Increment coupon usage before redirect
+        if (appliedCouponCode) {
+          try {
+            await supabase.rpc('increment_coupon_usage', { _coupon_code: appliedCouponCode });
+          } catch { /* non-blocking */ }
+        }
+        await clearCart();
+        // Redirect to PagBank checkout page
+        window.location.href = result.checkoutUrl;
+      } else {
+        throw new Error('Não foi possível criar o checkout PagBank');
+      }
+    } catch (err: any) {
+      const rawMessage = err?.message || 'Erro ao redirecionar para PagBank';
+      const message = mapPaymentErrorMessage(rawMessage);
+      toast({ title: 'Erro no pagamento', description: message, variant: 'destructive' });
+
+      try {
+        await supabase.from('payment_logs' as any).insert({
+          customer_email: email.trim(),
+          customer_name: name.trim(),
+          payment_method: 'pagbank_redirect',
+          error_message: rawMessage,
+          error_source: 'checkout',
+          request_payload: { productName, dosage, quantity, totalValue },
+        });
+      } catch { /* non-blocking */ }
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const handlePayment = async () => {
     if (!validateCard()) return;
     setProcessing(true);
