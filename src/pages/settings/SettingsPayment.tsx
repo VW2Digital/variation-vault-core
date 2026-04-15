@@ -28,6 +28,7 @@ const SettingsPayment = () => {
   const [paymentGateway, setPaymentGateway] = useState('asaas');
   const [asaasEnabled, setAsaasEnabled] = useState(true);
   const [mpEnabled, setMpEnabled] = useState(false);
+  const [pbEnabled, setPbEnabled] = useState(false);
 
   // Mercado Pago
   const [mpAccessToken, setMpAccessToken] = useState('');
