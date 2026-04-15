@@ -463,7 +463,7 @@ const ReportsPage = () => {
       </div>
 
       {/* Donuts: Status, Pagamento, Método */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {[
           { title: 'Pedidos por Status', data: ordersByStatus },
           { title: 'Status de Pagamento', data: paymentStatus },
@@ -475,11 +475,12 @@ const ReportsPage = () => {
               <div className="h-52">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={chart.data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={3} strokeWidth={0} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                    <Pie data={chart.data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={35} outerRadius={60} paddingAngle={3} strokeWidth={0}>
                       {chart.data.map((_, idx) => (
                         <Cell key={idx} fill={DONUT_COLORS[idx % DONUT_COLORS.length]} />
                       ))}
                     </Pie>
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
                     <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))' }} formatter={(v: number, name: string) => [chart.title.includes('Receita') ? formatCurrency(v) : v, name]} />
                   </PieChart>
                 </ResponsiveContainer>
@@ -501,7 +502,7 @@ const ReportsPage = () => {
                 <BarChart data={topProducts} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} horizontal={false} />
                   <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} tickLine={false} axisLine={false} width={150} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--foreground))' }} tickLine={false} axisLine={false} width={100} />
                   <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))' }} formatter={(v: number) => [formatCurrency(v), 'Receita']} />
                   <Bar dataKey="value" fill="hsl(38 92% 50%)" radius={[0, 4, 4, 0]} barSize={20} />
                 </BarChart>
