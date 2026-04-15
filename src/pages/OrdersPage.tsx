@@ -113,10 +113,6 @@ const OrdersPage = () => {
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
 
-  // Shipping logs
-  const [shippingLogs, setShippingLogs] = useState<any[]>([]);
-  const [loadingLogs, setLoadingLogs] = useState(false);
-  const [showLogs, setShowLogs] = useState(false);
 
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -171,29 +167,8 @@ const OrdersPage = () => {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  const fetchShippingLogs = async (orderId: string) => {
-    setLoadingLogs(true);
-    try {
-      const { data, error } = await supabase
-        .from('shipping_logs')
-        .select('*')
-        .eq('order_id', orderId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      setShippingLogs(data || []);
-    } catch (err: any) {
-      console.error('Error fetching shipping logs:', err);
-      setShippingLogs([]);
-    } finally {
-      setLoadingLogs(false);
-    }
-  };
-
   const openViewOrder = (order: any) => {
-    setViewOrder(order);
-    setShowLogs(false);
-    setShippingLogs([]);
+    navigate(`/admin/pedidos/${order.id}`);
   };
 
   const openEdit = (order: any) => {
