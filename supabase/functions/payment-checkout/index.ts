@@ -1018,6 +1018,98 @@ serve(async (req) => {
         break;
       }
 
+      case 'create_mp_checkout': {
+        // Mercado Pago Checkout Pro (redirect) — creates a preference and returns checkout URL
+        const mpGw = gateway as MercadoPagoGateway;
+        const mpAccessToken = (mpGw as any).accessToken;
+        const cpfMp = (payload.creditCardHolderInfo?.cpfCnpj || '').replace(/\D/g, '');
+        const phoneDigitsMp = sanitizePhone(payload.creditCardHolderInfo?.phone);
+        const mpPayerName = payload.creditCardHolderInfo?.name || 'Cliente';
+        const mpNameParts = mpPayerName.split(' ');
+
+        const preferenceBody: any = {
+          items: [{
+            id: payload.orderId || 'item',
+            title: sanitizeDescription(payload.description),
+            quantity: payload.quantity || 1,
+            unit_price: toCurrencyNumber(payload.value / (payload.quantity || 1)),
+            currency_id: 'BRL',
+          }],
+          payer: {
+            name: mpNameParts[0] || '',
+            surname: mpNameParts.slice(1).join(' ') || mpNameParts[0] || '',
+            email: payload.creditCardHolderInfo?.email || 'customer@email.com',
+            identification: cpfMp ? { type: 'CPF', number: cpfMp } : undefined,
+            phone: phoneDigitsMp ? { area_code: phoneDigitsMp.slice(0, 2), number: phoneDigitsMp.slice(2) } : undefined,
+          },
+          back_urls: {
+            success: payload.redirectUrl || 'https://variation-vault-core.lovable.app/minha-conta',
+            failure: payload.redirectUrl || 'https://variation-vault-core.lovable.app/minha-conta',
+            pending: payload.redirectUrl || 'https://variation-vault-core.lovable.app/minha-conta',
+          },
+          auto_return: 'approved',
+          external_reference: payload.orderId || undefined,
+          notification_url: `${supabaseUrl}/functions/v1/mercadopago-webhook`,
+          payment_methods: {
+            installments: payload.maxInstallments || 12,
+          },
+          statement_descriptor: 'LOJA ONLINE',
+        };
+
+        // Add shipping as a separate item if present
+        if (payload.shippingCost && payload.shippingCost > 0) {
+          preferenceBody.shipments = {
+            cost: toCurrencyNumber(payload.shippingCost),
+            mode: 'not_specified',
+          };
+        }
+
+        console.log('[MercadoPago] Creating checkout preference:', JSON.stringify({
+          item_title: preferenceBody.items[0].title,
+          item_price: preferenceBody.items[0].unit_price,
+          quantity: preferenceBody.items[0].quantity,
+          has_shipping: !!preferenceBody.shipments,
+          payer_email: preferenceBody.payer.email,
+        }));
+
+        const mpPrefRes = await fetch('https://api.mercadopago.com/checkout/preferences', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${mpAccessToken}`,
+          },
+          body: JSON.stringify(preferenceBody),
+        });
+
+        const mpPrefRaw = await mpPrefRes.text();
+        let mpPrefData: any = {};
+        if (mpPrefRaw) { try { mpPrefData = JSON.parse(mpPrefRaw); } catch { mpPrefData = { message: mpPrefRaw }; } }
+
+        if (!mpPrefRes.ok) {
+          const errMsg = mpPrefData?.message || `MercadoPago checkout error [${mpPrefRes.status}]`;
+          throw new Error(errMsg);
+        }
+
+        const mpCheckoutUrl = mpPrefData.init_point || mpPrefData.sandbox_init_point;
+        if (!mpCheckoutUrl) throw new Error('Mercado Pago não retornou URL de checkout');
+
+        // Update order with MP preference ID
+        if (payload.orderId && mpPrefData.id) {
+          const sb = createClient(supabaseUrl, supabaseKey);
+          await sb.from('orders').update({
+            asaas_payment_id: mpPrefData.id,
+            status: 'PENDING',
+          }).eq('id', payload.orderId);
+        }
+
+        result = {
+          id: mpPrefData.id,
+          status: 'PENDING',
+          checkoutUrl: mpCheckoutUrl,
+        };
+        break;
+      }
+
       case 'create_pagbank_checkout': {
         // PagBank Checkout Redirect — creates a checkout URL and redirects the customer
         const pbGw = gateway as PagBankGateway;

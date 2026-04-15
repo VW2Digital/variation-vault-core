@@ -37,6 +37,7 @@ const SettingsPayment = () => {
   const [mpClientId, setMpClientId] = useState('');
   const [mpClientSecret, setMpClientSecret] = useState('');
   const [mpEnvironment, setMpEnvironment] = useState('sandbox');
+  const [mpCheckoutMode, setMpCheckoutMode] = useState<'transparent' | 'redirect'>('transparent');
   const [showMpToken, setShowMpToken] = useState(false);
   const [showMpClientSecret, setShowMpClientSecret] = useState(false);
 
@@ -103,7 +104,8 @@ const SettingsPayment = () => {
       fetchSetting('payment_gateway'),
       fetchSetting('mercadopago_environment'),
       fetchSetting('pagbank_environment'),
-    ]).then(async ([apiKey, env, webhookToken, pgw, mpEnv, pbEnv]) => {
+      fetchSetting('mercadopago_checkout_mode'),
+    ]).then(async ([apiKey, env, webhookToken, pgw, mpEnv, pbEnv, mpMode]) => {
       setAsaasApiKey(apiKey || '');
       setAsaasEnv(env || 'sandbox');
       setAsaasWebhookToken(webhookToken || '');
@@ -114,6 +116,7 @@ const SettingsPayment = () => {
       setPbEnabled(activeGw === 'pagbank');
       const currentMpEnv = mpEnv || 'sandbox';
       setMpEnvironment(currentMpEnv);
+      setMpCheckoutMode(mpMode === 'redirect' ? 'redirect' : 'transparent');
       await loadMpCredentials(currentMpEnv);
       const currentPbEnv = pbEnv || 'sandbox';
       setPbEnvironment(currentPbEnv);
@@ -139,6 +142,7 @@ const SettingsPayment = () => {
         upsertSetting(`mercadopago_client_secret_${mpEnvironment}`, mpClientSecret, uid),
         upsertSetting('mercadopago_access_token', mpAccessToken, uid),
         upsertSetting('mercadopago_public_key', mpPublicKey, uid),
+        upsertSetting('mercadopago_checkout_mode', mpCheckoutMode, uid),
         upsertSetting(`pagbank_token_${pbEnvironment}`, pbToken, uid),
         upsertSetting(`pagbank_public_key_${pbEnvironment}`, pbPublicKey, uid),
         upsertSetting('pagbank_token', pbToken, uid),
@@ -262,6 +266,21 @@ const SettingsPayment = () => {
                   <SelectItem value="production">Produção</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Modo de Checkout</Label>
+              <Select value={mpCheckoutMode} onValueChange={(v) => setMpCheckoutMode(v as 'transparent' | 'redirect')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="transparent">Transparente (PIX + Cartão na loja)</SelectItem>
+                  <SelectItem value="redirect">Redirect (Checkout Pro do Mercado Pago)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {mpCheckoutMode === 'transparent'
+                  ? 'O cliente paga direto na sua loja, sem sair do site.'
+                  : 'O cliente é redirecionado para o Mercado Pago para pagar.'}
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Access Token</Label>

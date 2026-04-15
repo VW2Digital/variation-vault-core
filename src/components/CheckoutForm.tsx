@@ -141,9 +141,10 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
   const { t } = useLanguage();
   const { clearCart } = useCart();
   const navigate = useNavigate();
-  const { activeGateway, gatewayEnvironment: gatewayEnv, tokenizeCard, encryptPagBankCard, deviceSessionId } = useMercadoPago();
+  const { activeGateway, gatewayEnvironment: gatewayEnv, tokenizeCard, encryptPagBankCard, deviceSessionId, checkoutMode } = useMercadoPago();
   const isMercadoPago = activeGateway === 'mercadopago';
   const isPagBank = activeGateway === 'pagbank';
+  const isMpRedirect = isMercadoPago && checkoutMode === 'redirect';
   const safeUnitPrice = Number(unitPrice) || 0;
   const safeQuantity = Number(quantity) || 1;
   const baseProductTotal = safeUnitPrice * safeQuantity;
@@ -716,6 +717,72 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
     });
     fbAddPaymentInfo();
     setStep('payment');
+  };
+
+  // ── Mercado Pago Redirect Checkout (Checkout Pro) ──
+  const handleMpRedirect = async () => {
+    setProcessing(true);
+    try {
+      let asaasCustomerId = customerId;
+      if (!asaasCustomerId) {
+        const customer = await invokeGatewayWithRetry('create_customer', {
+          name: name.trim(),
+          email: email.trim(),
+          cpfCnpj: cpf.replace(/\D/g, ''),
+          phone: phone.replace(/\D/g, ''),
+        });
+        asaasCustomerId = customer.id;
+        setCustomerId(customer.id);
+      }
+
+      const description = `${paymentDescription || productName} ${dosage} x${quantity}`;
+      const orderId = await createOrder('mp_redirect', asaasCustomerId, totalValue);
+
+      const result = await invokeGateway('create_mp_checkout', {
+        value: totalValue,
+        description,
+        orderId,
+        quantity,
+        shippingCost,
+        maxInstallments: maxInstallments,
+        creditCardHolderInfo: {
+          email: email.trim(),
+          name: name.trim(),
+          cpfCnpj: cpf.replace(/\D/g, ''),
+          phone: (phone).replace(/\D/g, ''),
+        },
+        redirectUrl: window.location.origin + '/minha-conta',
+      });
+
+      if (result?.checkoutUrl) {
+        if (appliedCouponCode) {
+          try {
+            await supabase.rpc('increment_coupon_usage', { _coupon_code: appliedCouponCode });
+          } catch { /* non-blocking */ }
+        }
+        await clearCart();
+        window.location.href = result.checkoutUrl;
+      } else {
+        throw new Error('Não foi possível criar o checkout Mercado Pago');
+      }
+    } catch (err: any) {
+      const rawMessage = err?.message || 'Erro ao redirecionar para Mercado Pago';
+      const message = mapPaymentErrorMessage(rawMessage);
+      toast({ title: 'Erro no pagamento', description: message, variant: 'destructive' });
+
+      try {
+        await supabase.from('payment_logs' as any).insert({
+          customer_email: email.trim(),
+          customer_name: name.trim(),
+          payment_method: 'mp_redirect',
+          error_message: rawMessage,
+          error_source: 'checkout',
+          request_payload: { productName, dosage, quantity, totalValue },
+        });
+      } catch { /* non-blocking */ }
+    } finally {
+      setProcessing(false);
+    }
   };
 
   // ── PagBank Redirect Checkout ──
@@ -1503,20 +1570,22 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
   return (
     <div>
       <StepIndicator currentStep={step} />
-    {/* PagBank Redirect Mode */}
-    {isPagBank ? (
+    {/* PagBank or MP Redirect Mode */}
+    {(isPagBank || isMpRedirect) ? (
       <Card className="border-border/50">
         <CardHeader>
-          <CardTitle className="text-base">Pagamento via PagBank</CardTitle>
+          <CardTitle className="text-base">
+            {isPagBank ? 'Pagamento via PagBank' : 'Pagamento via Mercado Pago'}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-center py-4 space-y-3">
             <CreditCard className="w-12 h-12 text-muted-foreground mx-auto" />
             <p className="text-sm text-muted-foreground">
-              Você será redirecionado para o PagBank para concluir o pagamento com segurança.
+              Você será redirecionado para {isPagBank ? 'o PagBank' : 'o Mercado Pago'} para concluir o pagamento com segurança.
             </p>
             <p className="text-xs text-muted-foreground">
-              Aceita PIX, Cartão de Crédito e Débito.
+              Aceita PIX, Cartão de Crédito{isPagBank ? ' e Débito' : ', Débito e Boleto'}.
             </p>
           </div>
 
@@ -1577,9 +1646,9 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
                 </span>
               </div>
             </div>
-            <Button onClick={handlePagBankRedirect} disabled={processing} className="w-full">
+            <Button onClick={isPagBank ? handlePagBankRedirect : handleMpRedirect} disabled={processing} className="w-full">
               {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Pagar via PagBank
+              {isPagBank ? 'Pagar via PagBank' : 'Pagar via Mercado Pago'}
             </Button>
           </div>
           <button type="button" onClick={() => setStep('shipping')} className="text-xs text-muted-foreground hover:text-foreground w-full text-center">
