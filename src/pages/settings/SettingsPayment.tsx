@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { CreditCard, Eye, EyeOff, CheckCircle2, Loader2 } from 'lucide-react';
+import { CreditCard, Eye, EyeOff, CheckCircle2, Loader2, KeyRound } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -45,6 +45,7 @@ const SettingsPayment = () => {
   const [pbPublicKey, setPbPublicKey] = useState('');
   const [pbEnvironment, setPbEnvironment] = useState('sandbox');
   const [showPbToken, setShowPbToken] = useState(false);
+  const [generatingPbKey, setGeneratingPbKey] = useState(false);
 
   const loadMpCredentials = async (env: string) => {
     const [token, pubKey, clientId, clientSecret] = await Promise.all([
@@ -319,7 +320,60 @@ const SettingsPayment = () => {
             </div>
             <div className="space-y-2">
               <Label>Public Key (Criptografia de Cartão)</Label>
-              <Input value={pbPublicKey} onChange={(e) => setPbPublicKey(e.target.value)} placeholder="MIIBIjANBgkqhki..." />
+              <div className="flex gap-2">
+                <Input value={pbPublicKey} onChange={(e) => setPbPublicKey(e.target.value)} placeholder="MIIBIjANBgkqhki..." className="flex-1" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={generatingPbKey || !pbToken}
+                  onClick={async () => {
+                    setGeneratingPbKey(true);
+                    try {
+                      const baseUrl = pbEnvironment === 'production'
+                        ? 'https://api.pagseguro.com'
+                        : 'https://sandbox.api.pagseguro.com';
+                      
+                      // Try to get existing key first
+                      let res = await fetch(`${baseUrl}/public-keys/card`, {
+                        headers: { 'Authorization': `Bearer ${pbToken}` },
+                      });
+                      
+                      if (res.status === 404) {
+                        // Create new key
+                        res = await fetch(`${baseUrl}/public-keys`, {
+                          method: 'POST',
+                          headers: {
+                            'Authorization': `Bearer ${pbToken}`,
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({ type: 'card' }),
+                        });
+                      }
+                      
+                      if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        throw new Error(err.error_messages?.[0]?.description || `HTTP ${res.status}`);
+                      }
+                      
+                      const data = await res.json();
+                      if (data.public_key) {
+                        setPbPublicKey(data.public_key);
+                        toast({ title: 'Public Key gerada com sucesso!' });
+                      } else {
+                        throw new Error('Resposta sem public_key');
+                      }
+                    } catch (err: any) {
+                      toast({ title: 'Erro ao gerar Public Key', description: err.message, variant: 'destructive' });
+                    } finally {
+                      setGeneratingPbKey(false);
+                    }
+                  }}
+                  className="whitespace-nowrap"
+                >
+                  {generatingPbKey ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <KeyRound className="w-4 h-4 mr-1" />}
+                  Gerar Key
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground">URL do Webhook (copie para o PagBank)</Label>
