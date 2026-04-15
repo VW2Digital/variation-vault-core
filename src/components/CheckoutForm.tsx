@@ -1503,7 +1503,92 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
   return (
     <div>
       <StepIndicator currentStep={step} />
+    {/* PagBank Redirect Mode */}
+    {isPagBank ? (
       <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-base">Pagamento via PagBank</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="text-center py-4 space-y-3">
+            <CreditCard className="w-12 h-12 text-muted-foreground mx-auto" />
+            <p className="text-sm text-muted-foreground">
+              Você será redirecionado para o PagBank para concluir o pagamento com segurança.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Aceita PIX, Cartão de Crédito e Débito.
+            </p>
+          </div>
+
+          {/* Coupon */}
+          <div className="border-t border-border/50 pt-3 space-y-2">
+            <Label className="text-xs flex items-center gap-1"><Ticket className="w-3 h-3" /> Cupom de desconto</Label>
+            {appliedCouponCode ? (
+              <div className="flex items-center gap-2 bg-success/10 rounded-lg px-3 py-2">
+                <span className="text-sm font-medium text-success flex-1">
+                  {appliedCouponCode} ({couponLabel})
+                </span>
+                <Button type="button" variant="ghost" size="sm" onClick={handleRemoveCoupon} className="h-6 px-2 text-xs text-destructive hover:text-destructive">
+                  Remover
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  placeholder="Digite o código"
+                  className="flex-1"
+                  onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                />
+                <Button type="button" variant="outline" size="sm" onClick={handleApplyCoupon} disabled={validatingCoupon || !couponCode.trim()}>
+                  {validatingCoupon ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Aplicar'}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-border/50 pt-3">
+            <div className="space-y-1 mb-3">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Produtos</span>
+                <span>R$ {baseProductTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              </div>
+              {selectedShipping && (
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Frete ({selectedShipping.company})</span>
+                  {qualifiesForFreeShipping ? (
+                    <span className="text-primary font-medium">Grátis</span>
+                  ) : (
+                    <span>R$ {shippingCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  )}
+                </div>
+              )}
+              {couponDiscount > 0 && (
+                <div className="flex justify-between text-xs text-success">
+                  <span>Cupom {appliedCouponCode} ({couponLabel})</span>
+                  <span>- R$ {couponDiscount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-1">
+                <span className="text-sm text-muted-foreground">Total</span>
+                <span className="text-lg font-bold text-foreground">
+                  R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+            <Button onClick={handlePagBankRedirect} disabled={processing} className="w-full">
+              {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Pagar via PagBank
+            </Button>
+          </div>
+          <button type="button" onClick={() => setStep('shipping')} className="text-xs text-muted-foreground hover:text-foreground w-full text-center">
+            ← Voltar ao frete
+          </button>
+        </CardContent>
+      </Card>
+    ) : (
+    <Card className="border-border/50">
       <CardHeader>
         <CardTitle className="text-base">Forma de Pagamento</CardTitle>
         <div className="flex gap-2 mt-2">
