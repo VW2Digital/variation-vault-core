@@ -21,7 +21,7 @@ const ChatWidgetEmbed = () => {
     if (wcBtn) {
       wcBtn.style.display = shouldHide ? 'none' : '';
       if (!shouldHide && isMobile) {
-        wcBtn.style.bottom = '72px';
+        wcBtn.style.bottom = '90px';
       } else {
         wcBtn.style.bottom = '';
       }
