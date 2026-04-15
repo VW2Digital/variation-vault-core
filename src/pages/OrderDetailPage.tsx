@@ -105,7 +105,7 @@ const OrderDetailPage = () => {
   const delivery = deliveryStatuses.find(d => d.value === order.delivery_status);
 
   return (
-    <div className="space-y-6 w-full max-w-3xl">
+    <div className="space-y-6 w-full">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate('/admin/pedidos')}>
           <ArrowLeft className="h-5 w-5" />
