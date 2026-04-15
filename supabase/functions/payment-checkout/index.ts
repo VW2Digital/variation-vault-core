@@ -551,8 +551,8 @@ class MercadoPagoGateway implements PaymentGateway {
 // ────────────────────────────────────────────────────────
 
 class PagBankGateway implements PaymentGateway {
-  private token: string;
-  private baseUrl: string;
+  public token: string;
+  public baseUrl: string;
 
   constructor(token: string, environment: string) {
     this.token = token;
@@ -1015,6 +1015,106 @@ serve(async (req) => {
         const pkData = await pkRes.json();
         if (!pkData.public_key) throw new Error('Resposta sem public_key');
         result = { public_key: pkData.public_key };
+        break;
+      }
+
+      case 'create_pagbank_checkout': {
+        // PagBank Checkout Redirect — creates a checkout URL and redirects the customer
+        const pbGw = gateway as PagBankGateway;
+        const pbBaseUrl = (pbGw as any).baseUrl;
+        const pbTokenVal = (pbGw as any).token;
+        const cpfVal = (payload.creditCardHolderInfo?.cpfCnpj || '').replace(/\D/g, '');
+        const phoneDigitsVal = sanitizePhone(payload.creditCardHolderInfo?.phone);
+        const supabaseUrlVal = Deno.env.get('SUPABASE_URL')!;
+
+        const checkoutBody: any = {
+          reference_id: payload.orderId || crypto.randomUUID(),
+          customer: {
+            name: payload.creditCardHolderInfo?.name || 'Cliente',
+            email: payload.creditCardHolderInfo?.email || 'customer@email.com',
+            tax_id: cpfVal,
+            phones: phoneDigitsVal ? [{
+              country: '55',
+              area: phoneDigitsVal.slice(0, 2),
+              number: phoneDigitsVal.slice(2),
+              type: 'MOBILE',
+            }] : [],
+          },
+          items: [{
+            reference_id: payload.orderId || 'item',
+            name: sanitizeDescription(payload.description),
+            quantity: payload.quantity || 1,
+            unit_amount: Math.round(toCurrencyNumber(payload.value / (payload.quantity || 1)) * 100),
+          }],
+          payment_methods: [{ type: 'CREDIT_CARD' }, { type: 'DEBIT_CARD' }, { type: 'PIX' }],
+          payment_methods_configs: [{
+            type: 'CREDIT_CARD',
+            config_options: [{
+              option: 'INSTALLMENTS_LIMIT',
+              value: String(payload.maxInstallments || 12),
+            }],
+          }],
+          soft_descriptor: sanitizeDescription(payload.softDescriptor || 'Loja').slice(0, 17),
+          redirect_url: payload.redirectUrl || 'https://variation-vault-core.lovable.app/minha-conta',
+          return_url: payload.redirectUrl || 'https://variation-vault-core.lovable.app/minha-conta',
+          notification_urls: [`${supabaseUrlVal}/functions/v1/pagbank-webhook`],
+          payment_notification_urls: [`${supabaseUrlVal}/functions/v1/pagbank-webhook`],
+        };
+
+        // Add shipping amount if present
+        if (payload.shippingCost && payload.shippingCost > 0) {
+          checkoutBody.shipping = {
+            amount: Math.round(toCurrencyNumber(payload.shippingCost) * 100),
+          };
+        }
+
+        console.log('[PagBank] Creating checkout redirect:', JSON.stringify({
+          reference_id: checkoutBody.reference_id,
+          item_amount: checkoutBody.items[0].unit_amount,
+          quantity: checkoutBody.items[0].quantity,
+          has_shipping: !!checkoutBody.shipping,
+        }));
+
+        const checkoutRes = await fetch(`${pbBaseUrl}/checkouts`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${pbTokenVal}`,
+          },
+          body: JSON.stringify(checkoutBody),
+        });
+
+        const checkoutRaw = await checkoutRes.text();
+        let checkoutData: any = {};
+        if (checkoutRaw) { try { checkoutData = JSON.parse(checkoutRaw); } catch { checkoutData = { message: checkoutRaw }; } }
+
+        if (!checkoutRes.ok) {
+          const errMsgs = Array.isArray(checkoutData?.error_messages)
+            ? checkoutData.error_messages.map((e: any) => e?.description || e?.message).filter(Boolean).join(' | ')
+            : '';
+          throw new Error(errMsgs || checkoutData?.message || `PagBank checkout error [${checkoutRes.status}]`);
+        }
+
+        // Find the PAY link
+        const payLink = checkoutData.links?.find((l: any) => l.rel === 'PAY');
+        const checkoutUrl = payLink?.href || '';
+
+        if (!checkoutUrl) throw new Error('PagBank não retornou URL de checkout');
+
+        // Update order with PagBank checkout ID
+        if (payload.orderId && checkoutData.id) {
+          const sb = createClient(supabaseUrl, supabaseKey);
+          await sb.from('orders').update({
+            asaas_payment_id: checkoutData.id,
+            status: 'PENDING',
+          }).eq('id', payload.orderId);
+        }
+
+        result = {
+          id: checkoutData.id,
+          status: 'PENDING',
+          checkoutUrl,
+        };
         break;
       }
 

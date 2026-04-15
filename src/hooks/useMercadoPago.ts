@@ -169,14 +169,10 @@ export function useMercadoPago(): UseMercadoPagoReturn {
         }
 
         // ── PagBank init ──
+        // PagBank now uses redirect checkout — no SDK needed
         if (gw === 'pagbank') {
-          const pbPk = await fetchSetting('pagbank_public_key');
-          if (cancelled || !pbPk) return;
-          setPbPublicKey(pbPk);
-          await loadPagBankSdk();
-          if (cancelled) return;
           setIsReady(true);
-          console.log('[PagBank] SDK loaded and ready');
+          console.log('[PagBank] Redirect mode — no SDK needed');
           return;
         }
 
