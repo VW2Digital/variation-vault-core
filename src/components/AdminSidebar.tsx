@@ -1,6 +1,7 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, LogOut, LayoutDashboard, Video, Megaphone, Settings, ShoppingBag, Users, MessageCircle, Star, MousePointerClick, AlertTriangle, Mail, LinkIcon, Ticket, FileBarChart } from 'lucide-react';
+import { Package, LogOut, LayoutDashboard, Video, Megaphone, Settings, ShoppingBag, Users, MessageCircle, Star, MousePointerClick, AlertTriangle, Mail, LinkIcon, Ticket, FileBarChart, ChevronDown } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
   Sidebar,
@@ -16,6 +17,8 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 const menuCategories = [
   {
@@ -64,6 +67,25 @@ export function AdminSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const navigate = useNavigate();
+  const location = useLocation();
+  const isMobile = useIsMobile();
+
+  // Find which category contains the active route
+  const activeCategoryIndex = menuCategories.findIndex(cat =>
+    cat.items.some(item => location.pathname === item.url)
+  );
+
+  const [openGroups, setOpenGroups] = useState<Record<number, boolean>>(() => {
+    const initial: Record<number, boolean> = {};
+    menuCategories.forEach((_, i) => {
+      initial[i] = i === activeCategoryIndex;
+    });
+    return initial;
+  });
+
+  const toggleGroup = (index: number) => {
+    setOpenGroups(prev => ({ ...prev, [index]: !prev[index] }));
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -72,50 +94,102 @@ export function AdminSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
-      <SidebarContent className="gap-1">
-        {menuCategories.map((category) => (
-          <SidebarGroup key={category.label} className="py-1 px-2">
-            <SidebarGroupLabel className="text-sidebar-foreground/60 uppercase tracking-wider text-xs">
-              {!collapsed && category.label}
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {category.items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <Tooltip delayDuration={0}>
-                      <TooltipTrigger asChild>
-                        <SidebarMenuButton asChild>
-                          <NavLink
-                            to={item.url}
-                            end
-                            className={`hover:bg-sidebar-accent/50 flex items-center gap-2 ${collapsed ? 'justify-center' : 'justify-start'}`}
-                            activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                          >
-                            <item.icon className="h-4 w-4 shrink-0" />
-                            {!collapsed && <span className="truncate">{item.title}</span>}
-                          </NavLink>
-                        </SidebarMenuButton>
-                      </TooltipTrigger>
-                      {collapsed && (
-                        <TooltipContent side="right" className="text-xs font-medium z-[999]">
-                          {item.title}
-                        </TooltipContent>
-                      )}
-                    </Tooltip>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
+      <SidebarContent className="gap-0">
+        {menuCategories.map((category, index) => {
+          const isOpen = openGroups[index] ?? false;
+          const hasActiveItem = category.items.some(item => location.pathname === item.url);
+
+          if (isMobile) {
+            return (
+              <div key={category.label} className="border-b border-sidebar-border/50">
+                <button
+                  onClick={() => toggleGroup(index)}
+                  className={cn(
+                    "flex w-full items-center justify-between px-4 py-3 text-sm font-medium transition-colors",
+                    hasActiveItem
+                      ? "text-sidebar-primary bg-sidebar-accent/30"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent/20"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <category.items[0].icon className="h-4 w-4 shrink-0" />
+                    <span>{category.label}</span>
+                  </div>
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 shrink-0 text-sidebar-foreground/50 transition-transform duration-200",
+                      isOpen && "rotate-180"
+                    )}
+                  />
+                </button>
+                {isOpen && (
+                  <div className="pb-2">
+                    {category.items.map((item) => (
+                      <NavLink
+                        key={item.title}
+                        to={item.url}
+                        end
+                        className="flex items-center gap-3 px-4 pl-11 py-2.5 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground transition-colors"
+                        activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                      >
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        <span>{item.title}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // Desktop sidebar (unchanged)
+          return (
+            <SidebarGroup key={category.label} className="py-1 px-2">
+              <SidebarGroupLabel className="text-sidebar-foreground/60 uppercase tracking-wider text-xs">
+                {!collapsed && category.label}
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {category.items.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>
+                          <SidebarMenuButton asChild>
+                            <NavLink
+                              to={item.url}
+                              end
+                              className={`hover:bg-sidebar-accent/50 flex items-center gap-2 ${collapsed ? 'justify-center' : 'justify-start'}`}
+                              activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                            >
+                              <item.icon className="h-4 w-4 shrink-0" />
+                              {!collapsed && <span className="truncate">{item.title}</span>}
+                            </NavLink>
+                          </SidebarMenuButton>
+                        </TooltipTrigger>
+                        {collapsed && (
+                          <TooltipContent side="right" className="text-xs font-medium z-[999]">
+                            {item.title}
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          );
+        })}
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className={isMobile ? "border-t border-sidebar-border/50" : ""}>
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               onClick={handleLogout}
-              className={`w-full text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 gap-2 ${collapsed ? 'justify-center' : 'justify-start'}`}
+              className={cn(
+                "w-full text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 gap-2",
+                collapsed ? 'justify-center' : 'justify-start'
+              )}
             >
               <LogOut className="h-4 w-4 shrink-0" />
               {!collapsed && <span>Sair</span>}
