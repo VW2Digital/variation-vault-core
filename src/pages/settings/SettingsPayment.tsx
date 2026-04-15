@@ -134,7 +134,7 @@ const SettingsPayment = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <SettingsBackButton title="Gateways de Pagamento" description="Asaas, Mercado Pago, parcelamento e descontos PIX" />
+      <SettingsBackButton title="Gateways de Pagamento" description="Asaas, Mercado Pago, PagBank, parcelamento e descontos PIX" />
 
       {/* Asaas */}
       <Card className={`border-border/50 ${asaasEnabled ? 'border-2 border-primary/30' : 'opacity-60'}`}>
