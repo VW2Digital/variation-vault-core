@@ -112,7 +112,7 @@ export function AdminSidebar() {
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <category.items[0].icon className="h-4 w-4 shrink-0" />
+                    {(() => { const Icon = category.items[0].icon; return <Icon className="h-4 w-4 shrink-0" />; })()}
                     <span>{category.label}</span>
                   </div>
                   <ChevronDown
