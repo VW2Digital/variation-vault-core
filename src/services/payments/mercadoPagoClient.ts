@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export type CheckoutGateway = 'asaas' | 'mercadopago';
+export type CheckoutGateway = 'asaas' | 'mercadopago' | 'pagbank';
 export type CheckoutMethod = 'credit_card' | 'pix';
 
 export interface MpPaymentRequest {
