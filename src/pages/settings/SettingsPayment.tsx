@@ -39,6 +39,12 @@ const SettingsPayment = () => {
   const [showMpToken, setShowMpToken] = useState(false);
   const [showMpClientSecret, setShowMpClientSecret] = useState(false);
 
+  // PagBank
+  const [pbToken, setPbToken] = useState('');
+  const [pbPublicKey, setPbPublicKey] = useState('');
+  const [pbEnvironment, setPbEnvironment] = useState('sandbox');
+  const [showPbToken, setShowPbToken] = useState(false);
+
   const loadMpCredentials = async (env: string) => {
     const [token, pubKey, clientId, clientSecret] = await Promise.all([
       fetchSetting(`mercadopago_access_token_${env}`),
