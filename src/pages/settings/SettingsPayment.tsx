@@ -222,8 +222,8 @@ const SettingsPayment = () => {
               <span className="text-xs text-muted-foreground">{mpEnabled ? 'Ativo' : 'Inativo'}</span>
               <Switch checked={mpEnabled} onCheckedChange={(checked) => {
                 setMpEnabled(checked);
-                if (checked) { setAsaasEnabled(false); setPaymentGateway('mercadopago'); }
-                else if (!asaasEnabled) { setAsaasEnabled(true); setPaymentGateway('asaas'); }
+                if (checked) { setAsaasEnabled(false); setPbEnabled(false); setPaymentGateway('mercadopago'); }
+                else if (!asaasEnabled && !pbEnabled) { setAsaasEnabled(true); setPaymentGateway('asaas'); }
               }} />
             </div>
           </div>
