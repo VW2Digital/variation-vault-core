@@ -1570,20 +1570,22 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
   return (
     <div>
       <StepIndicator currentStep={step} />
-    {/* PagBank Redirect Mode */}
-    {isPagBank ? (
+    {/* PagBank or MP Redirect Mode */}
+    {(isPagBank || isMpRedirect) ? (
       <Card className="border-border/50">
         <CardHeader>
-          <CardTitle className="text-base">Pagamento via PagBank</CardTitle>
+          <CardTitle className="text-base">
+            {isPagBank ? 'Pagamento via PagBank' : 'Pagamento via Mercado Pago'}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-center py-4 space-y-3">
             <CreditCard className="w-12 h-12 text-muted-foreground mx-auto" />
             <p className="text-sm text-muted-foreground">
-              Você será redirecionado para o PagBank para concluir o pagamento com segurança.
+              Você será redirecionado para {isPagBank ? 'o PagBank' : 'o Mercado Pago'} para concluir o pagamento com segurança.
             </p>
             <p className="text-xs text-muted-foreground">
-              Aceita PIX, Cartão de Crédito e Débito.
+              Aceita PIX, Cartão de Crédito{isPagBank ? ' e Débito' : ', Débito e Boleto'}.
             </p>
           </div>
 
@@ -1644,9 +1646,9 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
                 </span>
               </div>
             </div>
-            <Button onClick={handlePagBankRedirect} disabled={processing} className="w-full">
+            <Button onClick={isPagBank ? handlePagBankRedirect : handleMpRedirect} disabled={processing} className="w-full">
               {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Pagar via PagBank
+              {isPagBank ? 'Pagar via PagBank' : 'Pagar via Mercado Pago'}
             </Button>
           </div>
           <button type="button" onClick={() => setStep('shipping')} className="text-xs text-muted-foreground hover:text-foreground w-full text-center">
