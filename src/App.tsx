@@ -29,6 +29,7 @@ import SettingsAdvanced from "./pages/settings/SettingsAdvanced";
 import SettingsAPI from "./pages/settings/SettingsAPI";
 import SettingsCategories from "./pages/settings/SettingsCategories";
 import OrdersPage from "./pages/OrdersPage";
+import OrderDetailPage from "./pages/OrderDetailPage";
 import UsersPage from "./pages/UsersPage";
 import Checkout from "./pages/Checkout";
 import CustomerLogin from "./pages/CustomerLogin";
@@ -96,6 +97,7 @@ const App = () => (
             <Route path="banners" element={<BannerList />} />
             <Route path="popups" element={<PopupList />} />
             <Route path="pedidos" element={<OrdersPage />} />
+            <Route path="pedidos/:id" element={<OrderDetailPage />} />
             <Route path="usuarios" element={<UsersPage />} />
             <Route path="avaliacoes" element={<AdminReviewsPage />} />
             <Route path="suporte" element={<AdminSupportPage />} />
