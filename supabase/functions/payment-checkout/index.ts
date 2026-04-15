@@ -551,8 +551,8 @@ class MercadoPagoGateway implements PaymentGateway {
 // ────────────────────────────────────────────────────────
 
 class PagBankGateway implements PaymentGateway {
-  private token: string;
-  private baseUrl: string;
+  public token: string;
+  public baseUrl: string;
 
   constructor(token: string, environment: string) {
     this.token = token;
