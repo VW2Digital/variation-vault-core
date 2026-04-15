@@ -329,6 +329,22 @@ const SettingsPayment = () => {
                 toast({ title: 'URL copiada!' });
               }} />
             </div>
+            <Button variant="outline" size="sm" disabled={testingPb || !pbToken} onClick={async () => {
+              setTestingPb(true);
+              try {
+                const { data, error } = await supabase.functions.invoke('payment-checkout', {
+                  body: { action: 'test_connection', environment: pbEnvironment, api_key: pbToken, gateway: 'pagbank' },
+                });
+                if (error) throw new Error(error.message);
+                if (data?.error) throw new Error(data.error);
+                toast({ title: 'Conexao com PagBank OK!', description: `Ambiente: ${pbEnvironment === 'production' ? 'Producao' : 'Sandbox'}` });
+              } catch (err: any) {
+                toast({ title: 'Falha na conexao', description: err.message, variant: 'destructive' });
+              } finally { setTestingPb(false); }
+            }}>
+              {testingPb ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+              Testar Conexao
+            </Button>
           </CardContent>
         )}
       </Card>
