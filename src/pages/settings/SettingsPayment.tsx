@@ -47,6 +47,27 @@ const SettingsPayment = () => {
   const [showPbToken, setShowPbToken] = useState(false);
   const [generatingPbKey, setGeneratingPbKey] = useState(false);
 
+  const loadPbCredentials = async (env: string) => {
+    const [token, pubKey] = await Promise.all([
+      fetchSetting(`pagbank_token_${env}`),
+      fetchSetting(`pagbank_public_key_${env}`),
+    ]);
+    setPbToken(token || '');
+    setPbPublicKey(pubKey || '');
+  };
+
+  const handlePbEnvChange = async (newEnv: string) => {
+    const oldEnv = pbEnvironment;
+    if (pbToken || pbPublicKey) {
+      await Promise.all([
+        upsertSetting(`pagbank_token_${oldEnv}`, pbToken),
+        upsertSetting(`pagbank_public_key_${oldEnv}`, pbPublicKey),
+      ]);
+    }
+    setPbEnvironment(newEnv);
+    await loadPbCredentials(newEnv);
+  };
+
   const loadMpCredentials = async (env: string) => {
     const [token, pubKey, clientId, clientSecret] = await Promise.all([
       fetchSetting(`mercadopago_access_token_${env}`),
@@ -81,10 +102,8 @@ const SettingsPayment = () => {
       fetchSetting('asaas_webhook_token'),
       fetchSetting('payment_gateway'),
       fetchSetting('mercadopago_environment'),
-      fetchSetting('pagbank_token'),
-      fetchSetting('pagbank_public_key'),
       fetchSetting('pagbank_environment'),
-    ]).then(async ([apiKey, env, webhookToken, pgw, mpEnv, pbTk, pbPk, pbEnv]) => {
+    ]).then(async ([apiKey, env, webhookToken, pgw, mpEnv, pbEnv]) => {
       setAsaasApiKey(apiKey || '');
       setAsaasEnv(env || 'sandbox');
       setAsaasWebhookToken(webhookToken || '');
@@ -96,9 +115,9 @@ const SettingsPayment = () => {
       const currentMpEnv = mpEnv || 'sandbox';
       setMpEnvironment(currentMpEnv);
       await loadMpCredentials(currentMpEnv);
-      setPbToken(pbTk || '');
-      setPbPublicKey(pbPk || '');
-      setPbEnvironment(pbEnv || 'sandbox');
+      const currentPbEnv = pbEnv || 'sandbox';
+      setPbEnvironment(currentPbEnv);
+      await loadPbCredentials(currentPbEnv);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -120,6 +139,8 @@ const SettingsPayment = () => {
         upsertSetting(`mercadopago_client_secret_${mpEnvironment}`, mpClientSecret, uid),
         upsertSetting('mercadopago_access_token', mpAccessToken, uid),
         upsertSetting('mercadopago_public_key', mpPublicKey, uid),
+        upsertSetting(`pagbank_token_${pbEnvironment}`, pbToken, uid),
+        upsertSetting(`pagbank_public_key_${pbEnvironment}`, pbPublicKey, uid),
         upsertSetting('pagbank_token', pbToken, uid),
         upsertSetting('pagbank_public_key', pbPublicKey, uid),
         upsertSetting('pagbank_environment', pbEnvironment, uid),
@@ -301,7 +322,7 @@ const SettingsPayment = () => {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Ambiente</Label>
-              <Select value={pbEnvironment} onValueChange={setPbEnvironment}>
+              <Select value={pbEnvironment} onValueChange={handlePbEnvChange}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="sandbox">Sandbox (Testes)</SelectItem>
