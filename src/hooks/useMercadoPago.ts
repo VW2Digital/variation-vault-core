@@ -270,5 +270,5 @@ export function useMercadoPago(): UseMercadoPagoReturn {
     return { encrypted: card.encryptedCard };
   }, [pbPublicKey]);
 
-  return { isReady, publicKey, tokenizeCard, encryptPagBankCard, activeGateway, gatewayEnvironment, deviceSessionId };
+  return { isReady, publicKey, tokenizeCard, encryptPagBankCard, activeGateway, gatewayEnvironment, deviceSessionId, checkoutMode };
 }
