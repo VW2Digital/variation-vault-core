@@ -23,6 +23,7 @@ const SettingsPayment = () => {
   const [asaasEnv, setAsaasEnv] = useState('sandbox');
   const [showApiKey, setShowApiKey] = useState(false);
   const [testingAsaas, setTestingAsaas] = useState(false);
+  const [testingPb, setTestingPb] = useState(false);
 
   // Gateway
   const [paymentGateway, setPaymentGateway] = useState('asaas');
