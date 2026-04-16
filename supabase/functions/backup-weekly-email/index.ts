@@ -193,7 +193,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Liberty Pharma Backup <backup@notify.pharmaliberty.com>",
+        from: fromAddress,
         to: [recipient],
         subject: `Backup Semanal - ${dateStr} (${sizeMB} MB)`,
         html,
