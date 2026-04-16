@@ -72,16 +72,16 @@ const Footer = () => {
             </div>
             {/* Desktop: card grid */}
             <div className="hidden md:grid grid-cols-2 gap-3">
-              <div className="bg-card border border-border/50 rounded-lg p-2 flex items-center justify-center h-12">
+              <div className="p-2 flex items-center justify-center h-12">
                 <img src={logoSedex} alt="SEDEX" className="h-6 object-contain" />
               </div>
-              <div className="bg-card border border-border/50 rounded-lg p-2 flex items-center justify-center h-12">
+              <div className="p-2 flex items-center justify-center h-12">
                 <img src={logoPac} alt="PAC" className="h-6 object-contain" />
               </div>
-              <div className="bg-card border border-border/50 rounded-lg p-2 flex items-center justify-center h-12">
+              <div className="p-2 flex items-center justify-center h-12">
                 <img src={logoJadlog} alt="Jadlog" className="max-h-10 w-auto object-contain" />
               </div>
-              <div className="bg-card border border-border/50 rounded-lg p-2 flex items-center justify-center h-12">
+              <div className="p-2 flex items-center justify-center h-12">
                 <img src={logoJtExpress} alt="J&T Express" className="h-9 object-contain" />
               </div>
             </div>
