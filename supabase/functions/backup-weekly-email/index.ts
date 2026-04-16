@@ -154,13 +154,16 @@ Deno.serve(async (req) => {
     const dateStr = new Date().toISOString().slice(0, 10);
     const filename = `backup-liberty-pharma-${dateStr}.zip`;
 
-    // Get recipient from site_settings (fallback to admin)
-    const { data: setting } = await supabase
+    // Get recipient + sender from site_settings
+    const { data: settings } = await supabase
       .from("site_settings")
-      .select("value")
-      .eq("key", "backup_recipient_email")
-      .maybeSingle();
-    const recipient = setting?.value || "libertyluminaepharma@gmail.com";
+      .select("key,value")
+      .in("key", ["backup_recipient_email", "backup_email_from"]);
+    const settingsMap = new Map((settings || []).map((s: any) => [s.key, s.value]));
+    const recipient = settingsMap.get("backup_recipient_email") || "libertyluminaepharma@gmail.com";
+    // Default to Resend's test sender (no domain verification needed).
+    // NOTE: with onboarding@resend.dev, Resend only allows sending to the Resend account owner's email.
+    const fromAddress = settingsMap.get("backup_email_from") || "Liberty Pharma Backup <onboarding@resend.dev>";
 
     // Send via Resend
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
