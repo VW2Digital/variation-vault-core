@@ -157,10 +157,31 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
+const SUPPORTED: Language[] = ['pt', 'es', 'en', 'zh'];
+
+const detectBrowserLanguage = (): Language => {
+  if (typeof navigator === 'undefined') return 'pt';
+  const candidates = [
+    ...(navigator.languages || []),
+    navigator.language,
+  ].filter(Boolean);
+  for (const raw of candidates) {
+    const lower = raw.toLowerCase();
+    if (lower.startsWith('pt')) return 'pt';
+    if (lower.startsWith('es')) return 'es';
+    if (lower.startsWith('en')) return 'en';
+    if (lower.startsWith('zh')) return 'zh';
+  }
+  return 'pt';
+};
+
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const [lang, setLangState] = useState<Language>(() => {
     const saved = localStorage.getItem('language') as Language;
-    return saved && ['pt', 'es', 'en', 'zh'].includes(saved) ? saved : 'pt';
+    if (saved && SUPPORTED.includes(saved)) return saved;
+    const detected = detectBrowserLanguage();
+    try { localStorage.setItem('language', detected); } catch { /* ignore */ }
+    return detected;
   });
 
   const setLang = useCallback((l: Language) => {
