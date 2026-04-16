@@ -1,0 +1,24 @@
+flowchart TD
+    Start([Quero deployar a Liberty Pharma]) --> Q1{Tem orçamento<br/>mensal?}
+    Q1 -->|Zero / quero gratis| Oracle[Oracle Free Tier ARM<br/>4 vCPU + 24GB RAM<br/>Custo: R$ 0]
+    Q1 -->|Ate R$ 30/mes| Q2{Quer simplicidade<br/>ou controle fino?}
+    Q1 -->|R$ 50+| Q3{Equipe ou solo?}
+
+    Q2 -->|Simplicidade| DOTraefik[DigitalOcean + Traefik<br/>SSL automatico<br/>Custo: ~R$ 30]
+    Q2 -->|Controle fino| DONginx[DigitalOcean + Nginx + Certbot<br/>Config manual<br/>Custo: ~R$ 30]
+
+    Q3 -->|Solo| Hetzner[Hetzner CX22 + Traefik<br/>4GB RAM, melhor custo<br/>Custo: ~R$ 25]
+    Q3 -->|Equipe / CI-CD| Actions[GitHub Actions + qualquer VPS<br/>Deploy a cada push<br/>Custo: VPS + tempo CI]
+
+    Oracle --> NeedDocker{Tem familiaridade<br/>com Docker?}
+    DOTraefik --> NeedDocker
+    Hetzner --> NeedDocker
+    Actions --> RecAct[Use docker-traefik<br/>+ workflow Actions]
+
+    NeedDocker -->|Sim| RecQuick[Use quick-start.sh<br/>Setup em 15min]
+    NeedDocker -->|Nao| RecManual[Siga GUIA passo a passo<br/>Manual mas didatico]
+
+    RecQuick --> Done([App no ar com HTTPS])
+    RecManual --> Done
+    RecAct --> Done
+    DONginx --> Done
