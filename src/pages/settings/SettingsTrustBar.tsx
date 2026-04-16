@@ -231,7 +231,11 @@ const SettingsTrustBar = () => {
       if (!user) throw new Error('Não autenticado');
       // Strip ids before persisting (they're regenerated on load)
       const toSave = items.map(({ id, ...rest }) => rest);
-      await upsertSetting('trust_bar_items', JSON.stringify(toSave), user.id);
+      await Promise.all([
+        upsertSetting('trust_bar_items', JSON.stringify(toSave), user.id),
+        upsertSetting('trust_bar_bg', bgColor, user.id),
+        upsertSetting('trust_bar_speed', String(speed), user.id),
+      ]);
       toast({ title: 'Trust Bar salva!' });
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
