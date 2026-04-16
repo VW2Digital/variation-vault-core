@@ -24,6 +24,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import BannerCarousel from '@/components/BannerCarousel';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { TRUST_BAR_ICONS, DEFAULT_TRUST_BAR, type TrustBarItem } from '@/pages/settings/SettingsTrustBar';
 
 const Catalog = () => {
   const { totalItems, addToCart } = useCart();
@@ -46,6 +47,19 @@ const Catalog = () => {
   const [stockFilter, setStockFilter] = useState('all');
   const [reviewsMap, setReviewsMap] = useState<Record<string, { avg: number; count: number }>>({});
   const [interestTable, setInterestTable] = useState<Record<number, number>>({});
+  const [trustBarItems, setTrustBarItems] = useState<TrustBarItem[]>(DEFAULT_TRUST_BAR);
+
+  useEffect(() => {
+    fetchSetting('trust_bar_items').then((raw) => {
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) setTrustBarItems(parsed);
+      } catch {
+        // keep defaults
+      }
+    });
+  }, []);
 
   useEffect(() => {
     // Load interest table (still global)
@@ -168,25 +182,23 @@ const Catalog = () => {
             {[...Array(2)].map((_, repeat) => (
               <div key={repeat} className="flex items-center shrink-0">
                 <span className="text-border mx-4 md:mx-8 text-lg">|</span>
-                {[
-                  { icon: ShieldCheck, title: 'QUALIDADE GARANTIDA', desc: 'Controle e qualificação de alto padrão.' },
-                  { icon: CreditCard, title: 'PAGAMENTO FACILITADO', desc: 'Até 3x sem juros no cartão.' },
-                  { icon: Shield, title: 'COMPRA SEGURA', desc: 'Ambiente seguro e certificado.' },
-                  { icon: Truck, title: 'FRETE GRÁTIS', desc: 'Em compras acima de R$299 para todo o Brasil.' },
-                ].map((item, i) => (
-                  <div key={item.title} className="flex items-center shrink-0">
-                    {i > 0 && <span className="text-border mx-4 md:mx-8 text-lg">|</span>}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="bg-card rounded-lg p-2 shrink-0 shadow-sm">
-                        <item.icon className="w-5 h-5 text-primary" />
-                      </div>
-                      <div className="whitespace-nowrap">
-                        <p className="text-xs font-bold text-foreground uppercase leading-tight">{item.title}</p>
-                        <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{item.desc}</p>
+                {trustBarItems.map((item, i) => {
+                  const Icon = TRUST_BAR_ICONS[item.icon] ?? ShieldCheck;
+                  return (
+                    <div key={`${repeat}-${i}-${item.title}`} className="flex items-center shrink-0">
+                      {i > 0 && <span className="text-border mx-4 md:mx-8 text-lg">|</span>}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="bg-card rounded-lg p-2 shrink-0 shadow-sm">
+                          <Icon className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="whitespace-nowrap">
+                          <p className="text-xs font-bold text-foreground uppercase leading-tight">{item.title}</p>
+                          <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{item.desc}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ))}
           </div>

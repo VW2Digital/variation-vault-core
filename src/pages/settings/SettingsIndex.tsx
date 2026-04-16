@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Image, Palette, Type, Code, LayoutDashboard, CreditCard, Truck, MessageSquare, FileText, Settings, Plug, Tags } from 'lucide-react';
+import { Image, Palette, Type, Code, LayoutDashboard, CreditCard, Truck, MessageSquare, FileText, Settings, Plug, Tags, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ChevronRight } from 'lucide-react';
 
@@ -19,6 +19,7 @@ const categories = [
     icon: LayoutDashboard,
     items: [
       { title: 'Banners & Popups', description: 'Gestão de banners e popups promocionais', icon: LayoutDashboard, path: 'pagina-inicial' },
+      { title: 'Trust Bar (Catálogo)', description: 'Edite os itens da barra de destaques (frete, pagamento, segurança)', icon: ShieldCheck, path: 'trust-bar' },
     ],
   },
   {
