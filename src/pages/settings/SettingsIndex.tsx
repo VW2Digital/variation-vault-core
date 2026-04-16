@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Image, Palette, Type, Code, LayoutDashboard, CreditCard, Truck, MessageSquare, FileText, Settings, Plug, Tags, ShieldCheck } from 'lucide-react';
+import { Image, Palette, Type, Code, LayoutDashboard, CreditCard, Truck, MessageSquare, FileText, Settings, Plug, Tags, ShieldCheck, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ChevronRight } from 'lucide-react';
 
@@ -63,6 +63,7 @@ const categories = [
     items: [
       { title: 'Scripts & Widgets', description: 'Widget de chat, scripts customizados e configurações técnicas', icon: Code, path: 'avancado' },
       { title: 'Integração API', description: 'Endpoint e credenciais para CRM e agentes de IA', icon: Plug, path: 'api' },
+      { title: 'Backup & Restauração', description: 'Baixar backup CSV de todas as tabelas e restaurar a partir de arquivo CSV', icon: Database, path: 'backup' },
     ],
   },
 ];
