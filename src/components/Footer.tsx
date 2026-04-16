@@ -51,7 +51,7 @@ const Footer = () => {
           {/* Column 2 - Payment Methods */}
           <div className="space-y-3">
             <h4 className="font-semibold text-primary md:text-foreground">Formas de Pagamento</h4>
-            <img src={paymentMethodsImg} alt="Formas de pagamento: Visa, Mastercard, Maestro, Elo, Alelo, Amex, Banco do Brasil, Hipercard, Diners, Pix" className="w-full object-contain object-left m-[20px]" />
+            <img src={paymentMethodsImg} alt="Formas de pagamento: Visa, Mastercard, Maestro, Elo, Alelo, Amex, Banco do Brasil, Hipercard, Diners, Pix" className="w-full object-contain object-left my-[20px] mr-[20px] ml-0" />
           </div>
 
           {/* Column 3 - Security Seals */}
