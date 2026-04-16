@@ -158,6 +158,47 @@ const SettingsBackup = () => {
         </Button>
       </Card>
 
+      {/* Backup automático semanal */}
+      <Card className="p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-md bg-primary/10">
+            <Mail className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1">
+            <h2 className="font-semibold text-foreground">Backup automático semanal por email</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Toda <strong>segunda-feira às 06:00</strong> (horário de Brasília) o sistema gera o ZIP completo e envia anexado para o email configurado.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="recipient">Email destinatário</Label>
+          <div className="flex gap-2">
+            <Input
+              id="recipient"
+              type="email"
+              value={recipientEmail}
+              onChange={(e) => setRecipientEmail(e.target.value)}
+              placeholder="admin@empresa.com"
+            />
+            <Button onClick={saveRecipient} disabled={savingEmail} variant="outline">
+              {savingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar'}
+            </Button>
+          </div>
+        </div>
+
+        <div className="pt-2 border-t border-border">
+          <Button onClick={sendTestNow} disabled={sendingTest} variant="secondary" className="gap-2">
+            {sendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            {sendingTest ? 'Enviando...' : 'Enviar backup de teste agora'}
+          </Button>
+          <p className="text-xs text-muted-foreground mt-2">
+            Útil para validar a configuração. Pode levar até 30 segundos.
+          </p>
+        </div>
+      </Card>
+
       {/* Upload */}
       <Card className="p-6 space-y-4">
         <div className="flex items-start gap-3">
