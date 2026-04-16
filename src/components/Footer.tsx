@@ -58,8 +58,8 @@ const Footer = () => {
           <div className="space-y-3">
             <h4 className="font-semibold text-primary md:text-foreground">Selos de Segurança</h4>
             <div className="flex flex-row md:flex-col items-start gap-3">
-              <img src={seloSiteProtegido} alt="Compra Segura - Site Protegido - Certificado SSL" className="w-1/2 md:h-10 md:w-auto object-contain object-left" />
-              <img src={seloSafeBrowsing} alt="Safe Browsing Google" className="w-1/2 md:h-10 md:w-auto object-contain object-left" />
+              <img src={seloSiteProtegido} alt="Compra Segura - Site Protegido - Certificado SSL" className="w-3/5 md:h-12 md:w-auto object-contain object-left" />
+              <img src={seloSafeBrowsing} alt="Safe Browsing Google" className="w-3/5 md:h-12 md:w-auto object-contain object-left" />
             </div>
           </div>
 
