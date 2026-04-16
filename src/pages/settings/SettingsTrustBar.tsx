@@ -157,25 +157,37 @@ const SortableItem = ({ item, index, onUpdate, onRemove }: SortableItemProps) =>
   );
 };
 
+export const DEFAULT_TRUST_BAR_BG = 'hsl(var(--secondary) / 0.5)';
+export const DEFAULT_TRUST_BAR_SPEED = 20;
+
 const SettingsTrustBar = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<TrustBarItem[]>(ensureIds(DEFAULT_TRUST_BAR));
+  const [bgColor, setBgColor] = useState<string>(DEFAULT_TRUST_BAR_BG);
+  const [speed, setSpeed] = useState<number>(DEFAULT_TRUST_BAR_SPEED);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
   useEffect(() => {
-    fetchSetting('trust_bar_items').then((raw) => {
-      if (raw) {
+    Promise.all([
+      fetchSetting('trust_bar_items'),
+      fetchSetting('trust_bar_bg'),
+      fetchSetting('trust_bar_speed'),
+    ]).then(([rawItems, rawBg, rawSpeed]) => {
+      if (rawItems) {
         try {
-          const parsed = JSON.parse(raw);
+          const parsed = JSON.parse(rawItems);
           if (Array.isArray(parsed) && parsed.length > 0) setItems(ensureIds(parsed));
-        } catch {
-          // ignore parse error, use defaults
-        }
+        } catch { /* ignore */ }
+      }
+      if (rawBg) setBgColor(rawBg);
+      if (rawSpeed) {
+        const n = Number(rawSpeed);
+        if (!Number.isNaN(n) && n >= 5 && n <= 120) setSpeed(n);
       }
     }).finally(() => setLoading(false));
   }, []);
@@ -219,7 +231,11 @@ const SettingsTrustBar = () => {
       if (!user) throw new Error('Não autenticado');
       // Strip ids before persisting (they're regenerated on load)
       const toSave = items.map(({ id, ...rest }) => rest);
-      await upsertSetting('trust_bar_items', JSON.stringify(toSave), user.id);
+      await Promise.all([
+        upsertSetting('trust_bar_items', JSON.stringify(toSave), user.id),
+        upsertSetting('trust_bar_bg', bgColor, user.id),
+        upsertSetting('trust_bar_speed', String(speed), user.id),
+      ]);
       toast({ title: 'Trust Bar salva!' });
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
@@ -234,6 +250,55 @@ const SettingsTrustBar = () => {
     <div className="space-y-6 w-full">
       <SettingsBackButton title="Trust Bar (Catálogo)" description="Edite os itens da barra de destaques abaixo do banner. Arraste para reordenar." />
 
+      {/* Aparência */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5" /> Aparência
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Cor de fundo</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="color"
+                value={bgColor.startsWith('#') ? bgColor : '#f5f5f5'}
+                onChange={(e) => setBgColor(e.target.value)}
+                className="w-12 h-10 p-1 cursor-pointer shrink-0"
+              />
+              <Input
+                type="text"
+                value={bgColor}
+                onChange={(e) => setBgColor(e.target.value)}
+                placeholder="#f5f5f5 ou hsl(...) ou rgba(...)"
+                className="flex-1"
+              />
+              <Button type="button" variant="outline" size="sm" onClick={() => setBgColor(DEFAULT_TRUST_BAR_BG)}>
+                Padrão
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Aceita hex, rgb/rgba ou hsl. Padrão usa o tom secundário do tema.</p>
+          </div>
+          <div className="space-y-2">
+            <Label>Velocidade da animação: {speed}s por ciclo</Label>
+            <Input
+              type="range"
+              min={5}
+              max={120}
+              step={1}
+              value={speed}
+              onChange={(e) => setSpeed(Number(e.target.value))}
+              className="w-full"
+            />
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Rápido (5s)</span>
+              <span>Lento (120s)</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Live Preview */}
       <Card className="border-border/50">
         <CardHeader>
@@ -242,9 +307,12 @@ const SettingsTrustBar = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="bg-secondary/50 border border-border/30 rounded-lg overflow-hidden">
+          <div className="border border-border/30 rounded-lg overflow-hidden" style={{ background: bgColor }}>
             <div className="py-3">
-              <div className="flex animate-marquee whitespace-nowrap">
+              <div
+                className="flex animate-marquee whitespace-nowrap"
+                style={{ animationDuration: `${speed}s` }}
+              >
                 {[...Array(2)].map((_, repeat) => (
                   <div key={repeat} className="flex items-center shrink-0">
                     <span className="text-border mx-4 md:mx-8 text-lg">|</span>
