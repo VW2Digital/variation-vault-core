@@ -234,6 +234,50 @@ const SettingsTrustBar = () => {
     <div className="space-y-6 w-full">
       <SettingsBackButton title="Trust Bar (Catálogo)" description="Edite os itens da barra de destaques abaixo do banner. Arraste para reordenar." />
 
+      {/* Live Preview */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5" /> Preview ao vivo
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-secondary/50 border border-border/30 rounded-lg overflow-hidden">
+            <div className="py-3">
+              <div className="flex animate-marquee whitespace-nowrap">
+                {[...Array(2)].map((_, repeat) => (
+                  <div key={repeat} className="flex items-center shrink-0">
+                    <span className="text-border mx-4 md:mx-8 text-lg">|</span>
+                    {items.map((item, i) => {
+                      const Icon = TRUST_BAR_ICONS[item.icon] ?? ShieldCheck;
+                      const iconColor = item.color || undefined;
+                      return (
+                        <div key={`${repeat}-${i}-${item.id}`} className="flex items-center shrink-0">
+                          {i > 0 && <span className="text-border mx-4 md:mx-8 text-lg">|</span>}
+                          <div className="flex items-center gap-2 shrink-0">
+                            <div className="bg-card rounded-lg p-2 shrink-0 shadow-sm">
+                              <Icon
+                                className={iconColor ? 'w-5 h-5' : 'w-5 h-5 text-primary'}
+                                style={iconColor ? { color: iconColor } : undefined}
+                              />
+                            </div>
+                            <div className="whitespace-nowrap">
+                              <p className="text-xs font-bold text-foreground uppercase leading-tight">{item.title}</p>
+                              <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{item.desc}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">As alterações aparecem aqui em tempo real. Salve para publicar no catálogo.</p>
+        </CardContent>
+      </Card>
+
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
