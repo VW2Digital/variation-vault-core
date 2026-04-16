@@ -51,15 +51,15 @@ const Footer = () => {
           {/* Column 2 - Payment Methods */}
           <div className="space-y-3">
             <h4 className="font-semibold text-primary md:text-foreground">Formas de Pagamento</h4>
-            <img src={paymentMethodsImg} alt="Formas de pagamento: Visa, Mastercard, Maestro, Elo, Alelo, Amex, Hipercard, Diners, Pix" className="w-full object-contain" />
+            <img src={paymentMethodsImg} alt="Formas de pagamento: Visa, Mastercard, Maestro, Elo, Alelo, Amex, Hipercard, Diners, Pix" className="w-full object-contain object-left" />
           </div>
 
           {/* Column 3 - Security Seals */}
           <div className="space-y-3">
             <h4 className="font-semibold text-primary md:text-foreground">Selos de Segurança</h4>
-            <div className="flex flex-row md:flex-col items-center md:items-start gap-3">
-              <img src={seloSiteProtegido} alt="Compra Segura - Site Protegido - Certificado SSL" className="w-1/2 md:h-10 md:w-auto object-contain" />
-              <img src={seloSafeBrowsing} alt="Safe Browsing Google" className="w-1/2 md:h-10 md:w-auto object-contain" />
+            <div className="flex flex-row md:flex-col items-start gap-3">
+              <img src={seloSiteProtegido} alt="Compra Segura - Site Protegido - Certificado SSL" className="w-1/2 md:h-10 md:w-auto object-contain object-left" />
+              <img src={seloSafeBrowsing} alt="Safe Browsing Google" className="w-1/2 md:h-10 md:w-auto object-contain object-left" />
             </div>
           </div>
 
@@ -67,16 +67,16 @@ const Footer = () => {
           <div className="space-y-3">
             <h4 className="font-semibold text-primary md:text-foreground">Formas de Envio</h4>
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-2 flex items-center justify-center h-12">
+              <div className="p-2 flex items-center justify-start h-12">
                 <img src={logoSedex} alt="SEDEX" className="max-h-10 w-auto object-contain" />
               </div>
-              <div className="p-2 flex items-center justify-center h-12">
+              <div className="p-2 flex items-center justify-start h-12">
                 <img src={logoPac} alt="PAC" className="max-h-10 w-auto object-contain" />
               </div>
-              <div className="p-2 flex items-center justify-center h-12">
+              <div className="p-2 flex items-center justify-start h-12">
                 <img src={logoJadlog} alt="Jadlog" className="max-h-10 w-auto object-contain" />
               </div>
-              <div className="p-2 flex items-center justify-center h-12">
+              <div className="p-2 flex items-center justify-start h-12">
                 <img src={logoJtExpress} alt="J&T Express" className="max-h-10 w-auto object-contain" />
               </div>
             </div>
