@@ -157,25 +157,37 @@ const SortableItem = ({ item, index, onUpdate, onRemove }: SortableItemProps) =>
   );
 };
 
+export const DEFAULT_TRUST_BAR_BG = 'hsl(var(--secondary) / 0.5)';
+export const DEFAULT_TRUST_BAR_SPEED = 20;
+
 const SettingsTrustBar = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<TrustBarItem[]>(ensureIds(DEFAULT_TRUST_BAR));
+  const [bgColor, setBgColor] = useState<string>(DEFAULT_TRUST_BAR_BG);
+  const [speed, setSpeed] = useState<number>(DEFAULT_TRUST_BAR_SPEED);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
   useEffect(() => {
-    fetchSetting('trust_bar_items').then((raw) => {
-      if (raw) {
+    Promise.all([
+      fetchSetting('trust_bar_items'),
+      fetchSetting('trust_bar_bg'),
+      fetchSetting('trust_bar_speed'),
+    ]).then(([rawItems, rawBg, rawSpeed]) => {
+      if (rawItems) {
         try {
-          const parsed = JSON.parse(raw);
+          const parsed = JSON.parse(rawItems);
           if (Array.isArray(parsed) && parsed.length > 0) setItems(ensureIds(parsed));
-        } catch {
-          // ignore parse error, use defaults
-        }
+        } catch { /* ignore */ }
+      }
+      if (rawBg) setBgColor(rawBg);
+      if (rawSpeed) {
+        const n = Number(rawSpeed);
+        if (!Number.isNaN(n) && n >= 5 && n <= 120) setSpeed(n);
       }
     }).finally(() => setLoading(false));
   }, []);
