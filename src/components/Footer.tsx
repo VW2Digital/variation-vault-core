@@ -66,15 +66,7 @@ const Footer = () => {
           {/* Column 4 - Shipping Methods */}
           <div className="space-y-3">
             <h4 className="font-semibold text-primary md:text-foreground">Formas de Envio</h4>
-            {/* Mobile: inline logos */}
-            <div className="grid md:hidden grid-cols-2 gap-3">
-              <img src={logoSedex} alt="SEDEX" className="w-full object-contain object-left" />
-              <img src={logoPac} alt="PAC" className="w-full object-contain object-left" />
-              <img src={logoJadlog} alt="Jadlog" className="w-4/5 object-contain object-left" />
-              <img src={logoJtExpress} alt="J&T Express" className="w-4/5 object-contain object-left" />
-            </div>
-            {/* Desktop: card grid */}
-            <div className="hidden md:grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="p-2 flex items-center justify-center h-12">
                 <img src={logoSedex} alt="SEDEX" className="max-h-10 w-auto object-contain" />
               </div>
