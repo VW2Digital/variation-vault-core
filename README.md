@@ -1,73 +1,74 @@
-# Welcome to your Lovable project
+# Liberty Pharma — Loja
 
-## Project info
+Projeto construído na [Lovable](https://lovable.dev) com Lovable Cloud (backend integrado: banco de dados, autenticação, edge functions, storage).
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+**URL do projeto:** https://lovable.dev/projects/f0da6aa7-7048-4961-8fae-083c63d7beea
+**Loja publicada:** https://store.pharmaliberty.com
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## Como editar o código
 
-**Use Lovable**
+Existem 4 caminhos. Escolha o que fizer mais sentido pra você.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### 1. Editar pela Lovable (recomendado)
 
-Changes made via Lovable will be committed automatically to this repo.
+Abra o [projeto na Lovable](https://lovable.dev/projects/f0da6aa7-7048-4961-8fae-083c63d7beea) e converse com a IA. Toda alteração é commitada automaticamente no GitHub (se conectado).
 
-**Use your preferred IDE**
+### 2. Editar localmente no seu computador
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+**Pré-requisitos:** [Node.js](https://nodejs.org) (recomendado instalar via [nvm](https://github.com/nvm-sh/nvm#installing-and-updating)) e Git.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+**Passo a passo:**
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# 1. Conecte o projeto ao GitHub primeiro:
+#    Lovable → Connectors (na sidebar) → GitHub → Connect project
+#    Isso cria um repositório no seu GitHub com o código atual.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# 2. Copie a URL do repositório criado (ex: https://github.com/seu-usuario/liberty-pharma.git)
 
-# Step 3: Install the necessary dependencies.
-npm i
+# 3. Clone na sua máquina:
+git clone https://github.com/SEU-USUARIO/SEU-REPO.git
+cd SEU-REPO
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# 4. Instale as dependências:
+npm install
+
+# 5. Rode o servidor local com hot reload:
 npm run dev
+# → abre em http://localhost:8080
 ```
 
-**Edit a file directly in GitHub**
+**Sincronização bidirecional:** mudanças que você faz local + push pro GitHub aparecem na Lovable automaticamente. Mudanças feitas na Lovable são commitadas no GitHub automaticamente.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+> ⚠️ **Não edite estes arquivos manualmente** — a Lovable os regenera:
+> - `src/integrations/supabase/client.ts`
+> - `src/integrations/supabase/types.ts`
+> - `.env`
 
-**Use GitHub Codespaces**
+### 3. Editar direto no GitHub
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Navegue até o arquivo no repositório → ícone de lápis (Edit) → faça a mudança → Commit. A Lovable sincroniza em segundos.
 
-## What technologies are used for this project?
+### 4. GitHub Codespaces
 
-This project is built with:
+No repositório: botão verde **Code** → aba **Codespaces** → **New codespace**. Edita no navegador, commita, e a Lovable sincroniza.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+---
 
-## How can I deploy this project?
+## Stack técnica
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+- **Frontend:** Vite + React 18 + TypeScript + Tailwind CSS + shadcn/ui
+- **Backend:** Lovable Cloud (Supabase: Postgres com RLS, Auth, Edge Functions, Storage)
+- **Pagamentos:** Asaas, Mercado Pago, PagBank (factory pattern)
+- **Logística:** Melhor Envio
+- **Comunicação:** Resend (email), Evolution API (WhatsApp)
 
-## Can I connect a custom domain to my Lovable project?
+## Publicar mudanças
 
-Yes, you can!
+Na Lovable: botão **Publish** (canto superior direito). Mudanças de frontend exigem clicar em **Update**; mudanças de backend (edge functions, migrations) entram no ar automaticamente.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Domínio customizado
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Lovable → Project Settings → Domains → Connect Domain. Documentação: https://docs.lovable.dev/features/custom-domain
