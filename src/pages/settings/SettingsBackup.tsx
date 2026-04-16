@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Download, Upload, Database, AlertTriangle, Loader2, CheckCircle2 } from 'lucide-react';
+import { Download, Upload, Database, AlertTriangle, Loader2, CheckCircle2, Mail, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -25,6 +26,51 @@ const SettingsBackup = () => {
   const [importMode, setImportMode] = useState<'insert' | 'upsert'>('upsert');
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [lastResult, setLastResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [recipientEmail, setRecipientEmail] = useState('libertyluminaepharma@gmail.com');
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'backup_recipient_email')
+        .maybeSingle();
+      if (data?.value) setRecipientEmail(data.value);
+    })();
+  }, []);
+
+  const saveRecipient = async () => {
+    setSavingEmail(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Não autenticado');
+      const { error } = await supabase
+        .from('site_settings')
+        .upsert({ key: 'backup_recipient_email', value: recipientEmail, user_id: user.id }, { onConflict: 'key' });
+      if (error) throw error;
+      toast({ title: 'Email salvo', description: 'O destinatário do backup foi atualizado.' });
+    } catch (err) {
+      toast({ title: 'Erro', description: String(err), variant: 'destructive' });
+    } finally {
+      setSavingEmail(false);
+    }
+  };
+
+  const sendTestNow = async () => {
+    setSendingTest(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('backup-weekly-email', { body: {} });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Falha desconhecida');
+      toast({ title: 'Backup enviado', description: `${data.filename} (${data.sizeMB}MB) enviado para ${data.recipient}` });
+    } catch (err) {
+      toast({ title: 'Erro ao enviar', description: String(err), variant: 'destructive' });
+    } finally {
+      setSendingTest(false);
+    }
+  };
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -110,6 +156,47 @@ const SettingsBackup = () => {
           {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
           {downloading ? 'Gerando backup...' : 'Baixar backup ZIP'}
         </Button>
+      </Card>
+
+      {/* Backup automático semanal */}
+      <Card className="p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-md bg-primary/10">
+            <Mail className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1">
+            <h2 className="font-semibold text-foreground">Backup automático semanal por email</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Toda <strong>segunda-feira às 06:00</strong> (horário de Brasília) o sistema gera o ZIP completo e envia anexado para o email configurado.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="recipient">Email destinatário</Label>
+          <div className="flex gap-2">
+            <Input
+              id="recipient"
+              type="email"
+              value={recipientEmail}
+              onChange={(e) => setRecipientEmail(e.target.value)}
+              placeholder="admin@empresa.com"
+            />
+            <Button onClick={saveRecipient} disabled={savingEmail} variant="outline">
+              {savingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar'}
+            </Button>
+          </div>
+        </div>
+
+        <div className="pt-2 border-t border-border">
+          <Button onClick={sendTestNow} disabled={sendingTest} variant="secondary" className="gap-2">
+            {sendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            {sendingTest ? 'Enviando...' : 'Enviar backup de teste agora'}
+          </Button>
+          <p className="text-xs text-muted-foreground mt-2">
+            Útil para validar a configuração. Pode levar até 30 segundos.
+          </p>
+        </div>
       </Card>
 
       {/* Upload */}
