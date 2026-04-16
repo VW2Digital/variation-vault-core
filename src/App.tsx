@@ -57,6 +57,7 @@ import ChatWidgetEmbed from "./components/ChatWidgetEmbed";
 import MercadoPagoSecurity from "./components/MercadoPagoSecurity";
 import HeadScriptInjector from "./components/HeadScriptInjector";
 import MobileBottomNav from "./components/MobileBottomNav";
+import LanguageDetectionBanner from "./components/LanguageDetectionBanner";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <SessionGuard />
+        <LanguageDetectionBanner />
         <HeadScriptInjector />
         <PromoPopup />
         <ChatWidgetEmbed />
