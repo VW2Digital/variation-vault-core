@@ -61,6 +61,7 @@ const OrderDetailPage = () => {
   const [shippingLogs, setShippingLogs] = useState<any[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
+  const [logsCount, setLogsCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -75,7 +76,15 @@ const OrderDetailPage = () => {
       setOrder(data);
       setLoading(false);
     };
+    const fetchLogsCount = async () => {
+      const { count } = await supabase
+        .from('shipping_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('order_id', id);
+      setLogsCount(count ?? 0);
+    };
     fetchOrder();
+    fetchLogsCount();
   }, [id]);
 
   const fetchShippingLogs = async () => {
