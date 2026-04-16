@@ -1,5 +1,4 @@
-import { languages } from '@/contexts/LanguageContext';
-import { useLanguage } from '@/hooks/useLanguage';
+import { useLanguage, languages } from '@/contexts/LanguageContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
