@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 
 export type Language = 'pt' | 'es' | 'en' | 'zh';
 
@@ -188,6 +188,45 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     setLangState(l);
     localStorage.setItem('language', l);
   }, []);
+
+  // Sync <html lang> + hreflang tags for SEO
+  useEffect(() => {
+    const htmlLangMap: Record<Language, string> = {
+      pt: 'pt-BR',
+      es: 'es',
+      en: 'en',
+      zh: 'zh-CN',
+    };
+    document.documentElement.lang = htmlLangMap[lang];
+
+    const head = document.head;
+    // Remove old hreflang/canonical-alternate tags managed by us
+    head.querySelectorAll('link[data-i18n="hreflang"]').forEach((el) => el.remove());
+
+    const baseUrl = `${window.location.origin}${window.location.pathname}`;
+    const alternates: Array<{ hreflang: string; lang: Language }> = [
+      { hreflang: 'pt-BR', lang: 'pt' },
+      { hreflang: 'es', lang: 'es' },
+      { hreflang: 'en', lang: 'en' },
+      { hreflang: 'zh-CN', lang: 'zh' },
+    ];
+
+    alternates.forEach(({ hreflang, lang: l }) => {
+      const link = document.createElement('link');
+      link.rel = 'alternate';
+      link.hreflang = hreflang;
+      link.href = `${baseUrl}?lang=${l}`;
+      link.setAttribute('data-i18n', 'hreflang');
+      head.appendChild(link);
+    });
+
+    const xDefault = document.createElement('link');
+    xDefault.rel = 'alternate';
+    xDefault.hreflang = 'x-default';
+    xDefault.href = baseUrl;
+    xDefault.setAttribute('data-i18n', 'hreflang');
+    head.appendChild(xDefault);
+  }, [lang]);
 
   const t = useCallback((key: TranslationKey): string => {
     return translations[key]?.[lang] || key;
