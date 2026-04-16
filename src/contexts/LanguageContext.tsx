@@ -10,10 +10,10 @@ interface LanguageInfo {
 }
 
 export const languages: LanguageInfo[] = [
-  { code: 'pt', flag: '🇧🇷', short: 'BR', label: 'Português' },
-  { code: 'es', flag: '🇪🇸', short: 'ES', label: 'Español' },
-  { code: 'en', flag: '🇺🇸', short: 'US', label: 'English' },
-  { code: 'zh', flag: '🇨🇳', short: 'CN', label: '中文' },
+  { code: 'pt', flag: 'br', short: 'BR', label: 'Português' },
+  { code: 'es', flag: 'es', short: 'ES', label: 'Español' },
+  { code: 'en', flag: 'us', short: 'US', label: 'English' },
+  { code: 'zh', flag: 'cn', short: 'CN', label: '中文' },
 ];
 
 const translations = {
