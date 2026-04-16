@@ -24,7 +24,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import BannerCarousel from '@/components/BannerCarousel';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { TRUST_BAR_ICONS, DEFAULT_TRUST_BAR, type TrustBarItem } from '@/pages/settings/SettingsTrustBar';
+import { TRUST_BAR_ICONS, DEFAULT_TRUST_BAR, DEFAULT_TRUST_BAR_BG, DEFAULT_TRUST_BAR_SPEED, type TrustBarItem } from '@/pages/settings/SettingsTrustBar';
 
 const Catalog = () => {
   const { totalItems, addToCart } = useCart();
@@ -48,6 +48,8 @@ const Catalog = () => {
   const [reviewsMap, setReviewsMap] = useState<Record<string, { avg: number; count: number }>>({});
   const [interestTable, setInterestTable] = useState<Record<number, number>>({});
   const [trustBarItems, setTrustBarItems] = useState<TrustBarItem[]>(DEFAULT_TRUST_BAR);
+  const [trustBarBg, setTrustBarBg] = useState<string>(DEFAULT_TRUST_BAR_BG);
+  const [trustBarSpeed, setTrustBarSpeed] = useState<number>(DEFAULT_TRUST_BAR_SPEED);
 
   useEffect(() => {
     fetchSetting('trust_bar_items').then((raw) => {
@@ -58,6 +60,12 @@ const Catalog = () => {
       } catch {
         // keep defaults
       }
+    });
+    fetchSetting('trust_bar_bg').then((raw) => { if (raw) setTrustBarBg(raw); });
+    fetchSetting('trust_bar_speed').then((raw) => {
+      if (!raw) return;
+      const n = Number(raw);
+      if (!Number.isNaN(n) && n >= 5 && n <= 120) setTrustBarSpeed(n);
     });
   }, []);
 
@@ -176,9 +184,9 @@ const Catalog = () => {
       <BannerCarousel />
 
       {/* Trust Bar - Marquee */}
-      <div className="bg-secondary/50 border-b border-border/30 overflow-hidden">
+      <div className="border-b border-border/30 overflow-hidden" style={{ background: trustBarBg }}>
         <div className="py-3">
-          <div className="flex animate-marquee whitespace-nowrap">
+          <div className="flex animate-marquee whitespace-nowrap" style={{ animationDuration: `${trustBarSpeed}s` }}>
             {[...Array(2)].map((_, repeat) => (
               <div key={repeat} className="flex items-center shrink-0">
                 <span className="text-border mx-4 md:mx-8 text-lg">|</span>
