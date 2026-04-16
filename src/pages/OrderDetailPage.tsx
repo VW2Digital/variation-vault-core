@@ -61,6 +61,7 @@ const OrderDetailPage = () => {
   const [shippingLogs, setShippingLogs] = useState<any[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
+  const [logsCount, setLogsCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -75,7 +76,15 @@ const OrderDetailPage = () => {
       setOrder(data);
       setLoading(false);
     };
+    const fetchLogsCount = async () => {
+      const { count } = await supabase
+        .from('shipping_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('order_id', id);
+      setLogsCount(count ?? 0);
+    };
     fetchOrder();
+    fetchLogsCount();
   }, [id]);
 
   const fetchShippingLogs = async () => {
@@ -215,6 +224,14 @@ const OrderDetailPage = () => {
               <span className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 Historico Tecnico do Frete
+                {logsCount !== null && (
+                  <Badge
+                    variant={logsCount > 0 ? 'default' : 'secondary'}
+                    className={`ml-1 h-5 min-w-5 px-1.5 justify-center ${logsCount === 0 ? 'bg-muted text-muted-foreground hover:bg-muted' : ''}`}
+                  >
+                    {logsCount}
+                  </Badge>
+                )}
               </span>
               {showLogs ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
