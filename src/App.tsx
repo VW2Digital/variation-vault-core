@@ -79,6 +79,7 @@ const App = () => (
         <MercadoPagoSecurity />
         <Routes>
           <Route path="/" element={<Catalog />} />
+          <Route path="/test" element={<div>Test Page - App is running!</div>} />
           <Route path="/catalogo" element={<Catalog />} />
           <Route path="/produto/:id" element={<ProductCheckout />} />
           <Route path="/checkout/:id" element={<Checkout />} />
