@@ -113,6 +113,7 @@ const Header = () => {
 
             {/* Right Actions */}
             <div className="flex items-center gap-5 shrink-0">
+              <LanguageSwitcher />
               {/* Central de Atendimento */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -235,6 +236,7 @@ const Header = () => {
             </Link>
 
             <div className="flex items-center gap-1">
+              <LanguageSwitcher />
               <Link to="/carrinho" className="relative p-2 text-foreground rounded-lg hover:bg-muted/50 transition-colors">
                 <ShoppingCart className="w-5 h-5" />
                 {totalItems > 0 && (
