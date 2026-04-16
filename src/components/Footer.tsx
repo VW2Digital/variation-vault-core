@@ -38,8 +38,11 @@ const Footer = () => {
           {/* Column 1 - Company Info (hidden on mobile) */}
           <div className="hidden md:block space-y-3">
             <img src={logoImg} alt="Liberty Pharma" className="h-12 object-contain" />
-            <div className="text-sm text-muted-foreground leading-relaxed">
+            <div className="text-sm text-muted-foreground leading-relaxed space-y-2">
               {footerText && <p>{footerText}</p>}
+              <p>
+                Nossa missão é democratizar o acesso a insumos de última geração que auxiliam no controle metabólico, no manejo do diabetes tipo 2 e na perda de peso, oferecendo soluções avançadas com eficácia comprovada e qualidade farmacêutica para todos.
+              </p>
               {footerEmail && <p>E-mail: {footerEmail}</p>}
               {footerPhone && <p>Tel: {footerPhone}</p>}
             </div>
