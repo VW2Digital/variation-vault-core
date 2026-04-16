@@ -35,8 +35,8 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-4 py-10">
         {/* Main grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
-          {/* Column 1 - Company Info (hidden on mobile) */}
-          <div className="hidden md:block space-y-3">
+          {/* Column 1 - Company Info */}
+          <div className="space-y-3">
             <img src={logoImg} alt="Liberty Pharma" className="h-12 object-contain" />
             <div className="text-sm text-muted-foreground leading-relaxed space-y-2">
               {footerText && <p>{footerText}</p>}
