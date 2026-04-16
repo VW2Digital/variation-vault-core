@@ -57,7 +57,7 @@ const Footer = () => {
           {/* Column 3 - Security Seals */}
           <div className="space-y-3">
             <h4 className="font-semibold text-primary md:text-foreground">Selos de Segurança</h4>
-            <div className="flex flex-col items-start gap-3">
+            <div className="grid grid-cols-2 items-center gap-3">
               <img src={seloSiteProtegido} alt="Compra Segura - Site Protegido - Certificado SSL" className="h-12 w-auto max-w-full object-contain object-left" />
               <img src={seloSafeBrowsing} alt="Safe Browsing Google" className="h-12 w-auto max-w-full object-contain object-left" />
             </div>
