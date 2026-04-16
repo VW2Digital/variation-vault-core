@@ -183,7 +183,6 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     try { localStorage.setItem('language', detected); } catch { /* ignore */ }
     return detected;
   });
-  });
 
   const setLang = useCallback((l: Language) => {
     setLangState(l);
