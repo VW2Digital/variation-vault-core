@@ -155,7 +155,7 @@ interface LanguageContextType {
   t: (key: TranslationKey) => string;
 }
 
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+export const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 const SUPPORTED: Language[] = ['pt', 'es', 'en', 'zh'];
 
