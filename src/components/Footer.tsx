@@ -79,7 +79,7 @@ const Footer = () => {
                 <img src={logoPac} alt="PAC" className="h-6 object-contain" />
               </div>
               <div className="bg-card border border-border/50 rounded-lg p-2 flex items-center justify-center h-12">
-                <img src={logoJadlog} alt="Jadlog" className="h-9 object-contain" />
+                <img src={logoJadlog} alt="Jadlog" className="max-h-10 w-auto object-contain" />
               </div>
               <div className="bg-card border border-border/50 rounded-lg p-2 flex items-center justify-center h-12">
                 <img src={logoJtExpress} alt="J&T Express" className="h-9 object-contain" />
