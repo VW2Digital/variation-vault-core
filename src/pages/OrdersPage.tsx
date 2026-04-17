@@ -158,13 +158,9 @@ const OrdersPage = () => {
 
   useEffect(() => {
     fetchOrders();
-    const channel = supabase
-      .channel('orders-realtime')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, () => {
-        fetchOrders();
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // Polling a cada 10s (substitui Supabase Realtime pra rodar em VPS enxuta)
+    const pollInterval = setInterval(() => { fetchOrders(); }, 10000);
+    return () => { clearInterval(pollInterval); };
   }, []);
 
   const openViewOrder = (order: any) => {
