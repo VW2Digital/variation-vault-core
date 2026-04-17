@@ -82,6 +82,16 @@ echo ""
 # ---------- 1. Coleta de credenciais Supabase ----------
 log "[1/7] Configuração do Supabase Cloud"
 echo ""
+
+# Detecta TTY disponível (necessário quando rodando via `curl | bash`)
+if [[ -t 0 ]]; then
+  TTY_IN=/dev/stdin
+elif [[ -r /dev/tty ]]; then
+  TTY_IN=/dev/tty
+else
+  TTY_IN=""
+fi
+
 if [[ -z "${SUPABASE_URL:-}" ]]; then
   cat <<'INFO'
   Antes de continuar, você precisa de um projeto Supabase pronto:
@@ -95,19 +105,48 @@ if [[ -z "${SUPABASE_URL:-}" ]]; then
          - Project Reference    (abc — parte antes de .supabase.co)
 
 INFO
-  read -rp "  Project URL (https://xxx.supabase.co): " SUPABASE_URL
-  read -rp "  anon key (eyJ...): " SUPABASE_ANON_KEY
-  read -rp "  Project Reference (xxx): " SUPABASE_PROJECT_ID
+  if [[ -z "$TTY_IN" ]]; then
+    err "Sem terminal interativo disponível."
+    err "Rode novamente baixando o script primeiro:"
+    err "  curl -fsSL https://raw.githubusercontent.com/VW2Digital/variation-vault-core/main/deploy-vps/install.sh -o /tmp/install.sh"
+    err "  sudo bash /tmp/install.sh"
+    err "Ou passe as variáveis via ambiente:"
+    err "  SUPABASE_URL=... SUPABASE_ANON_KEY=... SUPABASE_PROJECT_ID=... sudo -E bash /tmp/install.sh"
+    exit 1
+  fi
+  read -rp "  Project URL (https://xxx.supabase.co): " SUPABASE_URL < "$TTY_IN"
+  read -rp "  anon key (eyJ...): " SUPABASE_ANON_KEY < "$TTY_IN"
+  read -rp "  Project Reference (xxx — opcional, deduzido da URL): " SUPABASE_PROJECT_ID < "$TTY_IN"
 fi
 
-# Validação básica
-if [[ ! "$SUPABASE_URL" =~ ^https://.+\.supabase\.co$ ]] && [[ ! "$SUPABASE_URL" =~ ^https?:// ]]; then
-  err "URL inválida: $SUPABASE_URL"; exit 1
+# Limpa espaços/quebras
+SUPABASE_URL="$(echo -n "$SUPABASE_URL" | tr -d '[:space:]')"
+SUPABASE_ANON_KEY="$(echo -n "$SUPABASE_ANON_KEY" | tr -d '[:space:]')"
+SUPABASE_PROJECT_ID="$(echo -n "${SUPABASE_PROJECT_ID:-}" | tr -d '[:space:]')"
+
+# Aceita URL sem https:// (adiciona) e sem .supabase.co (adiciona)
+if [[ -n "$SUPABASE_URL" && ! "$SUPABASE_URL" =~ ^https?:// ]]; then
+  if [[ "$SUPABASE_URL" =~ \.supabase\.co$ ]]; then
+    SUPABASE_URL="https://$SUPABASE_URL"
+  else
+    SUPABASE_URL="https://${SUPABASE_URL}.supabase.co"
+  fi
+fi
+
+# Validação
+if [[ -z "$SUPABASE_URL" ]]; then
+  err "URL do Supabase vazia. Cole a Project URL completa (https://xxx.supabase.co)"; exit 1
+fi
+if [[ ! "$SUPABASE_URL" =~ ^https?://[a-zA-Z0-9.-]+\.supabase\.co$ ]]; then
+  err "URL inválida: '$SUPABASE_URL' — esperado formato https://xxx.supabase.co"; exit 1
+fi
+if [[ -z "$SUPABASE_ANON_KEY" ]]; then
+  err "anon key vazia. Copie a chave 'anon / public' de Project Settings → API"; exit 1
 fi
 if [[ ${#SUPABASE_ANON_KEY} -lt 100 ]]; then
-  err "anon key parece curta demais (esperado JWT >100 caracteres)"; exit 1
+  err "anon key parece curta demais (${#SUPABASE_ANON_KEY} chars; esperado JWT >100)"; exit 1
 fi
-if [[ -z "${SUPABASE_PROJECT_ID:-}" ]]; then
+if [[ -z "$SUPABASE_PROJECT_ID" ]]; then
   SUPABASE_PROJECT_ID=$(echo "$SUPABASE_URL" | sed -E 's|https?://([^.]+)\.supabase\.co|\1|')
 fi
 ok "Supabase configurado: $SUPABASE_URL (ref: $SUPABASE_PROJECT_ID)"
