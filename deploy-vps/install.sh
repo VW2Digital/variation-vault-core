@@ -15,6 +15,8 @@ ok()   { echo -e "${GREEN}[ OK ]${NC} $*"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 err()  { echo -e "${RED}[ERR ]${NC} $*" >&2; }
 
+source /etc/os-release
+
 REPO_URL="${REPO_URL:-https://github.com/VW2Digital/variation-vault-core.git}"
 APP_DIR="${APP_DIR:-/opt/liberty-pharma}"
 BRANCH="${BRANCH:-main}"
@@ -23,6 +25,80 @@ COMPOSE_VERSION="v2.29.7"
 SUPABASE_URL_DEFAULT="https://vkomfiplmhpkhfpidrng.supabase.co"
 SUPABASE_KEY_DEFAULT="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrb21maXBsbWhwa2hmcGlkcm5nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxNDE0NzMsImV4cCI6MjA4NzcxNzQ3M30.kvxMTwPuOjZR6D8P8AM3LOBOd9U-mym-mCRjp5eMoKE"
 SUPABASE_PROJECT_ID_DEFAULT="vkomfiplmhpkhfpidrng"
+
+configure_apt_retries() {
+  cat >/etc/apt/apt.conf.d/80-liberty-retries <<'EOF'
+Acquire::Retries "5";
+Acquire::http::Timeout "30";
+Acquire::https::Timeout "30";
+Acquire::ForceIPv4 "true";
+APT::Get::Assume-Yes "true";
+Dpkg::Use-Pty "0";
+EOF
+}
+
+rewrite_sources_to_https() {
+  local file
+  for file in /etc/apt/sources.list /etc/apt/sources.list.d/*.list; do
+    [[ -f "$file" ]] || continue
+    sed -i \
+      -e 's|http://archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' \
+      -e 's|http://security.ubuntu.com/ubuntu|https://security.ubuntu.com/ubuntu|g' \
+      -e 's|http://ports.ubuntu.com/ubuntu-ports|https://ports.ubuntu.com/ubuntu-ports|g' \
+      "$file"
+  done
+}
+
+rewrite_sources_to_old_releases() {
+  local file
+  for file in /etc/apt/sources.list /etc/apt/sources.list.d/*.list; do
+    [[ -f "$file" ]] || continue
+    sed -i \
+      -e 's|https\?://archive.ubuntu.com/ubuntu|http://old-releases.ubuntu.com/ubuntu|g' \
+      -e 's|https\?://security.ubuntu.com/ubuntu|http://old-releases.ubuntu.com/ubuntu|g' \
+      -e 's|https\?://ports.ubuntu.com/ubuntu-ports|http://old-releases.ubuntu.com/ubuntu|g' \
+      "$file"
+  done
+}
+
+apt_update_resilient() {
+  apt-get clean
+
+  if apt-get update -qq; then
+    return 0
+  fi
+
+  warn "Falha no apt update. Tentando trocar os mirrors para HTTPS..."
+  rewrite_sources_to_https
+  apt-get clean
+  if apt-get update -qq; then
+    ok "Apt voltou a responder com mirrors HTTPS"
+    return 0
+  fi
+
+  if [[ "${VERSION_ID:-}" == "20.04" || "${VERSION_ID:-}" == "18.04" || "${VERSION_ID:-}" == "16.04" ]]; then
+    warn "Ubuntu ${VERSION_ID} detectado. Tentando old-releases..."
+    rewrite_sources_to_old_releases
+    apt-get clean
+    if apt-get update -qq; then
+      ok "Apt voltou a responder com old-releases"
+      return 0
+    fi
+  fi
+
+  err "Não foi possível atualizar os pacotes APT nesta VPS"
+  exit 1
+}
+
+apt_install_resilient() {
+  if apt-get install -y -qq --no-install-recommends "$@" >/dev/null; then
+    return 0
+  fi
+
+  warn "Falha ao instalar: $*. Recarregando índices e tentando novamente..."
+  apt_update_resilient
+  apt-get install -y -qq --fix-missing --no-install-recommends "$@" >/dev/null
+}
 
 if [[ $EUID -ne 0 ]]; then
   err "Rode como root: sudo bash install.sh"
@@ -45,8 +121,9 @@ ok "Limpeza concluída"
 
 # ---------- 2. Atualizar sistema ----------
 log "[2/7] Atualizando pacotes essenciais..."
-apt-get update -qq
-apt-get install -y -qq curl git ufw ca-certificates wget >/dev/null
+configure_apt_retries
+apt_update_resilient
+apt_install_resilient curl git ufw ca-certificates wget
 ok "Sistema atualizado"
 
 # ---------- 3. Swap (se RAM < 2GB) ----------
@@ -66,7 +143,7 @@ fi
 
 # ---------- 4. Docker (apt do Ubuntu) + Compose v2 (plugin) ----------
 log "[4/7] Instalando Docker e Compose v2..."
-apt-get install -y -qq docker.io >/dev/null
+apt_install_resilient pigz docker.io
 systemctl enable --now docker >/dev/null
 
 mkdir -p /usr/local/lib/docker/cli-plugins
