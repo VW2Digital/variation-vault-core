@@ -411,6 +411,23 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- -----------------------------------------------------------------------------
+-- PERFORMANCE INDEXES
+-- -----------------------------------------------------------------------------
+CREATE INDEX IF NOT EXISTS idx_orders_customer_email      ON public.orders (customer_email);
+CREATE INDEX IF NOT EXISTS idx_orders_customer_user_id    ON public.orders (customer_user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status              ON public.orders (status);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at          ON public.orders (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_addresses_user_id          ON public.addresses (user_id);
+CREATE INDEX IF NOT EXISTS idx_products_user_id           ON public.products (user_id);
+CREATE INDEX IF NOT EXISTS idx_product_variations_product_id ON public.product_variations (product_id);
+CREATE INDEX IF NOT EXISTS idx_cart_items_user_id         ON public.cart_items (user_id);
+CREATE INDEX IF NOT EXISTS idx_support_messages_ticket_id ON public.support_messages (ticket_id);
+CREATE INDEX IF NOT EXISTS idx_shipping_logs_order_id     ON public.shipping_logs (order_id);
+CREATE INDEX IF NOT EXISTS idx_payment_logs_order_id      ON public.payment_logs (order_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_user_id            ON public.reviews (user_id);
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_id         ON public.user_roles (user_id);
+
+-- -----------------------------------------------------------------------------
 -- ROW LEVEL SECURITY
 -- -----------------------------------------------------------------------------
 ALTER TABLE public.addresses ENABLE ROW LEVEL SECURITY;
