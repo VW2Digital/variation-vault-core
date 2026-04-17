@@ -128,14 +128,16 @@ const CustomerDashboard = () => {
     });
     checkAuth();
 
-    // Polling a cada 10s (substitui Supabase Realtime pra rodar em VPS enxuta)
-    const pollInterval = setInterval(() => {
-      if (userEmail) fetchOrders(userEmail);
-    }, 10000);
+    const channel = supabase
+      .channel('customer-orders-realtime')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, () => {
+        if (userEmail) fetchOrders(userEmail);
+      })
+      .subscribe();
 
     return () => {
       subscription.unsubscribe();
-      clearInterval(pollInterval);
+      supabase.removeChannel(channel);
     };
   }, [navigate]);
 
