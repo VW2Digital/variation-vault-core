@@ -8,8 +8,8 @@ WORKDIR /app
 # Copia manifestos primeiro para cache de dependências
 COPY package*.json bun.lockb* ./
 
-# Instala dependências (usa npm ci se houver lock, senão npm install)
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+# Instala dependências (npm install é mais tolerante a lock desatualizado)
+RUN npm install --no-audit --no-fund
 
 # Copia o restante do código
 COPY . .
