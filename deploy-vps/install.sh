@@ -125,6 +125,7 @@ ok "Sistema atualizado"
 RAM_MB=$(free -m | awk '/^Mem:/{print $2}')
 SWAP_MB=$(free -m | awk '/^Swap:/{print $2}')
 NEEDED_SWAP=2048
+# Modo enxuto (sem Realtime): 4GB de swap dão folga em VPS de 2GB RAM
 [[ "$USE_LOCAL_SUPABASE" == "1" ]] && NEEDED_SWAP=4096
 
 if (( SWAP_MB < NEEDED_SWAP )); then
@@ -143,10 +144,10 @@ else
   ok "[3/$TOTAL_STEPS] Swap suficiente (${SWAP_MB}MB)"
 fi
 
-# Aviso de RAM apertada para Supabase local
-if [[ "$USE_LOCAL_SUPABASE" == "1" ]] && (( RAM_MB < 3500 )); then
-  warn "RAM=${RAM_MB}MB é pouco para Supabase self-hosted (recomendado 4GB+)."
-  warn "Vai funcionar mas pode ficar lento sob carga. Considere upgrade."
+# Aviso de RAM apertada para Supabase local (modo enxuto = sem Realtime, ~1.4GB RAM)
+if [[ "$USE_LOCAL_SUPABASE" == "1" ]] && (( RAM_MB < 1800 )); then
+  warn "RAM=${RAM_MB}MB é pouco mesmo no modo enxuto (mínimo 2GB recomendado)."
+  warn "Vai funcionar com swap mas ficará lento sob carga."
 fi
 
 # ---------- 4. Docker + Compose ----------
@@ -251,7 +252,6 @@ GRANT anon, authenticated, service_role TO authenticator;
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 CREATE SCHEMA IF NOT EXISTS auth AUTHORIZATION supabase_auth_admin;
 CREATE SCHEMA IF NOT EXISTS storage AUTHORIZATION supabase_storage_admin;
-CREATE SCHEMA IF NOT EXISTS realtime;
 SQL
 
   # Kong gateway
@@ -278,13 +278,6 @@ services:
     plugins:
       - { name: cors }
       - { name: key-auth, config: { hide_credentials: true } }
-  - name: realtime-v1
-    url: http://realtime:4000/socket/
-    routes:
-      - { name: realtime-v1-all, strip_path: true, paths: [/realtime/v1/] }
-    plugins:
-      - { name: cors }
-      - { name: key-auth, config: { hide_credentials: false } }
   - name: storage-v1
     url: http://storage:5000/
     routes:
@@ -369,29 +362,6 @@ services:
       PGRST_DB_ANON_ROLE: anon
       PGRST_JWT_SECRET: ${JWT_SECRET}
       PGRST_DB_USE_LEGACY_GUCS: "false"
-    deploy: { resources: { limits: { memory: 256M } } }
-
-  realtime:
-    image: supabase/realtime:v2.30.34
-    depends_on: { db: { condition: service_healthy } }
-    restart: unless-stopped
-    environment:
-      PORT: 4000
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: supabase_admin
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_NAME: ${POSTGRES_DB}
-      DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'
-      DB_ENC_KEY: supabaserealtime
-      API_JWT_SECRET: ${JWT_SECRET}
-      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
-      ERL_AFLAGS: -proto_dist inet_tcp
-      DNS_NODES: "''"
-      RLIMIT_NOFILE: "10000"
-      APP_NAME: realtime
-      SEED_SELF_HOST: "true"
-      RUN_JANITOR: "true"
     deploy: { resources: { limits: { memory: 256M } } }
 
   storage:

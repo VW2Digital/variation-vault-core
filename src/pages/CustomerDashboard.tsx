@@ -128,18 +128,16 @@ const CustomerDashboard = () => {
     });
     checkAuth();
 
-    const channel = supabase
-      .channel('customer-orders-realtime')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, () => {
-        if (userEmail) fetchOrders(userEmail);
-      })
-      .subscribe();
+    // Polling a cada 10s (substitui Supabase Realtime pra rodar em VPS enxuta)
+    const pollInterval = setInterval(() => {
+      if (userEmail) fetchOrders(userEmail);
+    }, 10000);
 
     return () => {
       subscription.unsubscribe();
-      supabase.removeChannel(channel);
+      clearInterval(pollInterval);
     };
-  }, [navigate]);
+  }, [navigate, userEmail]);
 
   const fetchOrders = async (email: string) => {
     setLoading(true);
