@@ -84,13 +84,34 @@ log "[1/7] Configuração do Supabase Cloud"
 echo ""
 
 # Detecta TTY disponível (necessário quando rodando via `curl | bash`)
-if [[ -t 0 ]]; then
-  TTY_IN=/dev/stdin
-elif [[ -r /dev/tty ]]; then
-  TTY_IN=/dev/tty
+if exec 3</dev/tty 2>/dev/null; then
+  TTY_FD=3
+elif [[ -t 0 ]]; then
+  exec 3<&0
+  TTY_FD=3
 else
-  TTY_IN=""
+  TTY_FD=""
 fi
+
+prompt_tty() {
+  local __var_name="$1"
+  local __label="$2"
+  local __value=""
+
+  if [[ -z "$TTY_FD" ]]; then
+    err "Sem terminal interativo disponível."
+    err "Rode novamente baixando o script primeiro:"
+    err "  curl -fsSL https://raw.githubusercontent.com/VW2Digital/variation-vault-core/main/deploy-vps/install.sh -o /tmp/install.sh"
+    err "  sudo bash /tmp/install.sh"
+    err "Ou passe as variáveis via ambiente:"
+    err "  SUPABASE_URL=... SUPABASE_ANON_KEY=... SUPABASE_PROJECT_ID=... sudo -E bash /tmp/install.sh"
+    exit 1
+  fi
+
+  printf "%s" "$__label" > /dev/tty
+  IFS= read -r __value <&3 || true
+  printf -v "$__var_name" '%s' "$__value"
+}
 
 if [[ -z "${SUPABASE_URL:-}" ]]; then
   cat <<'INFO'
@@ -105,24 +126,16 @@ if [[ -z "${SUPABASE_URL:-}" ]]; then
          - Project Reference    (abc — parte antes de .supabase.co)
 
 INFO
-  if [[ -z "$TTY_IN" ]]; then
-    err "Sem terminal interativo disponível."
-    err "Rode novamente baixando o script primeiro:"
-    err "  curl -fsSL https://raw.githubusercontent.com/VW2Digital/variation-vault-core/main/deploy-vps/install.sh -o /tmp/install.sh"
-    err "  sudo bash /tmp/install.sh"
-    err "Ou passe as variáveis via ambiente:"
-    err "  SUPABASE_URL=... SUPABASE_ANON_KEY=... SUPABASE_PROJECT_ID=... sudo -E bash /tmp/install.sh"
-    exit 1
-  fi
-  read -rp "  Project URL (https://xxx.supabase.co): " SUPABASE_URL < "$TTY_IN"
-  read -rp "  anon key (eyJ...): " SUPABASE_ANON_KEY < "$TTY_IN"
-  read -rp "  Project Reference (xxx — opcional, deduzido da URL): " SUPABASE_PROJECT_ID < "$TTY_IN"
+  prompt_tty SUPABASE_URL "  Project URL (https://xxx.supabase.co): "
+  prompt_tty SUPABASE_ANON_KEY "  anon key (eyJ...): "
+  prompt_tty SUPABASE_PROJECT_ID "  Project Reference (xxx — opcional, deduzido da URL): "
 fi
 
 # Limpa espaços/quebras
 SUPABASE_URL="$(echo -n "$SUPABASE_URL" | tr -d '[:space:]')"
 SUPABASE_ANON_KEY="$(echo -n "$SUPABASE_ANON_KEY" | tr -d '[:space:]')"
 SUPABASE_PROJECT_ID="$(echo -n "${SUPABASE_PROJECT_ID:-}" | tr -d '[:space:]')"
+SUPABASE_URL="${SUPABASE_URL%/}"
 
 # Aceita URL sem https:// (adiciona) e sem .supabase.co (adiciona)
 if [[ -n "$SUPABASE_URL" && ! "$SUPABASE_URL" =~ ^https?:// ]]; then
