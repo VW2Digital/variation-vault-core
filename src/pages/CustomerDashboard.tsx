@@ -137,7 +137,7 @@ const CustomerDashboard = () => {
       subscription.unsubscribe();
       clearInterval(pollInterval);
     };
-  }, [navigate, userEmail]);
+  }, [navigate]);
 
   const fetchOrders = async (email: string) => {
     setLoading(true);
