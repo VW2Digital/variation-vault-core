@@ -1,18 +1,19 @@
-# Supabase Self-Hosted na VPS — Modo Enxuto (4GB RAM)
+# Supabase Self-Hosted na VPS — Modo Enxuto (2GB RAM)
 
-Stack PostgreSQL + Auth + Storage + Realtime + Edge Functions + Kong rodando em Docker na **mesma VPS** do site, sem Studio sempre ligado para caber em 4GB.
+Stack PostgreSQL + Auth + Storage + Edge Functions + Kong rodando em Docker na **mesma VPS** do site. **Realtime removido** e substituído por polling de 10s no front (Dashboard cliente e Pedidos admin) — economia de ~256MB RAM.
 
 ## ⚠️ Avisos importantes
 
 - **Você assume responsabilidade total**: backups, atualizações, segurança, SSL.
 - **Banco zerado**: você vai recadastrar produtos/configurações pelo painel admin.
 - **Edge Functions atuais NÃO são copiadas**: webhooks de Asaas/MP/PagBank/Melhor Envio precisam ser reimplantados manualmente neste runtime.
+- **Sem Realtime**: dashboard admin (`/admin/pedidos`) e portal cliente (`/minha-conta`) atualizam a cada 10s via polling. Funciona, só não é instantâneo.
 - **pg_cron**: instalado, mas precisa recriar os jobs (carrinho abandonado, sync rastreio).
 - **Sem SSL inicial**: acesso via `http://IP:8000`. Gateways de pagamento podem rejeitar webhooks sem HTTPS — recomendo configurar Caddy + subdomínio antes de produção.
 
 ## Instalação (1 comando)
 
-Numa **VPS Ubuntu 22.04 limpa, com 4GB+ RAM**:
+Numa **VPS Ubuntu 22.04 limpa, com 2GB+ RAM**:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/VW2Digital/variation-vault-core/main/deploy-vps/supabase/install-supabase.sh | sudo bash
