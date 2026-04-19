@@ -1174,9 +1174,17 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
             <>
               <h3 className="text-lg font-bold text-foreground">PIX Gerado!</h3>
               <p className="text-sm text-muted-foreground">Escaneie o QR Code ou copie o código</p>
-              {paymentResult.pixQrCode.encodedImage && (
+              {paymentResult.pixQrCode.encodedImage ? (
                 <img src={`data:image/png;base64,${paymentResult.pixQrCode.encodedImage}`} alt="QR Code PIX" className="w-48 h-48 mx-auto rounded-lg border border-border" />
-              )}
+              ) : (paymentResult as any)?.pixQrCodeUrl ? (
+                <img src={(paymentResult as any).pixQrCodeUrl} alt="QR Code PIX" className="w-48 h-48 mx-auto rounded-lg border border-border" />
+              ) : paymentResult.pixQrCode.payload ? (
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(paymentResult.pixQrCode.payload)}`}
+                  alt="QR Code PIX"
+                  className="w-48 h-48 mx-auto rounded-lg border border-border"
+                />
+              ) : null}
               {paymentResult.pixQrCode.payload && (
                 <div className="flex items-center gap-2">
                   <Input value={paymentResult.pixQrCode.payload} readOnly className="text-xs" />
