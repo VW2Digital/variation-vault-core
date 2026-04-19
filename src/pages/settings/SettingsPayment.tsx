@@ -79,11 +79,13 @@ const SettingsPayment = () => {
               )}
               <div className="absolute inset-0 flex items-center justify-center p-6">
                 {gw.logo ? (
-                  <img
-                    src={gw.logo}
-                    alt={`Logo ${gw.name}`}
-                    className="max-w-full max-h-full object-contain transition-transform duration-200 group-hover:scale-105"
-                  />
+                  <div className="w-[60%] h-[60%] flex items-center justify-center">
+                    <img
+                      src={gw.logo}
+                      alt={`Logo ${gw.name}`}
+                      className="max-w-full max-h-full object-contain transition-transform duration-200 group-hover:scale-105"
+                    />
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <CreditCard className={`w-10 h-10 ${gw.brandClass}`} />
