@@ -611,7 +611,7 @@ step_done 6
 # ============================================================================
 # [7/12] Docker + Compose
 # ============================================================================
-log "[7/12] Instalando Docker e Compose v2..."
+step_banner 7 "Docker + Compose" "docker.io + plugin Compose v2"
 apt_install_resilient docker.io
 systemctl enable --now docker >/dev/null
 mkdir -p /usr/local/lib/docker/cli-plugins
@@ -619,6 +619,7 @@ curl -fsSL "https://github.com/docker/compose/releases/download/${COMPOSE_VERSIO
   -o /usr/local/lib/docker/cli-plugins/docker-compose
 chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 ok "Docker + Compose instalados"
+step_done 7
 
 # ============================================================================
 # [8/12] Firewall
