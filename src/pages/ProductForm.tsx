@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchProduct, createProduct, updateProduct, uploadFile, fetchSetting } from '@/lib/api';
+import { fetchProduct, createProduct, updateProduct, uploadFile, fetchSetting, fetchProducts, fetchProductUpsells, saveProductUpsells } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard, Sparkles, X } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -76,6 +77,15 @@ const ProductForm = () => {
   const [saving, setSaving] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  const [allProducts, setAllProducts] = useState<{ id: string; name: string }[]>([]);
+  const [selectedUpsellIds, setSelectedUpsellIds] = useState<string[]>([]);
+  const [upsellSearch, setUpsellSearch] = useState('');
+
+  useEffect(() => {
+    fetchProducts().then((data) => {
+      setAllProducts((data || []).map((p: any) => ({ id: p.id, name: p.name })));
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetchSetting('product_categories').then((val) => {
@@ -138,6 +148,9 @@ const ProductForm = () => {
             : [emptyVariation()]
         );
       }).finally(() => setLoadingProduct(false));
+
+      // Load existing upsells
+      fetchProductUpsells(id).then(setSelectedUpsellIds).catch(() => {});
     }
   }, [id]);
 
@@ -209,6 +222,14 @@ const ProductForm = () => {
               await supabase.from('wholesale_prices').delete().eq('variation_id', sv.id);
             }
           }
+        }
+
+        // Save upsell associations
+        try {
+          await saveProductUpsells(productId, selectedUpsellIds);
+        } catch (upsellErr: any) {
+          console.error('Save upsells error:', upsellErr);
+          toast({ title: 'Aviso', description: 'Produto salvo, mas houve erro ao salvar upsells: ' + upsellErr.message, variant: 'destructive' });
         }
       }
 
@@ -394,6 +415,84 @@ const ProductForm = () => {
               <p className="font-medium text-foreground mb-1">Preview:</p>
               <p className="text-success text-xs font-semibold">{pixDiscountPercent}% OFF no Pix</p>
               <p className="text-[11px]">ou R$ 100,00 em {maxInstallments}x R$ {(100 / maxInstallments).toFixed(2).replace('.', ',')}{installmentsInterest === 'sem_juros' ? ' sem juros' : ''}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Sparkles className="w-5 h-5" /> Produtos Sugeridos no Checkout (Upsell)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Estes produtos serão exibidos como sugestões "Leve também" no checkout, quando este produto estiver no carrinho. Cliente adiciona com 1 clique.
+            </p>
+
+            {/* Selected upsells */}
+            {selectedUpsellIds.length > 0 && (
+              <div className="flex flex-wrap gap-2 p-3 bg-muted/50 border border-border/30 rounded-lg">
+                {selectedUpsellIds.map(uid => {
+                  const prod = allProducts.find(p => p.id === uid);
+                  if (!prod) return null;
+                  return (
+                    <div
+                      key={uid}
+                      className="flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 rounded-full pl-3 pr-1 py-1 text-xs"
+                    >
+                      <span className="font-medium">{prod.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedUpsellIds(prev => prev.filter(x => x !== uid))}
+                        className="hover:bg-primary/20 rounded-full p-0.5"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Search and select */}
+            <div className="space-y-2">
+              <Label className="text-xs">Adicionar produtos sugeridos</Label>
+              <Input
+                placeholder="Buscar produtos..."
+                value={upsellSearch}
+                onChange={(e) => setUpsellSearch(e.target.value)}
+              />
+              <div className="max-h-64 overflow-y-auto border border-border/30 rounded-lg divide-y divide-border/30">
+                {allProducts
+                  .filter(p => p.id !== id) // exclude self
+                  .filter(p => !upsellSearch || p.name.toLowerCase().includes(upsellSearch.toLowerCase()))
+                  .slice(0, 50)
+                  .map(p => {
+                    const checked = selectedUpsellIds.includes(p.id);
+                    return (
+                      <label
+                        key={p.id}
+                        className="flex items-center gap-3 p-2.5 hover:bg-muted/50 cursor-pointer transition-colors"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            if (v) {
+                              setSelectedUpsellIds(prev => [...prev, p.id]);
+                            } else {
+                              setSelectedUpsellIds(prev => prev.filter(x => x !== p.id));
+                            }
+                          }}
+                        />
+                        <span className="text-sm flex-1">{p.name}</span>
+                      </label>
+                    );
+                  })}
+                {allProducts.filter(p => p.id !== id).length === 0 && (
+                  <p className="p-3 text-xs text-muted-foreground text-center">Nenhum outro produto disponível.</p>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
