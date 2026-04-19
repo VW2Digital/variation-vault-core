@@ -185,10 +185,16 @@ serve(async (req) => {
             .in('key', [
               'evolution_api_url', 'evolution_api_key', 'evolution_instance_name',
               'whatsapp_number', 'resend_api_key', 'resend_from_email',
+              'notify_customer_on_payment',
             ]);
 
           const cfg: Record<string, string> = {};
           for (const s of settings || []) cfg[s.key] = s.value;
+
+          const notifyCustomer = cfg['notify_customer_on_payment'] !== 'false'; // default true
+          if (!notifyCustomer) {
+            console.log('[Webhook] Customer notifications disabled in settings — skipping');
+          }
 
           const valueFormatted = Number(orderForNotif.total_value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
           const isApproved = newStatus === 'PAID';
@@ -199,7 +205,7 @@ serve(async (req) => {
           const instanceName = cfg['evolution_instance_name'];
 
           // WhatsApp to customer
-          if (apiUrl && apiKey && instanceName && orderForNotif.customer_phone) {
+          if (notifyCustomer && apiUrl && apiKey && instanceName && orderForNotif.customer_phone) {
             const baseUrl = apiUrl.replace(/\/+$/, '');
             const customerPhoneClean = orderForNotif.customer_phone.replace(/\D/g, '');
             const phoneWithCountry = customerPhoneClean.startsWith('55') ? customerPhoneClean : `55${customerPhoneClean}`;
