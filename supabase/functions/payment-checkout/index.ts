@@ -757,6 +757,291 @@ class PagBankGateway implements PaymentGateway {
 }
 
 // ────────────────────────────────────────────────────────
+// PAGAR.ME GATEWAY (v5)
+// ────────────────────────────────────────────────────────
+
+class PagarMeGateway implements PaymentGateway {
+  public secretKey: string;
+  private baseUrl = 'https://api.pagar.me/core/v5';
+  private authHeader: string;
+  private antifraudEnabled: boolean;
+
+  constructor(secretKey: string, antifraudEnabled = true) {
+    this.secretKey = secretKey;
+    this.antifraudEnabled = antifraudEnabled;
+    // Pagar.me uses Basic auth with secret key as username and empty password
+    this.authHeader = 'Basic ' + btoa(`${secretKey}:`);
+  }
+
+  private async fetch(path: string, method: string, body?: any) {
+    const res = await fetch(`${this.baseUrl}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': this.authHeader,
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+    const raw = await res.text();
+    let data: any = {};
+    if (raw) { try { data = JSON.parse(raw); } catch { data = { message: raw }; } }
+    if (!res.ok) {
+      const errs = data?.errors;
+      let msg = data?.message || `Pagar.me error [${res.status}]`;
+      if (errs && typeof errs === 'object') {
+        const flat: string[] = [];
+        for (const k of Object.keys(errs)) {
+          const v = errs[k];
+          if (Array.isArray(v)) flat.push(...v);
+          else if (typeof v === 'string') flat.push(v);
+        }
+        if (flat.length) msg = flat.join(' | ');
+      }
+      throw new Error(msg);
+    }
+    return data;
+  }
+
+  async createCustomer(dto: CustomerDTO) {
+    // Pagar.me v5: customer is created inline with the order, but we can pre-create
+    const phoneDigits = sanitizePhone(dto.phone);
+    const body: any = {
+      name: dto.name,
+      email: dto.email,
+      type: dto.cpfCnpj.length > 11 ? 'company' : 'individual',
+      document: dto.cpfCnpj,
+      document_type: dto.cpfCnpj.length > 11 ? 'cnpj' : 'cpf',
+    };
+    if (phoneDigits) {
+      body.phones = {
+        mobile_phone: {
+          country_code: '55',
+          area_code: phoneDigits.slice(0, 2),
+          number: phoneDigits.slice(2),
+        },
+      };
+    }
+    try {
+      const result = await this.fetch('/customers', 'POST', body);
+      return { id: result.id };
+    } catch (e: any) {
+      // If customer already exists, return a placeholder id (Pagar.me handles it inline)
+      console.warn('[Pagar.me] createCustomer fallback:', e.message);
+      return { id: `pgme_${dto.cpfCnpj}` };
+    }
+  }
+
+  private buildCustomerObj(dto: CheckoutDTO) {
+    const cpfCnpj = (dto.creditCardHolderInfo?.cpfCnpj || '').replace(/\D/g, '');
+    const phoneDigits = sanitizePhone(dto.creditCardHolderInfo?.phone);
+    const customer: any = {
+      name: dto.creditCardHolderInfo?.name || 'Cliente',
+      email: dto.creditCardHolderInfo?.email || 'customer@email.com',
+      type: cpfCnpj.length > 11 ? 'company' : 'individual',
+      document: cpfCnpj,
+      document_type: cpfCnpj.length > 11 ? 'cnpj' : 'cpf',
+    };
+    if (phoneDigits) {
+      customer.phones = {
+        mobile_phone: {
+          country_code: '55',
+          area_code: phoneDigits.slice(0, 2),
+          number: phoneDigits.slice(2),
+        },
+      };
+    }
+    return customer;
+  }
+
+  private buildItems(dto: CheckoutDTO, valueCents: number) {
+    const additionalInfoRaw = (dto as any).additionalInfo;
+    if (additionalInfoRaw?.items?.length) {
+      return additionalInfoRaw.items.map((it: any) => ({
+        amount: Math.round(toCurrencyNumber(it.unit_price || dto.value) * 100),
+        description: sanitizeDescription(it.title || dto.description),
+        quantity: Number(it.quantity) || 1,
+        code: String(it.id || dto.orderId || 'item'),
+      }));
+    }
+    return [{
+      amount: valueCents,
+      description: sanitizeDescription(dto.description),
+      quantity: 1,
+      code: dto.orderId || 'item',
+    }];
+  }
+
+  private buildAntifraud(dto: CheckoutDTO) {
+    if (!this.antifraudEnabled) return undefined;
+    const additionalInfoRaw = (dto as any).additionalInfo;
+    const addr = additionalInfoRaw?.shipments?.receiver_address || additionalInfoRaw?.payer?.address;
+    if (!addr) return undefined;
+    return {
+      shipping: {
+        amount: 0,
+        description: 'Frete',
+        recipient_name: dto.creditCardHolderInfo?.name || 'Cliente',
+        recipient_phone: sanitizePhone(dto.creditCardHolderInfo?.phone) || '11999999999',
+        address: {
+          street: String(addr.street_name || ''),
+          street_number: String(addr.street_number || ''),
+          zip_code: String(addr.zip_code || '').replace(/\D/g, ''),
+          neighborhood: 'Centro',
+          city: String(addr.city_name || ''),
+          state: String(addr.state_name || '').toUpperCase().slice(0, 2),
+          country: 'BR',
+        },
+      },
+    };
+  }
+
+  async createPixPayment(dto: CheckoutDTO): Promise<PaymentResponse> {
+    const valueCents = Math.round(toCurrencyNumber(dto.value) * 100);
+    const orderBody: any = {
+      code: dto.orderId || crypto.randomUUID(),
+      customer: this.buildCustomerObj(dto),
+      items: this.buildItems(dto, valueCents),
+      payments: [{
+        payment_method: 'pix',
+        pix: {
+          expires_in: 86400, // 24h
+          additional_information: [{ name: 'Pedido', value: dto.orderId || '' }],
+        },
+      }],
+      ip: dto.remoteIp || undefined,
+    };
+
+    const antifraud = this.buildAntifraud(dto);
+    if (antifraud) orderBody.antifraud_enabled = true;
+
+    console.log('[Pagar.me] PIX order body:', JSON.stringify({
+      code: orderBody.code,
+      amount_cents: valueCents,
+      customer_email: orderBody.customer.email,
+      has_antifraud: !!antifraud,
+    }));
+
+    const result = await this.fetch('/orders', 'POST', orderBody);
+    const charge = result.charges?.[0];
+    const lastTx = charge?.last_transaction;
+
+    return {
+      id: result.id,
+      status: this.mapStatus(charge?.status || result.status || 'pending'),
+      pixQrCode: lastTx ? {
+        encodedImage: lastTx.qr_code_url ? '' : '', // Pagar.me returns URL, not base64 inline
+        payload: lastTx.qr_code || '',
+        expirationDate: lastTx.expires_at,
+      } : undefined,
+      // Extra: send qr_code_url for direct rendering
+      pixQrCodeUrl: lastTx?.qr_code_url,
+    } as PaymentResponse;
+  }
+
+  async createCardPayment(dto: CheckoutDTO): Promise<PaymentResponse> {
+    const parsedCount = Number(dto.installmentCount) || 1;
+    const cardToken = (dto.creditCard as any)?.token;
+    if (!cardToken) {
+      throw new Error('Pagar.me requer tokenização do cartão via SDK no frontend.');
+    }
+
+    const valueCents = Math.round(toCurrencyNumber(dto.value) * 100);
+
+    const orderBody: any = {
+      code: dto.orderId || crypto.randomUUID(),
+      customer: this.buildCustomerObj(dto),
+      items: this.buildItems(dto, valueCents),
+      payments: [{
+        payment_method: 'credit_card',
+        credit_card: {
+          installments: parsedCount,
+          statement_descriptor: 'LOJA',
+          card_token: cardToken,
+          operation_type: 'auth_and_capture',
+        },
+      }],
+      ip: dto.remoteIp || undefined,
+    };
+
+    const antifraud = this.buildAntifraud(dto);
+    if (antifraud) {
+      orderBody.antifraud_enabled = true;
+      // Pagar.me uses shipping data from order itself for antifraud
+      orderBody.shipping = antifraud.shipping;
+    }
+
+    console.log('[Pagar.me] Card order body:', JSON.stringify({
+      code: orderBody.code,
+      amount_cents: valueCents,
+      installments: parsedCount,
+      has_antifraud: !!antifraud,
+      has_token: !!cardToken,
+    }));
+
+    const result = await this.fetch('/orders', 'POST', orderBody);
+    const charge = result.charges?.[0];
+
+    return {
+      id: result.id,
+      status: this.mapStatus(charge?.status || result.status || 'pending'),
+    };
+  }
+
+  async getPaymentStatus(paymentId: string) {
+    const result = await this.fetch(`/orders/${paymentId}`, 'GET');
+    const charge = result.charges?.[0];
+    return { id: result.id, status: this.mapStatus(charge?.status || result.status || 'pending') };
+  }
+
+  async simulateInstallments(value: number, maxInstallments?: number) {
+    const max = Math.min(maxInstallments || 12, 12);
+    const installments = [];
+    for (let i = 1; i <= max; i++) {
+      const pct = DEFAULT_INTEREST_TABLE[i] ?? 0;
+      const total = toCurrencyNumber(value * (1 + pct));
+      installments.push({
+        installmentCount: i,
+        installmentValue: toCurrencyNumber(total / i),
+        totalValue: total,
+      });
+    }
+    return { creditCard: { installments } };
+  }
+
+  async testConnection() {
+    // Validate by listing recent orders (lightweight)
+    const result = await this.fetch('/orders?size=1', 'GET');
+    return { success: true, orderCount: result?.paging?.total ?? 0 };
+  }
+
+  async refund(paymentId: string) {
+    const order = await this.fetch(`/orders/${paymentId}`, 'GET');
+    const chargeId = order.charges?.[0]?.id;
+    if (!chargeId) throw new Error('Charge não encontrada para reembolso');
+    await this.fetch(`/charges/${chargeId}`, 'DELETE');
+  }
+
+  private mapStatus(s: string): string {
+    const map: Record<string, string> = {
+      paid: 'CONFIRMED',
+      pending: 'PENDING',
+      processing: 'PENDING',
+      authorized_pending_capture: 'PENDING',
+      waiting_capture: 'PENDING',
+      not_authorized: 'DECLINED',
+      failed: 'DECLINED',
+      canceled: 'CANCELLED',
+      refunded: 'REFUNDED',
+      chargedback: 'CHARGEBACK',
+      with_error: 'DECLINED',
+      partial_canceled: 'REFUNDED',
+    };
+    return map[s] || 'PENDING';
+  }
+}
+
+// ────────────────────────────────────────────────────────
 // PAYMENT FACTORY
 // ────────────────────────────────────────────────────────
 
@@ -771,6 +1056,28 @@ async function createGateway(supabaseUrl: string, supabaseKey: string): Promise<
     .maybeSingle();
 
   const gatewayName = gwRow?.value || 'asaas';
+
+  if (gatewayName === 'pagarme') {
+    const { data: pgmeEnvRow } = await supabase
+      .from('site_settings').select('value').eq('key', 'pagarme_environment').maybeSingle();
+    const pgmeEnv = pgmeEnvRow?.value || 'sandbox';
+    const { data: pgmeKeyRow } = await supabase
+      .from('site_settings').select('value').eq('key', `pagarme_secret_key_${pgmeEnv}`).maybeSingle();
+    let secretKey = pgmeKeyRow?.value;
+    if (!secretKey) {
+      const { data: fallback } = await supabase
+        .from('site_settings').select('value').eq('key', 'pagarme_secret_key').maybeSingle();
+      secretKey = fallback?.value;
+    }
+    if (!secretKey) throw new Error('Secret Key do Pagar.me não configurada');
+
+    const { data: afRow } = await supabase
+      .from('site_settings').select('value').eq('key', 'pagarme_antifraud_enabled').maybeSingle();
+    const antifraud = (afRow?.value ?? 'true') !== 'false';
+
+    console.log(`[PaymentFactory] Using Pagar.me gateway (env: ${pgmeEnv}, antifraud: ${antifraud})`);
+    return { gateway: new PagarMeGateway(secretKey, antifraud), gatewayName };
+  }
 
   if (gatewayName === 'pagbank') {
     const { data: pbTokenRow } = await supabase

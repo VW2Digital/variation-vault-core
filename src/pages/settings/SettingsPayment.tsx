@@ -30,6 +30,7 @@ const SettingsPayment = () => {
   const [asaasEnabled, setAsaasEnabled] = useState(true);
   const [mpEnabled, setMpEnabled] = useState(false);
   const [pbEnabled, setPbEnabled] = useState(false);
+  const [pgmeEnabled, setPgmeEnabled] = useState(false);
 
   // Mercado Pago
   const [mpAccessToken, setMpAccessToken] = useState('');
@@ -47,6 +48,37 @@ const SettingsPayment = () => {
   const [pbEnvironment, setPbEnvironment] = useState('sandbox');
   const [showPbToken, setShowPbToken] = useState(false);
   const [generatingPbKey, setGeneratingPbKey] = useState(false);
+
+  // Pagar.me
+  const [pgmeSecretKey, setPgmeSecretKey] = useState('');
+  const [pgmePublicKey, setPgmePublicKey] = useState('');
+  const [pgmeWebhookSecret, setPgmeWebhookSecret] = useState('');
+  const [pgmeEnvironment, setPgmeEnvironment] = useState('sandbox');
+  const [pgmeAntifraudEnabled, setPgmeAntifraudEnabled] = useState(true);
+  const [showPgmeSecretKey, setShowPgmeSecretKey] = useState(false);
+  const [showPgmeWebhookSecret, setShowPgmeWebhookSecret] = useState(false);
+  const [testingPgme, setTestingPgme] = useState(false);
+
+  const loadPgmeCredentials = async (env: string) => {
+    const [secret, pubKey] = await Promise.all([
+      fetchSetting(`pagarme_secret_key_${env}`),
+      fetchSetting(`pagarme_public_key_${env}`),
+    ]);
+    setPgmeSecretKey(secret || '');
+    setPgmePublicKey(pubKey || '');
+  };
+
+  const handlePgmeEnvChange = async (newEnv: string) => {
+    const oldEnv = pgmeEnvironment;
+    if (pgmeSecretKey || pgmePublicKey) {
+      await Promise.all([
+        upsertSetting(`pagarme_secret_key_${oldEnv}`, pgmeSecretKey),
+        upsertSetting(`pagarme_public_key_${oldEnv}`, pgmePublicKey),
+      ]);
+    }
+    setPgmeEnvironment(newEnv);
+    await loadPgmeCredentials(newEnv);
+  };
 
   const loadPbCredentials = async (env: string) => {
     const [token, pubKey] = await Promise.all([
@@ -148,6 +180,13 @@ const SettingsPayment = () => {
         upsertSetting('pagbank_token', pbToken, uid),
         upsertSetting('pagbank_public_key', pbPublicKey, uid),
         upsertSetting('pagbank_environment', pbEnvironment, uid),
+        upsertSetting(`pagarme_secret_key_${pgmeEnvironment}`, pgmeSecretKey, uid),
+        upsertSetting(`pagarme_public_key_${pgmeEnvironment}`, pgmePublicKey, uid),
+        upsertSetting('pagarme_secret_key', pgmeSecretKey, uid),
+        upsertSetting('pagarme_public_key', pgmePublicKey, uid),
+        upsertSetting('pagarme_environment', pgmeEnvironment, uid),
+        upsertSetting('pagarme_webhook_secret', pgmeWebhookSecret, uid),
+        upsertSetting('pagarme_antifraud_enabled', pgmeAntifraudEnabled ? 'true' : 'false', uid),
       ]);
       toast({ title: 'Configurações de pagamento salvas!' });
     } catch (err: any) {
@@ -174,8 +213,8 @@ const SettingsPayment = () => {
               <span className="text-xs text-muted-foreground">{asaasEnabled ? 'Ativo' : 'Inativo'}</span>
               <Switch checked={asaasEnabled} onCheckedChange={(checked) => {
                 setAsaasEnabled(checked);
-                if (checked) { setMpEnabled(false); setPbEnabled(false); setPaymentGateway('asaas'); }
-                else if (!mpEnabled && !pbEnabled) { setMpEnabled(true); setPaymentGateway('mercadopago'); }
+                if (checked) { setMpEnabled(false); setPbEnabled(false); setPgmeEnabled(false); setPaymentGateway('asaas'); }
+                else if (!mpEnabled && !pbEnabled && !pgmeEnabled) { setMpEnabled(true); setPaymentGateway('mercadopago'); }
               }} />
             </div>
           </div>
@@ -249,8 +288,8 @@ const SettingsPayment = () => {
               <span className="text-xs text-muted-foreground">{mpEnabled ? 'Ativo' : 'Inativo'}</span>
               <Switch checked={mpEnabled} onCheckedChange={(checked) => {
                 setMpEnabled(checked);
-                if (checked) { setAsaasEnabled(false); setPbEnabled(false); setPaymentGateway('mercadopago'); }
-                else if (!asaasEnabled && !pbEnabled) { setAsaasEnabled(true); setPaymentGateway('asaas'); }
+                if (checked) { setAsaasEnabled(false); setPbEnabled(false); setPgmeEnabled(false); setPaymentGateway('mercadopago'); }
+                else if (!asaasEnabled && !pbEnabled && !pgmeEnabled) { setAsaasEnabled(true); setPaymentGateway('asaas'); }
               }} />
             </div>
           </div>
@@ -331,8 +370,8 @@ const SettingsPayment = () => {
               <span className="text-xs text-muted-foreground">{pbEnabled ? 'Ativo' : 'Inativo'}</span>
               <Switch checked={pbEnabled} onCheckedChange={(checked) => {
                 setPbEnabled(checked);
-                if (checked) { setAsaasEnabled(false); setMpEnabled(false); setPaymentGateway('pagbank'); }
-                else if (!asaasEnabled && !mpEnabled) { setAsaasEnabled(true); setPaymentGateway('asaas'); }
+                if (checked) { setAsaasEnabled(false); setMpEnabled(false); setPgmeEnabled(false); setPaymentGateway('pagbank'); }
+                else if (!asaasEnabled && !mpEnabled && !pgmeEnabled) { setAsaasEnabled(true); setPaymentGateway('asaas'); }
               }} />
             </div>
           </div>

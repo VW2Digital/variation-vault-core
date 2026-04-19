@@ -141,9 +141,10 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
   const { t } = useLanguage();
   const { clearCart } = useCart();
   const navigate = useNavigate();
-  const { activeGateway, gatewayEnvironment: gatewayEnv, tokenizeCard, encryptPagBankCard, deviceSessionId, checkoutMode } = useMercadoPago();
+  const { activeGateway, gatewayEnvironment: gatewayEnv, tokenizeCard, encryptPagBankCard, tokenizePagarMeCard, deviceSessionId, checkoutMode } = useMercadoPago();
   const isMercadoPago = activeGateway === 'mercadopago';
   const isPagBank = activeGateway === 'pagbank';
+  const isPagarMe = activeGateway === 'pagarme';
   const isMpRedirect = isMercadoPago && checkoutMode === 'redirect';
   const safeUnitPrice = Number(unitPrice) || 0;
   const safeQuantity = Number(quantity) || 1;
@@ -976,6 +977,16 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
             securityCode: cardCcv,
           });
           creditCardPayload = { encrypted: encResult.encrypted };
+        } else if (isPagarMe) {
+          // Tokenize card via Pagar.me API
+          const tokenResult = await tokenizePagarMeCard({
+            number: cardNumber.replace(/\s/g, ''),
+            holderName: cardName.trim() || name.trim(),
+            expMonth: cardExpMonth,
+            expYear: cardExpYear,
+            cvv: cardCcv,
+          });
+          creditCardPayload = { token: tokenResult.token };
         } else {
           creditCardPayload = {
             holderName: cardName.trim() || name.trim(),
