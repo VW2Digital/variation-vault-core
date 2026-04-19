@@ -11,6 +11,7 @@ import { getEffectivePrice, WholesaleTier } from '@/contexts/CartContext';
 import Footer from '@/components/Footer';
 import productHeroImg from '@/assets/product-hero.png';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useToast } from '@/hooks/use-toast';
 
 const Checkout = () => {
   const { id } = useParams<{ id: string }>();
