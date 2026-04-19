@@ -273,6 +273,7 @@ const ProductList = () => {
                   navigate={navigate}
                   onDelete={setDeleteTarget}
                   onDuplicate={handleDuplicate}
+                  onToggleActive={handleToggleActive}
                   duplicating={duplicating}
                 />
               ))}
