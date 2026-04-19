@@ -18,6 +18,7 @@ const Checkout = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { toast } = useToast();
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedVariation, setSelectedVariation] = useState(0);
@@ -36,6 +37,16 @@ const Checkout = () => {
 
     if (!id) return;
     fetchProduct(id).then(async (prod) => {
+      // Block inactive products from checkout
+      if ((prod as any).active === false) {
+        toast({
+          title: 'Produto indisponível',
+          description: 'Este produto não está disponível para compra no momento.',
+          variant: 'destructive',
+        });
+        navigate('/catalogo');
+        return;
+      }
       setProduct(prod);
       // Google Ads: begin_checkout
       const v0 = prod.product_variations?.[0];
