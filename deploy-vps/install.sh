@@ -15,9 +15,23 @@
 #   DOMAIN=meusite.com SSL_EMAIL=admin@meusite.com \
 #   DEPLOY_FUNCTIONS=yes \
 #     curl ... | sudo -E bash
+#
+# Modo dry-run (valida credenciais sem aplicar nada):
+#   sudo bash install.sh --dry-run
+#   DRY_RUN=yes sudo -E bash install.sh
 # =============================================================================
 
-set -euo pipefail
+DRY_RUN="${DRY_RUN:-no}"
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run|-n) DRY_RUN="yes" ;;
+    --help|-h)
+      sed -n '2,22p' "$0"; exit 0 ;;
+  esac
+done
+
+set -uo pipefail
+[[ "$DRY_RUN" != "yes" ]] && set -e
 export DEBIAN_FRONTEND=noninteractive
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BLUE='\033[0;34m'; NC='\033[0m'
@@ -72,7 +86,17 @@ apt_install_resilient() {
   apt-get install -y -qq --fix-missing --no-install-recommends "$@" >/dev/null
 }
 
-[[ $EUID -ne 0 ]] && { err "Rode como root"; exit 1; }
+if [[ "$DRY_RUN" == "yes" ]]; then
+  warn "════════════════════════════════════════════════════════════════"
+  warn "  MODO DRY-RUN ATIVO — nada será modificado no servidor"
+  warn "  Apenas valida credenciais e mostra o que seria executado"
+  warn "════════════════════════════════════════════════════════════════"
+  echo ""
+fi
+
+if [[ "$DRY_RUN" != "yes" ]]; then
+  [[ $EUID -ne 0 ]] && { err "Rode como root"; exit 1; }
+fi
 
 # ---------- Pré-requisitos ----------
 log "Validando pré-requisitos do sistema..."
