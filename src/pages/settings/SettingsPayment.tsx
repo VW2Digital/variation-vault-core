@@ -30,6 +30,7 @@ const SettingsPayment = () => {
   const [asaasEnabled, setAsaasEnabled] = useState(true);
   const [mpEnabled, setMpEnabled] = useState(false);
   const [pbEnabled, setPbEnabled] = useState(false);
+  const [pgmeEnabled, setPgmeEnabled] = useState(false);
 
   // Mercado Pago
   const [mpAccessToken, setMpAccessToken] = useState('');
@@ -47,6 +48,37 @@ const SettingsPayment = () => {
   const [pbEnvironment, setPbEnvironment] = useState('sandbox');
   const [showPbToken, setShowPbToken] = useState(false);
   const [generatingPbKey, setGeneratingPbKey] = useState(false);
+
+  // Pagar.me
+  const [pgmeSecretKey, setPgmeSecretKey] = useState('');
+  const [pgmePublicKey, setPgmePublicKey] = useState('');
+  const [pgmeWebhookSecret, setPgmeWebhookSecret] = useState('');
+  const [pgmeEnvironment, setPgmeEnvironment] = useState('sandbox');
+  const [pgmeAntifraudEnabled, setPgmeAntifraudEnabled] = useState(true);
+  const [showPgmeSecretKey, setShowPgmeSecretKey] = useState(false);
+  const [showPgmeWebhookSecret, setShowPgmeWebhookSecret] = useState(false);
+  const [testingPgme, setTestingPgme] = useState(false);
+
+  const loadPgmeCredentials = async (env: string) => {
+    const [secret, pubKey] = await Promise.all([
+      fetchSetting(`pagarme_secret_key_${env}`),
+      fetchSetting(`pagarme_public_key_${env}`),
+    ]);
+    setPgmeSecretKey(secret || '');
+    setPgmePublicKey(pubKey || '');
+  };
+
+  const handlePgmeEnvChange = async (newEnv: string) => {
+    const oldEnv = pgmeEnvironment;
+    if (pgmeSecretKey || pgmePublicKey) {
+      await Promise.all([
+        upsertSetting(`pagarme_secret_key_${oldEnv}`, pgmeSecretKey),
+        upsertSetting(`pagarme_public_key_${oldEnv}`, pgmePublicKey),
+      ]);
+    }
+    setPgmeEnvironment(newEnv);
+    await loadPgmeCredentials(newEnv);
+  };
 
   const loadPbCredentials = async (env: string) => {
     const [token, pubKey] = await Promise.all([
