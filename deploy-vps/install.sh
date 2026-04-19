@@ -227,6 +227,56 @@ else
   warn "  https://raw.githubusercontent.com/VW2Digital/variation-vault-core/${BRANCH}/deploy-vps/supabase/schema.sql"
 fi
 
+# ---------- 1c. Criação automática do admin (se service_role + email + senha) ----------
+ADMIN_CREATED="no"
+if [[ "$SCHEMA_APPLIED" == "yes" && -n "${SUPABASE_SERVICE_KEY:-}" && -n "${ADMIN_EMAIL:-}" && -n "${ADMIN_PASSWORD:-}" ]]; then
+  if [[ ${#SUPABASE_SERVICE_KEY} -lt 100 ]]; then
+    warn "service_role key muito curta — pulando criação de admin."
+  elif [[ ${#ADMIN_PASSWORD} -lt 6 ]]; then
+    warn "Senha do admin com menos de 6 caracteres — pulando criação."
+  elif [[ ! "$ADMIN_EMAIL" =~ ^[^@]+@[^@]+\.[^@]+$ ]]; then
+    warn "Email inválido: $ADMIN_EMAIL — pulando criação de admin."
+  else
+    log "Criando usuário admin via Auth API..."
+    ADMIN_PAYLOAD=$(cat <<JSON
+{"email":"$ADMIN_EMAIL","password":"$ADMIN_PASSWORD","email_confirm":true,"user_metadata":{"full_name":"Administrador"}}
+JSON
+)
+    ADMIN_RESP=$(curl -sS -X POST "${SUPABASE_URL}/auth/v1/admin/users" \
+      -H "apikey: $SUPABASE_SERVICE_KEY" \
+      -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
+      -H "Content-Type: application/json" \
+      -d "$ADMIN_PAYLOAD" 2>&1 || true)
+
+    ADMIN_UUID=$(echo "$ADMIN_RESP" | grep -oE '"id"\s*:\s*"[a-f0-9-]{36}"' | head -1 | grep -oE '[a-f0-9-]{36}')
+
+    if [[ -z "$ADMIN_UUID" ]]; then
+      # Pode já existir — tenta buscar pelo email
+      LOOKUP=$(curl -sS "${SUPABASE_URL}/auth/v1/admin/users?email=${ADMIN_EMAIL}" \
+        -H "apikey: $SUPABASE_SERVICE_KEY" \
+        -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" 2>&1 || true)
+      ADMIN_UUID=$(echo "$LOOKUP" | grep -oE '"id"\s*:\s*"[a-f0-9-]{36}"' | head -1 | grep -oE '[a-f0-9-]{36}')
+    fi
+
+    if [[ -n "$ADMIN_UUID" ]]; then
+      log "Promovendo $ADMIN_EMAIL a admin (UUID: $ADMIN_UUID)..."
+      if psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -q -c \
+        "INSERT INTO public.user_roles (user_id, role) VALUES ('$ADMIN_UUID', 'admin') ON CONFLICT DO NOTHING;" \
+        >/dev/null 2>&1; then
+        ADMIN_CREATED="yes"
+        ok "Admin criado e promovido com sucesso ✓"
+      else
+        warn "Usuário criado mas falha ao inserir role admin. Rode manualmente:"
+        warn "  INSERT INTO public.user_roles (user_id, role) VALUES ('$ADMIN_UUID', 'admin');"
+      fi
+    else
+      warn "Falha ao criar admin. Resposta da API:"
+      echo "$ADMIN_RESP" | head -c 300 >&2
+      echo "" >&2
+    fi
+  fi
+fi
+
 # ---------- 2. Limpeza ----------
 log "[2/7] Limpando instalação anterior..."
 docker compose -f "$APP_DIR/docker-compose.yml" down --remove-orphans 2>/dev/null || true
