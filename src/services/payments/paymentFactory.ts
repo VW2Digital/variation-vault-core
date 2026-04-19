@@ -1,6 +1,6 @@
 import { fetchSetting } from '@/lib/api';
 
-export type CheckoutGateway = 'asaas' | 'mercadopago' | 'pagbank';
+export type CheckoutGateway = 'asaas' | 'mercadopago' | 'pagbank' | 'pagarme';
 
 /**
  * Returns the active payment gateway from site_settings.
@@ -9,6 +9,7 @@ export async function getActiveGateway(): Promise<CheckoutGateway> {
   const gateway = await fetchSetting('payment_gateway');
   if (gateway === 'mercadopago') return 'mercadopago';
   if (gateway === 'pagbank') return 'pagbank';
+  if (gateway === 'pagarme') return 'pagarme';
   return 'asaas';
 }
 
@@ -24,8 +25,22 @@ export async function getGatewayEnvironment(gateway: CheckoutGateway): Promise<'
     const env = await fetchSetting('pagbank_environment');
     return env === 'production' ? 'production' : 'sandbox';
   }
+  if (gateway === 'pagarme') {
+    const env = await fetchSetting('pagarme_environment');
+    return env === 'production' ? 'production' : 'sandbox';
+  }
   const env = await fetchSetting('asaas_environment');
   return env === 'production' ? 'production' : 'sandbox';
+}
+
+/**
+ * Returns the Pagar.me public key for frontend SDK card tokenization.
+ */
+export async function getPagarMePublicKey(): Promise<string> {
+  const env = await fetchSetting('pagarme_environment') || 'sandbox';
+  const key = await fetchSetting(`pagarme_public_key_${env}`);
+  if (key) return key;
+  return await fetchSetting('pagarme_public_key');
 }
 
 /**
