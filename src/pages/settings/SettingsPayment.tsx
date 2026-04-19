@@ -12,13 +12,14 @@ import PagarMeSettings from './payment/PagarMeSettings';
 import asaasLogo from '@/assets/gateway-asaas.png';
 import mercadoPagoLogo from '@/assets/gateway-mercadopago.png';
 import pagarMeLogo from '@/assets/gateway-pagarme.png';
+import pagBankLogo from '@/assets/gateway-pagbank.png';
 
 type GatewayKey = 'asaas' | 'mercadopago' | 'pagbank' | 'pagarme';
 
 const GATEWAYS: { key: GatewayKey; name: string; description: string; brandClass: string; logo?: string }[] = [
   { key: 'asaas', name: 'Asaas', description: 'Checkout transparente • PIX, cartão e boleto', brandClass: 'text-blue-600', logo: asaasLogo },
   { key: 'mercadopago', name: 'Mercado Pago', description: 'Transparente ou Checkout Pro • PIX e cartão', brandClass: 'text-sky-500', logo: mercadoPagoLogo },
-  { key: 'pagbank', name: 'PagBank', description: 'Redirect • PIX e cartão', brandClass: 'text-orange-500' },
+  { key: 'pagbank', name: 'PagBank', description: 'Redirect • PIX e cartão', brandClass: 'text-orange-500', logo: pagBankLogo },
   { key: 'pagarme', name: 'Pagar.me', description: 'Transparente v5 • PIX e cartão tokenizado', brandClass: 'text-emerald-600', logo: pagarMeLogo },
 ];
 
