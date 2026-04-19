@@ -148,6 +148,9 @@ const ProductForm = () => {
             : [emptyVariation()]
         );
       }).finally(() => setLoadingProduct(false));
+
+      // Load existing upsells
+      fetchProductUpsells(id).then(setSelectedUpsellIds).catch(() => {});
     }
   }, [id]);
 
@@ -219,6 +222,14 @@ const ProductForm = () => {
               await supabase.from('wholesale_prices').delete().eq('variation_id', sv.id);
             }
           }
+        }
+
+        // Save upsell associations
+        try {
+          await saveProductUpsells(productId, selectedUpsellIds);
+        } catch (upsellErr: any) {
+          console.error('Save upsells error:', upsellErr);
+          toast({ title: 'Aviso', description: 'Produto salvo, mas houve erro ao salvar upsells: ' + upsellErr.message, variant: 'destructive' });
         }
       }
 
