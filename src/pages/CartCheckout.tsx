@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart, getEffectivePrice } from '@/contexts/CartContext';
 import CheckoutForm from '@/components/CheckoutForm';
+import UpsellSection from '@/components/UpsellSection';
 import { AnimatedSection } from '@/components/AnimatedSection';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -205,6 +206,9 @@ const CartCheckout = () => {
                 </span>
               </div>
             </div>
+
+          {/* Upsell Section - suggested products before payment */}
+          <UpsellSection />
 
           {/* Checkout Form - uses total price as unit price with qty 1 */}
           <CheckoutForm

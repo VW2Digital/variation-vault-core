@@ -127,6 +127,39 @@ export const deleteProduct = async (id: string) => {
   if (error) throw error;
 };
 
+// Product Upsells
+export const fetchProductUpsells = async (productId: string): Promise<string[]> => {
+  const { data, error } = await supabase
+    .from('product_upsells' as any)
+    .select('upsell_product_id, sort_order')
+    .eq('product_id', productId)
+    .order('sort_order', { ascending: true });
+  if (error) throw error;
+  return ((data as any[]) || []).map(r => r.upsell_product_id);
+};
+
+export const saveProductUpsells = async (productId: string, upsellProductIds: string[]) => {
+  // Replace strategy: delete then insert
+  const { error: delError } = await supabase
+    .from('product_upsells' as any)
+    .delete()
+    .eq('product_id', productId);
+  if (delError) throw delError;
+  if (upsellProductIds.length === 0) return;
+  const rows = upsellProductIds
+    .filter(id => id && id !== productId)
+    .map((id, idx) => ({
+      product_id: productId,
+      upsell_product_id: id,
+      sort_order: idx,
+    }));
+  if (rows.length === 0) return;
+  const { error: insError } = await supabase
+    .from('product_upsells' as any)
+    .insert(rows as any);
+  if (insError) throw insError;
+};
+
 // Banners
 export const fetchBanners = async () => {
   const { data, error } = await supabase
