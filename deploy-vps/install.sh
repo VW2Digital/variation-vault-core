@@ -643,8 +643,8 @@ ADMIN_CREATED="no"
 EXTENSIONS_OK="no"
 CRON_JOBS_OK="no"
 
+step_banner 9 "Banco de dados + Admin" "Schema, extensões pg_cron/pg_net, cron jobs"
 if [[ -n "$SUPABASE_DB_URL" ]]; then
-  log "[9/12] Aplicando schema, extensões e cron jobs no banco..."
   if [[ ! "$SUPABASE_DB_URL" =~ ^postgres(ql)?:// ]]; then
     err "Connection string inválida"; exit 1
   fi
