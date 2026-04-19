@@ -647,6 +647,7 @@ export type Database = {
       }
       products: {
         Row: {
+          active: boolean
           active_ingredient: string | null
           administration_route: string | null
           category: string | null
@@ -670,6 +671,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          active?: boolean
           active_ingredient?: string | null
           administration_route?: string | null
           category?: string | null
@@ -693,6 +695,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          active?: boolean
           active_ingredient?: string | null
           administration_route?: string | null
           category?: string | null
