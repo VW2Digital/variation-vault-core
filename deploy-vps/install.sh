@@ -10,7 +10,9 @@
 #   SUPABASE_URL=https://xxx.supabase.co \
 #   SUPABASE_ANON_KEY=eyJ... \
 #   SUPABASE_PROJECT_ID=xxx \
+#   SUPABASE_DB_URL=postgresql://postgres:SENHA@db.xxx.supabase.co:5432/postgres \
 #     curl ... | sudo -E bash
+# (SUPABASE_DB_URL é opcional — se fornecida, o schema.sql é aplicado automaticamente)
 # =============================================================================
 
 set -euo pipefail
