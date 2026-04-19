@@ -585,13 +585,14 @@ APT::Periodic::Unattended-Upgrade "1";
 APT::Periodic::AutocleanInterval "7";
 EOF
 ok "Sistema atualizado • Timezone America/Sao_Paulo • Fail2ban ativo"
+step_done 5
 
 # ============================================================================
 # [6/12] Swap
 # ============================================================================
+step_banner 6 "Swap" "Garantindo 1GB de swap (vm.swappiness=10)"
 SWAP_MB=$(free -m | awk '/^Swap:/{print $2}')
 if (( SWAP_MB < 1024 )); then
-  log "[6/12] Criando swap de 1GB..."
   swapoff /swapfile 2>/dev/null || true
   rm -f /swapfile
   fallocate -l 1G /swapfile
@@ -603,8 +604,9 @@ if (( SWAP_MB < 1024 )); then
   grep -q '^vm.swappiness' /etc/sysctl.conf || echo 'vm.swappiness=10' >> /etc/sysctl.conf
   ok "Swap de 1GB ativo"
 else
-  ok "[6/12] Swap suficiente (${SWAP_MB}MB)"
+  ok "Swap suficiente (${SWAP_MB}MB)"
 fi
+step_done 6
 
 # ============================================================================
 # [7/12] Docker + Compose
