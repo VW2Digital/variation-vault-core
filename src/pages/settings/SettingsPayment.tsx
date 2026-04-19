@@ -481,6 +481,111 @@ const SettingsPayment = () => {
         )}
       </Card>
 
+      {/* Pagar.me */}
+      <Card className={`border-border/50 ${pgmeEnabled ? 'border-2 border-primary/30' : 'opacity-60'}`}>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CreditCard className="w-5 h-5" /> Pagar.me - Checkout Transparente
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">{pgmeEnabled ? 'Ativo' : 'Inativo'}</span>
+              <Switch checked={pgmeEnabled} onCheckedChange={(checked) => {
+                setPgmeEnabled(checked);
+                if (checked) { setAsaasEnabled(false); setMpEnabled(false); setPbEnabled(false); setPaymentGateway('pagarme'); }
+                else if (!asaasEnabled && !mpEnabled && !pbEnabled) { setAsaasEnabled(true); setPaymentGateway('asaas'); }
+              }} />
+            </div>
+          </div>
+        </CardHeader>
+        {pgmeEnabled && (
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Ambiente</Label>
+              <Select value={pgmeEnvironment} onValueChange={handlePgmeEnvChange}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sandbox">Sandbox (Testes)</SelectItem>
+                  <SelectItem value="production">Produção</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Secret Key (sk_)</Label>
+              <div className="relative">
+                <Input
+                  type={showPgmeSecretKey ? 'text' : 'password'}
+                  value={pgmeSecretKey}
+                  onChange={(e) => setPgmeSecretKey(e.target.value)}
+                  placeholder={pgmeEnvironment === 'sandbox' ? 'sk_test_...' : 'sk_...'}
+                  className="pr-10"
+                />
+                <button type="button" onClick={() => setShowPgmeSecretKey(!showPgmeSecretKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  {showPgmeSecretKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">Usada no servidor para criar pedidos. Nunca exposta no frontend.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Public Key (pk_)</Label>
+              <Input
+                value={pgmePublicKey}
+                onChange={(e) => setPgmePublicKey(e.target.value)}
+                placeholder={pgmeEnvironment === 'sandbox' ? 'pk_test_...' : 'pk_...'}
+              />
+              <p className="text-xs text-muted-foreground">Usada para tokenização do cartão diretamente no navegador.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Webhook Secret (HMAC-SHA1)</Label>
+              <div className="relative">
+                <Input
+                  type={showPgmeWebhookSecret ? 'text' : 'password'}
+                  value={pgmeWebhookSecret}
+                  onChange={(e) => setPgmeWebhookSecret(e.target.value)}
+                  placeholder="Segredo definido no painel Pagar.me"
+                  className="pr-10"
+                />
+                <button type="button" onClick={() => setShowPgmeWebhookSecret(!showPgmeWebhookSecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  {showPgmeWebhookSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">Valide o header X-Hub-Signature dos webhooks recebidos.</p>
+            </div>
+            <div className="flex items-center justify-between rounded-md border border-border/50 p-3">
+              <div>
+                <Label className="text-sm">Antifraude</Label>
+                <p className="text-xs text-muted-foreground">Habilita análise antifraude nos pedidos com cartão.</p>
+              </div>
+              <Switch checked={pgmeAntifraudEnabled} onCheckedChange={setPgmeAntifraudEnabled} />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">URL do Webhook (copie para o Pagar.me)</Label>
+              <Input readOnly value="https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/pagarme-webhook" className="bg-muted text-xs" onClick={(e) => {
+                (e.target as HTMLInputElement).select();
+                navigator.clipboard.writeText("https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/pagarme-webhook");
+                toast({ title: 'URL copiada!' });
+              }} />
+            </div>
+            <Button variant="outline" size="sm" disabled={testingPgme || !pgmeSecretKey} onClick={async () => {
+              setTestingPgme(true);
+              try {
+                const { data, error } = await supabase.functions.invoke('payment-checkout', {
+                  body: { action: 'test_connection', environment: pgmeEnvironment, api_key: pgmeSecretKey, gateway: 'pagarme' },
+                });
+                if (error) throw new Error(error.message);
+                if (data?.error) throw new Error(data.error);
+                toast({ title: '✅ Conexão com Pagar.me OK!', description: `Ambiente: ${pgmeEnvironment === 'production' ? 'Produção' : 'Sandbox'}` });
+              } catch (err: any) {
+                toast({ title: 'Falha na conexão', description: err.message, variant: 'destructive' });
+              } finally { setTestingPgme(false); }
+            }}>
+              {testingPgme ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+              Testar Conexão
+            </Button>
+          </CardContent>
+        )}
+      </Card>
+
       <Button onClick={handleSave} disabled={saving} className="px-8">
         {saving ? 'Salvando...' : 'Salvar'}
       </Button>
