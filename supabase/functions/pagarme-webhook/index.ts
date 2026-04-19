@@ -203,7 +203,7 @@ async function sendPaymentNotification(supabase: any, data: NotificationData) {
       console.error(`[Pagar.me Webhook] Admin email error: ${e.message}`);
     }
 
-    if (data.customerEmail) {
+    if (notifyCustomer && data.customerEmail) {
       try {
         const customerHtml = isApproved
           ? `
