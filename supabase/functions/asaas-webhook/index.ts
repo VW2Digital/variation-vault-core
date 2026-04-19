@@ -249,7 +249,7 @@ serve(async (req) => {
           // Email to customer
           const resendKey = cfg['resend_api_key'] || Deno.env.get('RESEND_API_KEY');
           const fromEmail = cfg['resend_from_email'];
-          if (resendKey && fromEmail && orderForNotif.customer_email) {
+          if (notifyCustomer && resendKey && fromEmail && orderForNotif.customer_email) {
             const customerHtml = isApproved
               ? `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
                   <h2 style="color:#38a169;">✅ Pagamento Aprovado!</h2>
