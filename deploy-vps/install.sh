@@ -544,7 +544,7 @@ fi
 # ============================================================================
 # [4/12] Limpeza de instalação anterior
 # ============================================================================
-log "[4/12] Limpando instalação anterior..."
+step_banner 4 "Limpeza" "Removendo instalação anterior (containers, volumes)"
 if [[ -f "$APP_DIR/.env" ]]; then
   cp "$APP_DIR/.env" "/root/.liberty-env-backup-$(date +%s)" 2>/dev/null || true
   log "Backup do .env antigo salvo em /root/"
@@ -553,6 +553,7 @@ docker compose -f "$APP_DIR/docker-compose.yml" down --remove-orphans 2>/dev/nul
 apt-get remove -y -qq docker docker.io docker-compose docker-compose-plugin containerd runc 2>/dev/null || true
 rm -rf "$APP_DIR" /var/lib/docker /etc/docker /usr/local/lib/docker 2>/dev/null || true
 ok "Limpeza concluída"
+step_done 4
 
 # ============================================================================
 # [5/12] Sistema base + timezone + hardening
