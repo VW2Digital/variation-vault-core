@@ -885,14 +885,15 @@ for i in $(seq 1 30); do
     exit 1
   fi
 done
+step_done 10
 
 # ============================================================================
 # [11/12] Deploy Edge Functions (opcional)
 # ============================================================================
 FUNCTIONS_DEPLOYED="no"
 SECRETS_SET="no"
+step_banner 11 "Edge Functions" "Deploy via Supabase CLI (se habilitado)"
 if [[ "$DEPLOY_FUNCTIONS" == "yes" ]]; then
-  log "[11/12] Instalando Supabase CLI e deployando Edge Functions..."
   if ! command -v supabase >/dev/null 2>&1; then
     SUPA_ARCH="amd64"; [[ "$ARCH" == "aarch64" ]] && SUPA_ARCH="arm64"
     SUPA_VER="2.20.5"
