@@ -116,6 +116,7 @@ const ProductCheckout = () => {
   const { id } = useParams<{id: string;}>();
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { toast } = useToast();
   const { addToCart, totalItems } = useCart();
   const [searchParams] = useSearchParams();
   const [product, setProduct] = useState<any>(null);
