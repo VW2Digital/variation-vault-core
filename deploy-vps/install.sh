@@ -164,7 +164,42 @@ fi
 if [[ -z "$SUPABASE_PROJECT_ID" ]]; then
   SUPABASE_PROJECT_ID=$(echo "$SUPABASE_URL" | sed -E 's|https?://([^.]+)\.supabase\.co|\1|')
 fi
+SUPABASE_DB_URL="$(echo -n "${SUPABASE_DB_URL:-}" | tr -d '[:space:]')"
 ok "Supabase configurado: $SUPABASE_URL (ref: $SUPABASE_PROJECT_ID)"
+
+# ---------- 1b. Schema automático (se DB URL fornecida) ----------
+SCHEMA_APPLIED="no"
+if [[ -n "$SUPABASE_DB_URL" ]]; then
+  if [[ ! "$SUPABASE_DB_URL" =~ ^postgres(ql)?:// ]]; then
+    err "Connection string inválida. Esperado: postgresql://postgres:SENHA@db.xxx.supabase.co:5432/postgres"
+    exit 1
+  fi
+  log "Instalando psql (postgresql-client) para aplicar schema..."
+  apt-get update -qq >/dev/null 2>&1 || true
+  apt-get install -y -qq --no-install-recommends postgresql-client >/dev/null 2>&1 || \
+    apt_install_resilient postgresql-client
+  log "Aplicando schema.sql no banco Supabase..."
+  SCHEMA_URL="https://raw.githubusercontent.com/VW2Digital/variation-vault-core/${BRANCH}/deploy-vps/supabase/schema.sql"
+  TMP_SCHEMA="/tmp/liberty-schema.sql"
+  if ! curl -fsSL "$SCHEMA_URL" -o "$TMP_SCHEMA"; then
+    err "Falha ao baixar schema.sql de $SCHEMA_URL"
+    exit 1
+  fi
+  if psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -q -f "$TMP_SCHEMA" >/tmp/liberty-schema.log 2>&1; then
+    SCHEMA_APPLIED="yes"
+    ok "Schema aplicado com sucesso (23 tabelas + RLS + Realtime + Storage)"
+  else
+    err "Falha ao aplicar schema. Últimas linhas do log:"
+    tail -n 20 /tmp/liberty-schema.log >&2
+    err "Log completo: /tmp/liberty-schema.log"
+    err "Alternativa: cole o schema.sql manualmente no SQL Editor do Supabase."
+    exit 1
+  fi
+  rm -f "$TMP_SCHEMA"
+else
+  warn "Connection string não fornecida — rode o schema.sql manualmente no SQL Editor:"
+  warn "  https://raw.githubusercontent.com/VW2Digital/variation-vault-core/${BRANCH}/deploy-vps/supabase/schema.sql"
+fi
 
 # ---------- 2. Limpeza ----------
 log "[2/7] Limpando instalação anterior..."
