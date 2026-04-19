@@ -157,6 +157,48 @@ serve(async (req) => {
               body: JSON.stringify({ number: adminWhatsapp.replace(/\D/g, ''), text: adminText }),
             });
             console.log(`[PagBank Webhook] Admin WhatsApp: ${res.ok ? 'sent' : `error:${res.status}`}`);
+
+            // WhatsApp to customer
+            if (existingOrder.customer_phone) {
+              try {
+                const customerPhoneClean = existingOrder.customer_phone.replace(/\D/g, '');
+                const phoneWithCountry = customerPhoneClean.startsWith('55') ? customerPhoneClean : `55${customerPhoneClean}`;
+                const firstName = (existingOrder.customer_name || 'Cliente').split(' ')[0];
+
+                const customerText = isApproved
+                  ? [
+                      `✅ *Pagamento Aprovado!*`,
+                      ``,
+                      `Olá ${firstName}! 🎉`,
+                      ``,
+                      `Seu pagamento de ${valueFormatted} para o pedido "${existingOrder.product_name}" foi *aprovado*!`,
+                      ``,
+                      `Agora vamos preparar seu pedido para envio. Você receberá o código de rastreio em breve.`,
+                      ``,
+                      `Obrigado por comprar conosco! 💚`,
+                    ].join('\n')
+                  : [
+                      `❌ *Pagamento Não Aprovado*`,
+                      ``,
+                      `Olá ${firstName},`,
+                      ``,
+                      `Infelizmente, seu pagamento de ${valueFormatted} para "${existingOrder.product_name}" não foi aprovado.`,
+                      ``,
+                      `Você pode tentar novamente com outro cartão ou pagar via PIX para aprovação imediata.`,
+                      ``,
+                      `Se precisar de ajuda, estamos à disposição! 🤝`,
+                    ].join('\n');
+
+                const cRes = await fetch(`${baseUrl}/message/sendText/${encodeURIComponent(instanceName)}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
+                  body: JSON.stringify({ number: phoneWithCountry, text: customerText }),
+                });
+                console.log(`[PagBank Webhook] Customer WhatsApp: ${cRes.ok ? 'sent' : `error:${cRes.status}`}`);
+              } catch (e: any) {
+                console.error(`[PagBank Webhook] Customer WhatsApp error: ${e.message}`);
+              }
+            }
           }
         } catch (e: any) {
           console.error(`[PagBank Webhook] Notification error: ${e.message}`);
