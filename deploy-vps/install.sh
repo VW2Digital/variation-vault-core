@@ -935,11 +935,12 @@ if [[ "$DEPLOY_FUNCTIONS" == "yes" ]]; then
     warn "Login Supabase falhou — pulando deploy de funções"
   fi
 fi
+step_done 11
 
 # ============================================================================
 # [12/12] Operacional (logrotate + healthcheck cron + INSTALL-INFO)
 # ============================================================================
-log "[12/12] Finalizando: logrotate + healthcheck + resumo..."
+step_banner 12 "Operacional" "Logrotate + healthcheck cron + resumo final"
 
 # Logrotate (Docker já gerencia via json-file driver no compose, mas garantimos)
 cat >/etc/logrotate.d/docker-liberty <<'EOF'
