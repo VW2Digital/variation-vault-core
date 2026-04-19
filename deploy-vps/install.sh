@@ -135,17 +135,28 @@ if [[ -z "${SUPABASE_URL:-}" ]]; then
     2) Vá em Project Settings → API e copie:
          - Project URL          (ex: https://abc.supabase.co)
          - anon / public key    (eyJ...)
+         - service_role key     (eyJ... — opcional, p/ criar admin auto)
          - Project Reference    (abc — parte antes de .supabase.co)
     3) (Opcional) Para criar o schema automaticamente, copie também:
          Project Settings → Database → Connection string → URI
          Formato: postgresql://postgres:SENHA@db.xxx.supabase.co:5432/postgres
-       Se não fornecer, você precisará rodar o schema.sql manualmente no SQL Editor.
+       Se não fornecer, você precisará rodar o schema.sql manualmente.
 
 INFO
   prompt_tty SUPABASE_URL "  Project URL (https://xxx.supabase.co): "
   prompt_tty SUPABASE_ANON_KEY "  anon key (eyJ...): "
   prompt_tty SUPABASE_PROJECT_ID "  Project Reference (xxx — opcional, deduzido da URL): "
   prompt_tty SUPABASE_DB_URL "  Connection string Postgres (opcional, ENTER para pular): "
+
+  if [[ -n "$SUPABASE_DB_URL" ]]; then
+    echo ""
+    echo "  Para criar o usuário ADMIN automaticamente (opcional):"
+    prompt_tty SUPABASE_SERVICE_KEY "  service_role key (eyJ... — ENTER p/ pular): "
+    if [[ -n "$SUPABASE_SERVICE_KEY" ]]; then
+      prompt_tty ADMIN_EMAIL "  Email do admin: "
+      prompt_tty_secret ADMIN_PASSWORD "  Senha do admin (mín 6 chars, oculta): "
+    fi
+  fi
 fi
 
 # Limpa espaços/quebras
