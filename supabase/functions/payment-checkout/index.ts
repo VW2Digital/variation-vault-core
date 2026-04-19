@@ -774,7 +774,9 @@ class PagarMeGateway implements PaymentGateway {
   }
 
   private async fetch(path: string, method: string, body?: any) {
-    const res = await fetch(`${this.baseUrl}${path}`, {
+    const startedAt = Date.now();
+    const url = `${this.baseUrl}${path}`;
+    const res = await fetch(url, {
       method,
       headers: {
         'Content-Type': 'application/json',
@@ -783,10 +785,19 @@ class PagarMeGateway implements PaymentGateway {
       },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
+    const elapsedMs = Date.now() - startedAt;
     const raw = await res.text();
     let data: any = {};
     if (raw) { try { data = JSON.parse(raw); } catch { data = { message: raw }; } }
+
+    // Build a compact, safe preview of the response (truncated to 800 chars)
+    const preview = raw ? raw.slice(0, 800) : '';
+    const previewSuffix = raw && raw.length > 800 ? `... (+${raw.length - 800} chars)` : '';
+
     if (!res.ok) {
+      console.error(
+        `[Pagar.me] ${method} ${path} -> ${res.status} ${res.statusText} (${elapsedMs}ms) | response: ${preview}${previewSuffix}`,
+      );
       const errs = data?.errors;
       let msg = data?.message || `Pagar.me error [${res.status}]`;
       if (errs && typeof errs === 'object') {
@@ -800,8 +811,27 @@ class PagarMeGateway implements PaymentGateway {
       }
       throw new Error(msg);
     }
+
+    // Success: log a compact summary including the preview for traceability
+    const summary: any = { status: res.status, elapsed_ms: elapsedMs };
+    if (data?.id) summary.id = data.id;
+    if (data?.status) summary.order_status = data.status;
+    const charge = Array.isArray(data?.charges) ? data.charges[0] : undefined;
+    if (charge?.status) summary.charge_status = charge.status;
+    const lastTx = charge?.last_transaction;
+    if (lastTx) {
+      summary.tx_status = lastTx.status;
+      summary.has_qr_code = !!lastTx.qr_code;
+      summary.has_qr_code_url = !!lastTx.qr_code_url;
+      if (lastTx.acquirer_message) summary.acquirer_message = lastTx.acquirer_message;
+    }
+    console.log(
+      `[Pagar.me] ${method} ${path} -> ${res.status} (${elapsedMs}ms) | summary: ${JSON.stringify(summary)} | preview: ${preview}${previewSuffix}`,
+    );
+
     return data;
   }
+
 
   async createCustomer(dto: CustomerDTO) {
     // Pagar.me v5: customer is created inline with the order, but we can pre-create
