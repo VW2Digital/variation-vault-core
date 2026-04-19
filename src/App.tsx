@@ -117,6 +117,7 @@ const App = () => (
             <Route path="configuracoes/css" element={<SettingsCSS />} />
             <Route path="configuracoes/pagina-inicial" element={<SettingsHomePage />} />
             <Route path="configuracoes/pagamento" element={<SettingsPayment />} />
+            <Route path="configuracoes/pagamento/:gateway" element={<SettingsPayment />} />
             <Route path="configuracoes/logistica" element={<SettingsShipping />} />
             <Route path="configuracoes/comunicacao" element={<SettingsCommunication />} />
             <Route path="configuracoes/rodape" element={<SettingsFooter />} />
