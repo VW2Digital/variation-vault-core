@@ -558,7 +558,7 @@ step_done 4
 # ============================================================================
 # [5/12] Sistema base + timezone + hardening
 # ============================================================================
-log "[5/12] Atualizando sistema e configurando timezone/hardening..."
+step_banner 5 "Sistema base + hardening" "apt update, fail2ban, timezone, auto-update"
 configure_apt_retries
 apt_update_resilient
 apt_install_resilient curl git ufw ca-certificates wget gnupg jq \
