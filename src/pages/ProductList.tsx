@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { fetchProducts, deleteProduct as apiDeleteProduct } from '@/lib/api';
+import { fetchProducts, deleteProduct as apiDeleteProduct, setProductActive } from '@/lib/api';
+import { Switch } from '@/components/ui/switch';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
