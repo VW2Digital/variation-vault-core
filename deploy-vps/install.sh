@@ -117,18 +117,20 @@ if [[ -z "${SUPABASE_URL:-}" ]]; then
   cat <<'INFO'
   Antes de continuar, você precisa de um projeto Supabase pronto:
     1) Crie em: https://supabase.com/dashboard/projects
-    2) Copie o schema de:
-       https://raw.githubusercontent.com/VW2Digital/variation-vault-core/main/deploy-vps/supabase/schema.sql
-    3) Cole no SQL Editor do projeto e clique em RUN
-    4) Vá em Project Settings → API e copie:
+    2) Vá em Project Settings → API e copie:
          - Project URL          (ex: https://abc.supabase.co)
          - anon / public key    (eyJ...)
          - Project Reference    (abc — parte antes de .supabase.co)
+    3) (Opcional) Para criar o schema automaticamente, copie também:
+         Project Settings → Database → Connection string → URI
+         Formato: postgresql://postgres:SENHA@db.xxx.supabase.co:5432/postgres
+       Se não fornecer, você precisará rodar o schema.sql manualmente no SQL Editor.
 
 INFO
   prompt_tty SUPABASE_URL "  Project URL (https://xxx.supabase.co): "
   prompt_tty SUPABASE_ANON_KEY "  anon key (eyJ...): "
   prompt_tty SUPABASE_PROJECT_ID "  Project Reference (xxx — opcional, deduzido da URL): "
+  prompt_tty SUPABASE_DB_URL "  Connection string Postgres (opcional, ENTER para pular): "
 fi
 
 # Limpa espaços/quebras
