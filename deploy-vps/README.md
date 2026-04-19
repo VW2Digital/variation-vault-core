@@ -31,7 +31,53 @@ curl -fsSL https://raw.githubusercontent.com/VW2Digital/variation-vault-core/mai
 sudo bash /tmp/install.sh
 ```
 
-O script é interativo. Cada credencial pedida tem instruções de onde encontrar logo abaixo.
+> ⚠️ **NÃO use `curl ... | sudo bash`** — o instalador é interativo e precisa de TTY para os prompts. O pipe quebra a entrada do teclado e o script aborta. Sempre baixe primeiro com `-o /tmp/install.sh` e rode com `sudo bash /tmp/install.sh`.
+
+Modos disponíveis:
+
+| Modo | Comando | Uso |
+|------|---------|-----|
+| **Interativo** (recomendado) | `sudo bash /tmp/install.sh` | Coleta dados com explicação + validação + menu de revisão |
+| **Dry-run** (validação) | `sudo bash /tmp/install.sh --dry-run` | Valida URL, conexão Postgres, service_role, DNS — sai sem modificar |
+| **Não-interativo** | `SUPABASE_URL=... DOMAIN=... sudo -E bash /tmp/install.sh` | Pula prompts (ver tabela de variáveis abaixo) |
+
+---
+
+## Fluxo interativo com revisão
+
+O instalador tem **3 fases visuais** antes de aplicar qualquer mudança no sistema:
+
+### 1. Coleta guiada (etapas 1, 2 e 3)
+
+Cada etapa abre com um banner numerado e uma barra de progresso (`[1▶] [2○] [3○] [4○] ...`). Cada campo pedido tem:
+
+- **Numeração** (`[1.1]`, `[1.2]`, ...) para referência no menu de revisão
+- **Onde encontrar** no painel Supabase (caminho exato: `Settings → API → ...`)
+- **Validação imediata em loop** — se digitar errado, mostra a causa específica e pede de novo *sem abortar*:
+  ```
+    ✗ URL deve começar com https://
+    → tente novamente (ou Ctrl+C para abortar)
+  ```
+
+### 2. Menu de revisão (antes do deploy)
+
+Após coletar tudo, exibe um resumo de todos os 14 campos (segredos mascarados como `eyJ...x4z (220 chars)`) e oferece:
+
+```
+Opções:
+  [c] Confirmar e iniciar deploy
+  [1] Refazer Etapa 1 (Supabase completo)
+  [2] Refazer Etapa 2 (Domínio + SSL)
+  [3] Refazer Etapa 3 (Edge Functions)
+  [e] Editar UM campo específico (digita o número)
+  [q] Cancelar e sair sem instalar
+```
+
+Use `[e]` + número (1-14) para corrigir só o campo errado, sem refazer toda a etapa. O loop continua até você escolher `[c]`. O deploy real (etapas 4-12) **só começa após a confirmação**.
+
+### 3. Execução das etapas 4-12
+
+A barra de progresso atualiza ao final de cada etapa (`[1✓] [2✓] [3✓] [4▶] ...`).
 
 ---
 
