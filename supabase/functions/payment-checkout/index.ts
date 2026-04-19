@@ -985,18 +985,45 @@ class PagarMeGateway implements PaymentGateway {
 
     const valueCents = Math.round(toCurrencyNumber(dto.value) * 100);
 
+    // Statement descriptor: max 13 chars, alphanumeric uppercase. Use fantasy_name when available.
+    const rawDescriptor = ((dto as any).fantasyName || dto.description || 'LOJA').toString();
+    const statementDescriptor = rawDescriptor
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Za-z0-9 ]/g, '')
+      .toUpperCase()
+      .slice(0, 13)
+      .trim() || 'LOJA';
+
+    const billingAddress = this.extractAddress(dto);
+
+    const cardConfig: any = {
+      installments: parsedCount,
+      statement_descriptor: statementDescriptor,
+      card: {
+        token: cardToken,
+      },
+      operation_type: 'auth_and_capture',
+    };
+
+    // Include billing_address inside card object — improves antifraud approval rate
+    if (billingAddress) {
+      cardConfig.card.billing_address = {
+        line_1: `${billingAddress.street_number}, ${billingAddress.street}, ${billingAddress.neighborhood}`.slice(0, 256),
+        line_2: billingAddress.complement || undefined,
+        zip_code: billingAddress.zip_code,
+        city: billingAddress.city,
+        state: billingAddress.state,
+        country: billingAddress.country,
+      };
+    }
+
     const orderBody: any = {
       code: dto.orderId || crypto.randomUUID(),
       customer: this.buildCustomerObj(dto),
       items: this.buildItems(dto, valueCents),
       payments: [{
         payment_method: 'credit_card',
-        credit_card: {
-          installments: parsedCount,
-          statement_descriptor: 'LOJA',
-          card_token: cardToken,
-          operation_type: 'auth_and_capture',
-        },
+        credit_card: cardConfig,
       }],
       ip: dto.remoteIp || undefined,
     };
@@ -1004,7 +1031,6 @@ class PagarMeGateway implements PaymentGateway {
     const antifraud = this.buildAntifraud(dto);
     if (antifraud) {
       orderBody.antifraud_enabled = true;
-      // Pagar.me uses shipping data from order itself for antifraud
       orderBody.shipping = antifraud.shipping;
     }
 
@@ -1012,16 +1038,28 @@ class PagarMeGateway implements PaymentGateway {
       code: orderBody.code,
       amount_cents: valueCents,
       installments: parsedCount,
+      statement_descriptor: statementDescriptor,
       has_antifraud: !!antifraud,
+      has_billing_address: !!billingAddress,
       has_token: !!cardToken,
     }));
 
     const result = await this.fetch('/orders', 'POST', orderBody);
     const charge = result.charges?.[0];
+    const lastTx = charge?.last_transaction;
+
+    // If declined, surface acquirer message for better UX
+    const chargeStatus = charge?.status || result.status || 'pending';
+    if (chargeStatus === 'failed' || chargeStatus === 'not_authorized') {
+      const acquirerMsg = lastTx?.acquirer_message || lastTx?.gateway_response?.errors?.[0]?.message;
+      if (acquirerMsg) {
+        throw new Error(`Cartão recusado: ${acquirerMsg}`);
+      }
+    }
 
     return {
       id: result.id,
-      status: this.mapStatus(charge?.status || result.status || 'pending'),
+      status: this.mapStatus(chargeStatus),
     };
   }
 
