@@ -307,8 +307,30 @@ serve(async (req) => {
         .from('orders')
         .update({ status: newStatus, asaas_payment_id: data.id })
         .eq('id', orderCode);
-      if (updErr) console.error('[Pagar.me Webhook] DB update error:', updErr.message);
-      else console.log(`[Pagar.me Webhook] Order ${orderCode}: ${previousStatus} -> ${newStatus}`);
+      if (updErr) {
+        console.error('[Pagar.me Webhook] DB update error:', updErr.message);
+      } else {
+        console.log(`[Pagar.me Webhook] Order ${orderCode}: ${previousStatus} -> ${newStatus}`);
+
+        // Send notifications on terminal status transitions only
+        const statusChanged = previousStatus !== newStatus;
+        if (statusChanged && (newStatus === 'PAID' || newStatus === 'REFUSED')) {
+          try {
+            await sendPaymentNotification(supabase, {
+              orderId: orderCode,
+              customerName: existing.customer_name || '',
+              customerEmail: existing.customer_email || '',
+              customerPhone: existing.customer_phone,
+              productName: existing.product_name || '',
+              totalValue: Number(existing.total_value) || 0,
+              paymentMethod: existing.payment_method || 'credit_card',
+              newStatus,
+            });
+          } catch (notifErr: any) {
+            console.error('[Pagar.me Webhook] Notification error:', notifErr.message);
+          }
+        }
+      }
     } else {
       console.log(`[Pagar.me Webhook] Skipped regression: ${previousStatus} -> ${newStatus}`);
     }
