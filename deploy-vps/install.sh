@@ -173,107 +173,396 @@ prompt_tty_secret() {
   printf -v "$__var_name" '%s' "$__value"
 }
 
-# ============================================================================
-# [1/12] Configuração Supabase
-# ============================================================================
-log "[1/12] Configuração do Supabase Cloud"
-echo ""
+# ----------------------------------------------------------------------------
+# UX helpers: banners de etapa, barra de progresso, prompts com validação
+# ----------------------------------------------------------------------------
 
-if [[ -z "${SUPABASE_URL:-}" ]]; then
-  cat <<'INFO'
-  Antes de continuar, você precisa de um projeto Supabase pronto:
-    1) Crie em: https://supabase.com/dashboard/projects
-    2) Project Settings → API → copie:
-         - Project URL          (https://abc.supabase.co)
-         - anon / public key    (eyJ...)
-         - service_role key     (eyJ... — opcional, p/ criar admin auto)
-    3) Project Settings → Database → Connection string → URI
-         (opcional — se fornecer, schema é aplicado automaticamente)
+# Estado das etapas: pending|done|current
+declare -a STEP_NAMES=(
+  "Supabase" "Domínio/SSL" "Edge Functions" "Limpeza"
+  "Sistema base" "Swap" "Docker" "Firewall"
+  "Banco + Admin" "Build + Nginx" "Deploy Funcs" "Operacional"
+)
+declare -a STEP_STATUS=(pending pending pending pending pending pending pending pending pending pending pending pending)
+
+print_progress_bar() {
+  local current_idx="$1"  # 1-based
+  local i name status icon
+  printf "\n" > /dev/tty
+  printf "  Progresso: " > /dev/tty
+  for i in "${!STEP_NAMES[@]}"; do
+    name="${STEP_NAMES[$i]}"
+    status="${STEP_STATUS[$i]}"
+    if (( i + 1 == current_idx )); then
+      printf "${YELLOW}[%d ▶]${NC}" "$((i+1))" > /dev/tty
+    elif [[ "$status" == "done" ]]; then
+      printf "${GREEN}[%d ✓]${NC}" "$((i+1))" > /dev/tty
+    else
+      printf "[%d ○]" "$((i+1))" > /dev/tty
+    fi
+    [[ $((i+1)) -lt ${#STEP_NAMES[@]} ]] && printf " " > /dev/tty
+  done
+  printf "\n\n" > /dev/tty
+}
+
+step_banner() {
+  local num="$1" title="$2" subtitle="$3"
+  STEP_STATUS[$((num-1))]="current"
+  print_progress_bar "$num"
+  printf "${BLUE}╔══════════════════════════════════════════════════════════════╗${NC}\n" > /dev/tty
+  printf "${BLUE}║${NC}  ${YELLOW}ETAPA %2d/12${NC} — %-46s ${BLUE}║${NC}\n" "$num" "$title" > /dev/tty
+  if [[ -n "$subtitle" ]]; then
+    printf "${BLUE}║${NC}  %-58s ${BLUE}║${NC}\n" "$subtitle" > /dev/tty
+  fi
+  printf "${BLUE}╚══════════════════════════════════════════════════════════════╝${NC}\n\n" > /dev/tty
+}
+
+step_done() {
+  local num="$1"
+  STEP_STATUS[$((num-1))]="done"
+}
+
+# Validadores: retornam 0 = válido, 1 = inválido (ecoa erro em stderr/tty)
+validate_supabase_url() {
+  local v="$1"
+  [[ -z "$v" ]] && { echo "  ✗ URL não pode ser vazia." > /dev/tty; return 1; }
+  [[ ! "$v" =~ ^https?:// ]] && { echo "  ✗ URL deve começar com https://" > /dev/tty; return 1; }
+  [[ ! "$v" =~ \.supabase\.co/?$ ]] && { echo "  ✗ URL deve terminar em .supabase.co (ex: https://abc.supabase.co)" > /dev/tty; return 1; }
+  return 0
+}
+validate_jwt_key() {
+  local v="$1" label="${2:-key}"
+  [[ -z "$v" ]] && { echo "  ✗ $label vazia." > /dev/tty; return 1; }
+  [[ ! "$v" =~ ^eyJ ]] && { echo "  ✗ $label deve começar com 'eyJ' (formato JWT)." > /dev/tty; return 1; }
+  [[ ${#v} -lt 100 ]] && { echo "  ✗ $label parece curta demais (${#v} chars, esperado >100)." > /dev/tty; return 1; }
+  return 0
+}
+validate_db_url() {
+  local v="$1"
+  [[ -z "$v" ]] && return 0  # opcional
+  [[ ! "$v" =~ ^postgresql:// ]] && { echo "  ✗ Deve começar com postgresql://" > /dev/tty; return 1; }
+  [[ ! "$v" =~ @ ]] && { echo "  ✗ Formato inválido (esperado postgresql://USER:SENHA@HOST:PORTA/DB)" > /dev/tty; return 1; }
+  return 0
+}
+validate_email() {
+  local v="$1"
+  [[ -z "$v" ]] && { echo "  ✗ Email vazio." > /dev/tty; return 1; }
+  [[ ! "$v" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]] && { echo "  ✗ Email inválido." > /dev/tty; return 1; }
+  return 0
+}
+validate_password() {
+  local v="$1"
+  [[ ${#v} -lt 6 ]] && { echo "  ✗ Senha precisa ter no mínimo 6 caracteres." > /dev/tty; return 1; }
+  return 0
+}
+validate_domain() {
+  local v="$1"
+  [[ -z "$v" ]] && return 0  # opcional
+  [[ ! "$v" =~ ^[a-z0-9.-]+\.[a-z]{2,}$ ]] && { echo "  ✗ Domínio inválido. Use formato: loja.exemplo.com" > /dev/tty; return 1; }
+  return 0
+}
+
+# prompt_validated VAR "label" "validador_func" [optional|required] [default]
+prompt_validated() {
+  local var_name="$1" label="$2" validator="$3" mode="${4:-required}" default="${5:-}"
+  local value=""
+  while true; do
+    prompt_tty value "$label"
+    value="$(echo -n "$value" | tr -d '[:space:]')"
+    if [[ -z "$value" && -n "$default" ]]; then
+      value="$default"
+    fi
+    if [[ -z "$value" && "$mode" == "optional" ]]; then
+      printf -v "$var_name" '%s' ""
+      return 0
+    fi
+    if $validator "$value"; then
+      printf -v "$var_name" '%s' "$value"
+      return 0
+    fi
+    echo "  → tente novamente (ou Ctrl+C para abortar)" > /dev/tty
+  done
+}
+
+prompt_validated_secret() {
+  local var_name="$1" label="$2" validator="$3"
+  local value=""
+  while true; do
+    prompt_tty_secret value "$label"
+    if $validator "$value"; then
+      printf -v "$var_name" '%s' "$value"
+      return 0
+    fi
+    echo "  → tente novamente (ou Ctrl+C para abortar)" > /dev/tty
+  done
+}
+
+# Mostra valor mascarando segredos
+mask_secret() {
+  local v="$1"
+  [[ -z "$v" ]] && { echo "(vazio)"; return; }
+  local len=${#v}
+  if (( len <= 12 )); then echo "***"; else echo "${v:0:6}...${v: -4} (${len} chars)"; fi
+}
+
+# ============================================================================
+# COLETA DE DADOS — Etapas 1, 2 e 3 (interativas, com revisão antes do deploy)
+# ============================================================================
+# Estratégia:
+#   - Cada campo: explicação + onde encontrar + validação em loop (não aborta).
+#   - Modo interativo: ao final, MENU DE REVISÃO permite editar qualquer campo.
+#   - Modo não-interativo (env vars): valida e segue direto.
+# ============================================================================
+
+collect_supabase() {
+  cat > /dev/tty <<'INFO'
+  ──────────────────────────────────────────────────────────────
+   ONDE ENCONTRAR no painel Supabase (https://supabase.com/dashboard):
+     • Project URL    → Settings → API → Project URL
+     • anon key       → Settings → API → Project API keys → "anon public"
+     • service_role   → Settings → API → Project API keys → "service_role" (segredo!)
+     • Connection URI → Settings → Database → Connection string → URI
+  ──────────────────────────────────────────────────────────────
 
 INFO
-  prompt_tty SUPABASE_URL "  Project URL (https://xxx.supabase.co): "
-  prompt_tty SUPABASE_ANON_KEY "  anon key (eyJ...): "
-  prompt_tty SUPABASE_PROJECT_ID "  Project Reference (opcional, deduzido): "
-  prompt_tty SUPABASE_DB_URL "  Connection string Postgres (opcional, ENTER p/ pular): "
+  echo "  [1.1] URL do projeto Supabase  (ex: https://abc.supabase.co)" > /dev/tty
+  prompt_validated SUPABASE_URL "        URL: " validate_supabase_url required
+  SUPABASE_URL="${SUPABASE_URL%/}"
 
+  echo "" > /dev/tty
+  echo "  [1.2] anon / public key  (JWT começando com eyJ... — é PÚBLICA)" > /dev/tty
+  prompt_validated SUPABASE_ANON_KEY "        anon key: " "validate_jwt_key" required
+
+  echo "" > /dev/tty
+  echo "  [1.3] Connection string Postgres  (OPCIONAL — ENTER pula)" > /dev/tty
+  echo "        Necessária para aplicar o schema.sql automaticamente." > /dev/tty
+  echo "        Formato: postgresql://postgres:SENHA@db.<ref>.supabase.co:5432/postgres" > /dev/tty
+  prompt_validated SUPABASE_DB_URL "        DB URL: " validate_db_url optional
+
+  SUPABASE_SERVICE_KEY=""
+  ADMIN_EMAIL=""
+  ADMIN_PASSWORD=""
   if [[ -n "$SUPABASE_DB_URL" ]]; then
-    echo ""
-    echo "  Para criar o usuário ADMIN automaticamente (opcional):"
-    prompt_tty SUPABASE_SERVICE_KEY "  service_role key (eyJ... — ENTER p/ pular): "
+    echo "" > /dev/tty
+    echo "  [1.4] service_role key  (OPCIONAL — necessária só p/ criar admin auto)" > /dev/tty
+    echo "        SECRETA — nunca exponha no frontend." > /dev/tty
+    prompt_validated SUPABASE_SERVICE_KEY "        service_role: " "validate_jwt_key" optional
+
     if [[ -n "$SUPABASE_SERVICE_KEY" ]]; then
-      prompt_tty ADMIN_EMAIL "  Email do admin: "
-      prompt_tty_secret ADMIN_PASSWORD "  Senha do admin (mín 6 chars, oculta): "
+      echo "" > /dev/tty
+      echo "  [1.5] Email do usuário ADMIN inicial" > /dev/tty
+      prompt_validated ADMIN_EMAIL "        Email admin: " validate_email required
+      echo "" > /dev/tty
+      echo "  [1.6] Senha do admin  (mínimo 6 caracteres, oculta ao digitar)" > /dev/tty
+      prompt_validated_secret ADMIN_PASSWORD "        Senha: " validate_password
     fi
   fi
-fi
 
-# Limpa e valida
-SUPABASE_URL="$(echo -n "$SUPABASE_URL" | tr -d '[:space:]')"
-SUPABASE_ANON_KEY="$(echo -n "$SUPABASE_ANON_KEY" | tr -d '[:space:]')"
-SUPABASE_PROJECT_ID="$(echo -n "${SUPABASE_PROJECT_ID:-}" | tr -d '[:space:]')"
-SUPABASE_DB_URL="$(echo -n "${SUPABASE_DB_URL:-}" | tr -d '[:space:]')"
-SUPABASE_SERVICE_KEY="$(echo -n "${SUPABASE_SERVICE_KEY:-}" | tr -d '[:space:]')"
-SUPABASE_URL="${SUPABASE_URL%/}"
+  SUPABASE_PROJECT_ID=$(echo "$SUPABASE_URL" | sed -E 's|https?://([^.]+)\.supabase\.co|\1|')
+  ok "Supabase coletado (ref: $SUPABASE_PROJECT_ID)"
+}
 
-if [[ -n "$SUPABASE_URL" && ! "$SUPABASE_URL" =~ ^https?:// ]]; then
-  if [[ "$SUPABASE_URL" =~ \.supabase\.co$ ]]; then
-    SUPABASE_URL="https://$SUPABASE_URL"
-  else
-    SUPABASE_URL="https://${SUPABASE_URL}.supabase.co"
-  fi
-fi
+collect_domain() {
+  cat > /dev/tty <<'INFO'
+  ──────────────────────────────────────────────────────────────
+   DOMÍNIO + SSL (HTTPS via Let's Encrypt — opcional)
+     PRÉ-REQUISITO: registro DNS tipo A do domínio já apontando
+     para o IP desta VPS (caso contrário SSL falhará).
+     Pular agora = site rodará apenas em HTTP no IP da VPS.
+  ──────────────────────────────────────────────────────────────
 
-[[ -z "$SUPABASE_URL" ]] && { err "URL do Supabase vazia"; exit 1; }
-[[ ! "$SUPABASE_URL" =~ ^https?://[a-zA-Z0-9.-]+\.supabase\.co$ ]] && { err "URL inválida: $SUPABASE_URL"; exit 1; }
-[[ -z "$SUPABASE_ANON_KEY" ]] && { err "anon key vazia"; exit 1; }
-[[ ${#SUPABASE_ANON_KEY} -lt 100 ]] && { err "anon key parece curta demais"; exit 1; }
-[[ -z "$SUPABASE_PROJECT_ID" ]] && SUPABASE_PROJECT_ID=$(echo "$SUPABASE_URL" | sed -E 's|https?://([^.]+)\.supabase\.co|\1|')
-ok "Supabase configurado: $SUPABASE_URL (ref: $SUPABASE_PROJECT_ID)"
+INFO
+  echo "  [2.1] Domínio  (ex: loja.exemplo.com — ENTER pula SSL)" > /dev/tty
+  prompt_validated DOMAIN "        Domínio: " validate_domain optional
+  DOMAIN="$(echo -n "${DOMAIN:-}" | tr 'A-Z' 'a-z')"
 
-# ============================================================================
-# [2/12] Domínio + SSL (opcional)
-# ============================================================================
-log "[2/12] Configuração de domínio e SSL"
-if [[ -z "${DOMAIN:-}" ]]; then
-  echo ""
-  echo "  Configure HTTPS automaticamente com Let's Encrypt (recomendado):"
-  echo "  Pré-requisito: o domínio já deve estar apontando para o IP desta VPS (registro A)."
-  prompt_tty DOMAIN "  Domínio (ex: loja.exemplo.com — ENTER p/ pular SSL): "
+  SSL_EMAIL=""
   if [[ -n "$DOMAIN" ]]; then
-    prompt_tty SSL_EMAIL "  Email para Let's Encrypt (recuperação/avisos): "
+    echo "" > /dev/tty
+    echo "  [2.2] Email para Let's Encrypt  (avisos de expiração de cert)" > /dev/tty
+    prompt_validated SSL_EMAIL "        Email: " validate_email required
+  fi
+  [[ -n "$DOMAIN" ]] && ok "SSL: $DOMAIN" || warn "Sem domínio — apenas HTTP"
+}
+
+collect_functions() {
+  cat > /dev/tty <<'INFO'
+  ──────────────────────────────────────────────────────────────
+   EDGE FUNCTIONS (pagamentos, webhooks, frete, emails) — opcional
+     Requer login interativo no Supabase CLI durante a etapa 11.
+     Sem deploy: você pode subir as funções manualmente depois.
+  ──────────────────────────────────────────────────────────────
+
+INFO
+  if [[ -z "$SUPABASE_DB_URL" ]]; then
+    warn "Sem DB URL — deploy de Edge Functions desabilitado."
+    DEPLOY_FUNCTIONS="no"
+    return
+  fi
+
+  local resp=""
+  prompt_tty resp "  Deployar Edge Functions automaticamente? (s/N): "
+  resp="$(echo -n "${resp:-n}" | tr 'A-Z' 'a-z')"
+  case "$resp" in
+    s|sim|y|yes) DEPLOY_FUNCTIONS="yes" ;;
+    *) DEPLOY_FUNCTIONS="no"; ok "Edge Functions: NÃO serão deployadas"; return ;;
+  esac
+
+  cat > /dev/tty <<'INFO'
+
+  Secrets das Edge Functions (TODOS opcionais — ENTER pula cada um):
+    • RESEND_API_KEY        → resend.com/api-keys (emails transacionais)
+    • LOVABLE_API_KEY       → lovable.dev (Lovable AI Gateway)
+    • MP_WEBHOOK_SECRET     → mercadopago.com → Webhooks → assinatura HMAC
+    • EVOLUTION_API_URL/KEY → painel da sua Evolution API (WhatsApp)
+
+INFO
+  prompt_tty SECRET_RESEND_API_KEY    "  RESEND_API_KEY: "
+  prompt_tty SECRET_LOVABLE_API_KEY   "  LOVABLE_API_KEY: "
+  prompt_tty SECRET_MP_WEBHOOK_SECRET "  MP_WEBHOOK_SECRET: "
+  prompt_tty SECRET_EVOLUTION_API_URL "  EVOLUTION_API_URL: "
+  prompt_tty SECRET_EVOLUTION_API_KEY "  EVOLUTION_API_KEY: "
+  ok "Edge Functions: deploy habilitado"
+}
+
+# ---- Resumo + menu de revisão ---------------------------------------------
+
+print_review_summary() {
+  printf "\n${BLUE}╔══════════════════════════════════════════════════════════════╗${NC}\n" > /dev/tty
+  printf "${BLUE}║${NC}            ${YELLOW}REVISÃO DOS DADOS COLETADOS${NC}                       ${BLUE}║${NC}\n" > /dev/tty
+  printf "${BLUE}╚══════════════════════════════════════════════════════════════╝${NC}\n" > /dev/tty
+  printf "\n  ${GREEN}── Etapa 1: Supabase ──${NC}\n" > /dev/tty
+  printf "   [1] URL ............... %s\n" "${SUPABASE_URL:-<vazio>}" > /dev/tty
+  printf "   [2] anon key .......... %s\n" "$(mask_secret "$SUPABASE_ANON_KEY")" > /dev/tty
+  printf "   [3] DB URL ............ %s\n" "$([[ -n "$SUPABASE_DB_URL" ]] && echo "configurada" || echo "(pulada)")" > /dev/tty
+  printf "   [4] service_role ...... %s\n" "$(mask_secret "${SUPABASE_SERVICE_KEY:-}")" > /dev/tty
+  printf "   [5] admin email ....... %s\n" "${ADMIN_EMAIL:-<não criar>}" > /dev/tty
+  printf "   [6] admin senha ....... %s\n" "$([[ -n "${ADMIN_PASSWORD:-}" ]] && echo "*** (${#ADMIN_PASSWORD} chars)" || echo "(não definida)")" > /dev/tty
+  printf "\n  ${GREEN}── Etapa 2: Domínio + SSL ──${NC}\n" > /dev/tty
+  printf "   [7] domínio ........... %s\n" "${DOMAIN:-<HTTP no IP>}" > /dev/tty
+  printf "   [8] email SSL ......... %s\n" "${SSL_EMAIL:-<sem SSL>}" > /dev/tty
+  printf "\n  ${GREEN}── Etapa 3: Edge Functions ──${NC}\n" > /dev/tty
+  printf "   [9] deploy funcs ...... %s\n" "$DEPLOY_FUNCTIONS" > /dev/tty
+  if [[ "$DEPLOY_FUNCTIONS" == "yes" ]]; then
+    printf "  [10] RESEND ............ %s\n" "$(mask_secret "${SECRET_RESEND_API_KEY:-}")" > /dev/tty
+    printf "  [11] LOVABLE_AI ........ %s\n" "$(mask_secret "${SECRET_LOVABLE_API_KEY:-}")" > /dev/tty
+    printf "  [12] MP_WEBHOOK ........ %s\n" "$(mask_secret "${SECRET_MP_WEBHOOK_SECRET:-}")" > /dev/tty
+    printf "  [13] EVOLUTION_URL ..... %s\n" "${SECRET_EVOLUTION_API_URL:-<vazio>}" > /dev/tty
+    printf "  [14] EVOLUTION_KEY ..... %s\n" "$(mask_secret "${SECRET_EVOLUTION_API_KEY:-}")" > /dev/tty
+  fi
+  printf "\n" > /dev/tty
+}
+
+edit_single_field() {
+  local n=""
+  prompt_tty n "  Número do campo a editar (1-14, ENTER cancela): "
+  n="$(echo -n "$n" | tr -d '[:space:]')"
+  [[ -z "$n" ]] && return
+  case "$n" in
+    1) prompt_validated SUPABASE_URL "  Nova URL: " validate_supabase_url required
+       SUPABASE_URL="${SUPABASE_URL%/}"
+       SUPABASE_PROJECT_ID=$(echo "$SUPABASE_URL" | sed -E 's|https?://([^.]+)\.supabase\.co|\1|') ;;
+    2) prompt_validated SUPABASE_ANON_KEY "  Nova anon key: " "validate_jwt_key" required ;;
+    3) prompt_validated SUPABASE_DB_URL   "  Nova DB URL (ENTER limpa): " validate_db_url optional ;;
+    4) prompt_validated SUPABASE_SERVICE_KEY "  Nova service_role (ENTER limpa): " "validate_jwt_key" optional ;;
+    5) prompt_validated ADMIN_EMAIL "  Novo email admin: " validate_email required ;;
+    6) prompt_validated_secret ADMIN_PASSWORD "  Nova senha admin: " validate_password ;;
+    7) prompt_validated DOMAIN "  Novo domínio (ENTER limpa): " validate_domain optional
+       DOMAIN="$(echo -n "${DOMAIN:-}" | tr 'A-Z' 'a-z')" ;;
+    8) prompt_validated SSL_EMAIL "  Novo email SSL: " validate_email required ;;
+    9) local r; prompt_tty r "  Deployar funcs? (s/N): "
+       case "$(echo "$r" | tr 'A-Z' 'a-z')" in s|sim|y|yes) DEPLOY_FUNCTIONS=yes;; *) DEPLOY_FUNCTIONS=no;; esac ;;
+    10) prompt_tty SECRET_RESEND_API_KEY    "  RESEND_API_KEY: " ;;
+    11) prompt_tty SECRET_LOVABLE_API_KEY   "  LOVABLE_API_KEY: " ;;
+    12) prompt_tty SECRET_MP_WEBHOOK_SECRET "  MP_WEBHOOK_SECRET: " ;;
+    13) prompt_tty SECRET_EVOLUTION_API_URL "  EVOLUTION_API_URL: " ;;
+    14) prompt_tty SECRET_EVOLUTION_API_KEY "  EVOLUTION_API_KEY: " ;;
+    *) warn "Campo inválido: $n" ;;
+  esac
+}
+
+review_menu() {
+  while true; do
+    print_review_summary
+    cat > /dev/tty <<'MENU'
+  Opções:
+    [c] Confirmar e iniciar deploy
+    [1] Refazer Etapa 1 (Supabase completo)
+    [2] Refazer Etapa 2 (Domínio + SSL)
+    [3] Refazer Etapa 3 (Edge Functions)
+    [e] Editar UM campo específico (digita o número)
+    [q] Cancelar e sair sem instalar
+
+MENU
+    local choice=""
+    prompt_tty choice "  Sua escolha [c]: "
+    choice="$(echo -n "$choice" | tr 'A-Z' 'a-z' | tr -d '[:space:]')"
+    case "$choice" in
+      c|"") ok "Dados confirmados — iniciando deploy"; return 0 ;;
+      1) collect_supabase ;;
+      2) collect_domain ;;
+      3) collect_functions ;;
+      q) err "Instalação cancelada pelo usuário"; exit 0 ;;
+      e) edit_single_field ;;
+      *) warn "Opção inválida: '$choice'" ;;
+    esac
+  done
+}
+
+# ---- Execução das etapas 1-3 ----------------------------------------------
+
+INTERACTIVE_MODE="no"
+[[ -z "${SUPABASE_URL:-}" ]] && INTERACTIVE_MODE="yes"
+
+# [1/12] Supabase
+step_banner 1 "Configuração Supabase Cloud" "Credenciais do projeto + admin"
+if [[ "$INTERACTIVE_MODE" == "yes" ]]; then
+  collect_supabase
+else
+  SUPABASE_URL="$(echo -n "$SUPABASE_URL" | tr -d '[:space:]')"
+  SUPABASE_URL="${SUPABASE_URL%/}"
+  SUPABASE_ANON_KEY="$(echo -n "${SUPABASE_ANON_KEY:-}" | tr -d '[:space:]')"
+  SUPABASE_DB_URL="$(echo -n "${SUPABASE_DB_URL:-}" | tr -d '[:space:]')"
+  SUPABASE_SERVICE_KEY="$(echo -n "${SUPABASE_SERVICE_KEY:-}" | tr -d '[:space:]')"
+  if [[ -n "$SUPABASE_URL" && ! "$SUPABASE_URL" =~ ^https?:// ]]; then
+    SUPABASE_URL="https://${SUPABASE_URL}"
+  fi
+  validate_supabase_url "$SUPABASE_URL" || { err "SUPABASE_URL inválida"; exit 1; }
+  validate_jwt_key "$SUPABASE_ANON_KEY" "anon key" || { err "SUPABASE_ANON_KEY inválida"; exit 1; }
+  validate_db_url "$SUPABASE_DB_URL" || { err "SUPABASE_DB_URL inválida"; exit 1; }
+  [[ -n "$SUPABASE_SERVICE_KEY" ]] && { validate_jwt_key "$SUPABASE_SERVICE_KEY" "service_role" || { err "SUPABASE_SERVICE_KEY inválida"; exit 1; }; }
+  SUPABASE_PROJECT_ID="${SUPABASE_PROJECT_ID:-$(echo "$SUPABASE_URL" | sed -E 's|https?://([^.]+)\.supabase\.co|\1|')}"
+fi
+ok "Supabase configurado: $SUPABASE_URL (ref: $SUPABASE_PROJECT_ID)"
+step_done 1
+
+# [2/12] Domínio + SSL
+step_banner 2 "Domínio e SSL (HTTPS)" "Let's Encrypt automático (opcional)"
+if [[ "$INTERACTIVE_MODE" == "yes" ]]; then
+  collect_domain
+else
+  DOMAIN="$(echo -n "${DOMAIN:-}" | tr -d '[:space:]' | tr 'A-Z' 'a-z')"
+  SSL_EMAIL="$(echo -n "${SSL_EMAIL:-}" | tr -d '[:space:]')"
+  if [[ -n "$DOMAIN" ]] && ! validate_domain "$DOMAIN"; then
+    warn "Domínio inválido: $DOMAIN — pulando SSL."; DOMAIN=""
   fi
 fi
-DOMAIN="$(echo -n "${DOMAIN:-}" | tr -d '[:space:]' | tr 'A-Z' 'a-z')"
-SSL_EMAIL="$(echo -n "${SSL_EMAIL:-}" | tr -d '[:space:]')"
-if [[ -n "$DOMAIN" && ! "$DOMAIN" =~ ^[a-z0-9.-]+\.[a-z]{2,}$ ]]; then
-  warn "Domínio inválido: $DOMAIN — pulando SSL."
-  DOMAIN=""
-fi
-[[ -n "$DOMAIN" ]] && ok "SSL será configurado para: $DOMAIN" || warn "Sem domínio — site rodará apenas em HTTP"
+[[ -n "$DOMAIN" ]] && ok "SSL: $DOMAIN" || warn "Sem domínio — site rodará apenas em HTTP"
+step_done 2
 
-# ============================================================================
-# [3/12] Edge Functions deploy (opcional)
-# ============================================================================
-DEPLOY_FUNCTIONS="${DEPLOY_FUNCTIONS:-}"
-if [[ -z "$DEPLOY_FUNCTIONS" && -n "$SUPABASE_DB_URL" ]]; then
-  echo ""
-  echo "  Deploy automático das Edge Functions (pagamentos, webhooks, frete, etc):"
-  echo "  Requer login interativo no Supabase CLI no final do processo."
-  prompt_tty DEPLOY_FUNCTIONS "  Deployar Edge Functions? (yes/no, default: no): "
-fi
-DEPLOY_FUNCTIONS=$(echo -n "${DEPLOY_FUNCTIONS:-no}" | tr 'A-Z' 'a-z')
-
-if [[ "$DEPLOY_FUNCTIONS" == "yes" || "$DEPLOY_FUNCTIONS" == "y" || "$DEPLOY_FUNCTIONS" == "s" || "$DEPLOY_FUNCTIONS" == "sim" ]]; then
-  DEPLOY_FUNCTIONS="yes"
-  echo ""
-  echo "  Secrets das Edge Functions (todos opcionais — ENTER p/ pular):"
-  prompt_tty SECRET_RESEND_API_KEY    "  RESEND_API_KEY (emails transacionais): "
-  prompt_tty SECRET_LOVABLE_API_KEY   "  LOVABLE_API_KEY (Lovable AI): "
-  prompt_tty SECRET_MP_WEBHOOK_SECRET "  MP_WEBHOOK_SECRET (Mercado Pago): "
-  prompt_tty SECRET_EVOLUTION_API_URL "  EVOLUTION_API_URL (WhatsApp): "
-  prompt_tty SECRET_EVOLUTION_API_KEY "  EVOLUTION_API_KEY (WhatsApp): "
+# [3/12] Edge Functions
+step_banner 3 "Edge Functions" "Deploy de pagamentos, webhooks, frete, emails"
+if [[ "$INTERACTIVE_MODE" == "yes" ]]; then
+  collect_functions
 else
-  DEPLOY_FUNCTIONS="no"
+  DEPLOY_FUNCTIONS=$(echo -n "${DEPLOY_FUNCTIONS:-no}" | tr 'A-Z' 'a-z')
+  case "$DEPLOY_FUNCTIONS" in yes|y|s|sim) DEPLOY_FUNCTIONS=yes ;; *) DEPLOY_FUNCTIONS=no ;; esac
+fi
+step_done 3
+
+# ---- Menu de revisão (somente modo interativo) ----------------------------
+if [[ "$INTERACTIVE_MODE" == "yes" ]]; then
+  review_menu
 fi
 
 # ============================================================================
@@ -418,7 +707,7 @@ fi
 # ============================================================================
 # [4/12] Limpeza de instalação anterior
 # ============================================================================
-log "[4/12] Limpando instalação anterior..."
+step_banner 4 "Limpeza" "Removendo instalação anterior (containers, volumes)"
 if [[ -f "$APP_DIR/.env" ]]; then
   cp "$APP_DIR/.env" "/root/.liberty-env-backup-$(date +%s)" 2>/dev/null || true
   log "Backup do .env antigo salvo em /root/"
@@ -427,11 +716,12 @@ docker compose -f "$APP_DIR/docker-compose.yml" down --remove-orphans 2>/dev/nul
 apt-get remove -y -qq docker docker.io docker-compose docker-compose-plugin containerd runc 2>/dev/null || true
 rm -rf "$APP_DIR" /var/lib/docker /etc/docker /usr/local/lib/docker 2>/dev/null || true
 ok "Limpeza concluída"
+step_done 4
 
 # ============================================================================
 # [5/12] Sistema base + timezone + hardening
 # ============================================================================
-log "[5/12] Atualizando sistema e configurando timezone/hardening..."
+step_banner 5 "Sistema base + hardening" "apt update, fail2ban, timezone, auto-update"
 configure_apt_retries
 apt_update_resilient
 apt_install_resilient curl git ufw ca-certificates wget gnupg jq \
@@ -458,13 +748,14 @@ APT::Periodic::Unattended-Upgrade "1";
 APT::Periodic::AutocleanInterval "7";
 EOF
 ok "Sistema atualizado • Timezone America/Sao_Paulo • Fail2ban ativo"
+step_done 5
 
 # ============================================================================
 # [6/12] Swap
 # ============================================================================
+step_banner 6 "Swap" "Garantindo 1GB de swap (vm.swappiness=10)"
 SWAP_MB=$(free -m | awk '/^Swap:/{print $2}')
 if (( SWAP_MB < 1024 )); then
-  log "[6/12] Criando swap de 1GB..."
   swapoff /swapfile 2>/dev/null || true
   rm -f /swapfile
   fallocate -l 1G /swapfile
@@ -476,13 +767,14 @@ if (( SWAP_MB < 1024 )); then
   grep -q '^vm.swappiness' /etc/sysctl.conf || echo 'vm.swappiness=10' >> /etc/sysctl.conf
   ok "Swap de 1GB ativo"
 else
-  ok "[6/12] Swap suficiente (${SWAP_MB}MB)"
+  ok "Swap suficiente (${SWAP_MB}MB)"
 fi
+step_done 6
 
 # ============================================================================
 # [7/12] Docker + Compose
 # ============================================================================
-log "[7/12] Instalando Docker e Compose v2..."
+step_banner 7 "Docker + Compose" "docker.io + plugin Compose v2"
 apt_install_resilient docker.io
 systemctl enable --now docker >/dev/null
 mkdir -p /usr/local/lib/docker/cli-plugins
@@ -490,11 +782,12 @@ curl -fsSL "https://github.com/docker/compose/releases/download/${COMPOSE_VERSIO
   -o /usr/local/lib/docker/cli-plugins/docker-compose
 chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 ok "Docker + Compose instalados"
+step_done 7
 
 # ============================================================================
 # [8/12] Firewall
 # ============================================================================
-log "[8/12] Configurando firewall..."
+step_banner 8 "Firewall (UFW)" "Permitindo apenas SSH/HTTP/HTTPS"
 ufw --force reset >/dev/null
 ufw default deny incoming >/dev/null
 ufw default allow outgoing >/dev/null
@@ -503,6 +796,7 @@ ufw allow 80/tcp comment 'HTTP' >/dev/null
 ufw allow 443/tcp comment 'HTTPS' >/dev/null
 ufw --force enable >/dev/null
 ok "Firewall ativo"
+step_done 8
 
 # ============================================================================
 # [9/12] Schema do banco + admin
@@ -512,8 +806,8 @@ ADMIN_CREATED="no"
 EXTENSIONS_OK="no"
 CRON_JOBS_OK="no"
 
+step_banner 9 "Banco de dados + Admin" "Schema, extensões pg_cron/pg_net, cron jobs"
 if [[ -n "$SUPABASE_DB_URL" ]]; then
-  log "[9/12] Aplicando schema, extensões e cron jobs no banco..."
   if [[ ! "$SUPABASE_DB_URL" =~ ^postgres(ql)?:// ]]; then
     err "Connection string inválida"; exit 1
   fi
@@ -617,13 +911,14 @@ SQL
     fi
   fi
 else
-  warn "[9/12] Sem connection string — schema/admin/cron precisam ser feitos manualmente"
+  warn "Sem connection string — schema/admin/cron precisam ser feitos manualmente"
 fi
+step_done 9
 
 # ============================================================================
 # [10/12] Clone + .env + nginx + build
 # ============================================================================
-log "[10/12] Clonando código e fazendo build..."
+step_banner 10 "Build + Nginx + SSL" "Clone repo, build Docker, certificado Let's Encrypt"
 git clone --branch "$BRANCH" --depth 1 "$REPO_URL" "$APP_DIR" >/dev/null 2>&1
 cd "$APP_DIR"
 
@@ -753,14 +1048,15 @@ for i in $(seq 1 30); do
     exit 1
   fi
 done
+step_done 10
 
 # ============================================================================
 # [11/12] Deploy Edge Functions (opcional)
 # ============================================================================
 FUNCTIONS_DEPLOYED="no"
 SECRETS_SET="no"
+step_banner 11 "Edge Functions" "Deploy via Supabase CLI (se habilitado)"
 if [[ "$DEPLOY_FUNCTIONS" == "yes" ]]; then
-  log "[11/12] Instalando Supabase CLI e deployando Edge Functions..."
   if ! command -v supabase >/dev/null 2>&1; then
     SUPA_ARCH="amd64"; [[ "$ARCH" == "aarch64" ]] && SUPA_ARCH="arm64"
     SUPA_VER="2.20.5"
@@ -802,11 +1098,12 @@ if [[ "$DEPLOY_FUNCTIONS" == "yes" ]]; then
     warn "Login Supabase falhou — pulando deploy de funções"
   fi
 fi
+step_done 11
 
 # ============================================================================
 # [12/12] Operacional (logrotate + healthcheck cron + INSTALL-INFO)
 # ============================================================================
-log "[12/12] Finalizando: logrotate + healthcheck + resumo..."
+step_banner 12 "Operacional" "Logrotate + healthcheck cron + resumo final"
 
 # Logrotate (Docker já gerencia via json-file driver no compose, mas garantimos)
 cat >/etc/logrotate.d/docker-liberty <<'EOF'
@@ -873,10 +1170,13 @@ EOF
 
 ok "Resumo salvo em $INSTALL_INFO"
 
+step_done 12
+
 # ============================================================================
 # Resumo final
 # ============================================================================
 echo ""
+print_progress_bar 13  # mostra todas como done
 cat <<EOF
 ╔══════════════════════════════════════════════════════════════╗
 ║                  ✓ INSTALAÇÃO CONCLUÍDA                      ║
