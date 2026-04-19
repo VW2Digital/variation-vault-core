@@ -369,6 +369,15 @@ if [[ "$SCHEMA_APPLIED" == "yes" ]]; then
 else
   SCHEMA_STATUS="rode manualmente no SQL Editor"
 fi
+if [[ "$ADMIN_CREATED" == "yes" ]]; then
+  ADMIN_STATUS="criado: $ADMIN_EMAIL"
+  ADMIN_NEXT="Acesse http://$PUBLIC_IP/admin com $ADMIN_EMAIL"
+else
+  ADMIN_STATUS="crie manualmente em Authentication → Users"
+  ADMIN_NEXT="1) Auth → Users → criar usuário
+    2) SQL Editor: INSERT INTO public.user_roles (user_id, role) VALUES ('<UUID>', 'admin');
+    3) Acessar http://$PUBLIC_IP/admin"
+fi
 echo ""
 cat <<EOF
 ╔══════════════════════════════════════════════════════════════╗
@@ -378,6 +387,7 @@ cat <<EOF
   🌐 Site:           http://$PUBLIC_IP
   🗄  Backend:        $SUPABASE_URL
   📋 Schema DB:      $SCHEMA_STATUS
+  👤 Admin:          $ADMIN_STATUS
   📁 Pasta:          $APP_DIR
   🔑 .env:           $APP_DIR/.env
 
@@ -386,11 +396,7 @@ cat <<EOF
     docker compose -f $APP_DIR/docker-compose.yml restart
     cd $APP_DIR && bash deploy-vps/deploy.sh    # atualizar do git
 
-  Próximos passos no Supabase:
-    1) Authentication → Users → criar primeiro usuário
-    2) SQL Editor → promover a admin:
-         INSERT INTO public.user_roles (user_id, role)
-         VALUES ('<UUID>', 'admin');
-    3) Acessar http://$PUBLIC_IP/admin
+  Próximos passos:
+    $ADMIN_NEXT
 
 EOF
