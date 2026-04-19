@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, CheckCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import PagarMeWebhooksPanel from '@/components/admin/PagarMeWebhooksPanel';
 
 interface Props {
   isActive: boolean;
@@ -160,6 +161,16 @@ const PagarMeSettings = ({ isActive, onActivate }: Props) => {
           Testar
         </Button>
       </div>
+
+      {isActive && secretKey ? (
+        <div className="pt-2">
+          <PagarMeWebhooksPanel />
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground italic">
+          Salve e ative a Pagar.me com uma Secret Key válida para acessar o diagnóstico de webhooks.
+        </p>
+      )}
     </div>
   );
 };
