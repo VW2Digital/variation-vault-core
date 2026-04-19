@@ -902,26 +902,33 @@ class PagarMeGateway implements PaymentGateway {
     }];
   }
 
-  private buildAntifraud(dto: CheckoutDTO) {
-    if (!this.antifraudEnabled) return undefined;
+  private extractAddress(dto: CheckoutDTO) {
     const additionalInfoRaw = (dto as any).additionalInfo;
     const addr = additionalInfoRaw?.shipments?.receiver_address || additionalInfoRaw?.payer?.address;
     if (!addr) return undefined;
+    return {
+      street: String(addr.street_name || addr.street || '').trim(),
+      street_number: String(addr.street_number || addr.number || 'S/N').trim(),
+      complement: String(addr.complement || '').trim() || undefined,
+      neighborhood: String(addr.neighborhood || addr.district || 'Centro').trim(),
+      zip_code: String(addr.zip_code || addr.postal_code || '').replace(/\D/g, ''),
+      city: String(addr.city_name || addr.city || '').trim(),
+      state: String(addr.state_name || addr.state || '').toUpperCase().slice(0, 2),
+      country: 'BR',
+    };
+  }
+
+  private buildAntifraud(dto: CheckoutDTO) {
+    if (!this.antifraudEnabled) return undefined;
+    const address = this.extractAddress(dto);
+    if (!address) return undefined;
     return {
       shipping: {
         amount: 0,
         description: 'Frete',
         recipient_name: dto.creditCardHolderInfo?.name || 'Cliente',
         recipient_phone: sanitizePhone(dto.creditCardHolderInfo?.phone) || '11999999999',
-        address: {
-          street: String(addr.street_name || ''),
-          street_number: String(addr.street_number || ''),
-          zip_code: String(addr.zip_code || '').replace(/\D/g, ''),
-          neighborhood: 'Centro',
-          city: String(addr.city_name || ''),
-          state: String(addr.state_name || '').toUpperCase().slice(0, 2),
-          country: 'BR',
-        },
+        address,
       },
     };
   }
@@ -978,18 +985,45 @@ class PagarMeGateway implements PaymentGateway {
 
     const valueCents = Math.round(toCurrencyNumber(dto.value) * 100);
 
+    // Statement descriptor: max 13 chars, alphanumeric uppercase. Use fantasy_name when available.
+    const rawDescriptor = ((dto as any).fantasyName || dto.description || 'LOJA').toString();
+    const statementDescriptor = rawDescriptor
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Za-z0-9 ]/g, '')
+      .toUpperCase()
+      .slice(0, 13)
+      .trim() || 'LOJA';
+
+    const billingAddress = this.extractAddress(dto);
+
+    const cardConfig: any = {
+      installments: parsedCount,
+      statement_descriptor: statementDescriptor,
+      card: {
+        token: cardToken,
+      },
+      operation_type: 'auth_and_capture',
+    };
+
+    // Include billing_address inside card object — improves antifraud approval rate
+    if (billingAddress) {
+      cardConfig.card.billing_address = {
+        line_1: `${billingAddress.street_number}, ${billingAddress.street}, ${billingAddress.neighborhood}`.slice(0, 256),
+        line_2: billingAddress.complement || undefined,
+        zip_code: billingAddress.zip_code,
+        city: billingAddress.city,
+        state: billingAddress.state,
+        country: billingAddress.country,
+      };
+    }
+
     const orderBody: any = {
       code: dto.orderId || crypto.randomUUID(),
       customer: this.buildCustomerObj(dto),
       items: this.buildItems(dto, valueCents),
       payments: [{
         payment_method: 'credit_card',
-        credit_card: {
-          installments: parsedCount,
-          statement_descriptor: 'LOJA',
-          card_token: cardToken,
-          operation_type: 'auth_and_capture',
-        },
+        credit_card: cardConfig,
       }],
       ip: dto.remoteIp || undefined,
     };
@@ -997,7 +1031,6 @@ class PagarMeGateway implements PaymentGateway {
     const antifraud = this.buildAntifraud(dto);
     if (antifraud) {
       orderBody.antifraud_enabled = true;
-      // Pagar.me uses shipping data from order itself for antifraud
       orderBody.shipping = antifraud.shipping;
     }
 
@@ -1005,16 +1038,28 @@ class PagarMeGateway implements PaymentGateway {
       code: orderBody.code,
       amount_cents: valueCents,
       installments: parsedCount,
+      statement_descriptor: statementDescriptor,
       has_antifraud: !!antifraud,
+      has_billing_address: !!billingAddress,
       has_token: !!cardToken,
     }));
 
     const result = await this.fetch('/orders', 'POST', orderBody);
     const charge = result.charges?.[0];
+    const lastTx = charge?.last_transaction;
+
+    // If declined, surface acquirer message for better UX
+    const chargeStatus = charge?.status || result.status || 'pending';
+    if (chargeStatus === 'failed' || chargeStatus === 'not_authorized') {
+      const acquirerMsg = lastTx?.acquirer_message || lastTx?.gateway_response?.errors?.[0]?.message;
+      if (acquirerMsg) {
+        throw new Error(`Cartão recusado: ${acquirerMsg}`);
+      }
+    }
 
     return {
       id: result.id,
-      status: this.mapStatus(charge?.status || result.status || 'pending'),
+      status: this.mapStatus(chargeStatus),
     };
   }
 
