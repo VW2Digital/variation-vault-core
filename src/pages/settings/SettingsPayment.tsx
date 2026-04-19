@@ -58,7 +58,7 @@ const SettingsPayment = () => {
     <div className="space-y-6 w-full">
       <SettingsBackButton title="Gateways de Pagamento" description="Selecione um gateway para configurar. Apenas um pode estar ativo por vez." />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {GATEWAYS.map((gw) => {
           const isActive = activeGateway === gw.key;
           return (
@@ -66,30 +66,31 @@ const SettingsPayment = () => {
               key={gw.key}
               type="button"
               onClick={() => openSheet(gw.key)}
-              className="text-left"
+              className="group relative aspect-square rounded-xl bg-card border border-border/60 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
+              aria-label={`Configurar ${gw.name}`}
             >
-              <Card className={`transition-all hover:shadow-md hover:border-primary/40 cursor-pointer ${isActive ? 'border-2 border-primary' : 'border-border/50'}`}>
-                <CardContent className="p-5 flex items-start gap-4">
-                  <div className={`shrink-0 w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden ${gw.logo ? '' : `bg-muted ${gw.brandClass}`}`}>
-                    {gw.logo ? (
-                      <img src={gw.logo} alt={`Logo ${gw.name}`} className="w-full h-full object-cover" />
-                    ) : (
-                      <CreditCard className="w-6 h-6" />
-                    )}
+              {isActive && (
+                <>
+                  <Badge variant="default" className="absolute top-2 right-2 z-10 gap-1 h-5 text-[10px] shadow">
+                    <CheckCircle2 className="w-3 h-3" /> Ativo
+                  </Badge>
+                  <span className="absolute inset-0 rounded-xl ring-2 ring-primary pointer-events-none" />
+                </>
+              )}
+              <div className="absolute inset-0 flex items-center justify-center p-6">
+                {gw.logo ? (
+                  <img
+                    src={gw.logo}
+                    alt={`Logo ${gw.name}`}
+                    className="max-w-full max-h-full object-contain transition-transform duration-200 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <CreditCard className={`w-10 h-10 ${gw.brandClass}`} />
+                    <span className="text-sm font-semibold text-foreground">{gw.name}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-foreground">{gw.name}</h3>
-                      {isActive && (
-                        <Badge variant="default" className="gap-1 h-5 text-[10px]">
-                          <CheckCircle2 className="w-3 h-3" /> Ativo
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground line-clamp-2">{gw.description}</p>
-                  </div>
-                </CardContent>
-              </Card>
+                )}
+              </div>
             </button>
           );
         })}
