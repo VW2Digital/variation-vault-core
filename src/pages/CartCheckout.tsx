@@ -11,9 +11,11 @@ import { AnimatedSection } from '@/components/AnimatedSection';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import productHeroImg from '@/assets/product-hero.png';
+import { useToast } from '@/hooks/use-toast';
 
 const CartCheckout = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { items, totalPrice, clearCart, loading } = useCart();
   const [ready, setReady] = useState(false);
   const [freeShippingInfo, setFreeShippingInfo] = useState<{ freeShipping: boolean; minValue: number }>({ freeShipping: false, minValue: 0 });
@@ -50,10 +52,21 @@ const CartCheckout = () => {
     const productIds = [...new Set(items.map(i => i.product_id))];
     supabase
       .from('products')
-      .select('id, free_shipping, free_shipping_min_value, pix_discount_percent, max_installments, installments_interest, fantasy_name, name')
+      .select('id, name, active, free_shipping, free_shipping_min_value, pix_discount_percent, max_installments, installments_interest, fantasy_name')
       .in('id', productIds)
       .then(({ data }) => {
         if (!data) return;
+        // Block checkout if any product is inactive
+        const inactive = data.filter((p: any) => p.active === false);
+        if (inactive.length > 0) {
+          toast({
+            title: 'Produto indisponível',
+            description: `${inactive.map((p: any) => p.name).join(', ')} não está mais disponível. Remova do carrinho para continuar.`,
+            variant: 'destructive',
+          });
+          navigate('/carrinho');
+          return;
+        }
         // Build fantasy name map
         const nameMap: Record<string, string> = {};
         data.forEach((p: any) => {
@@ -77,7 +90,7 @@ const CartCheckout = () => {
           installmentsInterest: hasComJuros ? 'com_juros' : 'sem_juros',
         });
       });
-  }, [items]);
+  }, [items, navigate, toast]);
 
   if (!ready) {
     return (

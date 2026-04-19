@@ -12,6 +12,7 @@ import Footer from '@/components/Footer';
 import { useCart } from '@/contexts/CartContext';
 import Header from '@/components/Header';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useToast } from '@/hooks/use-toast';
 import productHeroImg from '@/assets/product-hero.png';
 import testimonial1 from '@/assets/testimonial-1.jpg';
 import testimonial2 from '@/assets/testimonial-2.jpg';
@@ -115,6 +116,7 @@ const ProductCheckout = () => {
   const { id } = useParams<{id: string;}>();
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { toast } = useToast();
   const { addToCart, totalItems } = useCart();
   const [searchParams] = useSearchParams();
   const [product, setProduct] = useState<any>(null);
@@ -144,6 +146,16 @@ const ProductCheckout = () => {
     Promise.all([
       fetchProduct(id), fetchTestimonials(), fetchBanners(), fetchSetting('whatsapp_number'),
     ]).then(async ([prod, tests, bans, wp]) => {
+      // Block inactive products
+      if ((prod as any).active === false) {
+        toast({
+          title: 'Produto indisponível',
+          description: 'Este produto não está disponível no momento.',
+          variant: 'destructive',
+        });
+        navigate('/catalogo');
+        return;
+      }
       setProduct(prod);
       setDynamicTestimonials(tests);
       setBanners(bans);
