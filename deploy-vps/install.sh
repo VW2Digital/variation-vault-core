@@ -755,7 +755,7 @@ step_done 9
 # ============================================================================
 # [10/12] Clone + .env + nginx + build
 # ============================================================================
-log "[10/12] Clonando código e fazendo build..."
+step_banner 10 "Build + Nginx + SSL" "Clone repo, build Docker, certificado Let's Encrypt"
 git clone --branch "$BRANCH" --depth 1 "$REPO_URL" "$APP_DIR" >/dev/null 2>&1
 cd "$APP_DIR"
 
