@@ -68,8 +68,12 @@ const SettingsPayment = () => {
             >
               <Card className={`transition-all hover:shadow-md hover:border-primary/40 cursor-pointer ${isActive ? 'border-2 border-primary' : 'border-border/50'}`}>
                 <CardContent className="p-5 flex items-start gap-4">
-                  <div className={`shrink-0 w-12 h-12 rounded-lg bg-muted flex items-center justify-center ${gw.brandClass}`}>
-                    <CreditCard className="w-6 h-6" />
+                  <div className={`shrink-0 w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden ${gw.logo ? '' : `bg-muted ${gw.brandClass}`}`}>
+                    {gw.logo ? (
+                      <img src={gw.logo} alt={`Logo ${gw.name}`} className="w-full h-full object-cover" />
+                    ) : (
+                      <CreditCard className="w-6 h-6" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -95,7 +99,11 @@ const SettingsPayment = () => {
             <>
               <SheetHeader className="mb-4">
                 <SheetTitle className="flex items-center gap-2">
-                  <CreditCard className={`w-5 h-5 ${selectedMeta.brandClass}`} />
+                  {selectedMeta.logo ? (
+                    <img src={selectedMeta.logo} alt="" className="w-6 h-6 rounded object-cover" />
+                  ) : (
+                    <CreditCard className={`w-5 h-5 ${selectedMeta.brandClass}`} />
+                  )}
                   {selectedMeta.name}
                 </SheetTitle>
                 <SheetDescription>{selectedMeta.description}</SheetDescription>
