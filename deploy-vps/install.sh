@@ -277,6 +277,145 @@ else
 fi
 
 # ============================================================================
+# DRY-RUN: valida tudo e sai antes de modificar o servidor
+# ============================================================================
+if [[ "$DRY_RUN" == "yes" ]]; then
+  echo ""
+  log "════════════════ VALIDAÇÃO DRY-RUN ════════════════"
+  echo ""
+  DRY_ERRORS=0
+  DRY_WARNS=0
+
+  # 1) URL Supabase responde?
+  log "→ Testando URL Supabase: $SUPABASE_URL"
+  if curl -fsS --max-time 10 "$SUPABASE_URL/auth/v1/health" -H "apikey: $SUPABASE_ANON_KEY" -o /dev/null 2>/dev/null; then
+    ok "  Supabase respondeu e anon key é válida"
+  else
+    err "  Falha ao conectar em $SUPABASE_URL/auth/v1/health (URL ou anon key inválidas)"
+    DRY_ERRORS=$((DRY_ERRORS+1))
+  fi
+
+  # 2) Conexão Postgres (se DB URL fornecida)
+  if [[ -n "$SUPABASE_DB_URL" ]]; then
+    log "→ Testando conexão Postgres..."
+    if ! command -v psql >/dev/null 2>&1; then
+      warn "  psql não instalado neste host (será instalado durante o install real)"
+      DRY_WARNS=$((DRY_WARNS+1))
+    elif PGCONNECT_TIMEOUT=10 psql "$SUPABASE_DB_URL" -c "SELECT 1;" >/dev/null 2>&1; then
+      ok "  Conexão Postgres OK"
+      # Verifica se schema já existe
+      EXISTING=$(PGCONNECT_TIMEOUT=10 psql "$SUPABASE_DB_URL" -tAc \
+        "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='products';" 2>/dev/null || echo "0")
+      if [[ "$EXISTING" == "1" ]]; then
+        warn "  Tabela 'products' já existe — schema.sql é idempotente, dados serão preservados"
+        DRY_WARNS=$((DRY_WARNS+1))
+      else
+        ok "  Schema vazio — pronto para receber schema.sql"
+      fi
+    else
+      err "  Falha ao conectar no Postgres (senha incorreta ou URL inválida)"
+      DRY_ERRORS=$((DRY_ERRORS+1))
+    fi
+  else
+    warn "  Sem SUPABASE_DB_URL — schema, cron jobs e admin precisarão ser feitos manualmente"
+    DRY_WARNS=$((DRY_WARNS+1))
+  fi
+
+  # 3) Service role key (se admin será criado)
+  if [[ -n "$SUPABASE_SERVICE_KEY" ]]; then
+    log "→ Validando service_role key..."
+    if curl -fsS --max-time 10 "$SUPABASE_URL/auth/v1/admin/users?per_page=1" \
+      -H "apikey: $SUPABASE_SERVICE_KEY" \
+      -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" -o /dev/null 2>/dev/null; then
+      ok "  service_role key válida (acesso ao Auth Admin API confirmado)"
+    else
+      err "  service_role key inválida — admin NÃO será criado automaticamente"
+      DRY_ERRORS=$((DRY_ERRORS+1))
+    fi
+    [[ -n "${ADMIN_EMAIL:-}" ]] && ok "  Admin a criar: $ADMIN_EMAIL" || warn "  ADMIN_EMAIL não definido"
+    [[ -n "${ADMIN_PASSWORD:-}" && ${#ADMIN_PASSWORD} -ge 6 ]] && ok "  Senha admin OK (${#ADMIN_PASSWORD} chars)" || warn "  Senha admin ausente ou <6 chars"
+  fi
+
+  # 4) DNS do domínio (se SSL será emitido)
+  if [[ -n "$DOMAIN" ]]; then
+    log "→ Verificando DNS de $DOMAIN..."
+    PUBLIC_IP=$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || echo "")
+    DOMAIN_IP=$(getent hosts "$DOMAIN" 2>/dev/null | awk '{print $1}' | head -n1)
+    [[ -z "$DOMAIN_IP" ]] && DOMAIN_IP=$(dig +short "$DOMAIN" A 2>/dev/null | head -n1 || true)
+    if [[ -z "$DOMAIN_IP" ]]; then
+      err "  $DOMAIN não resolve para nenhum IP — SSL falhará"
+      DRY_ERRORS=$((DRY_ERRORS+1))
+    elif [[ -n "$PUBLIC_IP" && "$DOMAIN_IP" != "$PUBLIC_IP" ]]; then
+      err "  $DOMAIN aponta para $DOMAIN_IP mas IP público desta VPS é $PUBLIC_IP"
+      err "  Atualize o registro A no seu DNS antes de rodar o install real"
+      DRY_ERRORS=$((DRY_ERRORS+1))
+    else
+      ok "  DNS OK: $DOMAIN → $DOMAIN_IP (= IP da VPS)"
+    fi
+    # Porta 80 acessível?
+    if [[ -n "$PUBLIC_IP" ]] && timeout 3 bash -c "</dev/tcp/$PUBLIC_IP/80" 2>/dev/null; then
+      warn "  Porta 80 já está em uso — será reutilizada (algo escutando agora)"
+      DRY_WARNS=$((DRY_WARNS+1))
+    fi
+  else
+    warn "  Sem DOMAIN — site rodará apenas em HTTP no IP"
+    DRY_WARNS=$((DRY_WARNS+1))
+  fi
+
+  # 5) Rede para repos externos
+  log "→ Testando conectividade externa..."
+  for url in "https://github.com" "https://download.docker.com" "https://api.ipify.org"; do
+    if curl -fsS --max-time 5 "$url" -o /dev/null 2>/dev/null; then
+      ok "  $url alcançável"
+    else
+      warn "  $url inalcançável — pode haver problemas no install"
+      DRY_WARNS=$((DRY_WARNS+1))
+    fi
+  done
+
+  # 6) Estado atual da VPS
+  log "→ Estado atual da VPS:"
+  [[ -d "$APP_DIR" ]] && warn "  $APP_DIR já existe — será REMOVIDO no install real" || ok "  $APP_DIR não existe (instalação limpa)"
+  command -v docker >/dev/null 2>&1 && warn "  Docker já instalado — será reinstalado" || ok "  Docker não instalado (será instalado)"
+  ufw status 2>/dev/null | grep -q "Status: active" && warn "  UFW já ativo — regras serão substituídas" || ok "  UFW será configurado do zero"
+
+  # Resumo
+  echo ""
+  cat <<DRYSUMMARY
+╔══════════════════════════════════════════════════════════════╗
+║                  RESUMO DRY-RUN                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+  Ações que SERIAM executadas (em ordem):
+    [4]  Backup do .env antigo + remoção de $APP_DIR e Docker
+    [5]  apt update + instala curl/git/jq/psql/fail2ban + timezone BR
+    [6]  Cria 1GB de swap se RAM <1GB
+    [7]  Instala Docker engine + Compose v2
+    [8]  UFW reset → libera 22/80/443
+    [9]  $([[ -n "$SUPABASE_DB_URL" ]] && echo "Aplica schema.sql + pg_cron/pg_net + agenda crons" || echo "PULADO (sem DB URL)")
+         $([[ -n "$SUPABASE_SERVICE_KEY" && -n "${ADMIN_EMAIL:-}" ]] && echo "Cria admin $ADMIN_EMAIL via Auth API" || echo "Admin NÃO será criado")
+    [10] Clona repo, gera .env e nginx.conf
+         $([[ -n "$DOMAIN" ]] && echo "Build + emite SSL Let's Encrypt para $DOMAIN" || echo "Build em HTTP-only")
+    [11] $([[ "$DEPLOY_FUNCTIONS" == "yes" ]] && echo "Instala Supabase CLI + deploya Edge Functions + secrets" || echo "PULADO (DEPLOY_FUNCTIONS=no)")
+    [12] Logrotate + healthcheck cron 5min + INSTALL-INFO.txt
+
+  Validação:
+    Erros:   $DRY_ERRORS
+    Warnings: $DRY_WARNS
+
+DRYSUMMARY
+
+  if (( DRY_ERRORS > 0 )); then
+    err "Corrija os $DRY_ERRORS erro(s) acima antes de rodar o install real."
+    exit 1
+  fi
+
+  ok "Tudo validado. Para executar de verdade, rode SEM --dry-run:"
+  echo "  sudo bash $0"
+  exit 0
+fi
+
+# ============================================================================
 # [4/12] Limpeza de instalação anterior
 # ============================================================================
 log "[4/12] Limpando instalação anterior..."
