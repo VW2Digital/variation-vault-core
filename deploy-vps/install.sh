@@ -115,6 +115,19 @@ prompt_tty() {
   printf -v "$__var_name" '%s' "$__value"
 }
 
+prompt_tty_secret() {
+  local __var_name="$1"
+  local __label="$2"
+  local __value=""
+  if [[ -z "$TTY_FD" ]]; then
+    err "Sem terminal para input de senha."; exit 1
+  fi
+  printf "%s" "$__label" > /dev/tty
+  IFS= read -rs __value <&3 || true
+  printf "\n" > /dev/tty
+  printf -v "$__var_name" '%s' "$__value"
+}
+
 if [[ -z "${SUPABASE_URL:-}" ]]; then
   cat <<'INFO'
   Antes de continuar, você precisa de um projeto Supabase pronto:
