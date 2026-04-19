@@ -86,6 +86,14 @@ const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, onToggle
         </div>
       </div>
 
+      <div className="flex items-center gap-1.5 shrink-0" title={isActive ? 'Ativo' : 'Inativo'}>
+        <Switch
+          checked={isActive}
+          onCheckedChange={(checked) => onToggleActive(product, checked)}
+          aria-label={isActive ? 'Desativar produto' : 'Ativar produto'}
+        />
+      </div>
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="shrink-0 h-7 w-7">
