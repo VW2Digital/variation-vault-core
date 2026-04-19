@@ -149,6 +149,138 @@ prompt_tty_secret() {
   printf -v "$__var_name" '%s' "$__value"
 }
 
+# ----------------------------------------------------------------------------
+# UX helpers: banners de etapa, barra de progresso, prompts com validação
+# ----------------------------------------------------------------------------
+
+# Estado das etapas: pending|done|current
+declare -a STEP_NAMES=(
+  "Supabase" "Domínio/SSL" "Edge Functions" "Limpeza"
+  "Sistema base" "Swap" "Docker" "Firewall"
+  "Banco + Admin" "Build + Nginx" "Deploy Funcs" "Operacional"
+)
+declare -a STEP_STATUS=(pending pending pending pending pending pending pending pending pending pending pending pending)
+
+print_progress_bar() {
+  local current_idx="$1"  # 1-based
+  local i name status icon
+  printf "\n" > /dev/tty
+  printf "  Progresso: " > /dev/tty
+  for i in "${!STEP_NAMES[@]}"; do
+    name="${STEP_NAMES[$i]}"
+    status="${STEP_STATUS[$i]}"
+    if (( i + 1 == current_idx )); then
+      printf "${YELLOW}[%d ▶]${NC}" "$((i+1))" > /dev/tty
+    elif [[ "$status" == "done" ]]; then
+      printf "${GREEN}[%d ✓]${NC}" "$((i+1))" > /dev/tty
+    else
+      printf "[%d ○]" "$((i+1))" > /dev/tty
+    fi
+    [[ $((i+1)) -lt ${#STEP_NAMES[@]} ]] && printf " " > /dev/tty
+  done
+  printf "\n\n" > /dev/tty
+}
+
+step_banner() {
+  local num="$1" title="$2" subtitle="$3"
+  STEP_STATUS[$((num-1))]="current"
+  print_progress_bar "$num"
+  printf "${BLUE}╔══════════════════════════════════════════════════════════════╗${NC}\n" > /dev/tty
+  printf "${BLUE}║${NC}  ${YELLOW}ETAPA %2d/12${NC} — %-46s ${BLUE}║${NC}\n" "$num" "$title" > /dev/tty
+  if [[ -n "$subtitle" ]]; then
+    printf "${BLUE}║${NC}  %-58s ${BLUE}║${NC}\n" "$subtitle" > /dev/tty
+  fi
+  printf "${BLUE}╚══════════════════════════════════════════════════════════════╝${NC}\n\n" > /dev/tty
+}
+
+step_done() {
+  local num="$1"
+  STEP_STATUS[$((num-1))]="done"
+}
+
+# Validadores: retornam 0 = válido, 1 = inválido (ecoa erro em stderr/tty)
+validate_supabase_url() {
+  local v="$1"
+  [[ -z "$v" ]] && { echo "  ✗ URL não pode ser vazia." > /dev/tty; return 1; }
+  [[ ! "$v" =~ ^https?:// ]] && { echo "  ✗ URL deve começar com https://" > /dev/tty; return 1; }
+  [[ ! "$v" =~ \.supabase\.co/?$ ]] && { echo "  ✗ URL deve terminar em .supabase.co (ex: https://abc.supabase.co)" > /dev/tty; return 1; }
+  return 0
+}
+validate_jwt_key() {
+  local v="$1" label="${2:-key}"
+  [[ -z "$v" ]] && { echo "  ✗ $label vazia." > /dev/tty; return 1; }
+  [[ ! "$v" =~ ^eyJ ]] && { echo "  ✗ $label deve começar com 'eyJ' (formato JWT)." > /dev/tty; return 1; }
+  [[ ${#v} -lt 100 ]] && { echo "  ✗ $label parece curta demais (${#v} chars, esperado >100)." > /dev/tty; return 1; }
+  return 0
+}
+validate_db_url() {
+  local v="$1"
+  [[ -z "$v" ]] && return 0  # opcional
+  [[ ! "$v" =~ ^postgresql:// ]] && { echo "  ✗ Deve começar com postgresql://" > /dev/tty; return 1; }
+  [[ ! "$v" =~ @ ]] && { echo "  ✗ Formato inválido (esperado postgresql://USER:SENHA@HOST:PORTA/DB)" > /dev/tty; return 1; }
+  return 0
+}
+validate_email() {
+  local v="$1"
+  [[ -z "$v" ]] && { echo "  ✗ Email vazio." > /dev/tty; return 1; }
+  [[ ! "$v" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]] && { echo "  ✗ Email inválido." > /dev/tty; return 1; }
+  return 0
+}
+validate_password() {
+  local v="$1"
+  [[ ${#v} -lt 6 ]] && { echo "  ✗ Senha precisa ter no mínimo 6 caracteres." > /dev/tty; return 1; }
+  return 0
+}
+validate_domain() {
+  local v="$1"
+  [[ -z "$v" ]] && return 0  # opcional
+  [[ ! "$v" =~ ^[a-z0-9.-]+\.[a-z]{2,}$ ]] && { echo "  ✗ Domínio inválido. Use formato: loja.exemplo.com" > /dev/tty; return 1; }
+  return 0
+}
+
+# prompt_validated VAR "label" "validador_func" [optional|required] [default]
+prompt_validated() {
+  local var_name="$1" label="$2" validator="$3" mode="${4:-required}" default="${5:-}"
+  local value=""
+  while true; do
+    prompt_tty value "$label"
+    value="$(echo -n "$value" | tr -d '[:space:]')"
+    if [[ -z "$value" && -n "$default" ]]; then
+      value="$default"
+    fi
+    if [[ -z "$value" && "$mode" == "optional" ]]; then
+      printf -v "$var_name" '%s' ""
+      return 0
+    fi
+    if $validator "$value"; then
+      printf -v "$var_name" '%s' "$value"
+      return 0
+    fi
+    echo "  → tente novamente (ou Ctrl+C para abortar)" > /dev/tty
+  done
+}
+
+prompt_validated_secret() {
+  local var_name="$1" label="$2" validator="$3"
+  local value=""
+  while true; do
+    prompt_tty_secret value "$label"
+    if $validator "$value"; then
+      printf -v "$var_name" '%s' "$value"
+      return 0
+    fi
+    echo "  → tente novamente (ou Ctrl+C para abortar)" > /dev/tty
+  done
+}
+
+# Mostra valor mascarando segredos
+mask_secret() {
+  local v="$1"
+  [[ -z "$v" ]] && { echo "(vazio)"; return; }
+  local len=${#v}
+  if (( len <= 12 )); then echo "***"; else echo "${v:0:6}...${v: -4} (${len} chars)"; fi
+}
+
 # ============================================================================
 # [1/12] Configuração Supabase
 # ============================================================================
