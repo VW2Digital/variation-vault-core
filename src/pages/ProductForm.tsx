@@ -498,6 +498,8 @@ const ProductForm = () => {
         </Card>
 
         <Card className="border-border/50">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-lg">Variações / Dosagens</CardTitle>
             <Button type="button" variant="outline" size="sm" onClick={() => setVariations((p) => [...p, emptyVariation()])}>
               <Plus className="mr-1 h-4 w-4" /> Adicionar
             </Button>
