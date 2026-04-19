@@ -902,26 +902,33 @@ class PagarMeGateway implements PaymentGateway {
     }];
   }
 
-  private buildAntifraud(dto: CheckoutDTO) {
-    if (!this.antifraudEnabled) return undefined;
+  private extractAddress(dto: CheckoutDTO) {
     const additionalInfoRaw = (dto as any).additionalInfo;
     const addr = additionalInfoRaw?.shipments?.receiver_address || additionalInfoRaw?.payer?.address;
     if (!addr) return undefined;
+    return {
+      street: String(addr.street_name || addr.street || '').trim(),
+      street_number: String(addr.street_number || addr.number || 'S/N').trim(),
+      complement: String(addr.complement || '').trim() || undefined,
+      neighborhood: String(addr.neighborhood || addr.district || 'Centro').trim(),
+      zip_code: String(addr.zip_code || addr.postal_code || '').replace(/\D/g, ''),
+      city: String(addr.city_name || addr.city || '').trim(),
+      state: String(addr.state_name || addr.state || '').toUpperCase().slice(0, 2),
+      country: 'BR',
+    };
+  }
+
+  private buildAntifraud(dto: CheckoutDTO) {
+    if (!this.antifraudEnabled) return undefined;
+    const address = this.extractAddress(dto);
+    if (!address) return undefined;
     return {
       shipping: {
         amount: 0,
         description: 'Frete',
         recipient_name: dto.creditCardHolderInfo?.name || 'Cliente',
         recipient_phone: sanitizePhone(dto.creditCardHolderInfo?.phone) || '11999999999',
-        address: {
-          street: String(addr.street_name || ''),
-          street_number: String(addr.street_number || ''),
-          zip_code: String(addr.zip_code || '').replace(/\D/g, ''),
-          neighborhood: 'Centro',
-          city: String(addr.city_name || ''),
-          state: String(addr.state_name || '').toUpperCase().slice(0, 2),
-          country: 'BR',
-        },
+        address,
       },
     };
   }
