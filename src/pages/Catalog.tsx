@@ -75,7 +75,7 @@ const Catalog = () => {
       setInterestTable(parseInterestTable(intTable));
     });
 
-    fetchProducts()
+    fetchProducts(true)
       .then(async (prods) => {
         setProducts(prods);
         // Google Ads: view_item_list

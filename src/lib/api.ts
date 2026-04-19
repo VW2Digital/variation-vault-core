@@ -24,13 +24,19 @@ export const getCurrentUser = async () => {
 };
 
 // Products
-export const fetchProducts = async () => {
+export const fetchProducts = async (activeOnly = false) => {
   const { data, error } = await supabase
     .from('products')
     .select('*, product_variations(*)')
     .order('sort_order', { ascending: true });
   if (error) throw error;
+  if (activeOnly) return (data || []).filter((p: any) => p.active !== false);
   return data;
+};
+
+export const setProductActive = async (id: string, active: boolean) => {
+  const { error } = await supabase.from('products').update({ active } as any).eq('id', id);
+  if (error) throw error;
 };
 
 export const fetchProduct = async (id: string) => {

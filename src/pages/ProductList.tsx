@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { fetchProducts, deleteProduct as apiDeleteProduct } from '@/lib/api';
+import { fetchProducts, deleteProduct as apiDeleteProduct, setProductActive } from '@/lib/api';
+import { Switch } from '@/components/ui/switch';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -30,10 +31,11 @@ interface SortableProductRowProps {
   navigate: (path: string) => void;
   onDelete: (product: { id: string; name: string }) => void;
   onDuplicate: (product: any) => void;
+  onToggleActive: (product: any, active: boolean) => void;
   duplicating: string | null;
 }
 
-const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, duplicating }: SortableProductRowProps) => {
+const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, onToggleActive, duplicating }: SortableProductRowProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id });
 
   const style = {
@@ -45,11 +47,13 @@ const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, duplicat
 
   const img = product.product_variations?.[0]?.images?.[0] || product.product_variations?.[0]?.image_url || product.images?.[0];
 
+  const isActive = product.active !== false;
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 px-2 py-2.5 bg-card hover:bg-muted/30 transition-colors ${isDragging ? 'shadow-lg rounded-lg border border-primary/30' : ''}`}
+      className={`flex items-center gap-2 px-2 py-2.5 bg-card hover:bg-muted/30 transition-colors ${isDragging ? 'shadow-lg rounded-lg border border-primary/30' : ''} ${!isActive ? 'opacity-60' : ''}`}
     >
       <button
         className="shrink-0 cursor-grab active:cursor-grabbing touch-none p-1 text-muted-foreground hover:text-foreground"
@@ -80,6 +84,14 @@ const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, duplicat
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="flex items-center gap-1.5 shrink-0" title={isActive ? 'Ativo' : 'Inativo'}>
+        <Switch
+          checked={isActive}
+          onCheckedChange={(checked) => onToggleActive(product, checked)}
+          aria-label={isActive ? 'Desativar produto' : 'Ativar produto'}
+        />
       </div>
 
       <DropdownMenu>
@@ -169,6 +181,18 @@ const ProductList = () => {
     }
   };
 
+  const handleToggleActive = async (product: any, active: boolean) => {
+    // Optimistic update
+    setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, active } : p)));
+    try {
+      await setProductActive(product.id, active);
+      toast({ title: active ? 'Produto ativado' : 'Produto desativado' });
+    } catch (err: any) {
+      setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, active: !active } : p)));
+      toast({ title: 'Erro ao atualizar status', description: err.message, variant: 'destructive' });
+    }
+  };
+
   const handleDuplicate = async (product: any) => {
     setDuplicating(product.id);
     try {
@@ -249,6 +273,7 @@ const ProductList = () => {
                   navigate={navigate}
                   onDelete={setDeleteTarget}
                   onDuplicate={handleDuplicate}
+                  onToggleActive={handleToggleActive}
                   duplicating={duplicating}
                 />
               ))}
