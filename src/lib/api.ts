@@ -112,11 +112,41 @@ export const updateProduct = async (
   if (error) throw error;
 
   if (variations) {
-    await supabase.from('product_variations').delete().eq('product_id', id);
+    // Fetch existing variation IDs to know which to delete
+    const { data: existing } = await supabase
+      .from('product_variations')
+      .select('id')
+      .eq('product_id', id);
+    const existingIds = new Set((existing || []).map((e: any) => e.id));
+    const incomingIds = new Set(variations.filter(v => v.id).map(v => v.id as string));
+
+    // Delete only variations that were removed
+    const toDelete = [...existingIds].filter(eid => !incomingIds.has(eid));
+    if (toDelete.length > 0) {
+      await supabase.from('product_variations').delete().in('id', toDelete);
+    }
+
+    // Upsert: update existing (with id) or insert new (without id)
     if (variations.length > 0) {
+      const rows = variations.map((v) => {
+        const row: any = {
+          dosage: v.dosage,
+          subtitle: v.subtitle || '',
+          price: v.price,
+          offer_price: v.offer_price || 0,
+          in_stock: v.in_stock,
+          is_offer: v.is_offer,
+          image_url: v.image_url || '',
+          images: v.images || [],
+          stock_quantity: v.stock_quantity || 0,
+          product_id: id,
+        };
+        if (v.id) row.id = v.id;
+        return row;
+      });
       const { error: vError } = await supabase
         .from('product_variations')
-        .insert(variations.map((v) => ({ dosage: v.dosage, subtitle: v.subtitle || '', price: v.price, offer_price: v.offer_price || 0, in_stock: v.in_stock, is_offer: v.is_offer, image_url: v.image_url || '', images: v.images || [], stock_quantity: v.stock_quantity || 0, product_id: id } as any)));
+        .upsert(rows as any, { onConflict: 'id' });
       if (vError) throw vError;
     }
   }
