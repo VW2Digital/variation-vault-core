@@ -112,14 +112,16 @@ serve(async (req) => {
       // Check current status before updating to avoid downgrade
       const { data: existingOrder } = await supabase
         .from('orders')
-        .select('status')
+        .select('id, status, customer_name, customer_email, customer_phone, product_name, total_value, payment_method')
         .eq('asaas_payment_id', payment.id)
         .maybeSingle();
 
-      const currentPriority = statusPriority[existingOrder?.status || ''] ?? 0;
+      let orderForNotif = existingOrder;
+      const previousStatus = existingOrder?.status || '';
+      const currentPriority = statusPriority[previousStatus] ?? 0;
 
-      if (currentPriority >= newPriority && existingOrder?.status !== newStatus) {
-        console.log(`[Webhook] Skipping downgrade: ${existingOrder?.status} (${currentPriority}) → ${newStatus} (${newPriority})`);
+      if (currentPriority >= newPriority && previousStatus !== newStatus) {
+        console.log(`[Webhook] Skipping downgrade: ${previousStatus} (${currentPriority}) → ${newStatus} (${newPriority})`);
       } else {
         // Update by asaas_payment_id
         const { error } = await supabase
@@ -139,6 +141,16 @@ serve(async (req) => {
             .from('orders')
             .update({ status: newStatus, asaas_payment_id: payment.id })
             .eq('id', payment.externalReference);
+
+          // Reload order data if not found by payment_id (lazy creation case)
+          if (!orderForNotif) {
+            const { data: byRef } = await supabase
+              .from('orders')
+              .select('id, status, customer_name, customer_email, customer_phone, product_name, total_value, payment_method')
+              .eq('id', payment.externalReference)
+              .maybeSingle();
+            orderForNotif = byRef;
+          }
         }
       } // end of downgrade check
 
@@ -159,6 +171,113 @@ serve(async (req) => {
             await supabase.rpc('increment_coupon_usage', { _coupon_code: orderData.coupon_code });
             console.log(`[Webhook] Coupon usage incremented for: ${orderData.coupon_code}`);
           }
+        }
+      }
+
+      // ─── SEND CUSTOMER + ADMIN NOTIFICATIONS ON STATUS CHANGE ───
+      const statusChanged = previousStatus !== newStatus;
+      const isTerminal = newStatus === 'PAID' || newStatus === 'REFUSED' || newStatus === 'REPROVED';
+      if (statusChanged && isTerminal && orderForNotif) {
+        try {
+          const { data: settings } = await supabase
+            .from('site_settings')
+            .select('key, value')
+            .in('key', [
+              'evolution_api_url', 'evolution_api_key', 'evolution_instance_name',
+              'whatsapp_number', 'resend_api_key', 'resend_from_email',
+            ]);
+
+          const cfg: Record<string, string> = {};
+          for (const s of settings || []) cfg[s.key] = s.value;
+
+          const valueFormatted = Number(orderForNotif.total_value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+          const isApproved = newStatus === 'PAID';
+          const firstName = (orderForNotif.customer_name || 'Cliente').split(' ')[0];
+
+          const apiUrl = cfg['evolution_api_url'];
+          const apiKey = cfg['evolution_api_key'];
+          const instanceName = cfg['evolution_instance_name'];
+
+          // WhatsApp to customer
+          if (apiUrl && apiKey && instanceName && orderForNotif.customer_phone) {
+            const baseUrl = apiUrl.replace(/\/+$/, '');
+            const customerPhoneClean = orderForNotif.customer_phone.replace(/\D/g, '');
+            const phoneWithCountry = customerPhoneClean.startsWith('55') ? customerPhoneClean : `55${customerPhoneClean}`;
+
+            const customerText = isApproved
+              ? [
+                  `✅ *Pagamento Aprovado!*`,
+                  ``,
+                  `Olá ${firstName}! 🎉`,
+                  ``,
+                  `Seu pagamento de ${valueFormatted} para o pedido "${orderForNotif.product_name}" foi *aprovado*!`,
+                  ``,
+                  `Agora vamos preparar seu pedido para envio. Você receberá o código de rastreio em breve.`,
+                  ``,
+                  `Obrigado por comprar conosco! 💚`,
+                ].join('\n')
+              : [
+                  `❌ *Pagamento Não Aprovado*`,
+                  ``,
+                  `Olá ${firstName},`,
+                  ``,
+                  `Infelizmente, seu pagamento de ${valueFormatted} para "${orderForNotif.product_name}" não foi aprovado.`,
+                  ``,
+                  `Você pode tentar novamente com outro cartão ou pagar via PIX para aprovação imediata.`,
+                  ``,
+                  `Estamos à disposição para ajudar! 🤝`,
+                ].join('\n');
+
+            try {
+              const cRes = await fetch(`${baseUrl}/message/sendText/${encodeURIComponent(instanceName)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
+                body: JSON.stringify({ number: phoneWithCountry, text: customerText }),
+              });
+              console.log(`[Webhook] Customer WhatsApp: ${cRes.ok ? 'sent' : `error:${cRes.status}`}`);
+            } catch (e: any) {
+              console.error(`[Webhook] Customer WhatsApp error: ${e.message}`);
+            }
+          }
+
+          // Email to customer
+          const resendKey = cfg['resend_api_key'] || Deno.env.get('RESEND_API_KEY');
+          const fromEmail = cfg['resend_from_email'];
+          if (resendKey && fromEmail && orderForNotif.customer_email) {
+            const customerHtml = isApproved
+              ? `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                  <h2 style="color:#38a169;">✅ Pagamento Aprovado!</h2>
+                  <p>Olá ${firstName},</p>
+                  <p>Seu pagamento de <strong>${valueFormatted}</strong> para <strong>"${orderForNotif.product_name}"</strong> foi <strong>aprovado</strong>!</p>
+                  <p>Agora vamos preparar seu pedido para envio. Você receberá o código de rastreio em breve.</p>
+                  <p>Obrigado por comprar conosco! 💚</p>
+                </div>`
+              : `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                  <h2 style="color:#e53e3e;">Pagamento Não Aprovado</h2>
+                  <p>Olá ${firstName},</p>
+                  <p>Infelizmente, seu pagamento de <strong>${valueFormatted}</strong> para <strong>"${orderForNotif.product_name}"</strong> não foi aprovado.</p>
+                  <p>Você pode tentar novamente com outro cartão ou pagar via PIX para aprovação imediata.</p>
+                </div>`;
+            try {
+              const eRes = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendKey}` },
+                body: JSON.stringify({
+                  from: `Liberty Pharma <${fromEmail}>`,
+                  to: [orderForNotif.customer_email],
+                  subject: isApproved
+                    ? `✅ Pagamento Aprovado - ${orderForNotif.product_name}`
+                    : `Pagamento Não Aprovado - ${orderForNotif.product_name}`,
+                  html: customerHtml,
+                }),
+              });
+              console.log(`[Webhook] Customer email: ${eRes.ok ? 'sent' : `error:${eRes.status}`}`);
+            } catch (e: any) {
+              console.error(`[Webhook] Customer email error: ${e.message}`);
+            }
+          }
+        } catch (notifErr: any) {
+          console.error('[Webhook] Notification block error:', notifErr.message);
         }
       }
     }

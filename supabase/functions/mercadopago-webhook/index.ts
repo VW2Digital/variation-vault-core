@@ -429,8 +429,9 @@ serve(async (req) => {
           } else {
             console.log(`[MP Webhook] Order ${externalRef} updated: ${previousStatus} → ${newStatus}`);
 
-            // Send notifications when transitioning FROM IN_REVIEW
-            if (previousStatus === 'IN_REVIEW' && (newStatus === 'PAID' || newStatus === 'REFUSED')) {
+            // Send notifications on any terminal transition (PAID/REFUSED) when status actually changed
+            const statusChanged = previousStatus !== newStatus;
+            if (statusChanged && (newStatus === 'PAID' || newStatus === 'REFUSED')) {
               try {
                 await sendReviewResultNotification(supabase, {
                   orderId: externalRef,
@@ -474,8 +475,9 @@ serve(async (req) => {
           .eq('id', orderByPaymentId.id);
         console.log(`[MP Webhook] Order ${orderByPaymentId.id} updated via payment_id lookup`);
 
-        // Send notifications when transitioning FROM IN_REVIEW
-        if (previousStatus === 'IN_REVIEW' && (newStatus === 'PAID' || newStatus === 'REFUSED')) {
+        // Send notifications on any terminal transition (PAID/REFUSED) when status actually changed
+        const statusChanged2 = previousStatus !== newStatus;
+        if (statusChanged2 && (newStatus === 'PAID' || newStatus === 'REFUSED')) {
           try {
             await sendReviewResultNotification(supabase, {
               orderId: orderByPaymentId.id,
