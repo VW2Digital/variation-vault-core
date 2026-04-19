@@ -146,6 +146,16 @@ const ProductCheckout = () => {
     Promise.all([
       fetchProduct(id), fetchTestimonials(), fetchBanners(), fetchSetting('whatsapp_number'),
     ]).then(async ([prod, tests, bans, wp]) => {
+      // Block inactive products
+      if ((prod as any).active === false) {
+        toast({
+          title: 'Produto indisponível',
+          description: 'Este produto não está disponível no momento.',
+          variant: 'destructive',
+        });
+        navigate('/catalogo');
+        return;
+      }
       setProduct(prod);
       setDynamicTestimonials(tests);
       setBanners(bans);
