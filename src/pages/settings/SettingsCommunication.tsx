@@ -91,6 +91,21 @@ const SettingsCommunication = () => {
       </Card>
 
       <Card className="border-border/50">
+        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><BellRing className="w-5 h-5" /> Notificações Automáticas ao Cliente</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-start justify-between gap-4 p-4 rounded-lg border border-border/50 bg-muted/30">
+            <div className="space-y-1">
+              <Label className="text-base">Enviar confirmação ao cliente após pagamento</Label>
+              <p className="text-xs text-muted-foreground">
+                Quando ativado, o cliente recebe automaticamente uma mensagem no WhatsApp e e-mail quando o pagamento for aprovado ou recusado (todos os gateways).
+              </p>
+            </div>
+            <Switch checked={notifyCustomerOnPayment} onCheckedChange={setNotifyCustomerOnPayment} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
         <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Mail className="w-5 h-5" /> Resend - Email de Notificação</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
