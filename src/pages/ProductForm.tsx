@@ -420,8 +420,84 @@ const ProductForm = () => {
         </Card>
 
         <Card className="border-border/50">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Variações / Dosagens</CardTitle>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Sparkles className="w-5 h-5" /> Produtos Sugeridos no Checkout (Upsell)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Estes produtos serão exibidos como sugestões "Leve também" no checkout, quando este produto estiver no carrinho. Cliente adiciona com 1 clique.
+            </p>
+
+            {/* Selected upsells */}
+            {selectedUpsellIds.length > 0 && (
+              <div className="flex flex-wrap gap-2 p-3 bg-muted/50 border border-border/30 rounded-lg">
+                {selectedUpsellIds.map(uid => {
+                  const prod = allProducts.find(p => p.id === uid);
+                  if (!prod) return null;
+                  return (
+                    <div
+                      key={uid}
+                      className="flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 rounded-full pl-3 pr-1 py-1 text-xs"
+                    >
+                      <span className="font-medium">{prod.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedUpsellIds(prev => prev.filter(x => x !== uid))}
+                        className="hover:bg-primary/20 rounded-full p-0.5"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Search and select */}
+            <div className="space-y-2">
+              <Label className="text-xs">Adicionar produtos sugeridos</Label>
+              <Input
+                placeholder="Buscar produtos..."
+                value={upsellSearch}
+                onChange={(e) => setUpsellSearch(e.target.value)}
+              />
+              <div className="max-h-64 overflow-y-auto border border-border/30 rounded-lg divide-y divide-border/30">
+                {allProducts
+                  .filter(p => p.id !== id) // exclude self
+                  .filter(p => !upsellSearch || p.name.toLowerCase().includes(upsellSearch.toLowerCase()))
+                  .slice(0, 50)
+                  .map(p => {
+                    const checked = selectedUpsellIds.includes(p.id);
+                    return (
+                      <label
+                        key={p.id}
+                        className="flex items-center gap-3 p-2.5 hover:bg-muted/50 cursor-pointer transition-colors"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            if (v) {
+                              setSelectedUpsellIds(prev => [...prev, p.id]);
+                            } else {
+                              setSelectedUpsellIds(prev => prev.filter(x => x !== p.id));
+                            }
+                          }}
+                        />
+                        <span className="text-sm flex-1">{p.name}</span>
+                      </label>
+                    );
+                  })}
+                {allProducts.filter(p => p.id !== id).length === 0 && (
+                  <p className="p-3 text-xs text-muted-foreground text-center">Nenhum outro produto disponível.</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50">
             <Button type="button" variant="outline" size="sm" onClick={() => setVariations((p) => [...p, emptyVariation()])}>
               <Plus className="mr-1 h-4 w-4" /> Adicionar
             </Button>
