@@ -137,7 +137,10 @@ const SettingsPayment = () => {
       fetchSetting('mercadopago_environment'),
       fetchSetting('pagbank_environment'),
       fetchSetting('mercadopago_checkout_mode'),
-    ]).then(async ([apiKey, env, webhookToken, pgw, mpEnv, pbEnv, mpMode]) => {
+      fetchSetting('pagarme_environment'),
+      fetchSetting('pagarme_webhook_secret'),
+      fetchSetting('pagarme_antifraud_enabled'),
+    ]).then(async ([apiKey, env, webhookToken, pgw, mpEnv, pbEnv, mpMode, pgmeEnv, pgmeWh, pgmeAf]) => {
       setAsaasApiKey(apiKey || '');
       setAsaasEnv(env || 'sandbox');
       setAsaasWebhookToken(webhookToken || '');
@@ -146,6 +149,7 @@ const SettingsPayment = () => {
       setAsaasEnabled(activeGw === 'asaas');
       setMpEnabled(activeGw === 'mercadopago');
       setPbEnabled(activeGw === 'pagbank');
+      setPgmeEnabled(activeGw === 'pagarme');
       const currentMpEnv = mpEnv || 'sandbox';
       setMpEnvironment(currentMpEnv);
       setMpCheckoutMode(mpMode === 'redirect' ? 'redirect' : 'transparent');
@@ -153,6 +157,11 @@ const SettingsPayment = () => {
       const currentPbEnv = pbEnv || 'sandbox';
       setPbEnvironment(currentPbEnv);
       await loadPbCredentials(currentPbEnv);
+      const currentPgmeEnv = pgmeEnv || 'sandbox';
+      setPgmeEnvironment(currentPgmeEnv);
+      setPgmeWebhookSecret(pgmeWh || '');
+      setPgmeAntifraudEnabled(pgmeAf !== 'false');
+      await loadPgmeCredentials(currentPgmeEnv);
     }).finally(() => setLoading(false));
   }, []);
 
