@@ -11,6 +11,7 @@ import { AnimatedSection } from '@/components/AnimatedSection';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import productHeroImg from '@/assets/product-hero.png';
+import { useToast } from '@/hooks/use-toast';
 
 const CartCheckout = () => {
   const navigate = useNavigate();
