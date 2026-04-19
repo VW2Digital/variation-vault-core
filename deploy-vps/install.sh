@@ -624,7 +624,7 @@ step_done 7
 # ============================================================================
 # [8/12] Firewall
 # ============================================================================
-log "[8/12] Configurando firewall..."
+step_banner 8 "Firewall (UFW)" "Permitindo apenas SSH/HTTP/HTTPS"
 ufw --force reset >/dev/null
 ufw default deny incoming >/dev/null
 ufw default allow outgoing >/dev/null
@@ -633,6 +633,7 @@ ufw allow 80/tcp comment 'HTTP' >/dev/null
 ufw allow 443/tcp comment 'HTTPS' >/dev/null
 ufw --force enable >/dev/null
 ok "Firewall ativo"
+step_done 8
 
 # ============================================================================
 # [9/12] Schema do banco + admin
