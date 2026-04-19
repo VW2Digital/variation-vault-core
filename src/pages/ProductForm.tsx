@@ -77,6 +77,15 @@ const ProductForm = () => {
   const [saving, setSaving] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  const [allProducts, setAllProducts] = useState<{ id: string; name: string }[]>([]);
+  const [selectedUpsellIds, setSelectedUpsellIds] = useState<string[]>([]);
+  const [upsellSearch, setUpsellSearch] = useState('');
+
+  useEffect(() => {
+    fetchProducts().then((data) => {
+      setAllProducts((data || []).map((p: any) => ({ id: p.id, name: p.name })));
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetchSetting('product_categories').then((val) => {
