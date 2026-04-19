@@ -181,6 +181,18 @@ const ProductList = () => {
     }
   };
 
+  const handleToggleActive = async (product: any, active: boolean) => {
+    // Optimistic update
+    setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, active } : p)));
+    try {
+      await setProductActive(product.id, active);
+      toast({ title: active ? 'Produto ativado' : 'Produto desativado' });
+    } catch (err: any) {
+      setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, active: !active } : p)));
+      toast({ title: 'Erro ao atualizar status', description: err.message, variant: 'destructive' });
+    }
+  };
+
   const handleDuplicate = async (product: any) => {
     setDuplicating(product.id);
     try {
