@@ -1209,7 +1209,7 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-left space-y-1">
                 <p className="text-xs font-medium text-amber-800">O que acontece agora?</p>
                 <ul className="text-xs text-amber-700 space-y-0.5 list-disc list-inside">
-                  <li>Você receberá uma notificação quando o pagamento for aprovado</li>
+                  <li>Voc�� receberá uma notificação quando o pagamento for aprovado</li>
                   <li>Caso seja recusado, você poderá tentar novamente</li>
                   <li>Seu pedido ficará reservado enquanto isso</li>
                 </ul>
