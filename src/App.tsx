@@ -59,6 +59,7 @@ import MercadoPagoSecurity from "./components/MercadoPagoSecurity";
 import HeadScriptInjector from "./components/HeadScriptInjector";
 import MobileBottomNav from "./components/MobileBottomNav";
 import LanguageDetectionBanner from "./components/LanguageDetectionBanner";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -71,12 +72,13 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <SessionGuard />
-        <LanguageDetectionBanner />
-        <HeadScriptInjector />
-        <PromoPopup />
-        <ChatWidgetEmbed />
-        <MercadoPagoSecurity />
+        <ErrorBoundary silent name="SessionGuard"><SessionGuard /></ErrorBoundary>
+        <ErrorBoundary silent name="LanguageDetectionBanner"><LanguageDetectionBanner /></ErrorBoundary>
+        <ErrorBoundary silent name="HeadScriptInjector"><HeadScriptInjector /></ErrorBoundary>
+        <ErrorBoundary silent name="PromoPopup"><PromoPopup /></ErrorBoundary>
+        <ErrorBoundary silent name="ChatWidgetEmbed"><ChatWidgetEmbed /></ErrorBoundary>
+        <ErrorBoundary silent name="MercadoPagoSecurity"><MercadoPagoSecurity /></ErrorBoundary>
+        <ErrorBoundary name="Routes">
         <Routes>
           <Route path="/" element={<Catalog />} />
           <Route path="/catalogo" element={<Catalog />} />
@@ -129,6 +131,7 @@ const App = () => (
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </ErrorBoundary>
         <MobileBottomNav />
       </BrowserRouter>
     </TooltipProvider>
