@@ -11,8 +11,10 @@
 #   SUPABASE_ANON_KEY=eyJ... \
 #   SUPABASE_PROJECT_ID=xxx \
 #   SUPABASE_DB_URL=postgresql://postgres:SENHA@db.xxx.supabase.co:5432/postgres \
+#   SUPABASE_SERVICE_KEY=eyJ... \
+#   ADMIN_EMAIL=admin@dominio.com ADMIN_PASSWORD=senha123 \
 #     curl ... | sudo -E bash
-# (SUPABASE_DB_URL é opcional — se fornecida, o schema.sql é aplicado automaticamente)
+# (DB_URL aplica schema; SERVICE_KEY+ADMIN_EMAIL+PASSWORD criam admin)
 # =============================================================================
 
 set -euo pipefail
@@ -115,6 +117,19 @@ prompt_tty() {
   printf -v "$__var_name" '%s' "$__value"
 }
 
+prompt_tty_secret() {
+  local __var_name="$1"
+  local __label="$2"
+  local __value=""
+  if [[ -z "$TTY_FD" ]]; then
+    err "Sem terminal para input de senha."; exit 1
+  fi
+  printf "%s" "$__label" > /dev/tty
+  IFS= read -rs __value <&3 || true
+  printf "\n" > /dev/tty
+  printf -v "$__var_name" '%s' "$__value"
+}
+
 if [[ -z "${SUPABASE_URL:-}" ]]; then
   cat <<'INFO'
   Antes de continuar, você precisa de um projeto Supabase pronto:
@@ -122,17 +137,28 @@ if [[ -z "${SUPABASE_URL:-}" ]]; then
     2) Vá em Project Settings → API e copie:
          - Project URL          (ex: https://abc.supabase.co)
          - anon / public key    (eyJ...)
+         - service_role key     (eyJ... — opcional, p/ criar admin auto)
          - Project Reference    (abc — parte antes de .supabase.co)
     3) (Opcional) Para criar o schema automaticamente, copie também:
          Project Settings → Database → Connection string → URI
          Formato: postgresql://postgres:SENHA@db.xxx.supabase.co:5432/postgres
-       Se não fornecer, você precisará rodar o schema.sql manualmente no SQL Editor.
+       Se não fornecer, você precisará rodar o schema.sql manualmente.
 
 INFO
   prompt_tty SUPABASE_URL "  Project URL (https://xxx.supabase.co): "
   prompt_tty SUPABASE_ANON_KEY "  anon key (eyJ...): "
   prompt_tty SUPABASE_PROJECT_ID "  Project Reference (xxx — opcional, deduzido da URL): "
   prompt_tty SUPABASE_DB_URL "  Connection string Postgres (opcional, ENTER para pular): "
+
+  if [[ -n "$SUPABASE_DB_URL" ]]; then
+    echo ""
+    echo "  Para criar o usuário ADMIN automaticamente (opcional):"
+    prompt_tty SUPABASE_SERVICE_KEY "  service_role key (eyJ... — ENTER p/ pular): "
+    if [[ -n "$SUPABASE_SERVICE_KEY" ]]; then
+      prompt_tty ADMIN_EMAIL "  Email do admin: "
+      prompt_tty_secret ADMIN_PASSWORD "  Senha do admin (mín 6 chars, oculta): "
+    fi
+  fi
 fi
 
 # Limpa espaços/quebras
@@ -201,6 +227,56 @@ if [[ -n "$SUPABASE_DB_URL" ]]; then
 else
   warn "Connection string não fornecida — rode o schema.sql manualmente no SQL Editor:"
   warn "  https://raw.githubusercontent.com/VW2Digital/variation-vault-core/${BRANCH}/deploy-vps/supabase/schema.sql"
+fi
+
+# ---------- 1c. Criação automática do admin (se service_role + email + senha) ----------
+ADMIN_CREATED="no"
+if [[ "$SCHEMA_APPLIED" == "yes" && -n "${SUPABASE_SERVICE_KEY:-}" && -n "${ADMIN_EMAIL:-}" && -n "${ADMIN_PASSWORD:-}" ]]; then
+  if [[ ${#SUPABASE_SERVICE_KEY} -lt 100 ]]; then
+    warn "service_role key muito curta — pulando criação de admin."
+  elif [[ ${#ADMIN_PASSWORD} -lt 6 ]]; then
+    warn "Senha do admin com menos de 6 caracteres — pulando criação."
+  elif [[ ! "$ADMIN_EMAIL" =~ ^[^@]+@[^@]+\.[^@]+$ ]]; then
+    warn "Email inválido: $ADMIN_EMAIL — pulando criação de admin."
+  else
+    log "Criando usuário admin via Auth API..."
+    ADMIN_PAYLOAD=$(cat <<JSON
+{"email":"$ADMIN_EMAIL","password":"$ADMIN_PASSWORD","email_confirm":true,"user_metadata":{"full_name":"Administrador"}}
+JSON
+)
+    ADMIN_RESP=$(curl -sS -X POST "${SUPABASE_URL}/auth/v1/admin/users" \
+      -H "apikey: $SUPABASE_SERVICE_KEY" \
+      -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
+      -H "Content-Type: application/json" \
+      -d "$ADMIN_PAYLOAD" 2>&1 || true)
+
+    ADMIN_UUID=$(echo "$ADMIN_RESP" | grep -oE '"id"\s*:\s*"[a-f0-9-]{36}"' | head -1 | grep -oE '[a-f0-9-]{36}')
+
+    if [[ -z "$ADMIN_UUID" ]]; then
+      # Pode já existir — tenta buscar pelo email
+      LOOKUP=$(curl -sS "${SUPABASE_URL}/auth/v1/admin/users?email=${ADMIN_EMAIL}" \
+        -H "apikey: $SUPABASE_SERVICE_KEY" \
+        -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" 2>&1 || true)
+      ADMIN_UUID=$(echo "$LOOKUP" | grep -oE '"id"\s*:\s*"[a-f0-9-]{36}"' | head -1 | grep -oE '[a-f0-9-]{36}')
+    fi
+
+    if [[ -n "$ADMIN_UUID" ]]; then
+      log "Promovendo $ADMIN_EMAIL a admin (UUID: $ADMIN_UUID)..."
+      if psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -q -c \
+        "INSERT INTO public.user_roles (user_id, role) VALUES ('$ADMIN_UUID', 'admin') ON CONFLICT DO NOTHING;" \
+        >/dev/null 2>&1; then
+        ADMIN_CREATED="yes"
+        ok "Admin criado e promovido com sucesso ✓"
+      else
+        warn "Usuário criado mas falha ao inserir role admin. Rode manualmente:"
+        warn "  INSERT INTO public.user_roles (user_id, role) VALUES ('$ADMIN_UUID', 'admin');"
+      fi
+    else
+      warn "Falha ao criar admin. Resposta da API:"
+      echo "$ADMIN_RESP" | head -c 300 >&2
+      echo "" >&2
+    fi
+  fi
 fi
 
 # ---------- 2. Limpeza ----------
@@ -295,6 +371,15 @@ if [[ "$SCHEMA_APPLIED" == "yes" ]]; then
 else
   SCHEMA_STATUS="rode manualmente no SQL Editor"
 fi
+if [[ "$ADMIN_CREATED" == "yes" ]]; then
+  ADMIN_STATUS="criado: $ADMIN_EMAIL"
+  ADMIN_NEXT="Acesse http://$PUBLIC_IP/admin com $ADMIN_EMAIL"
+else
+  ADMIN_STATUS="crie manualmente em Authentication → Users"
+  ADMIN_NEXT="1) Auth → Users → criar usuário
+    2) SQL Editor: INSERT INTO public.user_roles (user_id, role) VALUES ('<UUID>', 'admin');
+    3) Acessar http://$PUBLIC_IP/admin"
+fi
 echo ""
 cat <<EOF
 ╔══════════════════════════════════════════════════════════════╗
@@ -304,6 +389,7 @@ cat <<EOF
   🌐 Site:           http://$PUBLIC_IP
   🗄  Backend:        $SUPABASE_URL
   📋 Schema DB:      $SCHEMA_STATUS
+  👤 Admin:          $ADMIN_STATUS
   📁 Pasta:          $APP_DIR
   🔑 .env:           $APP_DIR/.env
 
@@ -312,11 +398,7 @@ cat <<EOF
     docker compose -f $APP_DIR/docker-compose.yml restart
     cd $APP_DIR && bash deploy-vps/deploy.sh    # atualizar do git
 
-  Próximos passos no Supabase:
-    1) Authentication → Users → criar primeiro usuário
-    2) SQL Editor → promover a admin:
-         INSERT INTO public.user_roles (user_id, role)
-         VALUES ('<UUID>', 'admin');
-    3) Acessar http://$PUBLIC_IP/admin
+  Próximos passos:
+    $ADMIN_NEXT
 
 EOF
