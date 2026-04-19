@@ -10,11 +10,12 @@ import AsaasSettings from './payment/AsaasSettings';
 import MercadoPagoSettings from './payment/MercadoPagoSettings';
 import PagBankSettings from './payment/PagBankSettings';
 import PagarMeSettings from './payment/PagarMeSettings';
+import asaasLogo from '@/assets/gateway-asaas.png';
 
 type GatewayKey = 'asaas' | 'mercadopago' | 'pagbank' | 'pagarme';
 
-const GATEWAYS: { key: GatewayKey; name: string; description: string; brandClass: string }[] = [
-  { key: 'asaas', name: 'Asaas', description: 'Checkout transparente • PIX, cartão e boleto', brandClass: 'text-blue-600' },
+const GATEWAYS: { key: GatewayKey; name: string; description: string; brandClass: string; logo?: string }[] = [
+  { key: 'asaas', name: 'Asaas', description: 'Checkout transparente • PIX, cartão e boleto', brandClass: 'text-blue-600', logo: asaasLogo },
   { key: 'mercadopago', name: 'Mercado Pago', description: 'Transparente ou Checkout Pro • PIX e cartão', brandClass: 'text-sky-500' },
   { key: 'pagbank', name: 'PagBank', description: 'Redirect • PIX e cartão', brandClass: 'text-orange-500' },
   { key: 'pagarme', name: 'Pagar.me', description: 'Transparente v5 • PIX e cartão tokenizado', brandClass: 'text-emerald-600' },
@@ -67,8 +68,12 @@ const SettingsPayment = () => {
             >
               <Card className={`transition-all hover:shadow-md hover:border-primary/40 cursor-pointer ${isActive ? 'border-2 border-primary' : 'border-border/50'}`}>
                 <CardContent className="p-5 flex items-start gap-4">
-                  <div className={`shrink-0 w-12 h-12 rounded-lg bg-muted flex items-center justify-center ${gw.brandClass}`}>
-                    <CreditCard className="w-6 h-6" />
+                  <div className={`shrink-0 w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden ${gw.logo ? '' : `bg-muted ${gw.brandClass}`}`}>
+                    {gw.logo ? (
+                      <img src={gw.logo} alt={`Logo ${gw.name}`} className="w-full h-full object-cover" />
+                    ) : (
+                      <CreditCard className="w-6 h-6" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -94,7 +99,11 @@ const SettingsPayment = () => {
             <>
               <SheetHeader className="mb-4">
                 <SheetTitle className="flex items-center gap-2">
-                  <CreditCard className={`w-5 h-5 ${selectedMeta.brandClass}`} />
+                  {selectedMeta.logo ? (
+                    <img src={selectedMeta.logo} alt="" className="w-6 h-6 rounded object-cover" />
+                  ) : (
+                    <CreditCard className={`w-5 h-5 ${selectedMeta.brandClass}`} />
+                  )}
                   {selectedMeta.name}
                 </SheetTitle>
                 <SheetDescription>{selectedMeta.description}</SheetDescription>
