@@ -31,10 +31,11 @@ interface SortableProductRowProps {
   navigate: (path: string) => void;
   onDelete: (product: { id: string; name: string }) => void;
   onDuplicate: (product: any) => void;
+  onToggleActive: (product: any, active: boolean) => void;
   duplicating: string | null;
 }
 
-const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, duplicating }: SortableProductRowProps) => {
+const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, onToggleActive, duplicating }: SortableProductRowProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id });
 
   const style = {
