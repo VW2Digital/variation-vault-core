@@ -20,7 +20,7 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchProducts()
+    fetchProducts(true)
       .then(setProducts)
       .finally(() => setLoading(false));
   }, []);
