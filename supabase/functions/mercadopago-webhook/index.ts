@@ -83,10 +83,13 @@ async function sendReviewResultNotification(supabase: any, data: ReviewNotificat
     .in('key', [
       'evolution_api_url', 'evolution_api_key', 'evolution_instance_name',
       'whatsapp_number', 'resend_api_key', 'resend_from_email',
+      'notify_customer_on_payment',
     ]);
 
   const cfg: Record<string, string> = {};
   for (const s of settings || []) cfg[s.key] = s.value;
+
+  const notifyCustomer = cfg['notify_customer_on_payment'] !== 'false'; // default true
 
   const now = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   const valueFormatted = Number(data.totalValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -129,7 +132,7 @@ async function sendReviewResultNotification(supabase: any, data: ReviewNotificat
     }
 
     // WhatsApp to customer (if phone available)
-    if (data.customerPhone) {
+    if (notifyCustomer && data.customerPhone) {
       try {
         const baseUrl = apiUrl.replace(/\/+$/, '');
         const customerPhone = data.customerPhone.replace(/\D/g, '');
@@ -210,7 +213,7 @@ async function sendReviewResultNotification(supabase: any, data: ReviewNotificat
     }
 
     // Email to customer
-    if (data.customerEmail) {
+    if (notifyCustomer && data.customerEmail) {
       try {
         const customerHtml = isApproved
           ? `

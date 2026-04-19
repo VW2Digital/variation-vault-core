@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Phone, Mail, MessageSquare, Eye, EyeOff, Send, Loader2 } from 'lucide-react';
+import { Phone, Mail, MessageSquare, Eye, EyeOff, Send, Loader2, BellRing } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import SettingsBackButton from './SettingsBackButton';
 
@@ -28,6 +29,9 @@ const SettingsCommunication = () => {
   const [testMessage, setTestMessage] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
 
+  // Notificação automática ao cliente após pagamento
+  const [notifyCustomerOnPayment, setNotifyCustomerOnPayment] = useState(true);
+
   useEffect(() => {
     Promise.all([
       fetchSetting('whatsapp_number'),
@@ -36,13 +40,15 @@ const SettingsCommunication = () => {
       fetchSetting('evolution_api_url'),
       fetchSetting('evolution_api_key'),
       fetchSetting('evolution_instance_name'),
-    ]).then(([wp, rKey, rFrom, evoUrl, evoKey, evoInstance]) => {
+      fetchSetting('notify_customer_on_payment'),
+    ]).then(([wp, rKey, rFrom, evoUrl, evoKey, evoInstance, notifyFlag]) => {
       setWhatsapp(wp || '');
       setResendApiKey(rKey || '');
       setResendFromEmail(rFrom || 'onboarding@resend.dev');
       setEvolutionApiUrl(evoUrl || '');
       setEvolutionApiKey(evoKey || '');
       setEvolutionInstanceName(evoInstance || '');
+      setNotifyCustomerOnPayment(notifyFlag !== 'false'); // default: ativado
     }).finally(() => setLoading(false));
   }, []);
 
@@ -59,6 +65,7 @@ const SettingsCommunication = () => {
         upsertSetting('evolution_api_url', evolutionApiUrl, uid),
         upsertSetting('evolution_api_key', evolutionApiKey, uid),
         upsertSetting('evolution_instance_name', evolutionInstanceName, uid),
+        upsertSetting('notify_customer_on_payment', notifyCustomerOnPayment ? 'true' : 'false', uid),
       ]);
       toast({ title: 'Configurações de comunicação salvas!' });
     } catch (err: any) {
@@ -79,6 +86,21 @@ const SettingsCommunication = () => {
             <Label>Número do WhatsApp (com código do país)</Label>
             <Input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value.replace(/\D/g, ''))} placeholder="5511999999999" inputMode="numeric" />
             <p className="text-xs text-muted-foreground">Formato: código do país + DDD + número. Ex: 5511999999999</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
+        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><BellRing className="w-5 h-5" /> Notificações Automáticas ao Cliente</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-start justify-between gap-4 p-4 rounded-lg border border-border/50 bg-muted/30">
+            <div className="space-y-1">
+              <Label className="text-base">Enviar confirmação ao cliente após pagamento</Label>
+              <p className="text-xs text-muted-foreground">
+                Quando ativado, o cliente recebe automaticamente uma mensagem no WhatsApp e e-mail quando o pagamento for aprovado ou recusado (todos os gateways).
+              </p>
+            </div>
+            <Switch checked={notifyCustomerOnPayment} onCheckedChange={setNotifyCustomerOnPayment} />
           </div>
         </CardContent>
       </Card>
