@@ -748,8 +748,9 @@ SQL
     fi
   fi
 else
-  warn "[9/12] Sem connection string — schema/admin/cron precisam ser feitos manualmente"
+  warn "Sem connection string — schema/admin/cron precisam ser feitos manualmente"
 fi
+step_done 9
 
 # ============================================================================
 # [10/12] Clone + .env + nginx + build
