@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 
 const CartCheckout = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { items, totalPrice, clearCart, loading } = useCart();
   const [ready, setReady] = useState(false);
   const [freeShippingInfo, setFreeShippingInfo] = useState<{ freeShipping: boolean; minValue: number }>({ freeShipping: false, minValue: 0 });
