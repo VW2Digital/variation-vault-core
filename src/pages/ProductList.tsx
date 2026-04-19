@@ -47,11 +47,13 @@ const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, onToggle
 
   const img = product.product_variations?.[0]?.images?.[0] || product.product_variations?.[0]?.image_url || product.images?.[0];
 
+  const isActive = product.active !== false;
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 px-2 py-2.5 bg-card hover:bg-muted/30 transition-colors ${isDragging ? 'shadow-lg rounded-lg border border-primary/30' : ''}`}
+      className={`flex items-center gap-2 px-2 py-2.5 bg-card hover:bg-muted/30 transition-colors ${isDragging ? 'shadow-lg rounded-lg border border-primary/30' : ''} ${!isActive ? 'opacity-60' : ''}`}
     >
       <button
         className="shrink-0 cursor-grab active:cursor-grabbing touch-none p-1 text-muted-foreground hover:text-foreground"
