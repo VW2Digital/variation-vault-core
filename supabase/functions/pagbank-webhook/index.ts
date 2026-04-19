@@ -120,10 +120,13 @@ serve(async (req) => {
             .in('key', [
               'evolution_api_url', 'evolution_api_key', 'evolution_instance_name',
               'whatsapp_number', 'resend_api_key', 'resend_from_email',
+              'notify_customer_on_payment',
             ]);
 
           const cfg: Record<string, string> = {};
           for (const s of settings || []) cfg[s.key] = s.value;
+
+          const notifyCustomer = cfg['notify_customer_on_payment'] !== 'false'; // default true
 
           const now = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
           const valueFormatted = Number(existingOrder.total_value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -159,7 +162,7 @@ serve(async (req) => {
             console.log(`[PagBank Webhook] Admin WhatsApp: ${res.ok ? 'sent' : `error:${res.status}`}`);
 
             // WhatsApp to customer
-            if (existingOrder.customer_phone) {
+            if (notifyCustomer && existingOrder.customer_phone) {
               try {
                 const customerPhoneClean = existingOrder.customer_phone.replace(/\D/g, '');
                 const phoneWithCountry = customerPhoneClean.startsWith('55') ? customerPhoneClean : `55${customerPhoneClean}`;
