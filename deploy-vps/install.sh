@@ -288,6 +288,11 @@ done
 
 # ---------- Resumo ----------
 PUBLIC_IP=$(curl -fsS https://api.ipify.org 2>/dev/null || echo "SEU_IP")
+if [[ "$SCHEMA_APPLIED" == "yes" ]]; then
+  SCHEMA_STATUS="aplicado automaticamente"
+else
+  SCHEMA_STATUS="rode manualmente no SQL Editor"
+fi
 echo ""
 cat <<EOF
 ╔══════════════════════════════════════════════════════════════╗
@@ -296,6 +301,7 @@ cat <<EOF
 
   🌐 Site:           http://$PUBLIC_IP
   🗄  Backend:        $SUPABASE_URL
+  📋 Schema DB:      $SCHEMA_STATUS
   📁 Pasta:          $APP_DIR
   🔑 .env:           $APP_DIR/.env
 
