@@ -11,8 +11,10 @@
 #   SUPABASE_ANON_KEY=eyJ... \
 #   SUPABASE_PROJECT_ID=xxx \
 #   SUPABASE_DB_URL=postgresql://postgres:SENHA@db.xxx.supabase.co:5432/postgres \
+#   SUPABASE_SERVICE_KEY=eyJ... \
+#   ADMIN_EMAIL=admin@dominio.com ADMIN_PASSWORD=senha123 \
 #     curl ... | sudo -E bash
-# (SUPABASE_DB_URL é opcional — se fornecida, o schema.sql é aplicado automaticamente)
+# (DB_URL aplica schema; SERVICE_KEY+ADMIN_EMAIL+PASSWORD criam admin)
 # =============================================================================
 
 set -euo pipefail
