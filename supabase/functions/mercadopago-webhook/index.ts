@@ -428,6 +428,7 @@ serve(async (req) => {
     const externalRef = payment.external_reference;
 
     if (externalRef) {
+      __logCtx.order_id = externalRef;
       // Find order by external_reference (our order ID)
       const { data: existingOrder } = await supabase
         .from('orders')
@@ -546,10 +547,13 @@ serve(async (req) => {
     });
   } catch (error: any) {
     console.error('[MP Webhook] Error:', error.message);
+    __logCtx.error_message = error.message;
     // Always return 200 to avoid MP retries
     return new Response(JSON.stringify({ received: true, error: error.message }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  } finally {
+    await __writeLog();
   }
 });
