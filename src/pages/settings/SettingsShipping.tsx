@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Truck, MapPin, Eye, EyeOff, Link2, CheckCircle2, Loader2, Download } from 'lucide-react';
+import { Truck, MapPin, Eye, EyeOff, Link2, CheckCircle2, Loader2, Download, Copy, Webhook, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SettingsBackButton from './SettingsBackButton';
