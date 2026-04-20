@@ -19,8 +19,27 @@ Deno.serve(async (req) => {
     });
   }
 
+  const __startTs = Date.now();
+  const __logCtx: any = {
+    gateway: 'melhor-envio', event_type: null, http_status: 200,
+    signature_valid: null, signature_error: null, order_id: null,
+    external_id: null, error_message: null, request_payload: null,
+  };
+  let __logged = false;
+  const __writeLog = async () => {
+    if (__logged) return;
+    __logged = true;
+    try {
+      const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      await sb.from('webhook_logs').insert({ ...__logCtx, latency_ms: Date.now() - __startTs });
+    } catch {}
+  };
+
   try {
     const payload = await req.json();
+    __logCtx.request_payload = payload;
+    __logCtx.event_type = payload?.event || null;
+    __logCtx.external_id = payload?.data?.id || null;
     console.log("Melhor Envio webhook received:", JSON.stringify(payload));
 
     const supabase = createClient(
@@ -96,9 +115,12 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error("Webhook error:", error);
+    __logCtx.error_message = (error as Error)?.message || String(error);
     return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  } finally {
+    await __writeLog();
   }
 });

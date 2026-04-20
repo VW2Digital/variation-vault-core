@@ -960,6 +960,54 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          event_type: string | null
+          external_id: string | null
+          gateway: string
+          http_status: number
+          id: string
+          latency_ms: number | null
+          order_id: string | null
+          request_headers: Json | null
+          request_payload: Json | null
+          signature_error: string | null
+          signature_valid: boolean | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          event_type?: string | null
+          external_id?: string | null
+          gateway: string
+          http_status?: number
+          id?: string
+          latency_ms?: number | null
+          order_id?: string | null
+          request_headers?: Json | null
+          request_payload?: Json | null
+          signature_error?: string | null
+          signature_valid?: boolean | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          event_type?: string | null
+          external_id?: string | null
+          gateway?: string
+          http_status?: number
+          id?: string
+          latency_ms?: number | null
+          order_id?: string | null
+          request_headers?: Json | null
+          request_payload?: Json | null
+          signature_error?: string | null
+          signature_valid?: boolean | null
+        }
+        Relationships: []
+      }
       wholesale_prices: {
         Row: {
           created_at: string

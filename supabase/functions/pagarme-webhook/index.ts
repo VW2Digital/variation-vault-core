@@ -250,6 +250,22 @@ async function sendPaymentNotification(supabase: any, data: NotificationData) {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
+  const __startTs = Date.now();
+  let __logCtx: any = {
+    gateway: 'pagarme', event_type: null, http_status: 200,
+    signature_valid: null, signature_error: null, order_id: null,
+    external_id: null, error_message: null, request_payload: null,
+  };
+  let __logged = false;
+  const __writeLog = async () => {
+    if (__logged) return;
+    __logged = true;
+    try {
+      const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+      await sb.from('webhook_logs').insert({ ...__logCtx, latency_ms: Date.now() - __startTs });
+    } catch {}
+  };
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -263,19 +279,27 @@ serve(async (req) => {
     const secret = secretRow?.value || '';
 
     const valid = await verifySignature(req, bodyText, secret);
+    __logCtx.signature_valid = valid;
     if (!valid) {
+      __logCtx.signature_error = 'HMAC-SHA1 mismatch or missing X-Hub-Signature header';
+      try { __logCtx.request_payload = JSON.parse(bodyText); } catch { __logCtx.request_payload = { raw: bodyText.slice(0, 500) }; }
+      await __writeLog();
       return new Response(JSON.stringify({ received: true, error: 'invalid_signature' }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const event = JSON.parse(bodyText);
+    __logCtx.request_payload = event;
     const eventType = event?.type || '';
+    __logCtx.event_type = eventType;
+    __logCtx.external_id = event?.data?.id || null;
     const data = event?.data || {};
     console.log(`[Pagar.me Webhook] Event: ${eventType}, Order ID: ${data?.id}`);
 
     // Find order by code (our internal orderId) or by id
     const orderCode = data?.code; // our internal orderId
+    if (orderCode) __logCtx.order_id = orderCode;
     const charges = Array.isArray(data?.charges) ? data.charges : [];
     const lastCharge = charges[charges.length - 1] || {};
     const newStatus = mapStatus(lastCharge.status || data?.status || 'pending');
@@ -343,8 +367,11 @@ serve(async (req) => {
     });
   } catch (e: any) {
     console.error('[Pagar.me Webhook] Error:', e.message);
+    __logCtx.error_message = e.message;
     return new Response(JSON.stringify({ received: true, error: e.message }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  } finally {
+    await __writeLog();
   }
 });

@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, LogOut, LayoutDashboard, Video, Megaphone, Settings, ShoppingBag, Users, MessageCircle, Star, MousePointerClick, AlertTriangle, Mail, LinkIcon, Ticket, FileBarChart, ChevronDown } from 'lucide-react';
+import { Package, LogOut, LayoutDashboard, Video, Megaphone, Settings, ShoppingBag, Users, MessageCircle, Star, MousePointerClick, AlertTriangle, Mail, LinkIcon, Ticket, FileBarChart, ChevronDown, Activity } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
   Sidebar,
@@ -42,6 +42,7 @@ const menuCategories = [
     items: [
       { title: 'Pedidos', url: '/admin/pedidos', icon: ShoppingBag },
       { title: 'Falhas Pgto', url: '/admin/falhas-pagamento', icon: AlertTriangle },
+      { title: 'Webhooks Logs', url: '/admin/webhooks-logs', icon: Activity },
       { title: 'Carrinho Abandonado', url: '/admin/carrinho-abandonado', icon: Mail },
       { title: 'Links de Pagamento', url: '/admin/links-pagamento', icon: LinkIcon },
       { title: 'Cupons', url: '/admin/cupons', icon: Ticket },

@@ -262,14 +262,33 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const __startTs = Date.now();
+  const __logCtx: any = {
+    gateway: 'mercadopago', event_type: null, http_status: 200,
+    signature_valid: null, signature_error: null, order_id: null,
+    external_id: null, error_message: null, request_payload: null,
+  };
+  let __logged = false;
+  const __writeLog = async () => {
+    if (__logged) return;
+    __logged = true;
+    try {
+      const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+      await sb.from('webhook_logs').insert({ ...__logCtx, latency_ms: Date.now() - __startTs });
+    } catch {}
+  };
+
   try {
     // Read body as text for signature verification, then parse
     const bodyText = await req.text();
 
     // Verify webhook signature
     const isValid = await verifyWebhookSignature(req, bodyText);
+    __logCtx.signature_valid = isValid;
     if (!isValid) {
       console.error('[MP Webhook] Invalid signature — rejecting');
+      __logCtx.signature_error = 'HMAC-SHA256 mismatch (manifest id+request-id+ts)';
+      try { __logCtx.request_payload = JSON.parse(bodyText); } catch { __logCtx.request_payload = { raw: bodyText.slice(0, 500) }; }
       return new Response(JSON.stringify({ received: true, error: 'invalid_signature' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -281,7 +300,10 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body = JSON.parse(bodyText);
+    __logCtx.request_payload = body;
     const { action, type, id: notificationId, data: notificationData, topic } = body;
+    __logCtx.event_type = action || topic || type || null;
+    __logCtx.external_id = notificationData?.id || notificationId || null;
 
     // Mercado Pago sends notifications in two formats:
     // 1. IPN (Instant Payment Notification): { topic, id }
@@ -406,6 +428,7 @@ serve(async (req) => {
     const externalRef = payment.external_reference;
 
     if (externalRef) {
+      __logCtx.order_id = externalRef;
       // Find order by external_reference (our order ID)
       const { data: existingOrder } = await supabase
         .from('orders')
@@ -524,10 +547,13 @@ serve(async (req) => {
     });
   } catch (error: any) {
     console.error('[MP Webhook] Error:', error.message);
+    __logCtx.error_message = error.message;
     // Always return 200 to avoid MP retries
     return new Response(JSON.stringify({ received: true, error: error.message }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  } finally {
+    await __writeLog();
   }
 });
