@@ -39,6 +39,22 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const __startTs = Date.now();
+  const __logCtx: any = {
+    gateway: 'pagbank', event_type: null, http_status: 200,
+    signature_valid: null, signature_error: null, order_id: null,
+    external_id: null, error_message: null, request_payload: null,
+  };
+  let __logged = false;
+  const __writeLog = async () => {
+    if (__logged) return;
+    __logged = true;
+    try {
+      const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+      await sb.from('webhook_logs').insert({ ...__logCtx, latency_ms: Date.now() - __startTs });
+    } catch {}
+  };
+
   try {
     const bodyText = await req.text();
     console.log('[PagBank Webhook] Received:', bodyText.slice(0, 500));
@@ -48,6 +64,10 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body = JSON.parse(bodyText);
+    __logCtx.request_payload = body;
+    __logCtx.event_type = body?.charges?.[0]?.status || 'order_update';
+    __logCtx.external_id = body?.id || null;
+    if (body?.reference_id) __logCtx.order_id = body.reference_id;
 
     // PagBank sends notifications with charges array
     // Format: { id, reference_id, charges: [{ id, status, ... }], ... }
@@ -217,10 +237,13 @@ serve(async (req) => {
     });
   } catch (error: any) {
     console.error(`[PagBank Webhook] Error: ${error.message}`);
+    __logCtx.error_message = error.message;
     // Always return 200 to avoid PagBank retries penalizing us
     return new Response(JSON.stringify({ received: true }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  } finally {
+    await __writeLog();
   }
 });
