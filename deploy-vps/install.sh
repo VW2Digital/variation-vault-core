@@ -74,7 +74,13 @@ if [ ! -f "$APP_DIR/Dockerfile" ]; then
   if [ -d "$APP_DIR" ] && [ -z "$(ls -A "$APP_DIR" 2>/dev/null)" ]; then
     rmdir "$APP_DIR"
   fi
-  git clone --depth 1 -b "$REPO_BRANCH" "$REPO_URL" "$APP_DIR"
+  git clone --depth 1 -b "$REPO_BRANCH" "$REPO_URL" "${APP_DIR}.tmp"
+  if [ -d "$APP_DIR" ]; then
+    cp -rn "${APP_DIR}.tmp/." "$APP_DIR/"
+    rm -rf "${APP_DIR}.tmp"
+  else
+    mv "${APP_DIR}.tmp" "$APP_DIR"
+  fi
   ok "Repositório clonado em $APP_DIR"
 fi
 cd "$APP_DIR"
