@@ -137,7 +137,7 @@ export default function WebhookLogsPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Total</p><p className="text-2xl font-bold">{stats.total}</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">OK</p><p className="text-2xl font-bold text-emerald-600">{stats.success}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">OK</p><p className="text-2xl font-bold text-primary">{stats.success}</p></CardContent></Card>
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Assinatura inválida</p><p className="text-2xl font-bold text-destructive">{stats.sigFailed}</p></CardContent></Card>
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Erros</p><p className="text-2xl font-bold text-destructive">{stats.errors}</p></CardContent></Card>
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Latência média</p><p className="text-2xl font-bold">{stats.avgLatency}ms</p></CardContent></Card>
