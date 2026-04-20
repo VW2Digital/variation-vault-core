@@ -171,16 +171,27 @@ echo
 echo -e "${BOLD}━━━ Etapa 4/4 · Configuração e build ━━━${NC}"
 
 PROJECT_ID=$(echo "$SUPA_URL" | sed -E 's|https://([^.]+)\.supabase\.co/?|\1|')
-cat > "$APP_DIR/.env" <<EOF
-VITE_SUPABASE_URL=$SUPA_URL
-VITE_SUPABASE_PUBLISHABLE_KEY=$SUPA_ANON
-VITE_SUPABASE_PROJECT_ID=$PROJECT_ID
-SUPABASE_SERVICE_ROLE_KEY=$SUPA_SVC
-EOF
+{
+  echo "# === Vite (frontend deste projeto) ==="
+  echo "VITE_SUPABASE_URL=$SUPA_URL"
+  echo "VITE_SUPABASE_PUBLISHABLE_KEY=$SUPA_ANON"
+  echo "VITE_SUPABASE_PROJECT_ID=$PROJECT_ID"
+  echo
+  echo "# === Supabase canônico (Edge Functions / scripts backend) ==="
+  echo "SUPABASE_URL=$SUPA_URL"
+  echo "SUPABASE_ANON_KEY=$SUPA_ANON"
+  echo "SUPABASE_SERVICE_ROLE_KEY=$SUPA_SVC"
+  [ -n "$SUPA_DBURL" ] && echo "DATABASE_URL=$SUPA_DBURL"
+  [ -n "$SUPA_WHSEC" ] && echo "SUPABASE_WEBHOOK_SECRET=$SUPA_WHSEC"
+  echo
+  echo "# === Compatibilidade Next.js (caso integre outro app) ==="
+  echo "NEXT_PUBLIC_SUPABASE_URL=$SUPA_URL"
+  echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$SUPA_ANON"
+} > "$APP_DIR/.env"
 chmod 600 "$APP_DIR/.env"
-ok ".env criado"
+ok ".env criado com $(grep -c '=' "$APP_DIR/.env") variáveis"
 
-unset SUPA_SVC
+unset SUPA_SVC SUPA_DBURL SUPA_WHSEC
 
 # --- SSL via Certbot (standalone) antes de subir o container ---
 if [ -n "$SSL_DOMAIN" ]; then
