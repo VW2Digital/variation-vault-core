@@ -85,9 +85,20 @@ REPO_BRANCH="${REPO_BRANCH:-main}"
 
 # --- Etapa 1: Supabase ---
 echo -e "${BOLD}━━━ Etapa 1/4 · Conexão Supabase ━━━${NC}"
+echo -e "${YELLOW}Pegue tudo em: Supabase Dashboard → Project Settings → API${NC}"
 SUPA_URL=$(ask    "SUPABASE_URL"          valid_url    "Ex: https://xxxxxxxxxxxx.supabase.co")
-SUPA_ANON=$(ask   "SUPABASE_ANON_KEY"     valid_pubkey "Pública (sb_publishable_... ou eyJ...).")
-SUPA_SVC=$(ask_secret "SUPABASE_SERVICE_ROLE_KEY" valid_seckey "SECRETA (sb_secret_... ou eyJ...).")
+SUPA_ANON=$(ask   "SUPABASE_ANON_KEY"     valid_pubkey "Pública (sb_publishable_... ou eyJ...). Mesma usada como NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPA_SVC=$(ask_secret "SUPABASE_SERVICE_ROLE_KEY" valid_seckey "SECRETA (sb_secret_... ou eyJ...). NUNCA exponha no frontend.")
+
+echo
+echo -e "${BOLD}━━━ Etapa 1.1/4 · Extras opcionais ━━━${NC}"
+SUPA_DBURL=$(ask_optional_secret "DATABASE_URL" "Connection string Postgres (Settings → Database → Connection string → URI). Use o pooler na porta 6543 para serverless.")
+# Valida formato se preenchido
+if [ -n "$SUPA_DBURL" ] && ! valid_dburl "$SUPA_DBURL"; then
+  err "DATABASE_URL deve começar com postgres:// ou postgresql:// — pulando."
+  SUPA_DBURL=""
+fi
+SUPA_WHSEC=$(ask_optional_secret "SUPABASE_WEBHOOK_SECRET" "Segredo compartilhado para validar webhooks do Supabase (Database → Webhooks).")
 
 # --- Etapa 2: SSL opcional ---
 echo
@@ -111,6 +122,8 @@ echo
 echo -e "${BOLD}━━━ Revisão ━━━${NC}"
 echo "  URL  : $SUPA_URL"
 echo "  Anon : ${SUPA_ANON:0:20}…"
+echo "  DB   : $([ -n "$SUPA_DBURL" ] && echo "configurado" || echo "—")"
+echo "  WHSec: $([ -n "$SUPA_WHSEC" ] && echo "configurado" || echo "—")"
 if [ -n "$SSL_DOMAIN" ]; then
   echo "  SSL  : $SSL_DOMAIN ($SSL_EMAIL)"
 else
