@@ -11,12 +11,6 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
-      - "443:443"
-    volumes:
-      # Certificados Let's Encrypt (somente leitura)
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-      # Webroot usado pelo desafio HTTP-01 em renovações futuras
-      - /var/www/certbot:/var/www/certbot:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost/"]
       interval: 30s
