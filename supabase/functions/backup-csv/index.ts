@@ -206,8 +206,9 @@ serve(async (req) => {
       files.push({ name: "_README.txt", data: encoder.encode(meta) });
 
       const zip = buildZip(files);
-      const zipBuffer = zip.buffer.slice(zip.byteOffset, zip.byteOffset + zip.byteLength);
-      return new Response(zipBuffer, {
+      const responseBody = new Uint8Array(zip.byteLength);
+      responseBody.set(zip);
+      return new Response(responseBody, {
         headers: {
           ...corsHeaders,
           "Content-Type": "application/zip",
