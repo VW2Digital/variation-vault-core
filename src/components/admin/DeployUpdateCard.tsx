@@ -288,7 +288,7 @@ const DeployUpdateCard = () => {
             {health.ok
               ? (
                 <Badge variant="outline" className="gap-1">
-                  <CheckCircle2 className="w-3 h-3 text-green-600" />
+                  <CheckCircle2 className="w-3 h-3 text-primary" />
                   Online
                 </Badge>
               )
