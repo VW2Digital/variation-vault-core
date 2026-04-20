@@ -43,6 +43,7 @@ import AdminSupportPage from "./pages/AdminSupportPage";
 import AdminReviewsPage from "./pages/AdminReviewsPage";
 import PopupList from "./pages/PopupList";
 import PaymentLogsPage from "./pages/PaymentLogsPage";
+import WebhookLogsPage from "./pages/WebhookLogsPage";
 import CartAbandonmentLogsPage from "./pages/CartAbandonmentLogsPage";
 import PaymentLinksPage from "./pages/PaymentLinksPage";
 import CouponsPage from "./pages/CouponsPage";
@@ -108,6 +109,7 @@ const App = () => (
             <Route path="avaliacoes" element={<AdminReviewsPage />} />
             <Route path="suporte" element={<AdminSupportPage />} />
             <Route path="falhas-pagamento" element={<PaymentLogsPage />} />
+            <Route path="webhooks-logs" element={<WebhookLogsPage />} />
             <Route path="carrinho-abandonado" element={<CartAbandonmentLogsPage />} />
             <Route path="links-pagamento" element={<PaymentLinksPage />} />
             <Route path="cupons" element={<CouponsPage />} />
