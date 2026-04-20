@@ -517,6 +517,32 @@ const CustomerDashboard = () => {
                                     Pagar Agora
                                   </Button>
                                 )}
+                                {['PAID', 'RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(order.status) && !reviewedOrderIds.has(order.id) && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs gap-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveTab('reviews');
+                                      setReviewingOrderId(order.id);
+                                      setReviewRating(5);
+                                      setReviewComment('');
+                                      setTimeout(() => {
+                                        document.querySelector(`[data-review-order="${order.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                      }, 150);
+                                    }}
+                                  >
+                                    <Star className="w-3 h-3" />
+                                    Avaliar Compra
+                                  </Button>
+                                )}
+                                {['PAID', 'RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(order.status) && reviewedOrderIds.has(order.id) && (
+                                  <Badge variant="outline" className="h-7 text-xs gap-1 border-primary/40 text-primary">
+                                    <Star className="w-3 h-3 fill-primary" />
+                                    Avaliado
+                                  </Badge>
+                                )}
                                 <p className="font-bold text-primary">
                                   R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </p>
