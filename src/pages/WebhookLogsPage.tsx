@@ -115,7 +115,7 @@ export default function WebhookLogsPage() {
     if (log.error_message) {
       return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 gap-1"><AlertTriangle className="h-3 w-3" />Erro</Badge>;
     }
-    return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 gap-1"><CheckCircle2 className="h-3 w-3" />OK</Badge>;
+    return <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 gap-1"><CheckCircle2 className="h-3 w-3" />OK</Badge>;
   };
 
   return (
