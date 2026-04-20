@@ -64,23 +64,46 @@ REPO_URL="${REPO_URL:-https://github.com/VW2Digital/variation-vault-core.git}"
 REPO_BRANCH="${REPO_BRANCH:-main}"
 
 # --- Etapa 1: Supabase ---
-echo -e "${BOLD}━━━ Etapa 1/3 · Conexão Supabase ━━━${NC}"
+echo -e "${BOLD}━━━ Etapa 1/4 · Conexão Supabase ━━━${NC}"
 SUPA_URL=$(ask    "SUPABASE_URL"          valid_url    "Ex: https://xxxxxxxxxxxx.supabase.co")
 SUPA_ANON=$(ask   "SUPABASE_ANON_KEY"     valid_pubkey "Pública (sb_publishable_... ou eyJ...).")
 SUPA_SVC=$(ask_secret "SUPABASE_SERVICE_ROLE_KEY" valid_seckey "SECRETA (sb_secret_... ou eyJ...).")
+
+# --- Etapa 2: SSL opcional ---
+echo
+echo -e "${BOLD}━━━ Etapa 2/4 · SSL (opcional) ━━━${NC}"
+echo -e "${YELLOW}Deixe em branco e pressione ENTER para pular (site ficará só em HTTP).${NC}"
+echo -e "${YELLOW}Para HTTPS, o domínio JÁ precisa estar apontado para este IP via DNS (registro A).${NC}"
+echo
+read -r -p "Domínio (ex: catalog.seusite.com) ou ENTER para pular: " SSL_DOMAIN
+SSL_DOMAIN="$(clean "${SSL_DOMAIN:-}")"
+SSL_EMAIL=""
+if [ -n "$SSL_DOMAIN" ]; then
+  read -r -p "Email para o Let's Encrypt (avisos de expiração): " SSL_EMAIL
+  SSL_EMAIL="$(clean "${SSL_EMAIL:-}")"
+  if [ -z "$SSL_EMAIL" ]; then
+    warn "Email vazio — pulando SSL."
+    SSL_DOMAIN=""
+  fi
+fi
 
 echo
 echo -e "${BOLD}━━━ Revisão ━━━${NC}"
 echo "  URL  : $SUPA_URL"
 echo "  Anon : ${SUPA_ANON:0:20}…"
+if [ -n "$SSL_DOMAIN" ]; then
+  echo "  SSL  : $SSL_DOMAIN ($SSL_EMAIL)"
+else
+  echo "  SSL  : desativado (HTTP only)"
+fi
 echo
 read -r -p "Confirmar e instalar? [s/N] " CONFIRM
 CONFIRM="$(clean "$CONFIRM")"
 [[ "$CONFIRM" =~ ^[sSyY]$ ]] || { warn "Cancelado."; exit 0; }
 
-# --- Etapa 2: Repo + Docker ---
+# --- Etapa 3: Repo + Docker ---
 echo
-echo -e "${BOLD}━━━ Etapa 2/3 · Repositório e Docker ━━━${NC}"
+echo -e "${BOLD}━━━ Etapa 3/4 · Repositório e Docker ━━━${NC}"
 
 if [ ! -f "$APP_DIR/Dockerfile" ]; then
   log "Clonando repositório em $APP_DIR..."
@@ -110,9 +133,9 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 ok "Compose: $(docker compose version --short)"
 
-# --- Etapa 3: .env + subir app ---
+# --- Etapa 4: .env + subir app ---
 echo
-echo -e "${BOLD}━━━ Etapa 3/3 · Configuração e build ━━━${NC}"
+echo -e "${BOLD}━━━ Etapa 4/4 · Configuração e build ━━━${NC}"
 
 PROJECT_ID=$(echo "$SUPA_URL" | sed -E 's|https://([^.]+)\.supabase\.co/?|\1|')
 cat > "$APP_DIR/.env" <<EOF
@@ -126,14 +149,107 @@ ok ".env criado"
 
 unset SUPA_SVC
 
+# --- SSL via Certbot (standalone) antes de subir o container ---
+if [ -n "$SSL_DOMAIN" ]; then
+  log "Configurando SSL para $SSL_DOMAIN..."
+
+  if ! command -v certbot >/dev/null 2>&1; then
+    log "Instalando certbot..."
+    apt-get update -qq && apt-get install -y -qq certbot
+  fi
+
+  # Libera porta 80 para o desafio HTTP-01
+  (cd "$APP_DIR" && docker compose down 2>/dev/null || true)
+  fuser -k 80/tcp 2>/dev/null || true
+
+  if [ ! -f "/etc/letsencrypt/live/$SSL_DOMAIN/fullchain.pem" ]; then
+    log "Emitindo certificado Let's Encrypt..."
+    certbot certonly --standalone --non-interactive --agree-tos \
+      -m "$SSL_EMAIL" -d "$SSL_DOMAIN" \
+      || { err "Falha ao emitir SSL. Verifique se o DNS de $SSL_DOMAIN aponta para este servidor."; exit 1; }
+    ok "Certificado emitido"
+  else
+    ok "Certificado já existe — reaproveitando"
+  fi
+
+  # Reescreve nginx.conf com HTTPS
+  log "Configurando nginx para HTTPS..."
+  cat > "$APP_DIR/deploy-vps/nginx.conf" <<NGINX
+server {
+    listen 80 default_server;
+    server_name $SSL_DOMAIN;
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 301 https://\$host\$request_uri; }
+}
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name $SSL_DOMAIN;
+
+    ssl_certificate     /etc/letsencrypt/live/$SSL_DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$SSL_DOMAIN/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on; gzip_vary on; gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml text/javascript application/javascript application/json image/svg+xml;
+
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files \$uri =404;
+    }
+    location ~* \.(?:jpg|jpeg|gif|png|ico|webp|svg|woff|woff2|ttf|otf|eot)\$ {
+        expires 30d;
+        add_header Cache-Control "public";
+        try_files \$uri =404;
+    }
+    location / {
+        try_files \$uri \$uri/ /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    location ~ /\. { deny all; access_log off; log_not_found off; }
+}
+NGINX
+
+  # Adiciona porta 443 + volume do letsencrypt no docker-compose se ainda não houver
+  if ! grep -q '443:443' "$APP_DIR/docker-compose.yml"; then
+    log "Atualizando docker-compose.yml (porta 443 + volume SSL)..."
+    python3 - "$APP_DIR/docker-compose.yml" <<'PY'
+import sys, re
+p = sys.argv[1]
+s = open(p).read()
+s = s.replace('- "80:80"', '- "80:80"\n      - "443:443"')
+if 'volumes:' not in s.split('healthcheck:')[0]:
+    s = s.replace('healthcheck:', 'volumes:\n      - /etc/letsencrypt:/etc/letsencrypt:ro\n      - /var/www/certbot:/var/www/certbot:ro\n    healthcheck:')
+open(p,'w').write(s)
+PY
+  fi
+  mkdir -p /var/www/certbot
+  ok "SSL configurado"
+fi
+
 log "Buildando imagem (pode levar 2-4 min)..."
 docker compose build app
 log "Subindo container..."
 docker compose up -d
 
 log "Aguardando aplicação responder..."
+CHECK_URL="http://localhost/"
+[ -n "$SSL_DOMAIN" ] && CHECK_URL="https://$SSL_DOMAIN/"
 for i in $(seq 1 30); do
-  if curl -sf http://localhost/ -o /dev/null; then ok "Site no ar"; break; fi
+  if curl -skf "$CHECK_URL" -o /dev/null || curl -sf http://localhost/ -o /dev/null; then ok "Site no ar"; break; fi
   sleep 2
   [ "$i" = "30" ] && { err "App não respondeu em 60s"; docker compose logs --tail=30 app; exit 1; }
 done
@@ -143,5 +259,9 @@ echo -e "${GREEN}${BOLD}╔═════════════════�
 echo -e "${GREEN}${BOLD}║              ✓ INSTALAÇÃO CONCLUÍDA               ║${NC}"
 echo -e "${GREEN}${BOLD}╚════════════════════════════════════════════════════╝${NC}"
 echo
-echo -e "${BOLD}Acesse:${NC} http://$(hostname -I | awk '{print $1}')"
+if [ -n "$SSL_DOMAIN" ]; then
+  echo -e "${BOLD}Acesse:${NC} https://$SSL_DOMAIN"
+else
+  echo -e "${BOLD}Acesse:${NC} http://$(hostname -I | awk '{print $1}')"
+fi
 echo
