@@ -517,6 +517,32 @@ const CustomerDashboard = () => {
                                     Pagar Agora
                                   </Button>
                                 )}
+                                {['PAID', 'RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(order.status) && !reviewedOrderIds.has(order.id) && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs gap-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveTab('reviews');
+                                      setReviewingOrderId(order.id);
+                                      setReviewRating(5);
+                                      setReviewComment('');
+                                      setTimeout(() => {
+                                        document.querySelector(`[data-review-order="${order.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                      }, 150);
+                                    }}
+                                  >
+                                    <Star className="w-3 h-3" />
+                                    Avaliar Compra
+                                  </Button>
+                                )}
+                                {['PAID', 'RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(order.status) && reviewedOrderIds.has(order.id) && (
+                                  <Badge variant="outline" className="h-7 text-xs gap-1 border-primary/40 text-primary">
+                                    <Star className="w-3 h-3 fill-primary" />
+                                    Avaliado
+                                  </Badge>
+                                )}
                                 <p className="font-bold text-primary">
                                   R$ {Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </p>
@@ -793,7 +819,7 @@ const CustomerDashboard = () => {
                             const isReviewing = reviewingOrderId === order.id;
 
                             return (
-                              <div key={order.id} className="border border-border/50 rounded-lg p-4 space-y-3">
+                              <div key={order.id} data-review-order={order.id} className={`border rounded-lg p-4 space-y-3 transition-colors ${isReviewing ? 'border-primary/60 bg-primary/5' : 'border-border/50'}`}>
                                 <div className="flex items-center justify-between">
                                   <div>
                                     <p className="font-semibold text-sm text-foreground">{order.product_name}</p>
