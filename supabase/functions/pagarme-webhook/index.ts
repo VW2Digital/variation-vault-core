@@ -358,8 +358,20 @@ serve(async (req) => {
     });
   } catch (e: any) {
     console.error('[Pagar.me Webhook] Error:', e.message);
+    __logCtx.error_message = e.message;
+    try {
+      const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+      await supabase.from('webhook_logs').insert({ ...__logCtx, latency_ms: Date.now() - __startTs });
+    } catch {}
     return new Response(JSON.stringify({ received: true, error: e.message }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  } finally {
+    if (!__logCtx.error_message && __logCtx.signature_valid !== false) {
+      try {
+        const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+        await supabase.from('webhook_logs').insert({ ...__logCtx, latency_ms: Date.now() - __startTs });
+      } catch {}
+    }
   }
 });
