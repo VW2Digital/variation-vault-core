@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, CheckCircle2, Loader2, KeyRound } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import WebhookUrlCard from '@/components/admin/WebhookUrlCard';
 
 interface Props {
   isActive: boolean;
@@ -137,14 +138,12 @@ const PagBankSettings = ({ isActive, onActivate }: Props) => {
           </Button>
         </div>
       </div>
-      <div className="space-y-2">
-        <Label className="text-xs text-muted-foreground">URL do Webhook</Label>
-        <Input readOnly value="https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/pagbank-webhook" className="bg-muted text-xs" onClick={(e) => {
-          (e.target as HTMLInputElement).select();
-          navigator.clipboard.writeText("https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/pagbank-webhook");
-          toast({ title: 'URL copiada!' });
-        }} />
-      </div>
+      <WebhookUrlCard
+        gatewayName="PagBank"
+        functionSlug="pagbank-webhook"
+        cadastroHint="no painel do PagBank, em Aplicações → Notificações"
+        eventos={["CHECKOUT.PAID", "CHECKOUT.CANCELED", "ORDER.PAID"]}
+      />
       <div className="space-y-2">
         <Label className="text-xs text-muted-foreground">URL de Redirecionamento</Label>
         <Input readOnly value="https://variation-vault-core.lovable.app/minha-conta" className="bg-muted text-xs" onClick={(e) => {
