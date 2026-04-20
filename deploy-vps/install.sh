@@ -21,6 +21,7 @@ clean() {
 valid_url()    { [[ "$1" =~ ^https://[a-zA-Z0-9.-]+\.supabase\.co/?$ ]]; }
 valid_pubkey() { [[ "$1" =~ ^(eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|sb_publishable_[A-Za-z0-9_-]{20,})$ ]]; }
 valid_seckey() { [[ "$1" =~ ^(eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|sb_secret_[A-Za-z0-9_-]{20,})$ ]]; }
+valid_dburl()  { [[ "$1" =~ ^postgres(ql)?://[^[:space:]]+$ ]]; }
 
 ask() {
   local prompt="$1" validator="$2" hint="$3" var
@@ -34,6 +35,25 @@ ask() {
     if $validator "$var"; then echo "$var"; return 0; fi
     err "Formato inválido."
   done
+}
+
+# Pergunta opcional — ENTER pula sem validar
+ask_optional() {
+  local prompt="$1" hint="$2" var
+  echo >&2
+  echo -e "${BOLD}${prompt}${NC} ${YELLOW}(opcional — ENTER para pular)${NC}" >&2
+  [ -n "$hint" ] && echo -e "${YELLOW}↳ ${hint}${NC}" >&2
+  read -r -p "› " var
+  echo "$(clean "${var:-}")"
+}
+
+ask_optional_secret() {
+  local prompt="$1" hint="$2" var
+  echo >&2
+  echo -e "${BOLD}${prompt}${NC} ${YELLOW}(opcional — ENTER para pular)${NC}" >&2
+  [ -n "$hint" ] && echo -e "${YELLOW}↳ ${hint}${NC}" >&2
+  read -r -s -p "› " var; echo >&2
+  echo "$(clean "${var:-}")"
 }
 
 ask_secret() {
@@ -65,9 +85,20 @@ REPO_BRANCH="${REPO_BRANCH:-main}"
 
 # --- Etapa 1: Supabase ---
 echo -e "${BOLD}━━━ Etapa 1/4 · Conexão Supabase ━━━${NC}"
+echo -e "${YELLOW}Pegue tudo em: Supabase Dashboard → Project Settings → API${NC}"
 SUPA_URL=$(ask    "SUPABASE_URL"          valid_url    "Ex: https://xxxxxxxxxxxx.supabase.co")
-SUPA_ANON=$(ask   "SUPABASE_ANON_KEY"     valid_pubkey "Pública (sb_publishable_... ou eyJ...).")
-SUPA_SVC=$(ask_secret "SUPABASE_SERVICE_ROLE_KEY" valid_seckey "SECRETA (sb_secret_... ou eyJ...).")
+SUPA_ANON=$(ask   "SUPABASE_ANON_KEY"     valid_pubkey "Pública (sb_publishable_... ou eyJ...). Mesma usada como NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPA_SVC=$(ask_secret "SUPABASE_SERVICE_ROLE_KEY" valid_seckey "SECRETA (sb_secret_... ou eyJ...). NUNCA exponha no frontend.")
+
+echo
+echo -e "${BOLD}━━━ Etapa 1.1/4 · Extras opcionais ━━━${NC}"
+SUPA_DBURL=$(ask_optional_secret "DATABASE_URL" "Connection string Postgres (Settings → Database → Connection string → URI). Use o pooler na porta 6543 para serverless.")
+# Valida formato se preenchido
+if [ -n "$SUPA_DBURL" ] && ! valid_dburl "$SUPA_DBURL"; then
+  err "DATABASE_URL deve começar com postgres:// ou postgresql:// — pulando."
+  SUPA_DBURL=""
+fi
+SUPA_WHSEC=$(ask_optional_secret "SUPABASE_WEBHOOK_SECRET" "Segredo compartilhado para validar webhooks do Supabase (Database → Webhooks).")
 
 # --- Etapa 2: SSL opcional ---
 echo
@@ -91,6 +122,8 @@ echo
 echo -e "${BOLD}━━━ Revisão ━━━${NC}"
 echo "  URL  : $SUPA_URL"
 echo "  Anon : ${SUPA_ANON:0:20}…"
+echo "  DB   : $([ -n "$SUPA_DBURL" ] && echo "configurado" || echo "—")"
+echo "  WHSec: $([ -n "$SUPA_WHSEC" ] && echo "configurado" || echo "—")"
 if [ -n "$SSL_DOMAIN" ]; then
   echo "  SSL  : $SSL_DOMAIN ($SSL_EMAIL)"
 else
@@ -138,16 +171,27 @@ echo
 echo -e "${BOLD}━━━ Etapa 4/4 · Configuração e build ━━━${NC}"
 
 PROJECT_ID=$(echo "$SUPA_URL" | sed -E 's|https://([^.]+)\.supabase\.co/?|\1|')
-cat > "$APP_DIR/.env" <<EOF
-VITE_SUPABASE_URL=$SUPA_URL
-VITE_SUPABASE_PUBLISHABLE_KEY=$SUPA_ANON
-VITE_SUPABASE_PROJECT_ID=$PROJECT_ID
-SUPABASE_SERVICE_ROLE_KEY=$SUPA_SVC
-EOF
+{
+  echo "# === Vite (frontend deste projeto) ==="
+  echo "VITE_SUPABASE_URL=$SUPA_URL"
+  echo "VITE_SUPABASE_PUBLISHABLE_KEY=$SUPA_ANON"
+  echo "VITE_SUPABASE_PROJECT_ID=$PROJECT_ID"
+  echo
+  echo "# === Supabase canônico (Edge Functions / scripts backend) ==="
+  echo "SUPABASE_URL=$SUPA_URL"
+  echo "SUPABASE_ANON_KEY=$SUPA_ANON"
+  echo "SUPABASE_SERVICE_ROLE_KEY=$SUPA_SVC"
+  [ -n "$SUPA_DBURL" ] && echo "DATABASE_URL=$SUPA_DBURL"
+  [ -n "$SUPA_WHSEC" ] && echo "SUPABASE_WEBHOOK_SECRET=$SUPA_WHSEC"
+  echo
+  echo "# === Compatibilidade Next.js (caso integre outro app) ==="
+  echo "NEXT_PUBLIC_SUPABASE_URL=$SUPA_URL"
+  echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$SUPA_ANON"
+} > "$APP_DIR/.env"
 chmod 600 "$APP_DIR/.env"
-ok ".env criado"
+ok ".env criado com $(grep -c '=' "$APP_DIR/.env") variáveis"
 
-unset SUPA_SVC
+unset SUPA_SVC SUPA_DBURL SUPA_WHSEC
 
 # --- SSL via Certbot (standalone) antes de subir o container ---
 if [ -n "$SSL_DOMAIN" ]; then
