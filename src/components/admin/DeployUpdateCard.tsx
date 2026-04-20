@@ -316,7 +316,7 @@ const DeployUpdateCard = () => {
         )}
 
         {!isConfigured && (
-          <p className="text-xs text-muted-foreground border-l-2 border-amber-500 pl-3">
+          <p className="text-xs text-muted-foreground border-l-2 border-primary pl-3">
             Para habilitar, rode na VPS:{" "}
             <code className="bg-muted px-1 py-0.5 rounded">
               sudo bash deploy-vps/install-deploy-webhook.sh
