@@ -21,6 +21,7 @@ clean() {
 valid_url()    { [[ "$1" =~ ^https://[a-zA-Z0-9.-]+\.supabase\.co/?$ ]]; }
 valid_pubkey() { [[ "$1" =~ ^(eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|sb_publishable_[A-Za-z0-9_-]{20,})$ ]]; }
 valid_seckey() { [[ "$1" =~ ^(eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|sb_secret_[A-Za-z0-9_-]{20,})$ ]]; }
+valid_dburl()  { [[ "$1" =~ ^postgres(ql)?://[^[:space:]]+$ ]]; }
 
 ask() {
   local prompt="$1" validator="$2" hint="$3" var
@@ -34,6 +35,25 @@ ask() {
     if $validator "$var"; then echo "$var"; return 0; fi
     err "Formato inválido."
   done
+}
+
+# Pergunta opcional — ENTER pula sem validar
+ask_optional() {
+  local prompt="$1" hint="$2" var
+  echo >&2
+  echo -e "${BOLD}${prompt}${NC} ${YELLOW}(opcional — ENTER para pular)${NC}" >&2
+  [ -n "$hint" ] && echo -e "${YELLOW}↳ ${hint}${NC}" >&2
+  read -r -p "› " var
+  echo "$(clean "${var:-}")"
+}
+
+ask_optional_secret() {
+  local prompt="$1" hint="$2" var
+  echo >&2
+  echo -e "${BOLD}${prompt}${NC} ${YELLOW}(opcional — ENTER para pular)${NC}" >&2
+  [ -n "$hint" ] && echo -e "${YELLOW}↳ ${hint}${NC}" >&2
+  read -r -s -p "› " var; echo >&2
+  echo "$(clean "${var:-}")"
 }
 
 ask_secret() {
