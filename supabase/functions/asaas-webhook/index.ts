@@ -11,6 +11,22 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const __startTs = Date.now();
+  const __logCtx: any = {
+    gateway: 'asaas', event_type: null, http_status: 200,
+    signature_valid: null, signature_error: null, order_id: null,
+    external_id: null, error_message: null, request_payload: null,
+  };
+  let __logged = false;
+  const __writeLog = async () => {
+    if (__logged) return;
+    __logged = true;
+    try {
+      const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+      await sb.from('webhook_logs').insert({ ...__logCtx, latency_ms: Date.now() - __startTs });
+    } catch {}
+  };
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -36,15 +52,23 @@ serve(async (req) => {
     // Only validate if a token is configured; if empty, accept all (for initial setup)
     if (expectedToken && incomingToken !== expectedToken) {
       console.error(`[Webhook] Invalid token. Got: "${incomingToken?.slice(0, 8)}..." Expected: "${expectedToken?.slice(0, 8)}..."`);
+      __logCtx.signature_valid = false;
+      __logCtx.signature_error = 'Token mismatch (asaas-access-token header / query param)';
       // Return 200 to avoid Asaas penalization, but log the rejection
       return new Response(JSON.stringify({ received: true, warning: 'token_mismatch' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    } else if (expectedToken) {
+      __logCtx.signature_valid = true;
     }
 
     const body = await req.json();
+    __logCtx.request_payload = body;
     const { event, payment } = body;
+    __logCtx.event_type = event || null;
+    __logCtx.external_id = payment?.id || null;
+    if (payment?.externalReference) __logCtx.order_id = payment.externalReference;
 
     console.log(`[Webhook] Event: ${event}, Payment ID: ${payment?.id}, Status: ${payment?.status}`);
 
@@ -294,10 +318,13 @@ serve(async (req) => {
     });
   } catch (error: any) {
     console.error('[Webhook] Error:', error.message);
+    __logCtx.error_message = error.message;
     // Always return 200 to Asaas to avoid retries/penalties
     return new Response(JSON.stringify({ received: true, error: error.message }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  } finally {
+    await __writeLog();
   }
 });
