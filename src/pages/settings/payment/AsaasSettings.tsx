@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, CheckCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import WebhookUrlCard from '@/components/admin/WebhookUrlCard';
 
 interface Props {
   isActive: boolean;
@@ -105,14 +106,12 @@ const AsaasSettings = ({ isActive, onActivate }: Props) => {
           </button>
         </div>
       </div>
-      <div className="space-y-2">
-        <Label className="text-xs text-muted-foreground">URL do Webhook</Label>
-        <Input readOnly value="https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/asaas-webhook" className="bg-muted text-xs" onClick={(e) => {
-          (e.target as HTMLInputElement).select();
-          navigator.clipboard.writeText("https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/asaas-webhook");
-          toast({ title: 'URL copiada!' });
-        }} />
-      </div>
+      <WebhookUrlCard
+        gatewayName="Asaas"
+        functionSlug="asaas-webhook"
+        cadastroHint="no painel do Asaas, em Integrações → Webhooks"
+        eventos={["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED", "PAYMENT_OVERDUE", "PAYMENT_REFUNDED"]}
+      />
       <div className="flex gap-2 pt-2">
         <Button onClick={handleSave} disabled={saving} className="flex-1">
           {saving ? 'Salvando...' : (isActive ? 'Salvar' : 'Salvar e Ativar')}
