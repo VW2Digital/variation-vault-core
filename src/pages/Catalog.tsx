@@ -99,18 +99,24 @@ const Catalog = () => {
           });
           setWholesaleMap(wpSet);
         }
-        // Fetch reviews for average ratings
-        const productNames = prods.map((p: any) => p.name);
+        // Fetch reviews for average ratings.
+        // Pedidos salvam product_name com dosagem/quantidade, então agrupamos
+        // pelo nome base do produto via prefix match (case-insensitive).
+        const productNames = prods.map((p: any) => p.name).filter(Boolean);
         if (productNames.length > 0) {
           const { data: revData } = await supabase
             .from('reviews')
-            .select('product_name, rating')
-            .in('product_name', productNames);
+            .select('product_name, rating');
           const rMap: Record<string, { total: number; count: number }> = {};
           (revData || []).forEach((r: any) => {
-            if (!rMap[r.product_name]) rMap[r.product_name] = { total: 0, count: 0 };
-            rMap[r.product_name].total += r.rating;
-            rMap[r.product_name].count += 1;
+            const reviewName = (r.product_name || '').toLowerCase();
+            const match = productNames.find((pn: string) =>
+              reviewName === pn.toLowerCase() || reviewName.startsWith(pn.toLowerCase())
+            );
+            if (!match) return;
+            if (!rMap[match]) rMap[match] = { total: 0, count: 0 };
+            rMap[match].total += r.rating;
+            rMap[match].count += 1;
           });
           const finalMap: Record<string, { avg: number; count: number }> = {};
           Object.entries(rMap).forEach(([name, { total, count }]) => {

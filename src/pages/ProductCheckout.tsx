@@ -174,10 +174,12 @@ const ProductCheckout = () => {
       gtagViewItem({ id: prod.id, name: prod.name, category: (prod as any).category || '', price: viewPrice, variant: firstVar?.dosage || '' });
       fbViewContent({ id: prod.id, name: prod.name, category: (prod as any).category || '', price: viewPrice });
       // Fetch reviews for this product
+      // Pedidos salvam product_name com dosagem/quantidade (ex: "Nome 15 mg x4"),
+      // por isso casamos por prefixo (ilike) com o nome base do produto.
       const { data: revData } = await supabase
         .from('reviews')
         .select('*')
-        .eq('product_name', prod.name)
+        .ilike('product_name', `${prod.name}%`)
         .order('created_at', { ascending: false });
       setProductReviews(revData || []);
     }).finally(() => setLoading(false));
