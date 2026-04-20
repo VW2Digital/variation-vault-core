@@ -238,6 +238,28 @@ PY
   fi
   mkdir -p /var/www/certbot
   ok "SSL configurado"
+
+  # Renovação automática: cron diário 3h da manhã
+  log "Configurando renovação automática do SSL..."
+  RENEW_SCRIPT="/usr/local/bin/liberty-pharma-renew-ssl.sh"
+  cat > "$RENEW_SCRIPT" <<RENEW
+#!/usr/bin/env bash
+# Renova certificados Let's Encrypt e recarrega o nginx do container
+set -e
+cd $APP_DIR
+# Para liberar a porta 80 durante o desafio HTTP-01
+docker compose stop app >/dev/null 2>&1 || true
+certbot renew --standalone --quiet --no-random-sleep-on-renew
+docker compose start app >/dev/null 2>&1 || docker compose up -d
+# Reload no nginx do container (aplica novos certificados sem downtime)
+docker compose exec -T app nginx -s reload >/dev/null 2>&1 || true
+RENEW
+  chmod +x "$RENEW_SCRIPT"
+
+  # Cron: todo dia às 03:17 (Let's Encrypt só renova nos últimos 30 dias de validade)
+  CRON_LINE="17 3 * * * $RENEW_SCRIPT >> /var/log/liberty-pharma-ssl.log 2>&1"
+  ( crontab -l 2>/dev/null | grep -v 'liberty-pharma-renew-ssl.sh' ; echo "$CRON_LINE" ) | crontab -
+  ok "Renovação automática agendada (diária 03:17, log em /var/log/liberty-pharma-ssl.log)"
 fi
 
 log "Buildando imagem (pode levar 2-4 min)..."
