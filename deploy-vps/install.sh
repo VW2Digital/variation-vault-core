@@ -64,23 +64,46 @@ REPO_URL="${REPO_URL:-https://github.com/VW2Digital/variation-vault-core.git}"
 REPO_BRANCH="${REPO_BRANCH:-main}"
 
 # --- Etapa 1: Supabase ---
-echo -e "${BOLD}━━━ Etapa 1/3 · Conexão Supabase ━━━${NC}"
+echo -e "${BOLD}━━━ Etapa 1/4 · Conexão Supabase ━━━${NC}"
 SUPA_URL=$(ask    "SUPABASE_URL"          valid_url    "Ex: https://xxxxxxxxxxxx.supabase.co")
 SUPA_ANON=$(ask   "SUPABASE_ANON_KEY"     valid_pubkey "Pública (sb_publishable_... ou eyJ...).")
 SUPA_SVC=$(ask_secret "SUPABASE_SERVICE_ROLE_KEY" valid_seckey "SECRETA (sb_secret_... ou eyJ...).")
+
+# --- Etapa 2: SSL opcional ---
+echo
+echo -e "${BOLD}━━━ Etapa 2/4 · SSL (opcional) ━━━${NC}"
+echo -e "${YELLOW}Deixe em branco e pressione ENTER para pular (site ficará só em HTTP).${NC}"
+echo -e "${YELLOW}Para HTTPS, o domínio JÁ precisa estar apontado para este IP via DNS (registro A).${NC}"
+echo
+read -r -p "Domínio (ex: catalog.seusite.com) ou ENTER para pular: " SSL_DOMAIN
+SSL_DOMAIN="$(clean "${SSL_DOMAIN:-}")"
+SSL_EMAIL=""
+if [ -n "$SSL_DOMAIN" ]; then
+  read -r -p "Email para o Let's Encrypt (avisos de expiração): " SSL_EMAIL
+  SSL_EMAIL="$(clean "${SSL_EMAIL:-}")"
+  if [ -z "$SSL_EMAIL" ]; then
+    warn "Email vazio — pulando SSL."
+    SSL_DOMAIN=""
+  fi
+fi
 
 echo
 echo -e "${BOLD}━━━ Revisão ━━━${NC}"
 echo "  URL  : $SUPA_URL"
 echo "  Anon : ${SUPA_ANON:0:20}…"
+if [ -n "$SSL_DOMAIN" ]; then
+  echo "  SSL  : $SSL_DOMAIN ($SSL_EMAIL)"
+else
+  echo "  SSL  : desativado (HTTP only)"
+fi
 echo
 read -r -p "Confirmar e instalar? [s/N] " CONFIRM
 CONFIRM="$(clean "$CONFIRM")"
 [[ "$CONFIRM" =~ ^[sSyY]$ ]] || { warn "Cancelado."; exit 0; }
 
-# --- Etapa 2: Repo + Docker ---
+# --- Etapa 3: Repo + Docker ---
 echo
-echo -e "${BOLD}━━━ Etapa 2/3 · Repositório e Docker ━━━${NC}"
+echo -e "${BOLD}━━━ Etapa 3/4 · Repositório e Docker ━━━${NC}"
 
 if [ ! -f "$APP_DIR/Dockerfile" ]; then
   log "Clonando repositório em $APP_DIR..."
