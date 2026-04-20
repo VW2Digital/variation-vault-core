@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import WebhookUrlCard from '@/components/admin/WebhookUrlCard';
 
 interface Props {
   isActive: boolean;
@@ -138,14 +139,12 @@ const MercadoPagoSettings = ({ isActive, onActivate }: Props) => {
           </button>
         </div>
       </div>
-      <div className="space-y-2">
-        <Label className="text-xs text-muted-foreground">URL do Webhook</Label>
-        <Input readOnly value="https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/mercadopago-webhook" className="bg-muted text-xs" onClick={(e) => {
-          (e.target as HTMLInputElement).select();
-          navigator.clipboard.writeText("https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/mercadopago-webhook");
-          toast({ title: 'URL copiada!' });
-        }} />
-      </div>
+      <WebhookUrlCard
+        gatewayName="Mercado Pago"
+        functionSlug="mercadopago-webhook"
+        cadastroHint="no painel do Mercado Pago, em Suas integrações → Notificações → Webhooks"
+        eventos={["payment", "merchant_order"]}
+      />
       <Button onClick={handleSave} disabled={saving} className="w-full">
         {saving ? 'Salvando...' : (isActive ? 'Salvar' : 'Salvar e Ativar')}
       </Button>
