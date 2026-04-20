@@ -819,7 +819,7 @@ const CustomerDashboard = () => {
                             const isReviewing = reviewingOrderId === order.id;
 
                             return (
-                              <div key={order.id} className="border border-border/50 rounded-lg p-4 space-y-3">
+                              <div key={order.id} data-review-order={order.id} className={`border rounded-lg p-4 space-y-3 transition-colors ${isReviewing ? 'border-primary/60 bg-primary/5' : 'border-border/50'}`}>
                                 <div className="flex items-center justify-between">
                                   <div>
                                     <p className="font-semibold text-sm text-foreground">{order.product_name}</p>
