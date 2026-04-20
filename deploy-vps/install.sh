@@ -159,8 +159,8 @@ if [ -n "$SSL_DOMAIN" ]; then
   fi
 
   # Libera porta 80 para o desafio HTTP-01
-  (cd "$APP_DIR" && docker compose down 2>/dev/null || true)
-  fuser -k 80/tcp 2>/dev/null || true
+  ( cd "$APP_DIR" && docker compose down >/dev/null 2>&1 ) || true
+  fuser -k 80/tcp >/dev/null 2>&1 || true
 
   if [ ! -f "/etc/letsencrypt/live/$SSL_DOMAIN/fullchain.pem" ]; then
     log "Emitindo certificado Let's Encrypt..."
@@ -226,7 +226,8 @@ NGINX
   # Adiciona porta 443 + volume do letsencrypt no docker-compose se ainda não houver
   if ! grep -q '443:443' "$APP_DIR/docker-compose.yml"; then
     log "Atualizando docker-compose.yml (porta 443 + volume SSL)..."
-    python3 - "$APP_DIR/docker-compose.yml" <<'PY'
+    command -v python3 >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq python3; }
+    python3 - "$APP_DIR/docker-compose.yml" <<'PY' || { err "Falha ao editar docker-compose.yml"; exit 1; }
 import sys, re
 p = sys.argv[1]
 s = open(p).read()
@@ -258,14 +259,14 @@ RENEW
 
   # Cron: todo dia às 03:17 (Let's Encrypt só renova nos últimos 30 dias de validade)
   CRON_LINE="17 3 * * * $RENEW_SCRIPT >> /var/log/liberty-pharma-ssl.log 2>&1"
-  ( crontab -l 2>/dev/null | grep -v 'liberty-pharma-renew-ssl.sh' ; echo "$CRON_LINE" ) | crontab -
+  { crontab -l 2>/dev/null | grep -v 'liberty-pharma-renew-ssl.sh' || true; echo "$CRON_LINE"; } | crontab - || warn "Não foi possível agendar cron de renovação"
   ok "Renovação automática agendada (diária 03:17, log em /var/log/liberty-pharma-ssl.log)"
 fi
 
 log "Buildando imagem (pode levar 2-4 min)..."
-docker compose build app
+docker compose build app || { err "Build falhou. Veja o erro acima."; exit 1; }
 log "Subindo container..."
-docker compose up -d
+docker compose up -d || { err "docker compose up falhou."; docker compose logs --tail=50 app || true; exit 1; }
 
 log "Aguardando aplicação responder..."
 CHECK_URL="http://localhost/"
