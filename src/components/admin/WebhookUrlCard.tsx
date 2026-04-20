@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Webhook, Copy, AlertCircle } from 'lucide-react';
+import { Webhook, Copy, AlertCircle, Loader2, CheckCircle2, XCircle, Activity } from 'lucide-react';
 
 interface WebhookUrlCardProps {
   /** Nome do gateway, exibido no título (ex.: "Asaas", "Mercado Pago") */
@@ -23,10 +24,41 @@ interface WebhookUrlCardProps {
 const WebhookUrlCard = ({ gatewayName, functionSlug, cadastroHint, eventos }: WebhookUrlCardProps) => {
   const { toast } = useToast();
   const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionSlug}`;
+  const [testing, setTesting] = useState(false);
+  const [result, setResult] = useState<{ status: number; ok: boolean; latencyMs: number; error?: string } | null>(null);
 
   const copy = () => {
     navigator.clipboard.writeText(url);
     toast({ title: 'URL do webhook copiada!' });
+  };
+
+  const test = async () => {
+    setTesting(true);
+    setResult(null);
+    const start = performance.now();
+    try {
+      // GET simples — todas as nossas edge functions de webhook devem responder 200 ao GET
+      const res = await fetch(url, { method: 'GET' });
+      await res.text(); // consome o body para evitar leak
+      const latencyMs = Math.round(performance.now() - start);
+      const ok = res.status >= 200 && res.status < 300;
+      setResult({ status: res.status, ok, latencyMs });
+      toast({
+        title: ok ? `Webhook respondeu ${res.status} OK` : `Webhook retornou ${res.status}`,
+        description: `Latência: ${latencyMs}ms`,
+        variant: ok ? 'default' : 'destructive',
+      });
+    } catch (err: any) {
+      const latencyMs = Math.round(performance.now() - start);
+      setResult({ status: 0, ok: false, latencyMs, error: err?.message || 'Erro de rede' });
+      toast({
+        title: 'Falha ao contatar o webhook',
+        description: err?.message || 'Erro de rede',
+        variant: 'destructive',
+      });
+    } finally {
+      setTesting(false);
+    }
   };
 
   return (
@@ -49,7 +81,31 @@ const WebhookUrlCard = ({ gatewayName, functionSlug, cadastroHint, eventos }: We
         <Button type="button" variant="outline" size="icon" onClick={copy}>
           <Copy className="w-4 h-4" />
         </Button>
+        <Button type="button" variant="outline" size="sm" onClick={test} disabled={testing} className="shrink-0 gap-1">
+          {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+          Testar
+        </Button>
       </div>
+      {result && (
+        <div
+          className={`flex items-start gap-2 text-xs rounded-md border p-2 ${
+            result.ok
+              ? 'bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400'
+              : 'bg-destructive/10 border-destructive/30 text-destructive'
+          }`}
+        >
+          {result.ok ? (
+            <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          ) : (
+            <XCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          )}
+          <span>
+            {result.error
+              ? <>Falha de rede: <strong>{result.error}</strong>. Verifique se o domínio está acessível.</>
+              : <>Status HTTP <strong>{result.status}</strong> — {result.ok ? 'endpoint respondeu corretamente' : 'endpoint não está respondendo como esperado'} ({result.latencyMs}ms)</>}
+          </span>
+        </div>
+      )}
       {eventos && eventos.length > 0 && (
         <div className="flex items-start gap-2 text-xs text-muted-foreground">
           <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
