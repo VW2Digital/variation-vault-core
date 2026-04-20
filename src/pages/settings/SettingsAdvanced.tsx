@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Code, Plus, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import SettingsBackButton from './SettingsBackButton';
+import DeployUpdateCard from '@/components/admin/DeployUpdateCard';
 
 interface ScriptEntry {
   id: string;
@@ -123,6 +124,8 @@ const SettingsAdvanced = () => {
   return (
     <div className="space-y-6 w-full">
       <SettingsBackButton title="Scripts & Widgets" description="Widget de chat, scripts customizados e configurações técnicas" />
+
+      <DeployUpdateCard />
 
       <Card className="border-border/50">
         <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Code className="w-5 h-5" /> Widget de Chat (CRM)</CardTitle></CardHeader>
