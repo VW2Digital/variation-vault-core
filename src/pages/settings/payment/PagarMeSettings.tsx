@@ -9,6 +9,7 @@ import { Eye, EyeOff, CheckCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import PagarMeWebhooksPanel from '@/components/admin/PagarMeWebhooksPanel';
+import WebhookUrlCard from '@/components/admin/WebhookUrlCard';
 
 interface Props {
   isActive: boolean;
@@ -144,14 +145,12 @@ const PagarMeSettings = ({ isActive, onActivate }: Props) => {
         </div>
         <Switch checked={antifraud} onCheckedChange={setAntifraud} />
       </div>
-      <div className="space-y-2">
-        <Label className="text-xs text-muted-foreground">URL do Webhook</Label>
-        <Input readOnly value="https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/pagarme-webhook" className="bg-muted text-xs" onClick={(e) => {
-          (e.target as HTMLInputElement).select();
-          navigator.clipboard.writeText("https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/pagarme-webhook");
-          toast({ title: 'URL copiada!' });
-        }} />
-      </div>
+      <WebhookUrlCard
+        gatewayName="Pagar.me"
+        functionSlug="pagarme-webhook"
+        cadastroHint="no painel da Pagar.me, em Configurações → Webhooks (assinatura HMAC-SHA1)"
+        eventos={["order.paid", "order.payment_failed", "charge.paid", "charge.refunded"]}
+      />
       <div className="flex gap-2 pt-2">
         <Button onClick={handleSave} disabled={saving} className="flex-1">
           {saving ? 'Salvando...' : (isActive ? 'Salvar' : 'Salvar e Ativar')}
