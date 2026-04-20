@@ -244,6 +244,42 @@ const SettingsShipping = () => {
               toast({ title: 'URL copiada!' });
             }} />
           </div>
+
+          {/* Webhook URL — pronta para colar no painel do Melhor Envio */}
+          <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-4">
+            <div className="flex items-center gap-2">
+              <Webhook className="w-4 h-4 text-primary" />
+              <Label className="text-sm font-semibold">URL do Webhook (Melhor Envio)</Label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Cole esta URL exata no painel do Melhor Envio em <strong>Configurações → Webhooks</strong>.
+              Não use o domínio da loja — use sempre o endpoint abaixo para evitar o erro <code className="px-1 py-0.5 rounded bg-muted">E-WBH-0002</code>.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                readOnly
+                value={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/melhor-envio-webhook`}
+                className="bg-background text-xs font-mono"
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/melhor-envio-webhook`;
+                  navigator.clipboard.writeText(url);
+                  toast({ title: 'URL do webhook copiada!' });
+                }}
+              >
+                <Copy className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="flex items-start gap-2 text-xs text-muted-foreground">
+              <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <span>Eventos recomendados: <strong>order.posted</strong>, <strong>order.delivered</strong>, <strong>order.canceled</strong>.</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
