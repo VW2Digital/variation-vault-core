@@ -256,6 +256,15 @@ serve(async (req) => {
     signature_valid: null, signature_error: null, order_id: null,
     external_id: null, error_message: null, request_payload: null,
   };
+  let __logged = false;
+  const __writeLog = async () => {
+    if (__logged) return;
+    __logged = true;
+    try {
+      const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+      await sb.from('webhook_logs').insert({ ...__logCtx, latency_ms: Date.now() - __startTs });
+    } catch {}
+  };
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -274,7 +283,7 @@ serve(async (req) => {
     if (!valid) {
       __logCtx.signature_error = 'HMAC-SHA1 mismatch or missing X-Hub-Signature header';
       try { __logCtx.request_payload = JSON.parse(bodyText); } catch { __logCtx.request_payload = { raw: bodyText.slice(0, 500) }; }
-      await supabase.from('webhook_logs').insert({ ...__logCtx, latency_ms: Date.now() - __startTs }).catch(() => {});
+      await __writeLog();
       return new Response(JSON.stringify({ received: true, error: 'invalid_signature' }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -359,19 +368,10 @@ serve(async (req) => {
   } catch (e: any) {
     console.error('[Pagar.me Webhook] Error:', e.message);
     __logCtx.error_message = e.message;
-    try {
-      const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-      await supabase.from('webhook_logs').insert({ ...__logCtx, latency_ms: Date.now() - __startTs });
-    } catch {}
     return new Response(JSON.stringify({ received: true, error: e.message }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } finally {
-    if (!__logCtx.error_message && __logCtx.signature_valid !== false) {
-      try {
-        const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-        await supabase.from('webhook_logs').insert({ ...__logCtx, latency_ms: Date.now() - __startTs });
-      } catch {}
-    }
+    await __writeLog();
   }
 });
