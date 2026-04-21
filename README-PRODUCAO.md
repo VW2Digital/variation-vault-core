@@ -95,6 +95,26 @@ sudo certbot --nginx -d $SERVER_NAME --email $SSL_EMAIL --agree-tos --non-intera
 
 Após o frontend estar no ar, configure cada integração nos painéis externos. **Estes passos são obrigatórios** — sem eles, webhooks e pagamentos não funcionam.
 
+### 4.0 URL pública da loja no admin
+
+Após o primeiro login no painel administrativo, preencha:
+
+- **Configurações → Logo & Identidade → URL Pública da Loja**
+
+Exemplo:
+
+```text
+https://loja.seudominio.com
+```
+
+Essa URL é usada pelo backend para gerar:
+
+- redirecionamentos de pagamento
+- links públicos em e-mails
+- callbacks que precisam devolver o cliente para a loja
+
+Sem isso, o frontend sobe, mas partes dos pagamentos e e-mails podem continuar apontando para um domínio antigo.
+
 ### 4.1 Secrets do Supabase
 
 No painel Supabase: **Project Settings > Edge Functions > Manage secrets**
@@ -163,6 +183,15 @@ supabase functions deploy
 # Ou uma específica
 supabase functions deploy mercadopago-webhook
 ```
+
+Depois configure os secrets necessários:
+
+```bash
+supabase secrets set RESEND_API_KEY=... --project-ref SEU_PROJECT_REF
+supabase secrets set MP_WEBHOOK_SECRET=... --project-ref SEU_PROJECT_REF
+```
+
+> Importante: alterar secrets exige novo deploy das functions para garantir o runtime atualizado.
 
 ## 6. Validar Instalação
 

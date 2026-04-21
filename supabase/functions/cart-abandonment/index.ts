@@ -27,6 +27,8 @@ serve(async (req) => {
 
     const resendApiKey = cfg['resend_api_key'] || Deno.env.get('RESEND_API_KEY');
     const fromEmail = cfg['resend_from_email'] || 'noreply@libertypharma.com.br';
+    const storePublicUrl = (cfg['store_public_url'] || '').replace(/\/+$/, '');
+    const cartUrl = storePublicUrl ? `${storePublicUrl}/carrinho` : '';
 
     if (!resendApiKey) {
       return new Response(JSON.stringify({ error: 'Resend API key not configured' }), {
@@ -122,7 +124,7 @@ serve(async (req) => {
               ${items.map(i => `• ${productMap[i.product_id] || 'Produto'} (Qtd: ${i.quantity})`).join('<br/>')}
             </p>
           </div>
-          <a href="https://variation-vault-core.lovable.app/carrinho"
+          <a href="${cartUrl || '#'}"
              style="display: inline-block; background: #1a1a2e; color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 16px;">
             Finalizar minha compra →
           </a>
