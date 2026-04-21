@@ -329,7 +329,7 @@ if command -v docker >/dev/null 2>&1; then
   fi
 else
   record warn "software" "Docker" "não instalado — install.sh instala automaticamente" \
-    "Ou pré-instale: curl -fsSL https://get.docker.com | sh"
+    "Ou pré-instale via apt: apt-get install -y docker.io docker-compose-v2"
 fi
 
 # Firewall ativo?
