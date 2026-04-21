@@ -31,6 +31,8 @@ fi
 
 cd "$APP_DIR"
 
+ENV_FILE="$APP_DIR/.env"
+
 # 1. Confere DNS
 log "Verificando se $DOMAIN aponta para esta VPS..."
 VPS_IP=$(curl -s ifconfig.me || echo "")
@@ -76,9 +78,25 @@ else
   exit 1
 fi
 
-# 5. Sobe o container de volta
-log "Reiniciando container..."
-docker compose up -d app
+# 5. Atualiza .env com SERVER_NAME e recria o container
+#    (necessário pra montar /etc/letsencrypt e abrir a porta 443)
+log "Configurando SERVER_NAME=$DOMAIN no .env e recriando container..."
+if [ -f "$ENV_FILE" ]; then
+  if grep -q '^SERVER_NAME=' "$ENV_FILE"; then
+    sed -i "s|^SERVER_NAME=.*|SERVER_NAME=$DOMAIN|" "$ENV_FILE"
+  else
+    echo "SERVER_NAME=$DOMAIN" >> "$ENV_FILE"
+  fi
+else
+  warn ".env não encontrado em $ENV_FILE — criando arquivo mínimo só com SERVER_NAME."
+  echo "SERVER_NAME=$DOMAIN" > "$ENV_FILE"
+  chmod 600 "$ENV_FILE"
+fi
+
+mkdir -p /var/www/certbot
+
+# `up -d` sem mudança não recria; force a recriação pra aplicar volumes/ports/env
+docker compose up -d --force-recreate app
 
 # 6. Instala cron de renovação automática (idempotente)
 RENEW_SCRIPT="$APP_DIR/deploy-vps/renew-ssl.sh"
