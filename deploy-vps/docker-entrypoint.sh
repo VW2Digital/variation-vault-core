@@ -34,10 +34,9 @@ if [ -n "$SERVER_NAME" ] && [ "$SERVER_NAME" != "_" ]; then
 
         cat > "$REDIRECT_CONF" <<EOF
 # Força HTTPS (gerado pelo entrypoint)
-if (\$request_uri !~ ^/\.well-known/acme-challenge/) {
-    set \$do_redirect 1;
-}
-if (\$do_redirect = 1) {
+# O location ^~ /.well-known/acme-challenge/ no server block tem prioridade,
+# então renovações webroot continuam funcionando antes de cair neste bloco.
+location / {
     return 301 https://\$host\$request_uri;
 }
 EOF
