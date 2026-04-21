@@ -124,6 +124,24 @@ DOMAIN="${DOMAIN:-$DOMAIN_DEFAULT}"
 read -rp "E-mail para alertas do Let's Encrypt [${EMAIL_DEFAULT}]: " EMAIL
 EMAIL="${EMAIL:-$EMAIL_DEFAULT}"
 
+# 5) Modo SSL — staging (teste) ou produção (real)
+echo
+echo "Modo de emissão do certificado SSL:"
+echo "  1) Produção (padrão)  — certificado real, confiável pelo navegador."
+echo "                          Conta no rate limit do Let's Encrypt (5/semana por domínio)."
+echo "  2) Staging  (teste)   — certificado de TESTE, navegador exibirá aviso de segurança."
+echo "                          NÃO conta no rate limit. Use para validar a config (Nginx/DNS/portas)"
+echo "                          quando você bateu o limite ou está testando um deploy novo."
+read -rp "Escolha [1=produção / 2=staging] (padrão: 1): " SSL_MODE_CHOICE
+SSL_MODE_CHOICE="${SSL_MODE_CHOICE:-1}"
+if [[ "$SSL_MODE_CHOICE" == "2" ]]; then
+    SSL_STAGING=1
+    info "Modo STAGING selecionado — certificado de teste, sem consumir rate limit."
+else
+    SSL_STAGING=0
+    info "Modo PRODUÇÃO selecionado — certificado real do Let's Encrypt."
+fi
+
 ###############################################################################
 # STEP 1 — Instalar app (Node + Git + Nginx + build + config SPA)
 ###############################################################################
@@ -352,13 +370,33 @@ step "STEP 2 — Configurando SSL com Certbot para $DOMAIN"
 info "Instalando Certbot + plugin Nginx..."
 apt-get install -y certbot python3-certbot-nginx
 
-info "Emitindo certificado para $DOMAIN..."
-certbot --nginx \
+CERTBOT_EXTRA=()
+if [[ "$SSL_STAGING" -eq 1 ]]; then
+    info "Emitindo certificado STAGING (teste) para $DOMAIN..."
+    info "⚠️  O navegador exibirá aviso de segurança — isso é esperado em modo staging."
+    CERTBOT_EXTRA+=(--staging --break-my-certs)
+else
+    info "Emitindo certificado de PRODUÇÃO para $DOMAIN..."
+fi
+
+if ! certbot --nginx \
     --non-interactive \
     --agree-tos \
     --redirect \
     --email "$EMAIL" \
-    -d "$DOMAIN"
+    -d "$DOMAIN" \
+    "${CERTBOT_EXTRA[@]}"; then
+    err "Falha ao emitir certificado SSL."
+    if [[ "$SSL_STAGING" -eq 0 ]]; then
+        err "Possíveis causas:"
+        err "  • Rate limit do Let's Encrypt (5 certs/semana por domínio)."
+        err "  • DNS do domínio ainda não aponta para esta VPS."
+        err "  • Porta 80/443 bloqueada por firewall."
+        err ""
+        err "Para validar a config sem queimar quotas, rode novamente escolhendo a opção 2 (staging)."
+    fi
+    exit 1
+fi
 
 # Auto-renovação
 if systemctl list-unit-files | grep -q '^certbot.timer'; then
@@ -369,7 +407,13 @@ else
     ( crontab -l 2>/dev/null | grep -v 'certbot renew' ; \
       echo "0 3 * * * /usr/bin/certbot renew --quiet --post-hook 'systemctl reload nginx'" ) | crontab -
 fi
-ok "SSL configurado para $DOMAIN"
+if [[ "$SSL_STAGING" -eq 1 ]]; then
+    ok "SSL STAGING configurado para $DOMAIN (certificado de teste)"
+    info "Quando estiver tudo OK, rode novamente o install.sh escolhendo a opção 1 (produção)."
+    info "Antes de re-emitir, limpe o staging: sudo certbot delete --cert-name $DOMAIN"
+else
+    ok "SSL configurado para $DOMAIN"
+fi
 
 ###############################################################################
 # Resumo final
@@ -380,7 +424,11 @@ echo -e "${GREEN}║                    INSTALAÇÃO CONCLUÍDA                 
 echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
 echo
 ok "App buildado e servido via Nginx → $APP_DIR/dist/"
-ok "SSL ativo em https://${DOMAIN}"
+if [[ "$SSL_STAGING" -eq 1 ]]; then
+    ok "SSL STAGING (teste) ativo em https://${DOMAIN} — navegador mostrará aviso"
+else
+    ok "SSL ativo em https://${DOMAIN}"
+fi
 ok "Conectado ao Supabase: $SUPABASE_URL_INPUT"
 ok "Credenciais salvas em $ENV_FILE (chmod 600)"
 echo
