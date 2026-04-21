@@ -36,7 +36,9 @@ fi
 
 # ----------------------------- Configuração ---------------------------------
 APP_DIR="/var/www/app"
-REPO_URL_DEFAULT="https://github.com/lovable-dev/liberty-pharma.git"
+REPO_URL_DEFAULT="https://github.com/VW2Digital/variation-vault-core.git"
+DOMAIN_DEFAULT="luminaeliberty.com"
+EMAIL_DEFAULT="libertyluminaepharma@gmail.com"
 
 echo -e "${BLUE}╔══════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║   Liberty Pharma — Instalação Nativa (Vite + Nginx)      ║${NC}"
