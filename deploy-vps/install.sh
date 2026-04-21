@@ -114,6 +114,87 @@ fi
 ok "Anon key obtida via Management API (${#SUPABASE_ANON_KEY} chars)"
 ok "Service role key obtida (uso server-side)"
 
+# ----------------------------- Validação cruzada ----------------------------
+# Garante que anon key, service_role key e o endpoint REST do projeto
+# pertencem todos ao mesmo SUPABASE_PROJECT_REF informado. Evita o erro
+# clássico de colar chave de outro projeto e só descobrir em produção.
+info "Validando consistência entre anon key, service_role e project ref..."
+
+# Decodifica o payload (parte 2) de um JWT base64url e extrai um campo via jq.
+# Tolera padding ausente — base64 do POSIX exige múltiplo de 4.
+jwt_field() {
+    local jwt="$1" field="$2" payload
+    payload="$(echo "$jwt" | cut -d. -f2)"
+    # base64url → base64 + padding
+    payload="${payload//-/+}"
+    payload="${payload//_/\/}"
+    case $(( ${#payload} % 4 )) in
+        2) payload="${payload}==" ;;
+        3) payload="${payload}=" ;;
+    esac
+    echo "$payload" | base64 -d 2>/dev/null | jq -r ".${field} // empty"
+}
+
+ANON_REF="$(jwt_field "$SUPABASE_ANON_KEY" "ref")"
+ANON_ROLE="$(jwt_field "$SUPABASE_ANON_KEY" "role")"
+SR_REF="$(jwt_field "$SUPABASE_SERVICE_ROLE_KEY" "ref")"
+SR_ROLE="$(jwt_field "$SUPABASE_SERVICE_ROLE_KEY" "role")"
+ANON_EXP="$(jwt_field "$SUPABASE_ANON_KEY" "exp")"
+
+# 1) Anon key tem role correto
+if [[ "$ANON_ROLE" != "anon" ]]; then
+    err "Anon key tem role '$ANON_ROLE' (esperado: 'anon'). Chave inválida."
+    exit 1
+fi
+ok "Anon key role = anon"
+
+# 2) Service role key tem role correto
+if [[ "$SR_ROLE" != "service_role" ]]; then
+    err "Service role key tem role '$SR_ROLE' (esperado: 'service_role')."
+    exit 1
+fi
+ok "Service role key role = service_role"
+
+# 3) Ambas as chaves apontam para o MESMO project ref informado
+if [[ "$ANON_REF" != "$SUPABASE_PROJECT_REF" ]]; then
+    err "Anon key pertence ao projeto '$ANON_REF', mas você informou '$SUPABASE_PROJECT_REF'."
+    err "As chaves não pertencem ao projeto informado — abortando antes do build."
+    exit 1
+fi
+if [[ "$SR_REF" != "$SUPABASE_PROJECT_REF" ]]; then
+    err "Service role key pertence ao projeto '$SR_REF', mas você informou '$SUPABASE_PROJECT_REF'."
+    exit 1
+fi
+ok "Anon key e service_role pertencem ao projeto $SUPABASE_PROJECT_REF"
+
+# 4) Anon key não está expirada
+if [[ -n "$ANON_EXP" ]] && [[ "$ANON_EXP" =~ ^[0-9]+$ ]]; then
+    NOW="$(date +%s)"
+    if (( ANON_EXP < NOW )); then
+        err "Anon key expirou em $(date -d "@$ANON_EXP" 2>/dev/null || echo "$ANON_EXP")."
+        err "Gere novas chaves no painel do Supabase e rode o instalador de novo."
+        exit 1
+    fi
+    DAYS_LEFT=$(( (ANON_EXP - NOW) / 86400 ))
+    ok "Anon key válida por mais $DAYS_LEFT dias"
+fi
+
+# 5) URL pública do projeto responde de fato (DNS + HTTPS funcionando)
+URL_HTTP="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
+    -H "apikey: ${SUPABASE_ANON_KEY}" \
+    "${SUPABASE_URL_INPUT}/rest/v1/" || echo "000")"
+if [[ "$URL_HTTP" == "200" || "$URL_HTTP" == "404" ]]; then
+    ok "Endpoint REST de $SUPABASE_PROJECT_REF respondeu HTTP $URL_HTTP com a anon key"
+elif [[ "$URL_HTTP" == "401" ]]; then
+    err "Endpoint retornou 401 — anon key foi rejeitada pelo projeto $SUPABASE_PROJECT_REF."
+    exit 1
+else
+    err "Endpoint $SUPABASE_URL_INPUT/rest/v1/ retornou HTTP $URL_HTTP. Projeto inacessível."
+    exit 1
+fi
+
+ok "Validação cruzada concluída — todas as credenciais batem com $SUPABASE_PROJECT_REF"
+
 ###############################################################################
 # STEP 1 — Instalar app (Node + Git + Nginx + build + config SPA)
 ###############################################################################
