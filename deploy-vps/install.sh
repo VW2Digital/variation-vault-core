@@ -354,6 +354,80 @@ if ! run_preflight_checks "instalação"; then
   exit 1
 fi
 
+# ---------- prompt interativo: domínio + email para SSL ---------------------
+# Coletamos ANTES de instalar pra que ao final possamos emitir o cert
+# automaticamente, sem o usuário rodar issue-ssl.sh manualmente.
+# Pode ser pulado via env vars: DOMAIN=meusite.com SSL_EMAIL=eu@x.com
+SSL_EMAIL="${SSL_EMAIL:-}"
+SSL_AUTO_ISSUE=0
+
+if [ -t 0 ] && [ -t 1 ] && [ "$DOMAIN" = "_" ] && [ -z "$SSL_EMAIL" ]; then
+  echo
+  echo -e "${YLW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo -e "${YLW}🌐 CONFIGURAÇÃO DE DOMÍNIO + SSL (opcional, mas recomendado)${NC}"
+  echo -e "${YLW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo "Se você já tem um domínio apontando pra esta VPS, posso emitir SSL"
+  echo "(Let's Encrypt) automaticamente ao final da instalação."
+  echo
+  echo "Pré-requisito: registro DNS tipo A com seu domínio → IP desta VPS,"
+  echo "já propagado (teste com: dig +short SEUDOMINIO.COM)."
+  echo
+  echo "Deixe em branco para pular (instala só HTTP — você pode emitir depois"
+  echo "com: sudo bash $APP_DIR/deploy-vps/issue-ssl.sh dominio.com email@x.com)"
+  echo
+  read -r -p "Domínio (ex: loja.com.br) [vazio = pular]: " DOMAIN_INPUT </dev/tty || DOMAIN_INPUT=""
+  DOMAIN_INPUT="${DOMAIN_INPUT// /}"
+  DOMAIN_INPUT="${DOMAIN_INPUT#http://}"
+  DOMAIN_INPUT="${DOMAIN_INPUT#https://}"
+  DOMAIN_INPUT="${DOMAIN_INPUT%/}"
+  DOMAIN_INPUT="${DOMAIN_INPUT#www.}"
+
+  if [ -n "$DOMAIN_INPUT" ]; then
+    # Validação básica: precisa ter pelo menos um ponto e nada de inválido
+    if [[ "$DOMAIN_INPUT" =~ ^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?\.[a-zA-Z]{2,}$ ]]; then
+      DOMAIN="$DOMAIN_INPUT"
+      ok "Domínio aceito: $DOMAIN"
+
+      read -r -p "E-mail para Let's Encrypt (recebe alertas de expiração): " SSL_EMAIL </dev/tty || SSL_EMAIL=""
+      SSL_EMAIL="${SSL_EMAIL// /}"
+      if [[ "$SSL_EMAIL" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+        SSL_AUTO_ISSUE=1
+        ok "E-mail aceito: $SSL_EMAIL — SSL será emitido automaticamente no final"
+
+        # Pré-validação DNS: avisa, mas não bloqueia (DNS pode estar propagando)
+        log "Validando DNS de $DOMAIN..."
+        VPS_PUBLIC_IP=$(curl -fsS -m 5 https://api.ipify.org 2>/dev/null || echo "")
+        DOMAIN_RESOLVED_IP=""
+        if command -v dig >/dev/null 2>&1; then
+          DOMAIN_RESOLVED_IP=$(dig +short "$DOMAIN" 2>/dev/null | tail -n1)
+        elif command -v getent >/dev/null 2>&1; then
+          DOMAIN_RESOLVED_IP=$(getent hosts "$DOMAIN" 2>/dev/null | awk '{print $1; exit}')
+        fi
+        if [ -z "$DOMAIN_RESOLVED_IP" ]; then
+          warn "DNS de $DOMAIN ainda não resolve — pode estar propagando."
+          warn "SSL pode falhar se não propagar até o fim da instalação."
+        elif [ -n "$VPS_PUBLIC_IP" ] && [ "$VPS_PUBLIC_IP" != "$DOMAIN_RESOLVED_IP" ]; then
+          warn "DNS aponta para $DOMAIN_RESOLVED_IP mas a VPS é $VPS_PUBLIC_IP."
+          warn "Corrija o registro A antes da emissão de SSL ou ela vai falhar."
+        else
+          ok "DNS confere: $DOMAIN → $DOMAIN_RESOLVED_IP"
+        fi
+      else
+        warn "E-mail inválido — pulando emissão automática de SSL"
+        warn "Você pode emitir depois com: sudo bash $APP_DIR/deploy-vps/issue-ssl.sh $DOMAIN seu@email.com"
+        SSL_AUTO_ISSUE=0
+      fi
+    else
+      warn "Domínio inválido ('$DOMAIN_INPUT') — instalando sem domínio (HTTP only)"
+    fi
+  else
+    log "Pulando configuração de domínio — instalação só em HTTP"
+  fi
+elif [ "$DOMAIN" != "_" ] && [ -n "$SSL_EMAIL" ]; then
+  log "Domínio e e-mail recebidos via env vars: $DOMAIN / $SSL_EMAIL"
+  SSL_AUTO_ISSUE=1
+fi
+
 # Tudo não-interativo — nada de prompt do apt / debconf / needrestart
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
@@ -736,6 +810,30 @@ if [ "$HEALTHY" != "1" ]; then
   echo "Investigue com: docker compose -f $APP_DIR/docker-compose.yml logs -f app"
   echo -e "${BLU}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   exit 1
+fi
+
+# ---------- emissão automática de SSL (se domínio + email foram informados) -
+if [ "${SSL_AUTO_ISSUE:-0}" = "1" ] && [ "$DOMAIN" != "_" ] && [ -n "${SSL_EMAIL:-}" ]; then
+  step "SSL  Emitindo certificado Let's Encrypt para $DOMAIN"
+  ISSUE_SSL_SCRIPT="$APP_DIR/deploy-vps/issue-ssl.sh"
+  if [ -f "$ISSUE_SSL_SCRIPT" ]; then
+    # Não trava o script principal se SSL falhar — o app continua no ar em HTTP
+    set +e
+    bash "$ISSUE_SSL_SCRIPT" "$DOMAIN" "$SSL_EMAIL"
+    SSL_RC=$?
+    set -e
+    if [ "$SSL_RC" -eq 0 ]; then
+      ok "SSL emitido — site agora roda em https://$DOMAIN"
+    else
+      warn "Emissão de SSL falhou (código $SSL_RC). App segue em HTTP."
+      warn "Causas comuns:"
+      warn "  • DNS ainda propagando — aguarde e rode: sudo bash $ISSUE_SSL_SCRIPT $DOMAIN $SSL_EMAIL"
+      warn "  • Domínio não aponta pra esta VPS — verifique com: dig +short $DOMAIN"
+      warn "  • Limite de rate do Let's Encrypt — aguarde 1h e tente de novo"
+    fi
+  else
+    warn "$ISSUE_SSL_SCRIPT não encontrado — pulando emissão de SSL"
+  fi
 fi
 
 # =============================================================================
