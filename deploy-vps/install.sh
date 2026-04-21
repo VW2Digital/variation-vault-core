@@ -370,13 +370,33 @@ step "STEP 2 — Configurando SSL com Certbot para $DOMAIN"
 info "Instalando Certbot + plugin Nginx..."
 apt-get install -y certbot python3-certbot-nginx
 
-info "Emitindo certificado para $DOMAIN..."
-certbot --nginx \
+CERTBOT_EXTRA=()
+if [[ "$SSL_STAGING" -eq 1 ]]; then
+    info "Emitindo certificado STAGING (teste) para $DOMAIN..."
+    info "⚠️  O navegador exibirá aviso de segurança — isso é esperado em modo staging."
+    CERTBOT_EXTRA+=(--staging --break-my-certs)
+else
+    info "Emitindo certificado de PRODUÇÃO para $DOMAIN..."
+fi
+
+if ! certbot --nginx \
     --non-interactive \
     --agree-tos \
     --redirect \
     --email "$EMAIL" \
-    -d "$DOMAIN"
+    -d "$DOMAIN" \
+    "${CERTBOT_EXTRA[@]}"; then
+    err "Falha ao emitir certificado SSL."
+    if [[ "$SSL_STAGING" -eq 0 ]]; then
+        err "Possíveis causas:"
+        err "  • Rate limit do Let's Encrypt (5 certs/semana por domínio)."
+        err "  • DNS do domínio ainda não aponta para esta VPS."
+        err "  • Porta 80/443 bloqueada por firewall."
+        err ""
+        err "Para validar a config sem queimar quotas, rode novamente escolhendo a opção 2 (staging)."
+    fi
+    exit 1
+fi
 
 # Auto-renovação
 if systemctl list-unit-files | grep -q '^certbot.timer'; then
@@ -387,7 +407,13 @@ else
     ( crontab -l 2>/dev/null | grep -v 'certbot renew' ; \
       echo "0 3 * * * /usr/bin/certbot renew --quiet --post-hook 'systemctl reload nginx'" ) | crontab -
 fi
-ok "SSL configurado para $DOMAIN"
+if [[ "$SSL_STAGING" -eq 1 ]]; then
+    ok "SSL STAGING configurado para $DOMAIN (certificado de teste)"
+    info "Quando estiver tudo OK, rode novamente o install.sh escolhendo a opção 1 (produção)."
+    info "Antes de re-emitir, limpe o staging: sudo certbot delete --cert-name $DOMAIN"
+else
+    ok "SSL configurado para $DOMAIN"
+fi
 
 ###############################################################################
 # Resumo final
