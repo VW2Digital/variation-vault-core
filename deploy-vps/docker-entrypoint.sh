@@ -23,6 +23,11 @@ cp "$HTTP_TEMPLATE" "$HTTP_CONF"
 SERVER_NAME="${SERVER_NAME:-}"
 SUPABASE_PROXY_HOST="${SUPABASE_PROXY_HOST:-}"
 SUPABASE_FUNCTIONS_BASE_URL="${SUPABASE_FUNCTIONS_BASE_URL:-}"
+VITE_SUPABASE_URL="${VITE_SUPABASE_URL:-}"
+
+if [ -z "$SUPABASE_PROXY_HOST" ] && [ -n "$VITE_SUPABASE_URL" ]; then
+    SUPABASE_PROXY_HOST="$(printf '%s' "$VITE_SUPABASE_URL" | sed -E 's#^https?://([^/]+)/?.*$#\1#')"
+fi
 
 if [ -z "$SUPABASE_PROXY_HOST" ] && [ -n "$SUPABASE_FUNCTIONS_BASE_URL" ]; then
     SUPABASE_PROXY_HOST="$(printf '%s' "$SUPABASE_FUNCTIONS_BASE_URL" | sed -E 's#^https?://([^/]+)/?.*$#\1#')"
@@ -34,6 +39,9 @@ fi
 
 if [ -n "$SUPABASE_FUNCTIONS_BASE_URL" ] && [ -n "$SUPABASE_PROXY_HOST" ]; then
     sed -i "s|__SUPABASE_FUNCTIONS_BASE_URL__|$SUPABASE_FUNCTIONS_BASE_URL|g; s|__SUPABASE_PROXY_HOST__|$SUPABASE_PROXY_HOST|g" "$HTTP_CONF"
+    echo "[entrypoint] Proxy de webhooks apontando para $SUPABASE_FUNCTIONS_BASE_URL"
+else
+    echo "[entrypoint] Aviso: SUPABASE_FUNCTIONS_BASE_URL não definido; proxy de webhooks pode não funcionar corretamente."
 fi
 
 if [ -n "$SERVER_NAME" ] && [ "$SERVER_NAME" != "_" ]; then
