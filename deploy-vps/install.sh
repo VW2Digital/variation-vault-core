@@ -812,6 +812,30 @@ if [ "$HEALTHY" != "1" ]; then
   exit 1
 fi
 
+# ---------- emissão automática de SSL (se domínio + email foram informados) -
+if [ "${SSL_AUTO_ISSUE:-0}" = "1" ] && [ "$DOMAIN" != "_" ] && [ -n "${SSL_EMAIL:-}" ]; then
+  step "SSL  Emitindo certificado Let's Encrypt para $DOMAIN"
+  ISSUE_SSL_SCRIPT="$APP_DIR/deploy-vps/issue-ssl.sh"
+  if [ -f "$ISSUE_SSL_SCRIPT" ]; then
+    # Não trava o script principal se SSL falhar — o app continua no ar em HTTP
+    set +e
+    bash "$ISSUE_SSL_SCRIPT" "$DOMAIN" "$SSL_EMAIL"
+    SSL_RC=$?
+    set -e
+    if [ "$SSL_RC" -eq 0 ]; then
+      ok "SSL emitido — site agora roda em https://$DOMAIN"
+    else
+      warn "Emissão de SSL falhou (código $SSL_RC). App segue em HTTP."
+      warn "Causas comuns:"
+      warn "  • DNS ainda propagando — aguarde e rode: sudo bash $ISSUE_SSL_SCRIPT $DOMAIN $SSL_EMAIL"
+      warn "  • Domínio não aponta pra esta VPS — verifique com: dig +short $DOMAIN"
+      warn "  • Limite de rate do Let's Encrypt — aguarde 1h e tente de novo"
+    fi
+  else
+    warn "$ISSUE_SSL_SCRIPT não encontrado — pulando emissão de SSL"
+  fi
+fi
+
 # =============================================================================
 # CHECKLIST PÓS-DEPLOY
 # =============================================================================
