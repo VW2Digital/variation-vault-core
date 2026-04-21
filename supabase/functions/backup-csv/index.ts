@@ -14,6 +14,12 @@ const TABLES = [
   "user_roles", "video_testimonials", "wholesale_prices",
 ];
 
+// Per-table conflict key for upsert. Default is "id" when omitted.
+const UPSERT_CONFLICT: Record<string, string> = {
+  // All listed tables have an "id" PK, so default works — keep this map for
+  // future overrides (e.g. composite unique constraints).
+};
+
 // CSV helpers
 const csvEscape = (val: unknown): string => {
   if (val === null || val === undefined) return "";
@@ -242,11 +248,15 @@ serve(async (req) => {
       });
 
       const query = mode === "upsert"
-        ? admin.from(table).upsert(coerced, { onConflict: "id" })
+        ? admin.from(table).upsert(coerced, { onConflict: UPSERT_CONFLICT[table] ?? "id" })
         : admin.from(table).insert(coerced);
       const { error, count } = await query;
       if (error) {
-        return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: corsHeaders });
+        const detail = [error.message, (error as { details?: string }).details, (error as { hint?: string }).hint]
+          .filter(Boolean)
+          .join(" — ");
+        console.error(`Import ${table} (${mode}) failed:`, detail);
+        return new Response(JSON.stringify({ error: detail || "Erro desconhecido" }), { status: 400, headers: corsHeaders });
       }
       return new Response(JSON.stringify({ ok: true, table, rows: coerced.length, count }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
