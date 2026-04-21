@@ -132,12 +132,24 @@ else
     git clone "$REPO_URL" "$APP_DIR"
 fi
 
+# Grava .env do Vite ANTES do build para apontar pro Supabase externo
+ENV_FILE="$APP_DIR/.env"
+info "Gravando credenciais Supabase em $ENV_FILE (usadas no build do Vite)..."
+cat > "$ENV_FILE" <<ENV
+VITE_SUPABASE_URL=${SUPABASE_URL_INPUT}
+VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_ANON_KEY}
+VITE_SUPABASE_PROJECT_ID=${SUPABASE_PROJECT_REF}
+ENV
+chmod 600 "$ENV_FILE"
+chown root:root "$ENV_FILE"
+ok "Variáveis VITE_* gravadas (apontando para $SUPABASE_URL_INPUT)"
+
 # Build
 cd "$APP_DIR"
 info "Instalando dependências (npm install)..."
 npm install --no-audit --no-fund
 
-info "Buildando aplicação (npm run build)..."
+info "Buildando aplicação com Supabase externo (npm run build)..."
 npm run build
 
 if [[ ! -d "$APP_DIR/dist" ]]; then
