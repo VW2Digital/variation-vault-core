@@ -15,6 +15,7 @@ const SettingsDesign = () => {
   const [storeName, setStoreName] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [faviconUrl, setFaviconUrl] = useState('');
+  const [storePublicUrl, setStorePublicUrl] = useState('');
   const [metaTitle, setMetaTitle] = useState('');
   const [metaDescription, setMetaDescription] = useState('');
 
@@ -23,12 +24,14 @@ const SettingsDesign = () => {
       fetchSetting('store_name'),
       fetchSetting('logo_url'),
       fetchSetting('favicon_url'),
+      fetchSetting('store_public_url'),
       fetchSetting('meta_title'),
       fetchSetting('meta_description'),
-    ]).then(([name, logo, favicon, title, desc]) => {
+    ]).then(([name, logo, favicon, publicUrl, title, desc]) => {
       setStoreName(name || '');
       setLogoUrl(logo || '');
       setFaviconUrl(favicon || '');
+      setStorePublicUrl(publicUrl || '');
       setMetaTitle(title || '');
       setMetaDescription(desc || '');
     }).finally(() => setLoading(false));
@@ -43,6 +46,7 @@ const SettingsDesign = () => {
         upsertSetting('store_name', storeName, user.id),
         upsertSetting('logo_url', logoUrl, user.id),
         upsertSetting('favicon_url', faviconUrl, user.id),
+        upsertSetting('store_public_url', storePublicUrl.trim().replace(/\/+$/, ''), user.id),
         upsertSetting('meta_title', metaTitle, user.id),
         upsertSetting('meta_description', metaDescription, user.id),
       ]);
@@ -79,6 +83,13 @@ const SettingsDesign = () => {
           <div className="space-y-2">
             <Label>URL do Favicon</Label>
             <Input value={faviconUrl} onChange={(e) => setFaviconUrl(e.target.value)} placeholder="https://..." />
+          </div>
+          <div className="space-y-2">
+            <Label>URL Pública da Loja</Label>
+            <Input value={storePublicUrl} onChange={(e) => setStorePublicUrl(e.target.value)} placeholder="https://loja.seudominio.com" />
+            <p className="text-xs text-muted-foreground">
+              Usada em redirecionamentos de pagamento, links de e-mail e integrações externas quando o backend precisa gerar URLs públicas.
+            </p>
           </div>
         </CardContent>
       </Card>
