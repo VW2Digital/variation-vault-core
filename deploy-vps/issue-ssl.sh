@@ -22,11 +22,15 @@ err() { echo -e "${RED}[ERR ]${NC} $*" >&2; }
 
 DOMAIN="${1:-}"
 EMAIL="${2:-}"
+STAGING_FLAG="${3:-}"
 APP_DIR="${APP_DIR:-/opt/liberty-pharma}"
 
 if [[ -z "$DOMAIN" || -z "$EMAIL" ]]; then
   err "Uso: sudo bash $0 <dominio> <email>"
   err "Ex:  sudo bash $0 luminaeliberty.net admin@luminaeliberty.net"
+  err ""
+  err "Para emitir certificado de TESTE (staging, não conta no rate limit):"
+  err "  sudo bash $0 <dominio> <email> --staging"
   exit 1
 fi
 
@@ -92,16 +96,33 @@ fi
 
 # --expand garante que, se já existir um cert só com o apex, ele será
 # re-emitido cobrindo também o www (sem precisar deletar manualmente).
+CERTBOT_EXTRA=()
+if [[ "$STAGING_FLAG" == "--staging" ]]; then
+  warn "MODO STAGING: o certificado NÃO será confiável pelo navegador (apenas teste)."
+  warn "Use só para validar a configuração — não conta no rate limit do Let's Encrypt."
+  CERTBOT_EXTRA+=(--staging --break-my-certs)
+fi
+
 if certbot certonly --standalone \
     "${CERT_ARGS[@]}" \
     --non-interactive \
     --agree-tos \
     --expand \
     -m "$EMAIL" \
-    --keep-until-expiring; then
+    --keep-until-expiring \
+    "${CERTBOT_EXTRA[@]}"; then
   ok "Certificado emitido com sucesso!"
 else
   err "Falha ao emitir o certificado. Logs em /var/log/letsencrypt/letsencrypt.log"
+  err ""
+  err "Erros comuns:"
+  err "  • 'too many certificates already issued' → você bateu o rate limit (5/semana por domínio)."
+  err "    Soluções:"
+  err "      1) Aguarde a data informada na mensagem (ex.: 'retry after ...')"
+  err "      2) Rode em modo TESTE para validar config sem consumir rate limit:"
+  err "         sudo bash $0 $DOMAIN $EMAIL --staging"
+  err "      3) Adicione um subdomínio ao certificado (ex.: app.$DOMAIN) — conta como"
+  err "         conjunto diferente de identificadores e não cai no mesmo limite."
   log "Subindo container de volta..."
   docker compose up -d app
   exit 1
