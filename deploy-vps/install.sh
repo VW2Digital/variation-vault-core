@@ -45,6 +45,25 @@
 
 set -Eeuo pipefail
 
+# ---------- trap global de erro ---------------------------------------------
+# Sem isso, qualquer falha com stdout redirecionado pra /dev/null fazia o
+# script "sumir" no meio. Agora SEMPRE mostra a linha que falhou + dica.
+on_error() {
+  local exit_code=$?
+  local line_no=${1:-?}
+  echo
+  echo -e "\033[0;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m" >&2
+  echo -e "\033[0;31m✗ FALHA na linha $line_no (exit $exit_code)\033[0m" >&2
+  echo -e "\033[0;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m" >&2
+  echo "Logs salvos em /tmp/install-*.log (se existirem):" >&2
+  ls -1 /tmp/install-*.log /tmp/docker-install.log 2>/dev/null | sed 's/^/  • /' >&2 || true
+  echo >&2
+  echo "Reexecute com debug verboso para ver cada comando:" >&2
+  echo "  sudo bash -x $0 2>&1 | tee /tmp/install-debug.log" >&2
+  exit "$exit_code"
+}
+trap 'on_error $LINENO' ERR
+
 # ---------- estética ---------------------------------------------------------
 RED='\033[0;31m'; GRN='\033[0;32m'; YLW='\033[1;33m'; BLU='\033[0;34m'; NC='\033[0m'
 log()  { echo -e "${BLU}[INFO]${NC} $*"; }
