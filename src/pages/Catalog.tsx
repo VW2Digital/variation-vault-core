@@ -490,11 +490,6 @@ const Catalog = () => {
                           className="w-full text-xs"
                           onClick={async (e) => {
                             e.stopPropagation();
-                            const { data: { session } } = await supabase.auth.getSession();
-                            if (!session) {
-                              navigate(`/cliente/login?redirect=${encodeURIComponent('/catalogo')}`);
-                              return;
-                            }
                             const minQty = wholesaleMap[variation.id] || 1;
                             addToCart(product.id, variation.id, minQty);
                           }}
