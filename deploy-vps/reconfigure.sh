@@ -232,4 +232,9 @@ for FN in melhor-envio-webhook asaas-webhook mercadopago-webhook pagarme-webhook
     fi
     echo "    ${SUPABASE_URL_INPUT}/functions/v1/${FN}   (direto Supabase)"
 done
+if [[ -n "$DOMAIN_FROM_VHOST" && "$DOMAIN_FROM_VHOST" != "_" ]]; then
+    echo
+    echo "  Melhor Envio (URL alternativa, aceita POST na página de configuração):"
+    echo "    https://${DOMAIN_FROM_VHOST}/admin/configuracoes/logistica"
+fi
 echo
