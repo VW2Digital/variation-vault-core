@@ -137,8 +137,11 @@ VHOST="/etc/nginx/sites-available/app"
 if [[ -f "$VHOST" ]]; then
     DOMAIN_FROM_VHOST="$(grep -E '^\s*server_name' "$VHOST" | head -n1 | awk '{print $2}' | tr -d ';' || true)"
     DOMAIN_FROM_VHOST="${DOMAIN_FROM_VHOST:-_}"
-    if ! grep -q 'location = /healthz' "$VHOST"; then
-        step "Atualizando vhost Nginx (adicionando /healthz e default_server)"
+    NEEDS_REWRITE=0
+    grep -q 'location = /healthz' "$VHOST" || NEEDS_REWRITE=1
+    grep -q 'melhor-envio-webhook' "$VHOST" || NEEDS_REWRITE=1
+    if [[ "$NEEDS_REWRITE" -eq 1 ]]; then
+        step "Atualizando vhost Nginx (/healthz + proxy de webhooks)"
         cat > "$VHOST" <<NGINX
 server {
     listen 80 default_server;
@@ -171,6 +174,20 @@ server {
         add_header Cache-Control "no-cache, no-store, must-revalidate";
     }
 
+    location ~ ^/(melhor-envio-webhook|asaas-webhook|mercadopago-webhook|pagarme-webhook|pagbank-webhook)(/.*)?\$ {
+        proxy_pass ${SUPABASE_URL_INPUT}/functions/v1/\$1\$2\$is_args\$args;
+        proxy_http_version 1.1;
+        proxy_set_header Host ${SUPABASE_PROJECT_REF}.supabase.co;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_ssl_server_name on;
+        proxy_ssl_name ${SUPABASE_PROJECT_REF}.supabase.co;
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+        proxy_buffering off;
+    }
+
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
@@ -178,7 +195,7 @@ server {
     location ~ /\\. { deny all; access_log off; log_not_found off; }
 }
 NGINX
-        ok "Vhost atualizado com /healthz"
+        ok "Vhost atualizado com /healthz e proxy de webhooks"
     fi
 fi
 
