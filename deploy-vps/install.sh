@@ -144,9 +144,12 @@ run_preflight_checks() {
 
   # ---- 4. Espaço em disco ----
   log "4. Espaço em disco"
-  local DISK_GB
-  DISK_GB=$(df -BG --output=avail / 2>/dev/null | tail -1 | tr -d ' G')
-  DISK_GB=${DISK_GB:-0}
+  local DISK_KB DISK_GB
+  DISK_KB=$(df -P / 2>/dev/null | awk 'NR==2 {print $4}')
+  DISK_KB=${DISK_KB:-0}
+  DISK_GB=$(( DISK_KB / 1024 / 1024 ))
+  # Sanity: filesystems sintéticos podem reportar números absurdos; clampa em 99999
+  [ "$DISK_GB" -gt 99999 ] && DISK_GB=99999
   if [ "$DISK_GB" -ge 20 ]; then
     ok "   ${DISK_GB} GB livres em / (suficiente para tudo)"
   elif [ "$DISK_GB" -ge 8 ]; then
