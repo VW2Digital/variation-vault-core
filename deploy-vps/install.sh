@@ -124,6 +124,24 @@ DOMAIN="${DOMAIN:-$DOMAIN_DEFAULT}"
 read -rp "E-mail para alertas do Let's Encrypt [${EMAIL_DEFAULT}]: " EMAIL
 EMAIL="${EMAIL:-$EMAIL_DEFAULT}"
 
+# 5) Modo SSL — staging (teste) ou produção (real)
+echo
+echo "Modo de emissão do certificado SSL:"
+echo "  1) Produção (padrão)  — certificado real, confiável pelo navegador."
+echo "                          Conta no rate limit do Let's Encrypt (5/semana por domínio)."
+echo "  2) Staging  (teste)   — certificado de TESTE, navegador exibirá aviso de segurança."
+echo "                          NÃO conta no rate limit. Use para validar a config (Nginx/DNS/portas)"
+echo "                          quando você bateu o limite ou está testando um deploy novo."
+read -rp "Escolha [1=produção / 2=staging] (padrão: 1): " SSL_MODE_CHOICE
+SSL_MODE_CHOICE="${SSL_MODE_CHOICE:-1}"
+if [[ "$SSL_MODE_CHOICE" == "2" ]]; then
+    SSL_STAGING=1
+    info "Modo STAGING selecionado — certificado de teste, sem consumir rate limit."
+else
+    SSL_STAGING=0
+    info "Modo PRODUÇÃO selecionado — certificado real do Let's Encrypt."
+fi
+
 ###############################################################################
 # STEP 1 — Instalar app (Node + Git + Nginx + build + config SPA)
 ###############################################################################
