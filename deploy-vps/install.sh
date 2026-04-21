@@ -5,7 +5,8 @@
 # Faz APENAS 3 coisas:
 #   STEP 1 — Instala Node.js LTS, Git, Nginx, builda o app e configura SPA
 #   STEP 2 — Instala Certbot e emite certificado SSL para o domínio
-#   STEP 3 — Salva o Supabase Classic Personal Access Token em /var/www/app/.env
+#   STEP 3 — Coleta credenciais de um Supabase EXTERNO (URL, anon key, ref),
+#            grava em /var/www/app/.env e rebuilda o app apontando pra ele.
 #
 # Sem Docker, sem PM2, sem Postgres, sem extras.
 ###############################################################################
@@ -48,6 +49,41 @@ read -rp "URL do repositório Git [${REPO_URL_DEFAULT}]: " REPO_URL
 REPO_URL="${REPO_URL:-$REPO_URL_DEFAULT}"
 if [[ -z "$REPO_URL" ]]; then
     err "URL do repositório não pode ser vazia."
+    exit 1
+fi
+
+# ----------------------------- Coleta Supabase ANTES do build ---------------
+# Precisamos das credenciais agora porque elas entram no bundle do Vite
+# como variáveis VITE_* durante `npm run build`.
+echo
+info "Configuração do Supabase (banco externo da sua VPS)"
+echo "Você precisa de um projeto Supabase próprio (https://supabase.com/dashboard)."
+echo "Encontre URL e anon key em: Project Settings → API"
+echo
+
+read -rp "SUPABASE URL (ex: https://xxxxx.supabase.co): " SUPABASE_URL_INPUT
+if [[ -z "${SUPABASE_URL_INPUT:-}" ]]; then
+    err "SUPABASE URL não pode ser vazia."
+    exit 1
+fi
+if [[ ! "$SUPABASE_URL_INPUT" =~ ^https://[a-z0-9]+\.supabase\.co/?$ ]]; then
+    err "URL inválida. Formato esperado: https://xxxxx.supabase.co"
+    exit 1
+fi
+SUPABASE_URL_INPUT="${SUPABASE_URL_INPUT%/}"
+
+# Extrai automaticamente o project ref da URL
+SUPABASE_PROJECT_REF="$(echo "$SUPABASE_URL_INPUT" | sed -E 's#https://([^.]+)\.supabase\.co#\1#')"
+
+echo
+echo "SUPABASE ANON KEY (chave pública 'anon / public', JWT longo começando com eyJ...)"
+read -rp "SUPABASE_ANON_KEY: " SUPABASE_ANON_KEY
+if [[ -z "${SUPABASE_ANON_KEY:-}" ]]; then
+    err "Anon key não pode ser vazia."
+    exit 1
+fi
+if [[ ! "$SUPABASE_ANON_KEY" =~ ^eyJ ]]; then
+    err "Anon key inválida (deve começar com 'eyJ')."
     exit 1
 fi
 
@@ -96,12 +132,24 @@ else
     git clone "$REPO_URL" "$APP_DIR"
 fi
 
+# Grava .env do Vite ANTES do build para apontar pro Supabase externo
+ENV_FILE="$APP_DIR/.env"
+info "Gravando credenciais Supabase em $ENV_FILE (usadas no build do Vite)..."
+cat > "$ENV_FILE" <<ENV
+VITE_SUPABASE_URL=${SUPABASE_URL_INPUT}
+VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_ANON_KEY}
+VITE_SUPABASE_PROJECT_ID=${SUPABASE_PROJECT_REF}
+ENV
+chmod 600 "$ENV_FILE"
+chown root:root "$ENV_FILE"
+ok "Variáveis VITE_* gravadas (apontando para $SUPABASE_URL_INPUT)"
+
 # Build
 cd "$APP_DIR"
 info "Instalando dependências (npm install)..."
 npm install --no-audit --no-fund
 
-info "Buildando aplicação (npm run build)..."
+info "Buildando aplicação com Supabase externo (npm run build)..."
 npm run build
 
 if [[ ! -d "$APP_DIR/dist" ]]; then
@@ -203,42 +251,15 @@ fi
 ok "SSL configurado para $DOMAIN"
 
 ###############################################################################
-# STEP 3 — Supabase: Project Ref + Classic Access Token
+# STEP 3 — Confirmação das credenciais Supabase já aplicadas no build
 ###############################################################################
-step "STEP 3 — Salvando credenciais Supabase"
+step "STEP 3 — Supabase externo configurado"
 
-SUPABASE_PROJECT_REF_DEFAULT="vkomfiplmhpkhfpidrng"
-
-echo "Project Ref do Supabase (ID do projeto, ex: ntlfjekvisepsusbcjsv)."
-echo "Encontre em: Supabase Dashboard → Project Settings → General → Reference ID"
-read -rp "SUPABASE_PROJECT_REF [${SUPABASE_PROJECT_REF_DEFAULT}]: " SUPABASE_PROJECT_REF
-SUPABASE_PROJECT_REF="${SUPABASE_PROJECT_REF:-$SUPABASE_PROJECT_REF_DEFAULT}"
-if [[ -z "${SUPABASE_PROJECT_REF:-}" ]]; then
-    err "Project Ref não pode ser vazio."
-    exit 1
-fi
-
-echo
-echo "Cole seu Classic Personal Access Token do Supabase."
-echo "Obtenha em: https://supabase.com/dashboard/account/tokens"
-read -rsp "SUPABASE_ACCESS_TOKEN: " SUPABASE_TOKEN
-echo
-if [[ -z "${SUPABASE_TOKEN:-}" ]]; then
-    err "Token não pode ser vazio."
-    exit 1
-fi
-
-ENV_FILE="$APP_DIR/.env"
-touch "$ENV_FILE"
-# Remove linhas antigas (se existirem) e adiciona as novas
-sed -i '/^SUPABASE_ACCESS_TOKEN=/d;/^SUPABASE_PROJECT_REF=/d' "$ENV_FILE"
-{
-    echo "SUPABASE_PROJECT_REF=${SUPABASE_PROJECT_REF}"
-    echo "SUPABASE_ACCESS_TOKEN=${SUPABASE_TOKEN}"
-} >> "$ENV_FILE"
-chmod 600 "$ENV_FILE"
-chown root:root "$ENV_FILE"
-ok "Credenciais salvas em $ENV_FILE (chmod 600)"
+ok "URL ............ $SUPABASE_URL_INPUT"
+ok "Project Ref .... $SUPABASE_PROJECT_REF"
+ok "Anon Key ....... ${SUPABASE_ANON_KEY:0:20}... (${#SUPABASE_ANON_KEY} chars)"
+ok "Arquivo ........ $ENV_FILE (chmod 600)"
+info "Credenciais aplicadas no bundle Vite durante o build acima."
 
 ###############################################################################
 # Resumo final
@@ -250,11 +271,14 @@ echo -e "${GREEN}╚════════════════════
 echo
 ok "App Vite/React buildado e servido via Nginx → $APP_DIR/dist/"
 ok "Certificado SSL configurado para $DOMAIN"
-ok "Supabase Project Ref: $SUPABASE_PROJECT_REF"
-ok "Token Supabase salvo em $ENV_FILE (chmod 600)"
+ok "Supabase externo: $SUPABASE_URL_INPUT (ref: $SUPABASE_PROJECT_REF)"
+ok "Credenciais salvas em $ENV_FILE (chmod 600)"
 echo
 echo -e "${BLUE}Acesse: https://${DOMAIN}${NC}"
 echo
-echo "Para atualizar o app no futuro:"
+echo "Para atualizar o app no futuro (mantém o .env com Supabase externo):"
 echo "  cd $APP_DIR && git pull && npm install && npm run build && systemctl reload nginx"
+echo
+echo "IMPORTANTE: o schema do banco precisa estar criado no seu Supabase."
+echo "Use o SQL em deploy-vps/supabase/schema.sql para provisionar tudo."
 echo
