@@ -186,6 +186,10 @@ cd "$APP_DIR"
 info "Instalando dependências (npm install)..."
 npm install --no-audit --no-fund
 
+# Limpa dist/ e cache do Vite para garantir bundle 100% derivado do .env atual.
+info "Limpando dist/ e cache do Vite (garante bundle limpo)..."
+rm -rf "$APP_DIR/dist" "$APP_DIR/node_modules/.vite" 2>/dev/null || true
+
 info "Buildando aplicação (npm run build)..."
 npm run build
 
@@ -267,6 +271,19 @@ else
     VERIFY_FAIL=1
 fi
 
+# Detecta URLs hardcoded de outros project refs (resíduos no código).
+OTHER_REFS_BUILD="$(grep -rhoE '[a-z0-9]{20}\.supabase\.co' "$APP_DIR/dist/assets/" 2>/dev/null \
+    | sort -u | grep -v "^${SUPABASE_PROJECT_REF}\." || true)"
+if [[ -n "$OTHER_REFS_BUILD" ]]; then
+    err "[verify] Bundle contém URLs de outros projetos Supabase (hardcoded no código):"
+    echo "$OTHER_REFS_BUILD" | sed 's/^/    - /'
+    err "[verify] Webhooks/queries podem apontar para o lugar errado. Localize com:"
+    err "         grep -rE '[a-z0-9]{20}\\.supabase\\.co' $APP_DIR/src/"
+    VERIFY_FAIL=1
+else
+    ok "[verify] Nenhum resíduo de outro project ref no bundle"
+fi
+
 HEALTH_HTTP="$(curl -sS -o /tmp/healthz.out -w '%{http_code}' -H "Host: ${DOMAIN}" http://127.0.0.1/healthz || echo "000")"
 if [[ "$HEALTH_HTTP" == "200" ]] && grep -q '^ok' /tmp/healthz.out; then
     ok "[verify] Nginx /healthz respondendo 200"
@@ -343,4 +360,12 @@ echo "  2) Cole o conteúdo de $APP_DIR/deploy-vps/supabase/schema.sql"
 echo "  3) Clique em Run"
 echo "  4) Auth → Users: crie seu usuário admin"
 echo "  5) SQL Editor: INSERT INTO public.user_roles (user_id, role) VALUES ('UUID-DO-USUARIO', 'admin');"
+echo
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}URLs prontas para colar nos painéis dos gateways/webhooks:${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+for FN in melhor-envio-webhook asaas-webhook mercadopago-webhook pagarme-webhook pagbank-webhook; do
+    echo "  $FN:"
+    echo "    ${SUPABASE_URL_INPUT}/functions/v1/${FN}"
+done
 echo
