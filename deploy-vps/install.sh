@@ -285,12 +285,21 @@ docker compose build app || { err "Build falhou. Veja o erro acima."; exit 1; }
 log "Subindo container..."
 docker compose up -d || { err "docker compose up falhou."; docker compose logs --tail=50 app || true; exit 1; }
 
-log "Aguardando aplicação responder..."
-for i in $(seq 1 30); do
-  if curl -sf http://localhost/ -o /dev/null; then ok "Site no ar"; break; fi
+log "Aguardando Nginx subir e responder (até 90s)..."
+APP_UP=0
+for i in $(seq 1 45); do
+  if curl -sf http://localhost/ -o /dev/null; then
+    ok "Site no ar (HTTP local respondendo)"
+    APP_UP=1
+    break
+  fi
   sleep 2
-  [ "$i" = "30" ] && { err "App não respondeu em 60s"; docker compose logs --tail=30 app; exit 1; }
 done
+if [ "$APP_UP" -ne 1 ]; then
+  err "App não respondeu em 90s. Últimos logs:"
+  docker compose logs --tail=40 app
+  exit 1
+fi
 
 echo
 echo -e "${GREEN}${BOLD}╔════════════════════════════════════════════════════╗${NC}"
