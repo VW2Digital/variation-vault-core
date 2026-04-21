@@ -24,13 +24,15 @@ const PagBankSettings = ({ isActive, onActivate }: Props) => {
   const [publicKey, setPublicKey] = useState('');
   const [env, setEnv] = useState('sandbox');
   const [showToken, setShowToken] = useState(false);
+  const [redirectUrl, setRedirectUrl] = useState('');
 
   const loadCreds = async (e: string) => {
-    const [t, p] = await Promise.all([
+    const [t, p, publicUrl] = await Promise.all([
       fetchSetting(`pagbank_token_${e}`),
       fetchSetting(`pagbank_public_key_${e}`),
+      fetchSetting('store_public_url'),
     ]);
-    setToken(t || ''); setPublicKey(p || '');
+    setToken(t || ''); setPublicKey(p || ''); setRedirectUrl(publicUrl || `${window.location.origin}/minha-conta`);
   };
 
   useEffect(() => {
@@ -146,9 +148,9 @@ const PagBankSettings = ({ isActive, onActivate }: Props) => {
       />
       <div className="space-y-2">
         <Label className="text-xs text-muted-foreground">URL de Redirecionamento</Label>
-        <Input readOnly value="https://variation-vault-core.lovable.app/minha-conta" className="bg-muted text-xs" onClick={(e) => {
+        <Input readOnly value={redirectUrl} className="bg-muted text-xs" onClick={(e) => {
           (e.target as HTMLInputElement).select();
-          navigator.clipboard.writeText("https://variation-vault-core.lovable.app/minha-conta");
+          navigator.clipboard.writeText(redirectUrl);
           toast({ title: 'URL copiada!' });
         }} />
       </div>

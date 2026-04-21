@@ -83,6 +83,21 @@ function getRemoteIp(req: Request) {
   return candidates.find((ip) => typeof ip === 'string' && ip.length > 0 && ip.toLowerCase() !== 'unknown') ?? '127.0.0.1';
 }
 
+async function getSiteSetting(supabase: ReturnType<typeof createClient>, key: string) {
+  const { data } = await supabase.from('site_settings').select('value').eq('key', key).maybeSingle();
+  return data?.value || '';
+}
+
+function normalizePublicBaseUrl(url?: string | null) {
+  if (!url) return '';
+  return String(url).trim().replace(/\/+$/, '');
+}
+
+function buildAccountUrl(baseUrl?: string | null) {
+  const normalized = normalizePublicBaseUrl(baseUrl);
+  return normalized ? `${normalized}/minha-conta` : '';
+}
+
 const DEFAULT_INTEREST_TABLE: Record<number, number> = {
   1: 0, 2: 0.05, 3: 0.07, 4: 0.09, 5: 0.12, 6: 0.15,
   7: 0.18, 8: 0.21, 9: 0.24, 10: 0.27, 11: 0.30, 12: 0.33,
@@ -1235,9 +1250,11 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const configuredPublicBaseUrl = await getSiteSetting(supabase, 'store_public_url');
 
     const body = await req.json();
     const { action, ...payload } = body;
+    const fallbackRedirectUrl = payload.redirectUrl || buildAccountUrl(configuredPublicBaseUrl);
 
     console.log(`[payment-checkout] Action: ${action} | Gateway resolving...`);
     console.log(`[payment-checkout] Payload keys: ${Object.keys(payload).join(', ')}`);
@@ -1425,9 +1442,9 @@ serve(async (req) => {
             phone: phoneDigitsMp ? { area_code: phoneDigitsMp.slice(0, 2), number: phoneDigitsMp.slice(2) } : undefined,
           },
           back_urls: {
-            success: payload.redirectUrl || 'https://variation-vault-core.lovable.app/minha-conta',
-            failure: payload.redirectUrl || 'https://variation-vault-core.lovable.app/minha-conta',
-            pending: payload.redirectUrl || 'https://variation-vault-core.lovable.app/minha-conta',
+            success: fallbackRedirectUrl,
+            failure: fallbackRedirectUrl,
+            pending: fallbackRedirectUrl,
           },
           auto_return: 'approved',
           external_reference: payload.orderId || undefined,
@@ -1529,8 +1546,8 @@ serve(async (req) => {
             }],
           }],
           soft_descriptor: sanitizeDescription(payload.softDescriptor || 'Loja').slice(0, 17),
-          redirect_url: payload.redirectUrl || 'https://variation-vault-core.lovable.app/minha-conta',
-          return_url: payload.redirectUrl || 'https://variation-vault-core.lovable.app/minha-conta',
+          redirect_url: fallbackRedirectUrl,
+          return_url: fallbackRedirectUrl,
           notification_urls: [`${supabaseUrlVal}/functions/v1/pagbank-webhook`],
           payment_notification_urls: [`${supabaseUrlVal}/functions/v1/pagbank-webhook`],
         };
