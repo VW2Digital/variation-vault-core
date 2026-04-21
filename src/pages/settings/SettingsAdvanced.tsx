@@ -8,6 +8,7 @@ import { Code, Plus, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import SettingsBackButton from './SettingsBackButton';
 import DeployUpdateCard from '@/components/admin/DeployUpdateCard';
+import SiteUrlCard from '@/components/admin/SiteUrlCard';
 
 interface ScriptEntry {
   id: string;
@@ -124,6 +125,8 @@ const SettingsAdvanced = () => {
   return (
     <div className="space-y-6 w-full">
       <SettingsBackButton title="Scripts & Widgets" description="Widget de chat, scripts customizados e configurações técnicas" />
+
+      <SiteUrlCard />
 
       <DeployUpdateCard />
 
