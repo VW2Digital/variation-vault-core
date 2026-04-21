@@ -96,6 +96,10 @@ ok ".env atualizado"
 
 step "Rebuild da aplicação"
 cd "$APP_DIR"
+# Limpa caches e dist antigo para garantir que o bundle novo use 100% o .env recém-gravado.
+# Sem isso, o cache do Vite (.vite/) pode reaproveitar chunks antigos contendo a URL anterior.
+info "Limpando dist/ e cache do Vite..."
+rm -rf "$APP_DIR/dist" "$APP_DIR/node_modules/.vite" 2>/dev/null || true
 npm install --no-audit --no-fund
 npm run build
 
@@ -104,6 +108,19 @@ if ! grep -rq "${SUPABASE_PROJECT_REF}.supabase" "$APP_DIR/dist/assets/" 2>/dev/
     exit 1
 fi
 ok "Bundle aponta para ${SUPABASE_PROJECT_REF}.supabase.co"
+
+# Detecta resíduos de outros project refs no bundle (build anterior contaminado).
+OTHER_REFS="$(grep -rhoE '[a-z0-9]{20}\.supabase\.co' "$APP_DIR/dist/assets/" 2>/dev/null \
+    | sort -u | grep -v "^${SUPABASE_PROJECT_REF}\." || true)"
+if [[ -n "$OTHER_REFS" ]]; then
+    err "Bundle contém referências a outros projetos Supabase além do informado:"
+    echo "$OTHER_REFS" | sed 's/^/    - /'
+    err "Isso indica URLs hardcoded no código (não vindas do .env). Procure por elas com:"
+    err "  grep -rE '[a-z0-9]{20}\\.supabase\\.co' $APP_DIR/src/"
+    err "Build NÃO foi aplicado por segurança."
+    exit 1
+fi
+ok "Nenhum resíduo de project ref antigo no bundle"
 
 chown -R www-data:www-data "$APP_DIR/dist"
 
@@ -168,3 +185,12 @@ echo -e "${GREEN}╚════════════════════
 ok "App agora aponta para $SUPABASE_URL_INPUT"
 echo
 echo "Limpe o cache do navegador (Ctrl+Shift+R) e recarregue o painel."
+echo
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}URLs prontas para colar nos painéis dos gateways/webhooks:${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+for FN in melhor-envio-webhook asaas-webhook mercadopago-webhook pagarme-webhook pagbank-webhook; do
+    echo "  $FN:"
+    echo "    ${SUPABASE_URL_INPUT}/functions/v1/${FN}"
+done
+echo
