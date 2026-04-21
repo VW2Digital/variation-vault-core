@@ -51,6 +51,41 @@ export const useCart = () => {
   return ctx;
 };
 
+const ANON_CART_KEY = 'anon_cart_v1';
+
+interface AnonCartEntry {
+  product_id: string;
+  variation_id: string;
+  quantity: number;
+}
+
+const readAnonCart = (): AnonCartEntry[] => {
+  try {
+    const raw = localStorage.getItem(ANON_CART_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeAnonCart = (entries: AnonCartEntry[]) => {
+  try {
+    localStorage.setItem(ANON_CART_KEY, JSON.stringify(entries));
+  } catch {
+    /* noop */
+  }
+};
+
+const clearAnonCart = () => {
+  try {
+    localStorage.removeItem(ANON_CART_KEY);
+  } catch {
+    /* noop */
+  }
+};
+
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
   const [items, setItems] = useState<CartItem[]>([]);
@@ -58,8 +93,39 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setUserId(session?.user?.id || null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const newUserId = session?.user?.id || null;
+      // On sign-in/sign-up, merge anonymous cart into user's cart
+      if (newUserId && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED')) {
+        const anon = readAnonCart();
+        if (anon.length > 0) {
+          try {
+            const { data: existing } = await supabase
+              .from('cart_items')
+              .select('variation_id, quantity')
+              .eq('user_id', newUserId);
+            const existingMap = new Map((existing || []).map((e: any) => [e.variation_id, e.quantity]));
+            for (const entry of anon) {
+              const current = existingMap.get(entry.variation_id);
+              if (current !== undefined) {
+                await supabase
+                  .from('cart_items')
+                  .update({ quantity: current + entry.quantity })
+                  .eq('user_id', newUserId)
+                  .eq('variation_id', entry.variation_id);
+              } else {
+                await supabase
+                  .from('cart_items')
+                  .insert({ user_id: newUserId, product_id: entry.product_id, variation_id: entry.variation_id, quantity: entry.quantity });
+              }
+            }
+            clearAnonCart();
+          } catch (err) {
+            console.error('Cart merge error:', err);
+          }
+        }
+      }
+      setUserId(newUserId);
     });
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUserId(session?.user?.id || null);
