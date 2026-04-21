@@ -33,6 +33,33 @@ sudo bash /tmp/install.sh
 
 > ⚠️ **NÃO use `curl ... | sudo bash`** — o instalador é interativo e precisa de TTY para os prompts. O pipe quebra a entrada do teclado e o script aborta. Sempre baixe primeiro com `-o /tmp/install.sh` e rode com `sudo bash /tmp/install.sh`.
 
+### Extra opcional: Supabase self-hosted
+
+Ao final da instalação, o script pergunta se você quer subir uma stack **Supabase self-hosted** (Postgres + Studio + postgres-meta) em containers vizinhos, exposta apenas em `127.0.0.1`. Útil para:
+
+- Rodar o backend totalmente offline na própria VPS
+- Ter um Postgres local para testes sem afetar o Lovable Cloud
+- Aplicar e inspecionar `deploy-vps/supabase/schema.sql` localmente
+
+Modos:
+
+```bash
+# Pula o prompt e instala
+INSTALL_SUPABASE=yes sudo -E bash /tmp/install.sh
+
+# Pula o prompt e NÃO instala
+INSTALL_SUPABASE=no sudo -E bash /tmp/install.sh
+```
+
+Acesso remoto seguro via SSH tunnel:
+```bash
+ssh -L 3001:127.0.0.1:3001 -L 5432:127.0.0.1:5432 root@SEU-IP
+# Studio → http://localhost:3001
+# Postgres → localhost:5432
+```
+
+Credenciais geradas em `/opt/liberty-pharma/deploy-vps/supabase-stack/.env`. Para a stack **completa** (com GoTrue, PostgREST, Storage, Realtime), siga a [doc oficial](https://supabase.com/docs/guides/self-hosting/docker) — esta opção entrega só o essencial pra não pesar em VPS pequenas.
+
 Modos disponíveis:
 
 | Modo | Comando | Uso |
