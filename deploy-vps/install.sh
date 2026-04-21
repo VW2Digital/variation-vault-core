@@ -8,10 +8,14 @@
 #   STEP 2 — Instala Certbot e emite certificado SSL para o domínio.
 #
 # Você só precisa de 4 informações (todas perguntadas no início):
-#   1) SUPABASE_URL          (ex: https://xxx.supabase.co)
-#   2) SUPABASE_ANON_KEY     (eyJ...) — cole direto do painel
+#   1) SUPABASE_ACCESS_TOKEN (sbp_...) — Personal Access Token
+#                            https://supabase.com/dashboard/account/tokens
+#   2) SUPABASE_PROJECT_REF  (ex: ntlfjekvisepsusbcjsv) — extraído da URL
+#                            https://supabase.com/dashboard/project/<REF>
 #   3) Domínio               (ex: meusite.com)
 #   4) E-mail Let's Encrypt
+#
+# A anon key é buscada automaticamente via Supabase Management API.
 #
 # Sem Docker, sem PM2, sem Postgres, sem Management API, sem Access Token.
 # O schema do banco você aplica uma vez no SQL Editor do Supabase usando
@@ -68,32 +72,50 @@ if [[ -z "$REPO_URL" ]]; then
     exit 1
 fi
 
-# 2) Supabase URL
+# 2) Personal Access Token + Project Ref
 echo
-echo "Configuração do Supabase — só precisamos da URL e da anon key públicas."
-echo "Onde encontrar: painel do Supabase → Project Settings → API"
+echo "Configuração do Supabase via Personal Access Token."
+echo "Crie um token em: https://supabase.com/dashboard/account/tokens"
+echo "Pegue o project ref na URL: https://supabase.com/dashboard/project/<REF>"
 echo
-read -rp "SUPABASE_URL (ex: https://xxx.supabase.co): " SUPABASE_URL_INPUT
-SUPABASE_URL_INPUT="${SUPABASE_URL_INPUT%/}"  # remove barra final
-if [[ ! "$SUPABASE_URL_INPUT" =~ ^https://([a-z0-9]+)\.supabase\.(co|in)$ ]]; then
-    err "URL inválida. Esperado algo como https://abcdef123456.supabase.co"
+echo "Cole o SUPABASE_ACCESS_TOKEN (sbp_...). A entrada fica oculta."
+read -rsp "SUPABASE_ACCESS_TOKEN: " SUPABASE_ACCESS_TOKEN
+echo
+if [[ -z "${SUPABASE_ACCESS_TOKEN:-}" ]] || [[ ! "$SUPABASE_ACCESS_TOKEN" =~ ^sbp_ ]]; then
+    err "Access token inválido — deve começar com 'sbp_'."
     exit 1
 fi
-SUPABASE_PROJECT_REF="${BASH_REMATCH[1]}"
 
-# 3) Anon key
-echo
-echo "Cole a SUPABASE_ANON_KEY (formato eyJ...). A entrada fica oculta."
-read -rsp "SUPABASE_ANON_KEY: " SUPABASE_ANON_KEY
-echo
-if [[ -z "${SUPABASE_ANON_KEY:-}" ]]; then
-    err "Anon key não pode ser vazia."
+read -rp "SUPABASE_PROJECT_REF (ex: ntlfjekvisepsusbcjsv): " SUPABASE_PROJECT_REF
+SUPABASE_PROJECT_REF="${SUPABASE_PROJECT_REF##*/}"  # tolera URL completa colada
+SUPABASE_PROJECT_REF="${SUPABASE_PROJECT_REF%%\?*}"
+if [[ ! "$SUPABASE_PROJECT_REF" =~ ^[a-z0-9]{20}$ ]]; then
+    err "Project ref inválido — esperado 20 caracteres minúsculos/dígitos (ex: ntlfjekvisepsusbcjsv)."
     exit 1
 fi
-if [[ ! "$SUPABASE_ANON_KEY" =~ ^eyJ ]]; then
-    err "Anon key inválida — deve começar com 'eyJ' (JWT)."
+SUPABASE_URL_INPUT="https://${SUPABASE_PROJECT_REF}.supabase.co"
+
+info "Buscando anon key via Supabase Management API..."
+API_RESP="$(curl -sS -w '\n%{http_code}' \
+    -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+    "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/api-keys?reveal=true" || true)"
+API_BODY="$(echo "$API_RESP" | sed '$d')"
+API_CODE="$(echo "$API_RESP" | tail -n1)"
+
+if [[ "$API_CODE" != "200" ]]; then
+    err "Management API retornou HTTP $API_CODE."
+    err "Resposta: $API_BODY"
+    err "Verifique se o token é válido e tem acesso ao projeto $SUPABASE_PROJECT_REF."
     exit 1
 fi
+
+SUPABASE_ANON_KEY="$(echo "$API_BODY" | jq -r '.[] | select(.name=="anon") | .api_key')"
+if [[ -z "$SUPABASE_ANON_KEY" || "$SUPABASE_ANON_KEY" == "null" ]]; then
+    err "Anon key não encontrada na resposta da API."
+    err "Resposta: $API_BODY"
+    exit 1
+fi
+ok "Anon key obtida automaticamente para o projeto $SUPABASE_PROJECT_REF"
 
 # 4) Domínio + e-mail (perguntados aqui pra ficar tudo no início)
 echo
@@ -101,43 +123,6 @@ read -rp "Domínio [${DOMAIN_DEFAULT}]: " DOMAIN
 DOMAIN="${DOMAIN:-$DOMAIN_DEFAULT}"
 read -rp "E-mail para alertas do Let's Encrypt [${EMAIL_DEFAULT}]: " EMAIL
 EMAIL="${EMAIL:-$EMAIL_DEFAULT}"
-
-# ----------------------------- Validação leve da anon key -------------------
-# Decodifica o JWT só pra confirmar role=anon e que pertence ao mesmo projeto
-# da URL informada. Sem chamadas externas.
-jwt_field() {
-    local jwt="$1" field="$2" payload
-    payload="$(echo "$jwt" | cut -d. -f2)"
-    payload="${payload//-/+}"
-    payload="${payload//_/\/}"
-    case $(( ${#payload} % 4 )) in
-        2) payload="${payload}==" ;;
-        3) payload="${payload}=" ;;
-    esac
-    echo "$payload" | base64 -d 2>/dev/null | jq -r ".${field} // empty"
-}
-
-ANON_REF="$(jwt_field "$SUPABASE_ANON_KEY" "ref")"
-ANON_ROLE="$(jwt_field "$SUPABASE_ANON_KEY" "role")"
-ANON_EXP="$(jwt_field "$SUPABASE_ANON_KEY" "exp")"
-
-if [[ "$ANON_ROLE" != "anon" ]]; then
-    err "A chave informada tem role '$ANON_ROLE' (esperado: 'anon'). Use a anon/publishable key."
-    exit 1
-fi
-if [[ -n "$ANON_REF" && "$ANON_REF" != "$SUPABASE_PROJECT_REF" ]]; then
-    err "Anon key pertence ao projeto '$ANON_REF' mas a URL aponta para '$SUPABASE_PROJECT_REF'."
-    err "Confira se você copiou a URL e a key do MESMO projeto."
-    exit 1
-fi
-if [[ -n "$ANON_EXP" && "$ANON_EXP" =~ ^[0-9]+$ ]]; then
-    NOW="$(date +%s)"
-    if (( ANON_EXP < NOW )); then
-        err "Anon key expirou em $(date -d "@$ANON_EXP" 2>/dev/null || echo "$ANON_EXP")."
-        exit 1
-    fi
-fi
-ok "Anon key válida e pertence ao projeto $SUPABASE_PROJECT_REF"
 
 ###############################################################################
 # STEP 1 — Instalar app (Node + Git + Nginx + build + config SPA)
