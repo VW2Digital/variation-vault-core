@@ -165,72 +165,97 @@ ok "Container iniciado"
 
 # ---------- 5b. Supabase self-hosted (opcional) ------------------------------
 install_supabase_stack() {
-  step "Extra  Subindo Supabase self-hosted (Postgres+Auth+REST+Storage+Studio)"
+  step "Extra  Subindo Postgres + Supabase Studio self-hosted"
+
+  # Configuráveis via env vars (com defaults)
+  local SB_PG_USER="${SB_PG_USER:-postgres}"
+  local SB_PG_DB="${SB_PG_DB:-postgres}"
+  local SB_PG_PORT="${SB_PG_PORT:-5432}"
+  local SB_PG_CONTAINER="${SB_PG_CONTAINER:-liberty-supabase-db}"
+  local SB_PG_VOLUME="${SB_PG_VOLUME:-liberty_supabase_db}"
+  local SB_STUDIO_PORT="${SB_STUDIO_PORT:-3001}"
+  local SB_BIND_HOST="${SB_BIND_HOST:-127.0.0.1}"
 
   local SB_DIR="$APP_DIR/deploy-vps/supabase-stack"
   mkdir -p "$SB_DIR"
 
-  # Senhas geradas se não existirem
+  # Senhas e .env (preserva se já existir)
   local SB_ENV="$SB_DIR/.env"
   if [ ! -f "$SB_ENV" ]; then
-    local PG_PASS JWT_SECRET ANON_KEY SERVICE_KEY DASH_PASS
-    PG_PASS=$(openssl rand -hex 16)
+    local PG_PASS JWT_SECRET DASH_PASS
+    PG_PASS="${SB_PG_PASSWORD:-$(openssl rand -hex 16)}"
     JWT_SECRET=$(openssl rand -hex 32)
     DASH_PASS=$(openssl rand -hex 12)
-    # JWTs anon/service assinados manualmente exigem ferramenta extra; usamos
-    # placeholders documentados — o usuário gera depois com supabase-cli ou jwt.io
-    ANON_KEY="GENERATE_AT_https://supabase.com/docs/guides/self-hosting/docker#api-keys"
-    SERVICE_KEY="$ANON_KEY"
     cat > "$SB_ENV" <<EOF
 # Gerado por install.sh em $(date -Iseconds)
+# Edite valores e rode "docker compose up -d" novamente para aplicar.
+POSTGRES_USER=$SB_PG_USER
+POSTGRES_DB=$SB_PG_DB
 POSTGRES_PASSWORD=$PG_PASS
+POSTGRES_PORT=$SB_PG_PORT
+CONTAINER_NAME=$SB_PG_CONTAINER
+VOLUME_NAME=$SB_PG_VOLUME
+STUDIO_PORT=$SB_STUDIO_PORT
+BIND_HOST=$SB_BIND_HOST
 JWT_SECRET=$JWT_SECRET
-ANON_KEY=$ANON_KEY
-SERVICE_ROLE_KEY=$SERVICE_KEY
 DASHBOARD_USERNAME=admin
 DASHBOARD_PASSWORD=$DASH_PASS
-SITE_URL=http://localhost
+# Gere ANON_KEY e SERVICE_ROLE_KEY assinando o JWT_SECRET acima:
+# https://supabase.com/docs/guides/self-hosting/docker#api-keys
+ANON_KEY=
+SERVICE_ROLE_KEY=
 EOF
-    ok "Senhas geradas em $SB_ENV"
+    chmod 600 "$SB_ENV"
+    ok "Configuração gerada em $SB_ENV (perms 600)"
   else
-    log "$SB_ENV já existe — reaproveitando"
+    log "$SB_ENV já existe — reaproveitando configuração"
+    # shellcheck disable=SC1090
+    source "$SB_ENV"
+    SB_PG_USER="${POSTGRES_USER:-$SB_PG_USER}"
+    SB_PG_DB="${POSTGRES_DB:-$SB_PG_DB}"
+    SB_PG_PORT="${POSTGRES_PORT:-$SB_PG_PORT}"
+    SB_PG_CONTAINER="${CONTAINER_NAME:-$SB_PG_CONTAINER}"
+    SB_PG_VOLUME="${VOLUME_NAME:-$SB_PG_VOLUME}"
+    SB_STUDIO_PORT="${STUDIO_PORT:-$SB_STUDIO_PORT}"
+    SB_BIND_HOST="${BIND_HOST:-$SB_BIND_HOST}"
   fi
 
-  # docker-compose mínimo da stack Supabase (somente Postgres + Studio)
-  # Stack completa oficial é pesada (~10 services); aqui entregamos o essencial
-  # e apontamos a doc oficial pra quem quiser GoTrue/PostgREST/Storage.
+  # docker-compose com volume nomeado e healthcheck robusto.
+  # Tudo configurável via .env vizinho (CONTAINER_NAME, PORT, VOLUME_NAME, etc.)
   cat > "$SB_DIR/docker-compose.yml" <<'YML'
-# Supabase self-hosted minimal — apenas em 127.0.0.1
-# Para a stack COMPLETA (Auth + REST + Storage + Realtime), siga:
-#   https://supabase.com/docs/guides/self-hosting/docker
+# Supabase self-hosted minimal — Postgres persistente + Studio + meta
+# Configure em .env: POSTGRES_USER/PASSWORD/PORT, CONTAINER_NAME, VOLUME_NAME, BIND_HOST
+# Stack COMPLETA (Auth+REST+Storage+Realtime): https://supabase.com/docs/guides/self-hosting/docker
 services:
   db:
     image: supabase/postgres:15.6.1.146
-    container_name: liberty-supabase-db
+    container_name: ${CONTAINER_NAME:-liberty-supabase-db}
     restart: unless-stopped
     ports:
-      - "127.0.0.1:5432:5432"
+      - "${BIND_HOST:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
       JWT_SECRET: ${JWT_SECRET}
     volumes:
-      - supabase_db:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres}"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 20
+      start_period: 15s
 
   studio:
     image: supabase/studio:20240729-ce42139
-    container_name: liberty-supabase-studio
+    container_name: ${CONTAINER_NAME:-liberty-supabase-db}-studio
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "127.0.0.1:3001:3000"
+      - "${BIND_HOST:-127.0.0.1}:${STUDIO_PORT:-3001}:3000"
     environment:
       STUDIO_PG_META_URL: http://meta:8080
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -241,7 +266,7 @@ services:
 
   meta:
     image: supabase/postgres-meta:v0.83.2
-    container_name: liberty-supabase-meta
+    container_name: ${CONTAINER_NAME:-liberty-supabase-db}-meta
     restart: unless-stopped
     depends_on:
       db:
@@ -250,48 +275,97 @@ services:
       PG_META_PORT: 8080
       PG_META_DB_HOST: db
       PG_META_DB_PORT: 5432
-      PG_META_DB_NAME: postgres
-      PG_META_DB_USER: postgres
+      PG_META_DB_NAME: ${POSTGRES_DB:-postgres}
+      PG_META_DB_USER: ${POSTGRES_USER:-postgres}
       PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
 
 volumes:
-  supabase_db:
+  pgdata:
+    name: ${VOLUME_NAME:-liberty_supabase_db}
 YML
 
-  log "Subindo containers Supabase (db + studio + meta)…"
+  log "Subindo containers (db + studio + meta) com volume persistente…"
   if ! (cd "$SB_DIR" && timeout 600 docker compose up -d); then
     err "Falha ao subir Supabase self-hosted. Logs:"
     (cd "$SB_DIR" && docker compose logs --tail=40) || true
     return 1
   fi
 
-  # Aplica schema do projeto se existir
-  if [ -f "$APP_DIR/deploy-vps/supabase/schema.sql" ]; then
-    log "Aguardando Postgres aceitar conexões…"
-    for i in $(seq 1 30); do
-      if docker exec liberty-supabase-db pg_isready -U postgres >/dev/null 2>&1; then
-        break
-      fi
-      sleep 2
-    done
-    log "Aplicando schema.sql…"
-    if docker exec -i liberty-supabase-db psql -U postgres -d postgres \
-        < "$APP_DIR/deploy-vps/supabase/schema.sql" >/tmp/supabase-schema.log 2>&1; then
-      ok "Schema aplicado"
-    else
-      warn "Schema teve erros (algumas linhas podem ser esperadas em re-execução). Veja /tmp/supabase-schema.log"
+  # ----- Healthcheck ativo: espera Postgres aceitar conexões (até 90s) -----
+  log "Aguardando Postgres ficar pronto (pg_isready)…"
+  local READY=0
+  for i in $(seq 1 45); do
+    if docker exec "$SB_PG_CONTAINER" \
+        pg_isready -U "$SB_PG_USER" -d "$SB_PG_DB" >/dev/null 2>&1; then
+      READY=1
+      break
     fi
+    sleep 2
+  done
+  if [ "$READY" != "1" ]; then
+    err "Postgres não respondeu em 90s. Veja: docker logs $SB_PG_CONTAINER"
+    return 1
+  fi
+  ok "Postgres pronto para conexões"
+
+  # ----- Migrations: schema.sql principal -----
+  local SCHEMA_FILE="$APP_DIR/deploy-vps/supabase/schema.sql"
+  if [ -f "$SCHEMA_FILE" ]; then
+    log "Aplicando schema.sql (migration principal)…"
+    if docker exec -i "$SB_PG_CONTAINER" \
+        psql -v ON_ERROR_STOP=0 -U "$SB_PG_USER" -d "$SB_PG_DB" \
+        < "$SCHEMA_FILE" >/tmp/supabase-schema.log 2>&1; then
+      ok "Schema aplicado (log: /tmp/supabase-schema.log)"
+    else
+      warn "Schema teve avisos (esperado em re-execução idempotente). Veja /tmp/supabase-schema.log"
+    fi
+  else
+    warn "schema.sql não encontrado em $SCHEMA_FILE — pulando migration"
+  fi
+
+  # ----- Migrations extras: deploy-vps/supabase/migrations/*.sql -----
+  local MIG_DIR="$APP_DIR/deploy-vps/supabase/migrations"
+  if [ -d "$MIG_DIR" ]; then
+    local applied=0
+    for mig in $(ls -1 "$MIG_DIR"/*.sql 2>/dev/null | sort); do
+      log "Migration: $(basename "$mig")"
+      docker exec -i "$SB_PG_CONTAINER" \
+        psql -v ON_ERROR_STOP=1 -U "$SB_PG_USER" -d "$SB_PG_DB" < "$mig" \
+        >>/tmp/supabase-migrations.log 2>&1 \
+        && applied=$((applied+1)) \
+        || warn "Falha em $(basename "$mig") — veja /tmp/supabase-migrations.log"
+    done
+    [ "$applied" -gt 0 ] && ok "$applied migration(s) extra aplicada(s)"
+  fi
+
+  # ----- Seed: deploy-vps/supabase/seed/*.sql -----
+  local SEED_DIR="$APP_DIR/deploy-vps/supabase/seed"
+  if [ -d "$SEED_DIR" ]; then
+    local seeded=0
+    for seed in $(ls -1 "$SEED_DIR"/*.sql 2>/dev/null | sort); do
+      log "Seed: $(basename "$seed")"
+      docker exec -i "$SB_PG_CONTAINER" \
+        psql -v ON_ERROR_STOP=0 -U "$SB_PG_USER" -d "$SB_PG_DB" < "$seed" \
+        >>/tmp/supabase-seed.log 2>&1 \
+        && seeded=$((seeded+1)) \
+        || warn "Falha em $(basename "$seed") — veja /tmp/supabase-seed.log"
+    done
+    [ "$seeded" -gt 0 ] && ok "$seeded seed(s) executado(s)"
   fi
 
   ok "Supabase self-hosted no ar"
   echo
   echo -e "${GRN}📦 SUPABASE SELF-HOSTED${NC}"
-  echo "   • Postgres:       127.0.0.1:5432  (user: postgres)"
-  echo "   • Studio (UI):    http://127.0.0.1:3001"
-  echo "   • Credenciais:    cat $SB_ENV"
-  echo "   • Acesso remoto:  ssh -L 3001:127.0.0.1:3001 -L 5432:127.0.0.1:5432 root@<vps>"
-  echo "   • Stack completa: https://supabase.com/docs/guides/self-hosting/docker"
-  echo "   • Parar:          cd $SB_DIR && docker compose down"
+  echo "   • Postgres:       $SB_BIND_HOST:$SB_PG_PORT  (user: $SB_PG_USER  db: $SB_PG_DB)"
+  echo "   • Container:      $SB_PG_CONTAINER  (volume: $SB_PG_VOLUME — dados persistem)"
+  echo "   • Studio (UI):    http://$SB_BIND_HOST:$SB_STUDIO_PORT"
+  echo "   • Credenciais:    cat $SB_ENV   (perms 600)"
+  echo "   • Acesso remoto:  ssh -L $SB_STUDIO_PORT:127.0.0.1:$SB_STUDIO_PORT -L $SB_PG_PORT:127.0.0.1:$SB_PG_PORT root@<vps>"
+  echo "   • Conectar:       psql -h $SB_BIND_HOST -p $SB_PG_PORT -U $SB_PG_USER -d $SB_PG_DB"
+  echo "   • Migrations:     coloque .sql em deploy-vps/supabase/migrations/ e re-rode"
+  echo "   • Seed:           coloque .sql em deploy-vps/supabase/seed/ e re-rode"
+  echo "   • Parar:          cd $SB_DIR && docker compose down  (dados ficam no volume)"
+  echo "   • Apagar tudo:    cd $SB_DIR && docker compose down -v"
 }
 
 # Decide se pergunta ou usa env var
