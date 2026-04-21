@@ -100,3 +100,73 @@ describe('CheckoutAuthGate - email já cadastrado', () => {
     expect(onAuthenticated).not.toHaveBeenCalled();
   });
 });
+
+describe('CheckoutAuthGate - autenticação bem-sucedida mantém usuário no checkout', () => {
+  beforeEach(() => {
+    signUpMock.mockReset();
+    signInMock.mockReset();
+    toastMock.mockReset();
+  });
+
+  it('chama onAuthenticated após login bem-sucedido (sem redirecionar para fora do checkout)', async () => {
+    signInMock.mockResolvedValue({
+      data: { user: { id: 'user-1' }, session: { access_token: 'tok' } },
+      error: null,
+    });
+
+    const onAuthenticated = vi.fn();
+    render(<CheckoutAuthGate onAuthenticated={onAuthenticated} />);
+
+    // Trocar para aba de login (Radix Tabs)
+    const loginTab = screen.getByRole('tab', { name: /Já sou cliente/i });
+    fireEvent.pointerDown(loginTab, { button: 0, ctrlKey: false });
+    fireEvent.mouseDown(loginTab, { button: 0 });
+    fireEvent.click(loginTab);
+
+    const loginEmailInput = await screen.findByLabelText(/^Email$/i);
+    const loginPasswordInput = await screen.findByLabelText(/Senha/i);
+    fireEvent.change(loginEmailInput, { target: { value: 'cliente@teste.com' } });
+    fireEvent.change(loginPasswordInput, { target: { value: 'senha123' } });
+
+    const loginButton = await screen.findByRole('button', { name: /Entrar e continuar/i });
+    fireEvent.click(loginButton);
+
+    await waitFor(() => {
+      expect(signInMock).toHaveBeenCalledWith({
+        email: 'cliente@teste.com',
+        password: 'senha123',
+      });
+    });
+
+    // Callback deve ser disparado para o CartCheckout liberar o CheckoutForm
+    await waitFor(() => expect(onAuthenticated).toHaveBeenCalledTimes(1));
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Login realizado!' }),
+    );
+  });
+
+  it('chama onAuthenticated quando o cadastro retorna sessão imediata', async () => {
+    signUpMock.mockResolvedValue({
+      data: {
+        user: { id: 'new-user', identities: [{ id: 'i1' }] },
+        session: { access_token: 'tok' },
+      },
+      error: null,
+    });
+
+    const onAuthenticated = vi.fn();
+    render(<CheckoutAuthGate onAuthenticated={onAuthenticated} />);
+
+    fireEvent.change(screen.getByLabelText(/Nome completo/i), { target: { value: 'Novo Cliente' } });
+    fireEvent.change(screen.getByLabelText(/^Email$/i), { target: { value: 'novo@teste.com' } });
+    fireEvent.change(screen.getByLabelText(/Senha/i), { target: { value: 'senha123' } });
+    fireEvent.click(screen.getByRole('button', { name: /Criar conta e continuar/i }));
+
+    await waitFor(() => expect(onAuthenticated).toHaveBeenCalledTimes(1));
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Conta criada!' }),
+    );
+    // Não deve ter tentado signIn extra (early return ao detectar sessão)
+    expect(signInMock).not.toHaveBeenCalled();
+  });
+});
