@@ -302,8 +302,9 @@ if [[ "$DO_SSL" =~ ^[sSyY]$ ]]; then
   log "Disparando $APP_DIR/deploy-vps/issue-ssl.sh ..."
   if bash "$APP_DIR/deploy-vps/issue-ssl.sh" "$SSL_DOMAIN" "$SSL_EMAIL"; then
     echo
-    echo -e "${GREEN}${BOLD}✓ HTTPS ativo em https://$SSL_DOMAIN${NC}"
-    [ -n "$VPS_PUB_IP" ] && echo -e "   (e em https://www.$SSL_DOMAIN se o DNS do www estiver configurado)"
+    echo -e "${GREEN}${BOLD}✓ HTTPS ativo:${NC}"
+    echo -e "   • https://$SSL_DOMAIN"
+    echo -e "   • https://www.$SSL_DOMAIN  ${YELLOW}(se o DNS do www apontar pra esta VPS)${NC}"
   else
     err "Falha na emissão do SSL. Você pode tentar de novo manualmente:"
     echo "  sudo bash $APP_DIR/deploy-vps/issue-ssl.sh $SSL_DOMAIN $SSL_EMAIL"
