@@ -404,3 +404,6 @@ for FN in melhor-envio-webhook asaas-webhook mercadopago-webhook pagarme-webhook
     echo "    ${SUPABASE_URL_INPUT}/functions/v1/${FN}   (direto Supabase)"
 done
 echo
+echo "  Melhor Envio (URL alternativa, aceita POST na página de configuração):"
+echo "    https://${DOMAIN}/admin/configuracoes/logistica"
+echo
