@@ -45,6 +45,25 @@
 
 set -Eeuo pipefail
 
+# ---------- trap global de erro ---------------------------------------------
+# Sem isso, qualquer falha com stdout redirecionado pra /dev/null fazia o
+# script "sumir" no meio. Agora SEMPRE mostra a linha que falhou + dica.
+on_error() {
+  local exit_code=$?
+  local line_no=${1:-?}
+  echo
+  echo -e "\033[0;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m" >&2
+  echo -e "\033[0;31m✗ FALHA na linha $line_no (exit $exit_code)\033[0m" >&2
+  echo -e "\033[0;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m" >&2
+  echo "Logs salvos em /tmp/install-*.log (se existirem):" >&2
+  ls -1 /tmp/install-*.log /tmp/docker-install.log 2>/dev/null | sed 's/^/  • /' >&2 || true
+  echo >&2
+  echo "Reexecute com debug verboso para ver cada comando:" >&2
+  echo "  sudo bash -x $0 2>&1 | tee /tmp/install-debug.log" >&2
+  exit "$exit_code"
+}
+trap 'on_error $LINENO' ERR
+
 # ---------- estética ---------------------------------------------------------
 RED='\033[0;31m'; GRN='\033[0;32m'; YLW='\033[1;33m'; BLU='\033[0;34m'; NC='\033[0m'
 log()  { echo -e "${BLU}[INFO]${NC} $*"; }
@@ -349,13 +368,35 @@ VITE_SUPABASE_PROJECT_ID="${VITE_SUPABASE_PROJECT_ID:-vkomfiplmhpkhfpidrng}"
 
 # ---------- 1. Sistema base --------------------------------------------------
 step "1/5  Atualizando índice do apt (timeout 120s)"
-timeout 120 apt-get update -qq -o Acquire::Retries=3 >/dev/null 2>&1 || warn "apt update demorou — seguindo assim mesmo"
+# IMPORTANTE: NÃO suprimir stderr — se travar, queremos ver o motivo.
+# Logamos pra arquivo e só escondemos stdout barulhento.
+APT_LOG=/tmp/install-apt.log
+: > "$APT_LOG"
+if ! timeout 120 apt-get update -o Acquire::Retries=3 >>"$APT_LOG" 2>&1; then
+  warn "apt update teve problemas — últimas 15 linhas:"
+  tail -n 15 "$APT_LOG" >&2 || true
+  warn "Seguindo mesmo assim (pacotes podem já estar em cache)"
+fi
 
-log "Instalando dependências mínimas (curl, ca-certificates, git)…"
-timeout 180 apt-get install -y -qq --no-install-recommends \
+log "Instalando dependências mínimas (curl, ca-certificates, git, gnupg)…"
+# Sem `set -e` matando o script — capturamos o código e logamos antes de sair.
+set +e
+timeout 180 apt-get install -y --no-install-recommends \
   -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
-  ca-certificates curl git gnupg >/dev/null
-ok "Dependências base instaladas"
+  ca-certificates curl git gnupg >>"$APT_LOG" 2>&1
+APT_RC=$?
+set -e
+if [ "$APT_RC" -ne 0 ]; then
+  err "apt-get install falhou (código $APT_RC). Últimas 30 linhas do log:"
+  tail -n 30 "$APT_LOG" >&2 || true
+  echo
+  err "Causas comuns:"
+  err "  • dpkg travado:  sudo dpkg --configure -a && sudo apt-get install -f"
+  err "  • repo offline:  verifique /etc/apt/sources.list e DNS"
+  err "  • disco cheio:   df -h /var"
+  exit 1
+fi
+ok "Dependências base instaladas (log: $APT_LOG)"
 
 # ---------- 2. Docker --------------------------------------------------------
 step "2/5  Instalando Docker Engine + Compose plugin"
@@ -363,18 +404,27 @@ if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; 
   ok "Docker e Compose já presentes — $(docker --version | head -c80)"
 else
   log "Baixando script oficial get.docker.com…"
-  if timeout 300 curl -fsSL https://get.docker.com | sh >/tmp/docker-install.log 2>&1; then
+  DOCKER_SH=/tmp/get-docker.sh
+  if ! timeout 60 curl -fsSL --retry 3 --retry-delay 2 \
+      https://get.docker.com -o "$DOCKER_SH"; then
+    err "Não consegui baixar https://get.docker.com — VPS sem acesso à internet?"
+    err "Teste:  curl -v https://get.docker.com"
+    err "Solução comum:  ufw allow out 443/tcp && ufw reload"
+    exit 1
+  fi
+  log "Executando instalador do Docker (~2 min)…"
+  if timeout 300 sh "$DOCKER_SH" >/tmp/docker-install.log 2>&1; then
     ok "Docker instalado"
   else
-    err "Falha ao instalar Docker. Últimas linhas do log:"
-    tail -n 20 /tmp/docker-install.log >&2 || true
+    err "Falha ao instalar Docker. Últimas 25 linhas do log:"
+    tail -n 25 /tmp/docker-install.log >&2 || true
     exit 1
   fi
 
   # Plugin compose (caso não tenha vindo no get.docker.com)
   if ! docker compose version >/dev/null 2>&1; then
     log "Instalando docker-compose-plugin via apt…"
-    timeout 180 apt-get install -y -qq docker-compose-plugin >/dev/null || \
+    timeout 180 apt-get install -y -qq docker-compose-plugin >>"$APT_LOG" 2>&1 || \
       warn "docker-compose-plugin não instalou via apt — tente reiniciar a sessão"
   fi
 fi
