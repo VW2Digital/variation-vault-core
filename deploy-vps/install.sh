@@ -208,7 +208,7 @@ elif [[ "$AUTH_HTTP" == "401" || "$AUTH_HTTP" == "403" ]]; then
     err "A key provavelmente foi revogada. Gere novas chaves no painel do Supabase."
     exit 1
 else
-    warn "/auth/v1/settings retornou HTTP $AUTH_HTTP — seguindo mesmo assim."
+    info "/auth/v1/settings retornou HTTP $AUTH_HTTP — seguindo mesmo assim."
 fi
 
 ok "Validação cruzada concluída — todas as credenciais batem com $SUPABASE_PROJECT_REF"
