@@ -214,6 +214,15 @@ server {
         try_files $uri =404;
     }
 
+    # Healthcheck — usado pelo instalador, monitoramento e load balancer.
+    # Não requer SSL nem JS; resposta texto puro com 200.
+    location = /healthz {
+        access_log off;
+        add_header Content-Type text/plain;
+        add_header Cache-Control "no-store";
+        return 200 "ok\n";
+    }
+
     # Fallback SPA (React Router)
     location / {
         try_files $uri $uri/ /index.html;
