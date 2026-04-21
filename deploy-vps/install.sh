@@ -789,19 +789,19 @@ fi
 
 if [ "${SUPABASE_INSTALLED:-0}" = "1" ]; then
   echo -e "${BLU}🗄️  BANCO DE DADOS (Supabase self-hosted)${NC}"
-  echo "   Postgres:        $SB_BIND_HOST:$SB_PG_PORT  (user: $SB_PG_USER  db: $SB_PG_DB)"
-  echo "   Studio (UI):     http://$SB_BIND_HOST:$SB_STUDIO_PORT"
-  echo "   Credenciais:     sudo cat $SB_ENV"
+  echo "   Postgres:        ${SB_BIND_HOST:-127.0.0.1}:${SB_PG_PORT:-5432}  (user: ${SB_PG_USER:-postgres}  db: ${SB_PG_DB:-postgres})"
+  echo "   Studio (UI):     http://${SB_BIND_HOST:-127.0.0.1}:${SB_STUDIO_PORT:-3001}"
+  echo "   Credenciais:     sudo cat ${SB_ENV:-$APP_DIR/deploy-vps/supabase-stack/.env}"
   echo
   echo -e "${BLU}✅ VERIFICAR BANCO${NC}"
-  echo "   docker exec $SB_PG_CONTAINER pg_isready -U $SB_PG_USER -d $SB_PG_DB"
-  echo "   docker exec -it $SB_PG_CONTAINER psql -U $SB_PG_USER -d $SB_PG_DB -c '\\dt'"
-  echo "   docker logs --tail=30 $SB_PG_CONTAINER"
+  echo "   docker exec ${SB_PG_CONTAINER:-liberty-supabase-db} pg_isready -U ${SB_PG_USER:-postgres} -d ${SB_PG_DB:-postgres}"
+  echo "   docker exec -it ${SB_PG_CONTAINER:-liberty-supabase-db} psql -U ${SB_PG_USER:-postgres} -d ${SB_PG_DB:-postgres} -c '\\dt'"
+  echo "   docker logs --tail=30 ${SB_PG_CONTAINER:-liberty-supabase-db}"
   echo
   echo -e "${BLU}🔌 ACESSO REMOTO AO BANCO (SSH tunnel)${NC}"
   echo "   # Do seu computador local:"
-  echo "   ssh -L $SB_STUDIO_PORT:127.0.0.1:$SB_STUDIO_PORT -L $SB_PG_PORT:127.0.0.1:$SB_PG_PORT root@$IP"
-  echo "   # Depois abra: http://localhost:$SB_STUDIO_PORT"
+  echo "   ssh -L ${SB_STUDIO_PORT:-3001}:127.0.0.1:${SB_STUDIO_PORT:-3001} -L ${SB_PG_PORT:-5432}:127.0.0.1:${SB_PG_PORT:-5432} root@$IP"
+  echo "   # Depois abra: http://localhost:${SB_STUDIO_PORT:-3001}"
   echo
 fi
 
@@ -815,7 +815,7 @@ echo
 echo -e "${BLU}🛟 BACKUP RECOMENDADO${NC}"
 if [ "${SUPABASE_INSTALLED:-0}" = "1" ]; then
   echo "   # Dump SQL diário do banco:"
-  echo "   docker exec $SB_PG_CONTAINER pg_dump -U $SB_PG_USER $SB_PG_DB | gzip > /root/backup-\$(date +%F).sql.gz"
+  echo "   docker exec ${SB_PG_CONTAINER:-liberty-supabase-db} pg_dump -U ${SB_PG_USER:-postgres} ${SB_PG_DB:-postgres} | gzip > /root/backup-\$(date +%F).sql.gz"
 fi
 echo "   # Snapshot do volume Docker:"
 echo "   docker run --rm -v liberty_supabase_db:/v -v /root:/b alpine tar czf /b/db-vol-\$(date +%F).tgz -C /v ."
@@ -828,8 +828,8 @@ echo "   Restart app:       docker compose -f $APP_DIR/docker-compose.yml restar
 echo "   Parar tudo:        docker compose -f $APP_DIR/docker-compose.yml down"
 echo "   Logs em tempo real: docker compose -f $APP_DIR/docker-compose.yml logs -f"
 if [ "${SUPABASE_INSTALLED:-0}" = "1" ]; then
-  echo "   Restart banco:     cd $SB_DIR && docker compose restart"
-  echo "   Parar banco:       cd $SB_DIR && docker compose down  (dados preservados)"
+  echo "   Restart banco:     cd ${SB_DIR:-$APP_DIR/deploy-vps/supabase-stack} && docker compose restart"
+  echo "   Parar banco:       cd ${SB_DIR:-$APP_DIR/deploy-vps/supabase-stack} && docker compose down  (dados preservados)"
 fi
 echo
 echo -e "${BLU}📚 DOCUMENTAÇÃO${NC}"
