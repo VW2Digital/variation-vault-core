@@ -211,6 +211,13 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 ok "Compose: $(docker compose version --short)"
 
+# Certbot — necessário para emitir/renovar SSL depois via issue-ssl.sh
+if ! command -v certbot >/dev/null 2>&1; then
+  log "Instalando Certbot (Let's Encrypt)..."
+  apt-get install -y -qq certbot
+fi
+ok "Certbot: $(certbot --version 2>&1 | head -n1)"
+
 # ============================================================================
 # Etapa 4: .env + build
 # ============================================================================
