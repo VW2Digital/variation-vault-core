@@ -246,6 +246,73 @@ nginx -t
 systemctl reload nginx
 ok "Nginx servindo $APP_DIR/dist na porta 80"
 
+# ----------------------------- Verificação pós-build ------------------------
+# Confirma que o app foi buildado contra o Supabase EXTERNO (e não Lovable Cloud)
+# e que o servidor está realmente respondendo.
+info "Executando verificação pós-build..."
+
+VERIFY_FAIL=0
+
+# 1) dist/index.html existe
+if [[ ! -f "$APP_DIR/dist/index.html" ]]; then
+    err "[verify] dist/index.html não foi gerado."
+    VERIFY_FAIL=1
+else
+    ok "[verify] dist/index.html presente"
+fi
+
+# 2) URL do Supabase externo aparece em algum bundle JS
+if grep -rq "${SUPABASE_PROJECT_REF}.supabase.co" "$APP_DIR/dist/assets/" 2>/dev/null; then
+    ok "[verify] Bundle aponta para ${SUPABASE_PROJECT_REF}.supabase.co"
+else
+    err "[verify] Bundle NÃO contém a URL do Supabase externo. .env não foi aplicado no build."
+    VERIFY_FAIL=1
+fi
+
+# 3) Bundle não contém URL do Lovable Cloud (regressão)
+if grep -rq "vkomfiplmhpkhfpidrng.supabase.co" "$APP_DIR/dist/assets/" 2>/dev/null; then
+    err "[verify] Bundle contém referência ao Lovable Cloud (vkomfiplmhpkhfpidrng). Build incorreto."
+    VERIFY_FAIL=1
+else
+    ok "[verify] Bundle livre de referências ao Lovable Cloud"
+fi
+
+# 4) Endpoint Supabase externo está acessível com a anon key (espera 200 ou 404)
+SB_HTTP="$(curl -sS -o /dev/null -w '%{http_code}' \
+    -H "apikey: ${SUPABASE_ANON_KEY}" \
+    -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+    "${SUPABASE_URL_INPUT}/rest/v1/" || echo "000")"
+if [[ "$SB_HTTP" == "200" || "$SB_HTTP" == "404" ]]; then
+    ok "[verify] Supabase externo respondeu HTTP $SB_HTTP com a anon key"
+else
+    err "[verify] Supabase externo retornou HTTP $SB_HTTP — chave inválida ou projeto inacessível"
+    VERIFY_FAIL=1
+fi
+
+# 5) Healthcheck do Nginx local
+HEALTH_HTTP="$(curl -sS -o /tmp/healthz.out -w '%{http_code}' http://127.0.0.1/healthz || echo "000")"
+if [[ "$HEALTH_HTTP" == "200" ]] && grep -q '^ok' /tmp/healthz.out; then
+    ok "[verify] Nginx /healthz respondendo 200 OK"
+else
+    err "[verify] /healthz retornou HTTP $HEALTH_HTTP — Nginx não está servindo corretamente"
+    VERIFY_FAIL=1
+fi
+
+# 6) index.html é servido pela raiz
+ROOT_HTTP="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1/ || echo "000")"
+if [[ "$ROOT_HTTP" == "200" ]]; then
+    ok "[verify] Nginx servindo index.html na raiz (HTTP 200)"
+else
+    err "[verify] Raiz retornou HTTP $ROOT_HTTP"
+    VERIFY_FAIL=1
+fi
+
+if [[ "$VERIFY_FAIL" -eq 1 ]]; then
+    err "Verificação pós-build encontrou problemas. Revise os erros acima antes de continuar."
+    exit 1
+fi
+ok "Verificação pós-build concluída sem erros"
+
 ###############################################################################
 # STEP 2 — Certbot (SSL)
 ###############################################################################
