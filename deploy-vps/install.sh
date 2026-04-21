@@ -203,10 +203,22 @@ fi
 ok "SSL configurado para $DOMAIN"
 
 ###############################################################################
-# STEP 3 — Supabase Classic Access Token
+# STEP 3 — Supabase: Project Ref + Classic Access Token
 ###############################################################################
-step "STEP 3 — Salvando Supabase Classic Access Token"
+step "STEP 3 — Salvando credenciais Supabase"
 
+SUPABASE_PROJECT_REF_DEFAULT="vkomfiplmhpkhfpidrng"
+
+echo "Project Ref do Supabase (ID do projeto, ex: ntlfjekvisepsusbcjsv)."
+echo "Encontre em: Supabase Dashboard → Project Settings → General → Reference ID"
+read -rp "SUPABASE_PROJECT_REF [${SUPABASE_PROJECT_REF_DEFAULT}]: " SUPABASE_PROJECT_REF
+SUPABASE_PROJECT_REF="${SUPABASE_PROJECT_REF:-$SUPABASE_PROJECT_REF_DEFAULT}"
+if [[ -z "${SUPABASE_PROJECT_REF:-}" ]]; then
+    err "Project Ref não pode ser vazio."
+    exit 1
+fi
+
+echo
 echo "Cole seu Classic Personal Access Token do Supabase."
 echo "Obtenha em: https://supabase.com/dashboard/account/tokens"
 read -rsp "SUPABASE_ACCESS_TOKEN: " SUPABASE_TOKEN
@@ -218,11 +230,15 @@ fi
 
 ENV_FILE="$APP_DIR/.env"
 touch "$ENV_FILE"
-sed -i '/^SUPABASE_ACCESS_TOKEN=/d' "$ENV_FILE"
-echo "SUPABASE_ACCESS_TOKEN=${SUPABASE_TOKEN}" >> "$ENV_FILE"
+# Remove linhas antigas (se existirem) e adiciona as novas
+sed -i '/^SUPABASE_ACCESS_TOKEN=/d;/^SUPABASE_PROJECT_REF=/d' "$ENV_FILE"
+{
+    echo "SUPABASE_PROJECT_REF=${SUPABASE_PROJECT_REF}"
+    echo "SUPABASE_ACCESS_TOKEN=${SUPABASE_TOKEN}"
+} >> "$ENV_FILE"
 chmod 600 "$ENV_FILE"
 chown root:root "$ENV_FILE"
-ok "Token salvo em $ENV_FILE (chmod 600)"
+ok "Credenciais salvas em $ENV_FILE (chmod 600)"
 
 ###############################################################################
 # Resumo final
