@@ -24,12 +24,16 @@ interface WebhookUrlCardProps {
  */
 const WebhookUrlCard = ({ gatewayName, functionSlug, cadastroHint, eventos }: WebhookUrlCardProps) => {
   const { toast } = useToast();
-  const [baseUrl, setBaseUrl] = useState<string>(import.meta.env.VITE_SUPABASE_URL as string);
+  // Lê a URL diretamente do client Supabase em runtime — sempre reflete o projeto
+  // efetivamente conectado, mesmo se o .env do build estiver errado/desatualizado.
+  const clientUrl = (((supabase as any).supabaseUrl as string) || '').replace(/\/+$/, '');
+  const buildUrl = ((import.meta.env.VITE_SUPABASE_URL as string) || '').replace(/\/+$/, '');
+  const [baseUrl, setBaseUrl] = useState<string>(clientUrl || buildUrl);
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<{ status: number; ok: boolean; latencyMs: number; error?: string } | null>(null);
 
-  // Override em runtime: lê site_settings.supabase_url_override se existir.
-  // Útil quando o build foi gerado com VITE_SUPABASE_URL errado (ex.: VPS com .env de exemplo).
+  // Override manual opcional: se o admin salvou supabase_url_override em site_settings,
+  // ele tem precedência (caso queira apontar webhooks para outro projeto).
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -48,8 +52,8 @@ const WebhookUrlCard = ({ gatewayName, functionSlug, cadastroHint, eventos }: We
   }, []);
 
   const url = `${baseUrl}/functions/v1/${functionSlug}`;
-  const buildUrl = import.meta.env.VITE_SUPABASE_URL as string;
-  const mismatch = baseUrl && buildUrl && baseUrl !== buildUrl;
+  // Avisa apenas quando o admin sobrescreveu manualmente para algo diferente do client real.
+  const mismatch = !!baseUrl && !!clientUrl && baseUrl !== clientUrl;
 
   const copy = () => {
     navigator.clipboard.writeText(url);
@@ -142,7 +146,7 @@ const WebhookUrlCard = ({ gatewayName, functionSlug, cadastroHint, eventos }: We
         <div className="flex items-start gap-2 text-xs rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-amber-700 dark:text-amber-400">
           <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
           <span>
-            URL sobrescrita via <strong>site_settings.supabase_url_override</strong> (build apontava para <code className="break-all">{buildUrl}</code>).
+            URL sobrescrita via <strong>site_settings.supabase_url_override</strong> (projeto conectado: <code className="break-all">{clientUrl}</code>).
           </span>
         </div>
       )}
