@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Image, Palette, Type, Code, LayoutDashboard, CreditCard, Truck, MessageSquare, FileText, Settings, Plug, Tags, ShieldCheck, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ChevronRight } from 'lucide-react';
+import SiteUrlCard from '@/components/admin/SiteUrlCard';
 
 const categories = [
   {
@@ -79,6 +80,8 @@ const SettingsIndex = () => {
           <p className="text-sm text-muted-foreground mt-1">Gerencie as integrações e preferências da loja.</p>
         </div>
       </div>
+
+      <SiteUrlCard />
 
       {categories.map((category) => (
         <div key={category.label} className="space-y-1">
