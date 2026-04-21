@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -23,9 +24,32 @@ interface WebhookUrlCardProps {
  */
 const WebhookUrlCard = ({ gatewayName, functionSlug, cadastroHint, eventos }: WebhookUrlCardProps) => {
   const { toast } = useToast();
-  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionSlug}`;
+  const [baseUrl, setBaseUrl] = useState<string>(import.meta.env.VITE_SUPABASE_URL as string);
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<{ status: number; ok: boolean; latencyMs: number; error?: string } | null>(null);
+
+  // Override em runtime: lê site_settings.supabase_url_override se existir.
+  // Útil quando o build foi gerado com VITE_SUPABASE_URL errado (ex.: VPS com .env de exemplo).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'supabase_url_override')
+        .maybeSingle();
+      if (!cancelled && data?.value && /^https?:\/\//.test(data.value)) {
+        setBaseUrl(data.value.replace(/\/+$/, ''));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const url = `${baseUrl}/functions/v1/${functionSlug}`;
+  const buildUrl = import.meta.env.VITE_SUPABASE_URL as string;
+  const mismatch = baseUrl && buildUrl && baseUrl !== buildUrl;
 
   const copy = () => {
     navigator.clipboard.writeText(url);
@@ -112,6 +136,14 @@ const WebhookUrlCard = ({ gatewayName, functionSlug, cadastroHint, eventos }: We
           <span>Eventos recomendados: {eventos.map((e, i) => (
             <span key={e}>{i > 0 && ', '}<strong>{e}</strong></span>
           ))}.</span>
+        </div>
+      )}
+      {mismatch && (
+        <div className="flex items-start gap-2 text-xs rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-amber-700 dark:text-amber-400">
+          <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <span>
+            URL sobrescrita via <strong>site_settings.supabase_url_override</strong> (build apontava para <code className="break-all">{buildUrl}</code>).
+          </span>
         </div>
       )}
     </div>
