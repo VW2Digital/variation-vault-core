@@ -284,15 +284,41 @@ fi
 ok "SSL configurado para $DOMAIN"
 
 ###############################################################################
-# STEP 3 — Confirmação das credenciais Supabase já aplicadas no build
+# STEP 3 — Aplica schema SQL no Supabase externo via Management API
 ###############################################################################
-step "STEP 3 — Supabase externo configurado"
+step "STEP 3 — Provisionando schema do banco no Supabase"
 
-ok "URL ............ $SUPABASE_URL_INPUT"
-ok "Project Ref .... $SUPABASE_PROJECT_REF"
-ok "Anon Key ....... ${SUPABASE_ANON_KEY:0:20}... (${#SUPABASE_ANON_KEY} chars)"
-ok "Arquivo ........ $ENV_FILE (chmod 600)"
-info "Credenciais aplicadas no bundle Vite durante o build acima."
+SCHEMA_FILE="$APP_DIR/deploy-vps/supabase/schema.sql"
+if [[ ! -f "$SCHEMA_FILE" ]]; then
+    err "schema.sql não encontrado em $SCHEMA_FILE"
+    exit 1
+fi
+
+info "Aplicando $SCHEMA_FILE via Management API (pode levar alguns segundos)..."
+# Empacota o SQL como JSON via jq pra escapar tudo corretamente
+SCHEMA_PAYLOAD="$(jq -Rs '{query: .}' < "$SCHEMA_FILE")"
+
+SCHEMA_HTTP_CODE="$(curl -sS -o /tmp/schema_apply.log -w '%{http_code}' \
+    -X POST \
+    -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$SCHEMA_PAYLOAD" \
+    "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/database/query")"
+
+if [[ "$SCHEMA_HTTP_CODE" =~ ^2 ]]; then
+    ok "Schema aplicado com sucesso (HTTP $SCHEMA_HTTP_CODE)"
+else
+    err "Falha ao aplicar schema (HTTP $SCHEMA_HTTP_CODE)."
+    err "Resposta: $(cat /tmp/schema_apply.log)"
+    err "Você pode aplicar manualmente colando $SCHEMA_FILE no SQL Editor do Supabase."
+fi
+
+echo
+ok "URL ................ $SUPABASE_URL_INPUT"
+ok "Project Ref ........ $SUPABASE_PROJECT_REF"
+ok "Anon key ........... ${SUPABASE_ANON_KEY:0:24}... (auto via Management API)"
+ok "Service role key ... ${SUPABASE_SERVICE_ROLE_KEY:0:24}... (auto via Management API)"
+ok "Access token ....... sbp_*** (oculto, salvo em $ENV_FILE)"
 
 ###############################################################################
 # Resumo final
