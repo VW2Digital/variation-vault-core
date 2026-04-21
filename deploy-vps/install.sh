@@ -266,8 +266,51 @@ echo -e "${GREEN}${BOLD}╚═════════════════�
 echo
 echo -e "${BOLD}Acesse:${NC} http://$(hostname -I | awk '{print $1}')"
 echo
-echo -e "${YELLOW}SSL (HTTPS):${NC} aponte o DNS para esta VPS e rode:"
-echo "  sudo bash $APP_DIR/deploy-vps/issue-ssl.sh seudominio.com seu@email.com"
-echo
 echo -e "${YELLOW}Webhook secret gerado:${NC} verifique em $APP_DIR/.env (linha SUPABASE_WEBHOOK_SECRET)"
+echo
+
+# ============================================================================
+# Etapa 5: SSL (opcional)
+# ============================================================================
+echo -e "${BOLD}━━━ Etapa 5/5 · HTTPS / SSL (Let's Encrypt) ━━━${NC}"
+echo -e "${YELLOW}Importante:${NC} antes de continuar, garanta que os registros DNS"
+echo -e "do seu domínio (apex e ${BOLD}www${NC}) já apontam para o IP desta VPS:"
+VPS_PUB_IP=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+echo -e "  IP da VPS: ${BOLD}${VPS_PUB_IP}${NC}"
+echo -e "  Verifique com: ${BOLD}dig +short seudominio.com${NC}"
+echo
+read -r -p "Deseja emitir o certificado SSL agora? [s/N] " DO_SSL
+DO_SSL="$(clean "$DO_SSL")"
+
+if [[ "$DO_SSL" =~ ^[sSyY]$ ]]; then
+  while true; do
+    echo
+    read -r -p "Domínio (sem https://, ex: luminaeliberty.net): " SSL_DOMAIN
+    SSL_DOMAIN="$(clean "$SSL_DOMAIN")"
+    SSL_DOMAIN="${SSL_DOMAIN#http://}"; SSL_DOMAIN="${SSL_DOMAIN#https://}"
+    SSL_DOMAIN="${SSL_DOMAIN%%/*}"; SSL_DOMAIN="${SSL_DOMAIN#www.}"
+    [[ "$SSL_DOMAIN" =~ ^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]] && break
+    err "Domínio inválido."
+  done
+  while true; do
+    read -r -p "E-mail para Let's Encrypt (avisos de expiração): " SSL_EMAIL
+    SSL_EMAIL="$(clean "$SSL_EMAIL")"
+    [[ "$SSL_EMAIL" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[a-zA-Z]{2,}$ ]] && break
+    err "E-mail inválido."
+  done
+
+  log "Disparando $APP_DIR/deploy-vps/issue-ssl.sh ..."
+  if bash "$APP_DIR/deploy-vps/issue-ssl.sh" "$SSL_DOMAIN" "$SSL_EMAIL"; then
+    echo
+    echo -e "${GREEN}${BOLD}✓ HTTPS ativo em https://$SSL_DOMAIN${NC}"
+    [ -n "$VPS_PUB_IP" ] && echo -e "   (e em https://www.$SSL_DOMAIN se o DNS do www estiver configurado)"
+  else
+    err "Falha na emissão do SSL. Você pode tentar de novo manualmente:"
+    echo "  sudo bash $APP_DIR/deploy-vps/issue-ssl.sh $SSL_DOMAIN $SSL_EMAIL"
+  fi
+else
+  echo
+  echo -e "${YELLOW}SSL pulado.${NC} Quando o DNS estiver pronto, rode:"
+  echo "  sudo bash $APP_DIR/deploy-vps/issue-ssl.sh seudominio.com seu@email.com"
+fi
 echo
