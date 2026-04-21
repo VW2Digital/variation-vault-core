@@ -163,6 +163,166 @@ log "docker compose up -d…"
 docker compose up -d
 ok "Container iniciado"
 
+# ---------- 5b. Supabase self-hosted (opcional) ------------------------------
+install_supabase_stack() {
+  step "Extra  Subindo Supabase self-hosted (Postgres+Auth+REST+Storage+Studio)"
+
+  local SB_DIR="$APP_DIR/deploy-vps/supabase-stack"
+  mkdir -p "$SB_DIR"
+
+  # Senhas geradas se não existirem
+  local SB_ENV="$SB_DIR/.env"
+  if [ ! -f "$SB_ENV" ]; then
+    local PG_PASS JWT_SECRET ANON_KEY SERVICE_KEY DASH_PASS
+    PG_PASS=$(openssl rand -hex 16)
+    JWT_SECRET=$(openssl rand -hex 32)
+    DASH_PASS=$(openssl rand -hex 12)
+    # JWTs anon/service assinados manualmente exigem ferramenta extra; usamos
+    # placeholders documentados — o usuário gera depois com supabase-cli ou jwt.io
+    ANON_KEY="GENERATE_AT_https://supabase.com/docs/guides/self-hosting/docker#api-keys"
+    SERVICE_KEY="$ANON_KEY"
+    cat > "$SB_ENV" <<EOF
+# Gerado por install.sh em $(date -Iseconds)
+POSTGRES_PASSWORD=$PG_PASS
+JWT_SECRET=$JWT_SECRET
+ANON_KEY=$ANON_KEY
+SERVICE_ROLE_KEY=$SERVICE_KEY
+DASHBOARD_USERNAME=admin
+DASHBOARD_PASSWORD=$DASH_PASS
+SITE_URL=http://localhost
+EOF
+    ok "Senhas geradas em $SB_ENV"
+  else
+    log "$SB_ENV já existe — reaproveitando"
+  fi
+
+  # docker-compose mínimo da stack Supabase (somente Postgres + Studio)
+  # Stack completa oficial é pesada (~10 services); aqui entregamos o essencial
+  # e apontamos a doc oficial pra quem quiser GoTrue/PostgREST/Storage.
+  cat > "$SB_DIR/docker-compose.yml" <<'YML'
+# Supabase self-hosted minimal — apenas em 127.0.0.1
+# Para a stack COMPLETA (Auth + REST + Storage + Realtime), siga:
+#   https://supabase.com/docs/guides/self-hosting/docker
+services:
+  db:
+    image: supabase/postgres:15.6.1.146
+    container_name: liberty-supabase-db
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+      JWT_SECRET: ${JWT_SECRET}
+    volumes:
+      - supabase_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  studio:
+    image: supabase/studio:20240729-ce42139
+    container_name: liberty-supabase-studio
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DEFAULT_ORGANIZATION_NAME: Liberty
+      DEFAULT_PROJECT_NAME: liberty-pharma
+      DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
+      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
+
+  meta:
+    image: supabase/postgres-meta:v0.83.2
+    container_name: liberty-supabase-meta
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: postgres
+      PG_META_DB_USER: postgres
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+volumes:
+  supabase_db:
+YML
+
+  log "Subindo containers Supabase (db + studio + meta)…"
+  if ! (cd "$SB_DIR" && timeout 600 docker compose up -d); then
+    err "Falha ao subir Supabase self-hosted. Logs:"
+    (cd "$SB_DIR" && docker compose logs --tail=40) || true
+    return 1
+  fi
+
+  # Aplica schema do projeto se existir
+  if [ -f "$APP_DIR/deploy-vps/supabase/schema.sql" ]; then
+    log "Aguardando Postgres aceitar conexões…"
+    for i in $(seq 1 30); do
+      if docker exec liberty-supabase-db pg_isready -U postgres >/dev/null 2>&1; then
+        break
+      fi
+      sleep 2
+    done
+    log "Aplicando schema.sql…"
+    if docker exec -i liberty-supabase-db psql -U postgres -d postgres \
+        < "$APP_DIR/deploy-vps/supabase/schema.sql" >/tmp/supabase-schema.log 2>&1; then
+      ok "Schema aplicado"
+    else
+      warn "Schema teve erros (algumas linhas podem ser esperadas em re-execução). Veja /tmp/supabase-schema.log"
+    fi
+  fi
+
+  ok "Supabase self-hosted no ar"
+  echo
+  echo -e "${GRN}📦 SUPABASE SELF-HOSTED${NC}"
+  echo "   • Postgres:       127.0.0.1:5432  (user: postgres)"
+  echo "   • Studio (UI):    http://127.0.0.1:3001"
+  echo "   • Credenciais:    cat $SB_ENV"
+  echo "   • Acesso remoto:  ssh -L 3001:127.0.0.1:3001 -L 5432:127.0.0.1:5432 root@<vps>"
+  echo "   • Stack completa: https://supabase.com/docs/guides/self-hosting/docker"
+  echo "   • Parar:          cd $SB_DIR && docker compose down"
+}
+
+# Decide se pergunta ou usa env var
+SHOULD_INSTALL_SUPABASE="${INSTALL_SUPABASE:-}"
+if [ -z "$SHOULD_INSTALL_SUPABASE" ]; then
+  if [ -t 0 ] && [ -t 1 ]; then
+    echo
+    echo -e "${YLW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YLW}OPCIONAL: Instalar Supabase self-hosted local?${NC}"
+    echo "Sobe Postgres + Studio em containers, expostos apenas em 127.0.0.1."
+    echo "Útil pra rodar o backend offline. Não interfere no Lovable Cloud."
+    echo -e "${YLW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    read -r -p "Instalar Supabase self-hosted? [y/N] " ANSWER </dev/tty || ANSWER="n"
+    case "${ANSWER,,}" in
+      y|yes|s|sim) SHOULD_INSTALL_SUPABASE="yes" ;;
+      *)           SHOULD_INSTALL_SUPABASE="no"  ;;
+    esac
+  else
+    SHOULD_INSTALL_SUPABASE="no"
+    log "Modo não-interativo: pulando Supabase self-hosted (use INSTALL_SUPABASE=yes para forçar)"
+  fi
+fi
+
+if [ "${SHOULD_INSTALL_SUPABASE,,}" = "yes" ]; then
+  if ! command -v openssl >/dev/null 2>&1; then
+    log "Instalando openssl (necessário para gerar senhas)…"
+    timeout 60 apt-get install -y -qq openssl >/dev/null || warn "openssl não instalou"
+  fi
+  install_supabase_stack || warn "Supabase self-hosted falhou — app principal segue funcionando"
+fi
+
 # ---------- health check -----------------------------------------------------
 step "Health check HTTP (até 60s)"
 HEALTHY=0
