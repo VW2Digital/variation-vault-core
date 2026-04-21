@@ -338,6 +338,9 @@ echo
 echo "Para atualizar o app no futuro (mantém o .env com Supabase externo):"
 echo "  cd $APP_DIR && git pull && npm install && npm run build && systemctl reload nginx"
 echo
-echo "IMPORTANTE: o schema do banco precisa estar criado no seu Supabase."
-echo "Use o SQL em deploy-vps/supabase/schema.sql para provisionar tudo."
+echo "Próximos passos no painel do Supabase (https://supabase.com/dashboard/project/${SUPABASE_PROJECT_REF}):"
+echo "  1) Auth → Users: crie seu primeiro usuário admin"
+echo "  2) SQL Editor: INSERT INTO public.user_roles (user_id, role) VALUES ('UUID', 'admin');"
+echo "  3) Edge Functions: deploy via Supabase CLI (supabase functions deploy --no-verify-jwt)"
+echo "  4) Functions → Settings: adicione secrets (RESEND_API_KEY, MP_WEBHOOK_SECRET, etc)"
 echo
