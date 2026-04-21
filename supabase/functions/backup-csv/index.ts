@@ -44,19 +44,26 @@ const parseCSV = (text: string): Record<string, string>[] => {
     } else {
       if (ch === '"') inQuotes = true;
       else if (ch === ",") { cur.push(field); field = ""; }
-      else if (ch === "\n") { cur.push(field); rows.push(cur); cur = []; field = ""; }
-      else if (ch === "\r") continue;
+      else if (ch === "\n" || ch === "\r") {
+        // Handle \r\n by skipping the \n that follows \r
+        if (ch === "\r" && text[i + 1] === "\n") i++;
+        cur.push(field); rows.push(cur); cur = []; field = "";
+      }
       else field += ch;
     }
   }
+  // Flush trailing line (file may not end with newline)
   if (field.length > 0 || cur.length > 0) { cur.push(field); rows.push(cur); }
   if (rows.length < 2) return [];
   const headers = rows[0];
-  return rows.slice(1).filter(r => r.length === headers.length).map((r) => {
-    const obj: Record<string, string> = {};
-    headers.forEach((h, idx) => { obj[h] = r[idx]; });
-    return obj;
-  });
+  return rows.slice(1)
+    // Drop fully empty trailing rows but keep partial rows (pad with empty)
+    .filter(r => !(r.length === 1 && r[0] === ""))
+    .map((r) => {
+      const obj: Record<string, string> = {};
+      headers.forEach((h, idx) => { obj[h] = r[idx] ?? ""; });
+      return obj;
+    });
 };
 
 // Coerce CSV string values back to proper types for Postgres
