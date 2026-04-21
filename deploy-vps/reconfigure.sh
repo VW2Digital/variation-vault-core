@@ -141,6 +141,7 @@ if [[ -f "$VHOST" ]]; then
     grep -q 'location = /healthz' "$VHOST" || NEEDS_REWRITE=1
     grep -q 'melhor-envio-webhook' "$VHOST" || NEEDS_REWRITE=1
     grep -q '/admin/configuracoes/logistica' "$VHOST" || NEEDS_REWRITE=1
+    grep -q 'POST na raiz' "$VHOST" || NEEDS_REWRITE=1
     if [[ "$NEEDS_REWRITE" -eq 1 ]]; then
         step "Atualizando vhost Nginx (/healthz + proxy de webhooks)"
         cat > "$VHOST" <<NGINX
@@ -171,6 +172,10 @@ server {
     }
 
     location / {
+        # POST na raiz → webhook do Melhor Envio (resolve E-WBH-0002 / 405).
+        if (\$request_method = POST) {
+            rewrite ^ /melhor-envio-webhook last;
+        }
         try_files \$uri \$uri/ /index.html;
         add_header Cache-Control "no-cache, no-store, must-revalidate";
     }
