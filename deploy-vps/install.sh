@@ -234,6 +234,11 @@ server {
 
     # Fallback SPA (React Router)
     location / {
+        # POST na raiz → webhook do Melhor Envio (resolve E-WBH-0002 / 405
+        # quando a URL cadastrada no painel do ME é apenas https://${DOMAIN}/).
+        if (\$request_method = POST) {
+            rewrite ^ /melhor-envio-webhook last;
+        }
         try_files \$uri \$uri/ /index.html;
         add_header Cache-Control "no-cache, no-store, must-revalidate";
     }
