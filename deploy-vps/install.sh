@@ -250,6 +250,7 @@ echo -e "${GREEN}╚════════════════════
 echo
 ok "App Vite/React buildado e servido via Nginx → $APP_DIR/dist/"
 ok "Certificado SSL configurado para $DOMAIN"
+ok "Supabase Project Ref: $SUPABASE_PROJECT_REF"
 ok "Token Supabase salvo em $ENV_FILE (chmod 600)"
 echo
 echo -e "${BLUE}Acesse: https://${DOMAIN}${NC}"
