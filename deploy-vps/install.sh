@@ -183,14 +183,32 @@ fi
 URL_HTTP="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
     -H "apikey: ${SUPABASE_ANON_KEY}" \
     "${SUPABASE_URL_INPUT}/rest/v1/" || echo "000")"
-if [[ "$URL_HTTP" == "200" || "$URL_HTTP" == "404" ]]; then
-    ok "Endpoint REST de $SUPABASE_PROJECT_REF respondeu HTTP $URL_HTTP com a anon key"
-elif [[ "$URL_HTTP" == "401" ]]; then
-    err "Endpoint retornou 401 — anon key foi rejeitada pelo projeto $SUPABASE_PROJECT_REF."
-    exit 1
+# Códigos aceitos:
+#  200/404 → projeto respondeu normalmente
+#  401     → PostgREST devolve 401 na raiz mesmo com apikey válida; só prova que respondeu
+#  301/302 → redirect (raro, mas projeto está vivo)
+if [[ "$URL_HTTP" == "200" || "$URL_HTTP" == "401" || "$URL_HTTP" == "404" \
+      || "$URL_HTTP" == "301" || "$URL_HTTP" == "302" ]]; then
+    ok "Endpoint REST de $SUPABASE_PROJECT_REF respondeu HTTP $URL_HTTP (projeto online)"
 else
     err "Endpoint $SUPABASE_URL_INPUT/rest/v1/ retornou HTTP $URL_HTTP. Projeto inacessível."
+    err "Verifique se $SUPABASE_PROJECT_REF está ativo (não pausado) no painel do Supabase."
     exit 1
+fi
+
+# 6) Confirmar que a anon key NÃO está revogada — usar o endpoint /auth/v1/settings
+#    (público com apikey, retorna 200 quando a key bate com o projeto e 401 se foi revogada)
+AUTH_HTTP="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
+    -H "apikey: ${SUPABASE_ANON_KEY}" \
+    "${SUPABASE_URL_INPUT}/auth/v1/settings" || echo "000")"
+if [[ "$AUTH_HTTP" == "200" ]]; then
+    ok "Anon key validada contra /auth/v1/settings (HTTP 200)"
+elif [[ "$AUTH_HTTP" == "401" || "$AUTH_HTTP" == "403" ]]; then
+    err "Anon key foi rejeitada por /auth/v1/settings (HTTP $AUTH_HTTP)."
+    err "A key provavelmente foi revogada. Gere novas chaves no painel do Supabase."
+    exit 1
+else
+    info "/auth/v1/settings retornou HTTP $AUTH_HTTP — seguindo mesmo assim."
 fi
 
 ok "Validação cruzada concluída — todas as credenciais batem com $SUPABASE_PROJECT_REF"
