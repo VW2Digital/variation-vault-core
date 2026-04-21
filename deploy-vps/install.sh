@@ -218,6 +218,39 @@ if ! command -v certbot >/dev/null 2>&1; then
 fi
 ok "Certbot: $(certbot --version 2>&1 | head -n1)"
 
+# ----------------------------------------------------------------------------
+# Firewall (UFW) — garante portas 80/443/22 abertas
+# ----------------------------------------------------------------------------
+log "Configurando firewall (portas 80, 443, 22)..."
+if ! command -v ufw >/dev/null 2>&1; then
+  apt-get install -y -qq ufw || true
+fi
+if command -v ufw >/dev/null 2>&1; then
+  ufw allow 22/tcp   >/dev/null 2>&1 || true
+  ufw allow 80/tcp   >/dev/null 2>&1 || true
+  ufw allow 443/tcp  >/dev/null 2>&1 || true
+  # Só ativa se ainda não estiver — e sem prompt interativo
+  if ufw status | grep -qi "Status: inactive"; then
+    yes | ufw --force enable >/dev/null 2>&1 || true
+  else
+    ufw reload >/dev/null 2>&1 || true
+  fi
+  ok "UFW: 22, 80, 443/tcp liberadas"
+else
+  warn "UFW indisponível — verifique manualmente que 80/443 estão abertas no firewall do provedor (Oracle/AWS/etc)."
+fi
+
+# iptables direto (caso UFW não esteja em uso, ex: Oracle Cloud)
+if command -v iptables >/dev/null 2>&1; then
+  iptables -C INPUT -p tcp --dport 80  -j ACCEPT 2>/dev/null || iptables -I INPUT -p tcp --dport 80  -j ACCEPT 2>/dev/null || true
+  iptables -C INPUT -p tcp --dport 443 -j ACCEPT 2>/dev/null || iptables -I INPUT -p tcp --dport 443 -j ACCEPT 2>/dev/null || true
+  # Persiste se o pacote estiver disponível
+  if command -v netfilter-persistent >/dev/null 2>&1; then
+    netfilter-persistent save >/dev/null 2>&1 || true
+  fi
+  ok "iptables: regras INPUT 80/443 garantidas"
+fi
+
 # ============================================================================
 # Etapa 4: .env + build
 # ============================================================================
