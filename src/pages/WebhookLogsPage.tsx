@@ -224,6 +224,9 @@ export default function WebhookLogsPage() {
           <Button variant="outline" size="sm" onClick={load} disabled={loading}>
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Atualizar
           </Button>
+          <Button variant="outline" size="sm" onClick={exportCsv}>
+            <Download className="h-4 w-4" /> Exportar CSV
+          </Button>
           <Button variant="outline" size="sm" onClick={clearOld}>
             <Trash2 className="h-4 w-4" /> Limpar &gt; 7 dias
           </Button>
@@ -240,18 +243,34 @@ export default function WebhookLogsPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4" />Eventos recentes</CardTitle>
-            <div className="flex gap-2">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <CardTitle className="text-base flex items-center gap-2"><Activity className="h-4 w-4" />Eventos recentes <span className="text-xs font-normal text-muted-foreground">({filtered.length} de {logs.length})</span></CardTitle>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-xs">
+                  <X className="h-3 w-3" /> Limpar filtros
+                </Button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+              <div className="relative lg:col-span-2">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder="Buscar por evento, erro, ID, payload..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-8 h-9"
+                />
+              </div>
               <Select value={gatewayFilter} onValueChange={setGatewayFilter}>
-                <SelectTrigger className="w-[160px] h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Gateway" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos gateways</SelectItem>
                   {Object.entries(GATEWAY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px] h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Status" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos status</SelectItem>
                   <SelectItem value="success">Apenas OK</SelectItem>
@@ -259,6 +278,24 @@ export default function WebhookLogsPage() {
                   <SelectItem value="signature_failed">Assinatura inválida</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={periodFilter} onValueChange={setPeriodFilter}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Período" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="24h">Últimas 24h</SelectItem>
+                  <SelectItem value="7d">Últimos 7 dias</SelectItem>
+                  <SelectItem value="30d">Últimos 30 dias</SelectItem>
+                  <SelectItem value="all">Todo o período</SelectItem>
+                </SelectContent>
+              </Select>
+              {knownErrorCodes.length > 0 && (
+                <Select value={errorCodeFilter} onValueChange={setErrorCodeFilter}>
+                  <SelectTrigger className="h-9 lg:col-span-1 sm:col-span-2"><SelectValue placeholder="Código de erro" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos códigos de erro</SelectItem>
+                    {knownErrorCodes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -269,7 +306,9 @@ export default function WebhookLogsPage() {
             <p className="text-sm text-muted-foreground text-center py-8">Nenhum evento encontrado.</p>
           ) : (
             <div className="space-y-2">
-              {filtered.map((log) => (
+              {filtered.map((log) => {
+                const codes = extractErrorCodes(log);
+                return (
                 <div
                   key={log.id}
                   className="flex items-start justify-between gap-3 p-3 rounded-lg border border-border/60 hover:border-border transition-colors"
@@ -278,6 +317,9 @@ export default function WebhookLogsPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="outline" className={GATEWAY_COLORS[log.gateway] || ''}>{GATEWAY_LABELS[log.gateway] || log.gateway}</Badge>
                       {statusBadge(log)}
+                      {codes.map((c) => (
+                        <Badge key={c} variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 font-mono text-[10px]">{c}</Badge>
+                      ))}
                       <span className="text-xs text-muted-foreground">HTTP {log.http_status}</span>
                       {log.latency_ms !== null && <span className="text-xs text-muted-foreground">• {log.latency_ms}ms</span>}
                       <span className="text-xs text-muted-foreground">• {formatTime(log.created_at)}</span>
@@ -300,7 +342,8 @@ export default function WebhookLogsPage() {
                     <Eye className="h-4 w-4" />
                   </Button>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
