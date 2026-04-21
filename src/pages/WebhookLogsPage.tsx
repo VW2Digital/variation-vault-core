@@ -62,6 +62,9 @@ export default function WebhookLogsPage() {
   const [loading, setLoading] = useState(true);
   const [gatewayFilter, setGatewayFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [periodFilter, setPeriodFilter] = useState<string>('7d');
+  const [errorCodeFilter, setErrorCodeFilter] = useState<string>('all');
+  const [search, setSearch] = useState<string>('');
   const [selected, setSelected] = useState<WebhookLog | null>(null);
 
   const load = async () => {
@@ -92,14 +95,46 @@ export default function WebhookLogsPage() {
   }, []);
 
   const filtered = useMemo(() => {
+    const now = Date.now();
+    const periodMs: Record<string, number> = {
+      '24h': 24 * 60 * 60 * 1000,
+      '7d': 7 * 24 * 60 * 60 * 1000,
+      '30d': 30 * 24 * 60 * 60 * 1000,
+    };
+    const cutoff = periodFilter === 'all' ? 0 : now - (periodMs[periodFilter] ?? 0);
+    const q = search.trim().toLowerCase();
     return logs.filter((l) => {
       if (gatewayFilter !== 'all' && l.gateway !== gatewayFilter) return false;
       if (statusFilter === 'errors' && !l.error_message && l.signature_valid !== false) return false;
       if (statusFilter === 'signature_failed' && l.signature_valid !== false) return false;
       if (statusFilter === 'success' && (l.error_message || l.signature_valid === false)) return false;
+      if (cutoff && new Date(l.created_at).getTime() < cutoff) return false;
+      if (errorCodeFilter !== 'all') {
+        const codes = extractErrorCodes(l);
+        if (!codes.includes(errorCodeFilter)) return false;
+      }
+      if (q) {
+        const hay = [
+          l.event_type,
+          l.error_message,
+          l.signature_error,
+          l.external_id,
+          l.order_id,
+          l.gateway,
+          typeof l.request_payload === 'string' ? l.request_payload : JSON.stringify(l.request_payload || {}),
+        ].filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return true;
     });
-  }, [logs, gatewayFilter, statusFilter]);
+  }, [logs, gatewayFilter, statusFilter, periodFilter, errorCodeFilter, search]);
+
+  // Lista de códigos de erro únicos detectados nos logs (para popular o filtro)
+  const knownErrorCodes = useMemo(() => {
+    const set = new Set<string>();
+    logs.forEach((l) => extractErrorCodes(l).forEach((c) => set.add(c)));
+    return Array.from(set).sort();
+  }, [logs]);
 
   const stats = useMemo(() => {
     const total = logs.length;
@@ -119,6 +154,49 @@ export default function WebhookLogsPage() {
     if (error) toast.error('Erro: ' + error.message);
     else { toast.success('Logs antigos removidos'); load(); }
   };
+
+  const exportCsv = () => {
+    if (filtered.length === 0) {
+      toast.info('Nenhum log no filtro atual para exportar.');
+      return;
+    }
+    const escape = (v: unknown) => {
+      const s = v === null || v === undefined ? '' : String(v);
+      return `"${s.replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
+    };
+    const header = ['data', 'gateway', 'evento', 'http_status', 'latencia_ms', 'assinatura_valida', 'codigos_erro', 'erro', 'pedido', 'id_externo'];
+    const rows = filtered.map((l) => [
+      formatTime(l.created_at),
+      l.gateway,
+      l.event_type || '',
+      l.http_status,
+      l.latency_ms ?? '',
+      l.signature_valid === null ? '' : l.signature_valid ? 'sim' : 'nao',
+      extractErrorCodes(l).join(' | '),
+      l.error_message || l.signature_error || '',
+      l.order_id || '',
+      l.external_id || '',
+    ].map(escape).join(','));
+    const csv = [header.map(escape).join(','), ...rows].join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `webhook-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${filtered.length} registros exportados`);
+  };
+
+  const clearFilters = () => {
+    setGatewayFilter('all');
+    setStatusFilter('all');
+    setPeriodFilter('7d');
+    setErrorCodeFilter('all');
+    setSearch('');
+  };
+
+  const hasActiveFilters = gatewayFilter !== 'all' || statusFilter !== 'all' || periodFilter !== '7d' || errorCodeFilter !== 'all' || search.trim() !== '';
 
   const formatTime = (iso: string) => {
     const d = new Date(iso);
