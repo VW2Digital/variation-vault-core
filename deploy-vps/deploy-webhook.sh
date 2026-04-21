@@ -81,6 +81,83 @@ handle_request() {
       fi
       respond 200 "{\"ok\":true,\"version\":\"$commit\",\"branch\":\"$branch\"}"
       ;;
+    /ssl-info|/ssl-info/*)
+      # Lê SERVER_NAME do .env, detecta cert Let's Encrypt e retorna URL pública
+      local server_name="" ssl_active="false" cert_expires="" public_ip=""
+      if [ -f "$APP_DIR/.env" ]; then
+        server_name="$(grep -E '^SERVER_NAME=' "$APP_DIR/.env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d '[:space:]')"
+      fi
+      [ -z "$server_name" ] || [ "$server_name" = "_" ] && server_name=""
+      if [ -n "$server_name" ] && [ -d "/etc/letsencrypt/live/$server_name" ]; then
+        ssl_active="true"
+        if [ -f "/etc/letsencrypt/live/$server_name/cert.pem" ] && command -v openssl >/dev/null 2>&1; then
+          cert_expires="$(openssl x509 -enddate -noout -in "/etc/letsencrypt/live/$server_name/cert.pem" 2>/dev/null | cut -d= -f2 || echo '')"
+        fi
+      fi
+      public_ip="$(curl -fsS -m 3 https://api.ipify.org 2>/dev/null || echo '')"
+      local url=""
+      if [ -n "$server_name" ] && [ "$ssl_active" = "true" ]; then
+        url="https://$server_name/"
+      elif [ -n "$server_name" ]; then
+        url="http://$server_name/"
+      elif [ -n "$public_ip" ]; then
+        url="http://$public_ip/"
+      fi
+      respond 200 "{\"ok\":true,\"server_name\":\"$server_name\",\"public_ip\":\"$public_ip\",\"ssl_active\":$ssl_active,\"cert_expires\":\"$cert_expires\",\"url\":\"$url\"}"
+      ;;
+    /ssl-renew)
+      if [ "$method" != "POST" ]; then
+        respond 405 '{"error":"method not allowed"}'; return
+      fi
+      if [ -z "${DEPLOY_TOKEN:-}" ]; then
+        respond 500 '{"error":"DEPLOY_TOKEN not configured on server"}'; return
+      fi
+      if [ -z "$token" ] || [ "$token" != "$DEPLOY_TOKEN" ]; then
+        respond 401 '{"error":"invalid or missing X-Deploy-Token"}'; return
+      fi
+      # Lê domínio + email do .env (gravados pelo install.sh / issue-ssl.sh)
+      local domain="" email=""
+      if [ -f "$APP_DIR/.env" ]; then
+        domain="$(grep -E '^SERVER_NAME=' "$APP_DIR/.env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d '[:space:]')"
+        email="$(grep -E '^SSL_ALERT_EMAIL=' "$APP_DIR/.env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d '[:space:]')"
+      fi
+      if [ -z "$domain" ] || [ "$domain" = "_" ]; then
+        respond 400 '{"error":"SERVER_NAME não configurado em .env — emita SSL via install.sh com domínio"}'; return
+      fi
+      if [ -z "$email" ]; then
+        respond 400 '{"error":"SSL_ALERT_EMAIL não configurado em .env — rode issue-ssl.sh manualmente uma vez"}'; return
+      fi
+      local SSL_LOG="$LOG_DIR/last-ssl.log"
+      local SSL_LOCK="/tmp/liberty-ssl.lock"
+      if [ -e "$SSL_LOCK" ] && kill -0 "$(cat "$SSL_LOCK" 2>/dev/null)" 2>/dev/null; then
+        respond 409 '{"error":"ssl renewal already running"}'; return
+      fi
+      ( setsid bash -c '
+          echo $$ > "'"$SSL_LOCK"'"
+          : > "'"$SSL_LOG"'"
+          echo "[$(date -Iseconds)] Renovando SSL via webhook ('"$domain"')" >> "'"$LOG_FILE"'"
+          if bash "'"$APP_DIR"'/deploy-vps/issue-ssl.sh" "'"$domain"'" "'"$email"'" >> "'"$SSL_LOG"'" 2>&1; then
+            echo "[$(date -Iseconds)] SSL renew OK" >> "'"$LOG_FILE"'"
+          else
+            echo "[$(date -Iseconds)] SSL renew FAIL rc=$?" >> "'"$LOG_FILE"'"
+          fi
+          rm -f "'"$SSL_LOCK"'"
+      ' </dev/null >/dev/null 2>&1 & )
+      respond 200 "{\"ok\":true,\"message\":\"ssl renewal started for $domain\"}"
+      ;;
+    /ssl-status)
+      local running="false"
+      if [ -e "/tmp/liberty-ssl.lock" ] && kill -0 "$(cat "/tmp/liberty-ssl.lock" 2>/dev/null)" 2>/dev/null; then
+        running="true"
+      fi
+      local tail_log=""
+      if [ -f "$LOG_DIR/last-ssl.log" ]; then
+        tail_log="$(tail -c 3000 "$LOG_DIR/last-ssl.log" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))' 2>/dev/null || echo '""')"
+      else
+        tail_log='""'
+      fi
+      respond 200 "{\"running\":$running,\"last_log\":$tail_log}"
+      ;;
     /deploy)
       if [ "$method" != "POST" ]; then
         respond 405 '{"error":"method not allowed"}'; return

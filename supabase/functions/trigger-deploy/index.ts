@@ -71,18 +71,27 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const action = (body?.action ?? "deploy") as "deploy" | "health" | "status";
-    const path = action === "deploy" ? "/deploy" : `/${action}`;
+    type Action =
+      | "deploy"
+      | "health"
+      | "status"
+      | "ssl-info"
+      | "ssl-renew"
+      | "ssl-status";
+    const action = (body?.action ?? "deploy") as Action;
+    // POST endpoints (mutating); demais são GET.
+    const isPost = action === "deploy" || action === "ssl-renew";
+    const path = `/${action}`;
     const target = url.replace(/\/$/, "") + path;
 
     const startedAt = Date.now();
     const resp = await fetch(target, {
-      method: action === "deploy" ? "POST" : "GET",
+      method: isPost ? "POST" : "GET",
       headers: {
         "X-Deploy-Token": wToken,
         "Content-Type": "application/json",
       },
-      body: action === "deploy" ? "{}" : undefined,
+      body: isPost ? "{}" : undefined,
     });
     const text = await resp.text();
     let parsed: unknown = text;
