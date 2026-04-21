@@ -5,8 +5,9 @@
 # Faz APENAS 3 coisas:
 #   STEP 1 — Instala Node.js LTS, Git, Nginx, builda o app e configura SPA
 #   STEP 2 — Instala Certbot e emite certificado SSL para o domínio
-#   STEP 3 — Coleta credenciais de um Supabase EXTERNO (URL, anon key, ref),
-#            grava em /var/www/app/.env e rebuilda o app apontando pra ele.
+#   STEP 3 — Conecta a um Supabase EXTERNO via Classic Access Token:
+#            descobre a anon key automaticamente pela Management API,
+#            aplica o schema SQL e grava credenciais em /var/www/app/.env.
 #
 # Sem Docker, sem PM2, sem Postgres, sem extras.
 ###############################################################################
@@ -53,39 +54,65 @@ if [[ -z "$REPO_URL" ]]; then
 fi
 
 # ----------------------------- Coleta Supabase ANTES do build ---------------
-# Precisamos das credenciais agora porque elas entram no bundle do Vite
-# como variáveis VITE_* durante `npm run build`.
+# Usa Classic Access Token (sbp_...) para descobrir tudo automaticamente:
+#   - Anon key e service_role via Management API
+#   - Aplicar schema SQL via /v1/projects/{ref}/database/query
+# As VITE_* entram no bundle durante `npm run build`.
 echo
-info "Configuração do Supabase (banco externo da sua VPS)"
-echo "Você precisa de um projeto Supabase próprio (https://supabase.com/dashboard)."
-echo "Encontre URL e anon key em: Project Settings → API"
+info "Configuração do Supabase (projeto externo via Management API)"
+echo "Você precisa de:"
+echo "  1) Project Ref (ex: ntlfjekvisepsusbcjsv) — Settings → General → Reference ID"
+echo "  2) Classic Access Token (sbp_...) — https://supabase.com/dashboard/account/tokens"
 echo
 
-read -rp "SUPABASE URL (ex: https://xxxxx.supabase.co): " SUPABASE_URL_INPUT
-if [[ -z "${SUPABASE_URL_INPUT:-}" ]]; then
-    err "SUPABASE URL não pode ser vazia."
+read -rp "SUPABASE_PROJECT_REF (ex: ntlfjekvisepsusbcjsv): " SUPABASE_PROJECT_REF
+if [[ -z "${SUPABASE_PROJECT_REF:-}" ]]; then
+    err "Project Ref não pode ser vazio."
     exit 1
 fi
-if [[ ! "$SUPABASE_URL_INPUT" =~ ^https://[a-z0-9]+\.supabase\.co/?$ ]]; then
-    err "URL inválida. Formato esperado: https://xxxxx.supabase.co"
+if [[ ! "$SUPABASE_PROJECT_REF" =~ ^[a-z]{20}$ ]]; then
+    err "Project Ref inválido (esperado: 20 letras minúsculas, ex: ntlfjekvisepsusbcjsv)."
     exit 1
 fi
-SUPABASE_URL_INPUT="${SUPABASE_URL_INPUT%/}"
-
-# Extrai automaticamente o project ref da URL
-SUPABASE_PROJECT_REF="$(echo "$SUPABASE_URL_INPUT" | sed -E 's#https://([^.]+)\.supabase\.co#\1#')"
 
 echo
-echo "SUPABASE ANON KEY (chave pública 'anon / public', JWT longo começando com eyJ...)"
-read -rp "SUPABASE_ANON_KEY: " SUPABASE_ANON_KEY
-if [[ -z "${SUPABASE_ANON_KEY:-}" ]]; then
-    err "Anon key não pode ser vazia."
+echo "Cole o Classic Access Token (formato sbp_...). A entrada fica oculta."
+read -rsp "SUPABASE_ACCESS_TOKEN: " SUPABASE_ACCESS_TOKEN
+echo
+if [[ -z "${SUPABASE_ACCESS_TOKEN:-}" ]]; then
+    err "Access Token não pode ser vazio."
     exit 1
 fi
-if [[ ! "$SUPABASE_ANON_KEY" =~ ^eyJ ]]; then
-    err "Anon key inválida (deve começar com 'eyJ')."
+if [[ ! "$SUPABASE_ACCESS_TOKEN" =~ ^sbp_ ]]; then
+    err "Token inválido — deve começar com 'sbp_' (Classic Access Token)."
     exit 1
 fi
+
+SUPABASE_URL_INPUT="https://${SUPABASE_PROJECT_REF}.supabase.co"
+
+# Garante curl + jq disponíveis (usados na descoberta da anon key)
+if ! command -v curl >/dev/null 2>&1; then apt-get update -y && apt-get install -y curl; fi
+if ! command -v jq >/dev/null 2>&1;   then apt-get update -y && apt-get install -y jq;   fi
+
+info "Validando token e buscando chaves API do projeto $SUPABASE_PROJECT_REF..."
+API_KEYS_JSON="$(curl -fsS \
+    -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+    -H "Accept: application/json" \
+    "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/api-keys" 2>&1)" || {
+    err "Falha ao acessar Management API. Verifique o Project Ref e o Access Token."
+    err "Resposta: $API_KEYS_JSON"
+    exit 1
+}
+
+SUPABASE_ANON_KEY="$(echo "$API_KEYS_JSON" | jq -r '.[] | select(.name=="anon") | .api_key')"
+SUPABASE_SERVICE_ROLE_KEY="$(echo "$API_KEYS_JSON" | jq -r '.[] | select(.name=="service_role") | .api_key')"
+
+if [[ -z "$SUPABASE_ANON_KEY" || "$SUPABASE_ANON_KEY" == "null" ]]; then
+    err "Não foi possível extrair a anon key. Resposta da API: $API_KEYS_JSON"
+    exit 1
+fi
+ok "Anon key obtida via Management API (${#SUPABASE_ANON_KEY} chars)"
+ok "Service role key obtida (uso server-side)"
 
 ###############################################################################
 # STEP 1 — Instalar app (Node + Git + Nginx + build + config SPA)
@@ -136,13 +163,19 @@ fi
 ENV_FILE="$APP_DIR/.env"
 info "Gravando credenciais Supabase em $ENV_FILE (usadas no build do Vite)..."
 cat > "$ENV_FILE" <<ENV
+# --- Públicas (entram no bundle do Vite) ---
 VITE_SUPABASE_URL=${SUPABASE_URL_INPUT}
 VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_ANON_KEY}
 VITE_SUPABASE_PROJECT_ID=${SUPABASE_PROJECT_REF}
+
+# --- Privadas (server-side / scripts / Management API) ---
+SUPABASE_PROJECT_REF=${SUPABASE_PROJECT_REF}
+SUPABASE_ACCESS_TOKEN=${SUPABASE_ACCESS_TOKEN}
+SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
 ENV
 chmod 600 "$ENV_FILE"
 chown root:root "$ENV_FILE"
-ok "Variáveis VITE_* gravadas (apontando para $SUPABASE_URL_INPUT)"
+ok "Credenciais gravadas em $ENV_FILE (apontando para $SUPABASE_URL_INPUT)"
 
 # Build
 cd "$APP_DIR"
@@ -251,15 +284,41 @@ fi
 ok "SSL configurado para $DOMAIN"
 
 ###############################################################################
-# STEP 3 — Confirmação das credenciais Supabase já aplicadas no build
+# STEP 3 — Aplica schema SQL no Supabase externo via Management API
 ###############################################################################
-step "STEP 3 — Supabase externo configurado"
+step "STEP 3 — Provisionando schema do banco no Supabase"
 
-ok "URL ............ $SUPABASE_URL_INPUT"
-ok "Project Ref .... $SUPABASE_PROJECT_REF"
-ok "Anon Key ....... ${SUPABASE_ANON_KEY:0:20}... (${#SUPABASE_ANON_KEY} chars)"
-ok "Arquivo ........ $ENV_FILE (chmod 600)"
-info "Credenciais aplicadas no bundle Vite durante o build acima."
+SCHEMA_FILE="$APP_DIR/deploy-vps/supabase/schema.sql"
+if [[ ! -f "$SCHEMA_FILE" ]]; then
+    err "schema.sql não encontrado em $SCHEMA_FILE"
+    exit 1
+fi
+
+info "Aplicando $SCHEMA_FILE via Management API (pode levar alguns segundos)..."
+# Empacota o SQL como JSON via jq pra escapar tudo corretamente
+SCHEMA_PAYLOAD="$(jq -Rs '{query: .}' < "$SCHEMA_FILE")"
+
+SCHEMA_HTTP_CODE="$(curl -sS -o /tmp/schema_apply.log -w '%{http_code}' \
+    -X POST \
+    -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$SCHEMA_PAYLOAD" \
+    "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/database/query")"
+
+if [[ "$SCHEMA_HTTP_CODE" =~ ^2 ]]; then
+    ok "Schema aplicado com sucesso (HTTP $SCHEMA_HTTP_CODE)"
+else
+    err "Falha ao aplicar schema (HTTP $SCHEMA_HTTP_CODE)."
+    err "Resposta: $(cat /tmp/schema_apply.log)"
+    err "Você pode aplicar manualmente colando $SCHEMA_FILE no SQL Editor do Supabase."
+fi
+
+echo
+ok "URL ................ $SUPABASE_URL_INPUT"
+ok "Project Ref ........ $SUPABASE_PROJECT_REF"
+ok "Anon key ........... ${SUPABASE_ANON_KEY:0:24}... (auto via Management API)"
+ok "Service role key ... ${SUPABASE_SERVICE_ROLE_KEY:0:24}... (auto via Management API)"
+ok "Access token ....... sbp_*** (oculto, salvo em $ENV_FILE)"
 
 ###############################################################################
 # Resumo final
@@ -279,6 +338,9 @@ echo
 echo "Para atualizar o app no futuro (mantém o .env com Supabase externo):"
 echo "  cd $APP_DIR && git pull && npm install && npm run build && systemctl reload nginx"
 echo
-echo "IMPORTANTE: o schema do banco precisa estar criado no seu Supabase."
-echo "Use o SQL em deploy-vps/supabase/schema.sql para provisionar tudo."
+echo "Próximos passos no painel do Supabase (https://supabase.com/dashboard/project/${SUPABASE_PROJECT_REF}):"
+echo "  1) Auth → Users: crie seu primeiro usuário admin"
+echo "  2) SQL Editor: INSERT INTO public.user_roles (user_id, role) VALUES ('UUID', 'admin');"
+echo "  3) Edge Functions: deploy via Supabase CLI (supabase functions deploy --no-verify-jwt)"
+echo "  4) Functions → Settings: adicione secrets (RESEND_API_KEY, MP_WEBHOOK_SECRET, etc)"
 echo
