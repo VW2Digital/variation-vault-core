@@ -21,6 +21,28 @@ cp "$HTTP_TEMPLATE" "$HTTP_CONF"
 : > "$REDIRECT_CONF"
 
 SERVER_NAME="${SERVER_NAME:-}"
+SUPABASE_PROXY_HOST="${SUPABASE_PROXY_HOST:-}"
+SUPABASE_FUNCTIONS_BASE_URL="${SUPABASE_FUNCTIONS_BASE_URL:-}"
+VITE_SUPABASE_URL="${VITE_SUPABASE_URL:-}"
+
+if [ -z "$SUPABASE_PROXY_HOST" ] && [ -n "$VITE_SUPABASE_URL" ]; then
+    SUPABASE_PROXY_HOST="$(printf '%s' "$VITE_SUPABASE_URL" | sed -E 's#^https?://([^/]+)/?.*$#\1#')"
+fi
+
+if [ -z "$SUPABASE_PROXY_HOST" ] && [ -n "$SUPABASE_FUNCTIONS_BASE_URL" ]; then
+    SUPABASE_PROXY_HOST="$(printf '%s' "$SUPABASE_FUNCTIONS_BASE_URL" | sed -E 's#^https?://([^/]+)/?.*$#\1#')"
+fi
+
+if [ -z "$SUPABASE_FUNCTIONS_BASE_URL" ] && [ -n "$SUPABASE_PROXY_HOST" ]; then
+    SUPABASE_FUNCTIONS_BASE_URL="https://$SUPABASE_PROXY_HOST/functions/v1"
+fi
+
+if [ -n "$SUPABASE_FUNCTIONS_BASE_URL" ] && [ -n "$SUPABASE_PROXY_HOST" ]; then
+    sed -i "s|__SUPABASE_FUNCTIONS_BASE_URL__|$SUPABASE_FUNCTIONS_BASE_URL|g; s|__SUPABASE_PROXY_HOST__|$SUPABASE_PROXY_HOST|g" "$HTTP_CONF"
+    echo "[entrypoint] Proxy de webhooks apontando para $SUPABASE_FUNCTIONS_BASE_URL"
+else
+    echo "[entrypoint] Aviso: SUPABASE_FUNCTIONS_BASE_URL não definido; proxy de webhooks pode não funcionar corretamente."
+fi
 
 if [ -n "$SERVER_NAME" ] && [ "$SERVER_NAME" != "_" ]; then
     # Normaliza para o apex (sem www) — é assim que o certbot nomeia a pasta
@@ -104,16 +126,16 @@ server {
         add_header Cache-Control "no-cache, no-store, must-revalidate";
     }
 
-    # Proxy webhooks → Supabase Edge Functions
+    # Proxy webhooks → Edge Functions do backend configurado em runtime
     location ~ ^/(melhor-envio-webhook|asaas-webhook|mercadopago-webhook|pagarme-webhook|pagbank-webhook)(/.*)?\$ {
-        proxy_pass https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/\$1\$2\$is_args\$args;
+        proxy_pass ${SUPABASE_FUNCTIONS_BASE_URL}/\$1\$2\$is_args\$args;
         proxy_http_version 1.1;
-        proxy_set_header Host vkomfiplmhpkhfpidrng.supabase.co;
+        proxy_set_header Host ${SUPABASE_PROXY_HOST};
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_ssl_server_name on;
-        proxy_ssl_name vkomfiplmhpkhfpidrng.supabase.co;
+        proxy_ssl_name ${SUPABASE_PROXY_HOST};
         proxy_read_timeout 60s;
         proxy_connect_timeout 10s;
         proxy_buffering off;

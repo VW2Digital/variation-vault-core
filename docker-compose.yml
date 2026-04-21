@@ -13,6 +13,9 @@ services:
       # Define o domínio servido por HTTPS. Pode ser sobrescrito no .env:
       #   SERVER_NAME=meudominio.com
       SERVER_NAME: ${SERVER_NAME:-_}
+      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+      SUPABASE_PROXY_HOST: ${SUPABASE_PROXY_HOST:-}
+      SUPABASE_FUNCTIONS_BASE_URL: ${SUPABASE_FUNCTIONS_BASE_URL:-}
     ports:
       - "80:80"
       - "443:443"
