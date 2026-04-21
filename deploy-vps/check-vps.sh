@@ -72,12 +72,10 @@ section() {
 
 header() {
   [ "$JSON_OUTPUT" = "1" ] && return
-  cat <<EOF
-${BLD}╔══════════════════════════════════════════════════════════════╗
-║           Liberty Pharma — Diagnóstico de VPS                ║
-╚══════════════════════════════════════════════════════════════╝${NC}
-Host: $(hostname 2>/dev/null || echo '?')   |   Data: $(date -Iseconds 2>/dev/null || date)
-EOF
+  echo -e "${BLD}╔══════════════════════════════════════════════════════════════╗${NC}"
+  echo -e "${BLD}║           Liberty Pharma — Diagnóstico de VPS                ║${NC}"
+  echo -e "${BLD}╚══════════════════════════════════════════════════════════════╝${NC}"
+  echo "Host: $(hostname 2>/dev/null || echo '?')   |   Data: $(date -Iseconds 2>/dev/null || date)"
 }
 header
 
