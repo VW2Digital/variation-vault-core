@@ -15,9 +15,22 @@ REDIRECT_CONF="/etc/nginx/conf.d/redirect.conf"
 SERVER_NAME="${SERVER_NAME:-}"
 
 if [ -n "$SERVER_NAME" ] && [ "$SERVER_NAME" != "_" ]; then
-    CERT_DIR="/etc/letsencrypt/live/$SERVER_NAME"
+    # Normaliza para o apex (sem www) — é assim que o certbot nomeia a pasta
+    APEX="${SERVER_NAME#www.}"
+    WWW="www.$APEX"
+    CERT_DIR="/etc/letsencrypt/live/$APEX"
+
+    # Se o cert cobrir também o www, inclui no server_name
+    SERVER_NAMES="$APEX"
+    if [ -f "$CERT_DIR/fullchain.pem" ] && \
+       openssl x509 -in "$CERT_DIR/fullchain.pem" -noout -text 2>/dev/null \
+         | grep -q "DNS:$WWW"; then
+        SERVER_NAMES="$APEX $WWW"
+        echo "[entrypoint] Certificado cobre $APEX e $WWW."
+    fi
+
     if [ -f "$CERT_DIR/fullchain.pem" ] && [ -f "$CERT_DIR/privkey.pem" ]; then
-        echo "[entrypoint] Certificado encontrado para $SERVER_NAME — habilitando HTTPS (443)."
+        echo "[entrypoint] Certificado encontrado para $APEX — habilitando HTTPS (443) em: $SERVER_NAMES"
 
         cat > "$REDIRECT_CONF" <<EOF
 # Força HTTPS (gerado pelo entrypoint)
@@ -33,7 +46,7 @@ EOF
 server {
     listen 443 ssl;
     http2 on;
-    server_name $SERVER_NAME;
+    server_name $SERVER_NAMES;
 
     ssl_certificate     $CERT_DIR/fullchain.pem;
     ssl_certificate_key $CERT_DIR/privkey.pem;
