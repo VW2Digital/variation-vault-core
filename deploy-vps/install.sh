@@ -59,6 +59,12 @@ step() {
   echo -e "${BLU}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
+# ---------- defaults precoces (necessários no preflight) ---------------------
+APP_DIR="${APP_DIR:-/opt/liberty-pharma}"
+REPO_URL="${REPO_URL:-https://github.com/VW2Digital/variation-vault-core.git}"
+BRANCH="${BRANCH:-main}"
+DOMAIN="${DOMAIN:-_}"
+
 # ---------- parsing de flags -------------------------------------------------
 DRY_RUN=0
 for arg in "$@"; do
