@@ -75,6 +75,18 @@ const CheckoutAuthGate = ({ onAuthenticated }: Props) => {
         toast({ title: 'Conta criada!', description: 'Continue sua compra.' });
         onAuthenticated();
       } else {
+        // Detect "email already in use": Supabase returns user with empty identities array
+        const identities = (data.user as any)?.identities;
+        if (data.user && Array.isArray(identities) && identities.length === 0) {
+          toast({
+            title: 'Email já cadastrado',
+            description: 'Este email já possui uma conta. Faça login para continuar.',
+            variant: 'destructive',
+          });
+          setTab('login');
+          setLoginEmail(email);
+          return;
+        }
         // Try to sign in immediately (in case email confirmation is required but already trusted)
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (!signInError) {
@@ -90,11 +102,27 @@ const CheckoutAuthGate = ({ onAuthenticated }: Props) => {
         }
       }
     } catch (err: any) {
-      toast({
-        title: 'Erro ao cadastrar',
-        description: err.message || 'Não foi possível criar a conta.',
-        variant: 'destructive',
-      });
+      const msg = (err.message || '').toLowerCase();
+      const isDuplicate =
+        msg.includes('already registered') ||
+        msg.includes('already exists') ||
+        msg.includes('user already') ||
+        msg.includes('duplicate');
+      if (isDuplicate) {
+        toast({
+          title: 'Email já cadastrado',
+          description: 'Este email já possui uma conta. Faça login para continuar.',
+          variant: 'destructive',
+        });
+        setTab('login');
+        setLoginEmail(email);
+      } else {
+        toast({
+          title: 'Erro ao cadastrar',
+          description: err.message || 'Não foi possível criar a conta.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }
