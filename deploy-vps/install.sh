@@ -15,11 +15,56 @@
 set -euo pipefail
 printf '\e[?2004l' 2>/dev/null || true
 
+# ----------------------------------------------------------------------------
+# Modo não-interativo GLOBAL — evita travamentos do apt/debconf/needrestart
+# ----------------------------------------------------------------------------
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+export APT_LISTCHANGES_FRONTEND=none
+export UCF_FORCE_CONFOLD=1
+
+# Flags opcionais para pular etapas problemáticas
+SKIP_MAIL=0; SKIP_UFW=0; SKIP_HEALTHCHECK=0
+for arg in "$@"; do
+  case "$arg" in
+    --skip-mail)        SKIP_MAIL=1 ;;
+    --skip-ufw)         SKIP_UFW=1 ;;
+    --skip-healthcheck) SKIP_HEALTHCHECK=1 ;;
+  esac
+done
+
 GREEN='\033[0;32m'; BLUE='\033[0;34m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
 log()  { echo -e "${BLUE}[INFO]${NC} $*"; }
 ok()   { echo -e "${GREEN}[ OK ]${NC} $*"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 err()  { echo -e "${RED}[ERR ]${NC} $*" >&2; }
+
+# Wrapper apt seguro: timeout 300s + opções que evitam prompts e conflitos de config
+apt_safe() {
+  timeout 300 apt-get install -y -qq \
+    -o Dpkg::Options::="--force-confdef" \
+    -o Dpkg::Options::="--force-confold" \
+    "$@"
+}
+# Update com timeout — se falhar, segue (warn, não erro fatal)
+apt_update_safe() {
+  timeout 120 apt-get update -qq || warn "apt-get update demorou/falhou — seguindo com cache atual."
+}
+
+# Resumo final (preenchido durante o script)
+SUMMARY_OK=(); SUMMARY_WARN=(); SUMMARY_ERR=()
+add_ok()   { SUMMARY_OK+=("$1"); }
+add_warn() { SUMMARY_WARN+=("$1"); }
+add_err()  { SUMMARY_ERR+=("$1"); }
+print_summary() {
+  echo
+  echo -e "${BOLD}━━━ Resumo da instalação ━━━${NC}"
+  for i in "${SUMMARY_OK[@]}";   do echo -e "  ${GREEN}✓${NC} $i"; done
+  for i in "${SUMMARY_WARN[@]}"; do echo -e "  ${YELLOW}⚠${NC} $i"; done
+  for i in "${SUMMARY_ERR[@]}";  do echo -e "  ${RED}✗${NC} $i"; done
+  echo
+}
+trap 'print_summary' EXIT
 
 clean() {
   printf '%s' "$1" \
