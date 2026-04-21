@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Phone, CreditCard, Eye, EyeOff, Truck, MapPin, Mail, Link2, CheckCircle2, Download, Loader2, MessageSquare, Send, Code, ToggleLeft } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
+import WebhookUrlCard from '@/components/admin/WebhookUrlCard';
 import {
   Select,
   SelectContent,
@@ -467,16 +468,10 @@ const SettingsPage = () => {
               </p>
             </div>
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">URL do Webhook (copie para o Asaas)</Label>
-              <Input
-                readOnly
-                value="https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/asaas-webhook"
-                className="bg-muted text-xs"
-                onClick={(e) => {
-                  (e.target as HTMLInputElement).select();
-                  navigator.clipboard.writeText("https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/asaas-webhook");
-                  toast({ title: 'URL copiada!' });
-                }}
+              <WebhookUrlCard
+                gatewayName="Asaas"
+                functionSlug="asaas-webhook"
+                cadastroHint="no painel do Asaas em Configurações → Integrações → Webhooks"
               />
             </div>
             <Button
@@ -617,16 +612,10 @@ const SettingsPage = () => {
               </p>
             </div>
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">URL do Webhook (copie para o Mercado Pago)</Label>
-              <Input
-                readOnly
-                value="https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/mercadopago-webhook"
-                className="bg-muted text-xs"
-                onClick={(e) => {
-                  (e.target as HTMLInputElement).select();
-                  navigator.clipboard.writeText("https://vkomfiplmhpkhfpidrng.supabase.co/functions/v1/mercadopago-webhook");
-                  toast({ title: 'URL copiada!' });
-                }}
+              <WebhookUrlCard
+                gatewayName="Mercado Pago"
+                functionSlug="mercadopago-webhook"
+                cadastroHint="no painel do Mercado Pago em Suas integrações → Notificações → Webhooks"
               />
             </div>
           </CardContent>
