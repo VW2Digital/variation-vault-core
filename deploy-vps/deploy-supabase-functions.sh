@@ -46,6 +46,7 @@ FUNCTIONS=(
   pagbank-webhook
   payment-checkout
   trigger-deploy
+  webhook-healthcheck
 )
 
 for fn in "${FUNCTIONS[@]}"; do
