@@ -54,39 +54,65 @@ if [[ -z "$REPO_URL" ]]; then
 fi
 
 # ----------------------------- Coleta Supabase ANTES do build ---------------
-# Precisamos das credenciais agora porque elas entram no bundle do Vite
-# como variáveis VITE_* durante `npm run build`.
+# Usa Classic Access Token (sbp_...) para descobrir tudo automaticamente:
+#   - Anon key e service_role via Management API
+#   - Aplicar schema SQL via /v1/projects/{ref}/database/query
+# As VITE_* entram no bundle durante `npm run build`.
 echo
-info "Configuração do Supabase (banco externo da sua VPS)"
-echo "Você precisa de um projeto Supabase próprio (https://supabase.com/dashboard)."
-echo "Encontre URL e anon key em: Project Settings → API"
+info "Configuração do Supabase (projeto externo via Management API)"
+echo "Você precisa de:"
+echo "  1) Project Ref (ex: ntlfjekvisepsusbcjsv) — Settings → General → Reference ID"
+echo "  2) Classic Access Token (sbp_...) — https://supabase.com/dashboard/account/tokens"
 echo
 
-read -rp "SUPABASE URL (ex: https://xxxxx.supabase.co): " SUPABASE_URL_INPUT
-if [[ -z "${SUPABASE_URL_INPUT:-}" ]]; then
-    err "SUPABASE URL não pode ser vazia."
+read -rp "SUPABASE_PROJECT_REF (ex: ntlfjekvisepsusbcjsv): " SUPABASE_PROJECT_REF
+if [[ -z "${SUPABASE_PROJECT_REF:-}" ]]; then
+    err "Project Ref não pode ser vazio."
     exit 1
 fi
-if [[ ! "$SUPABASE_URL_INPUT" =~ ^https://[a-z0-9]+\.supabase\.co/?$ ]]; then
-    err "URL inválida. Formato esperado: https://xxxxx.supabase.co"
+if [[ ! "$SUPABASE_PROJECT_REF" =~ ^[a-z]{20}$ ]]; then
+    err "Project Ref inválido (esperado: 20 letras minúsculas, ex: ntlfjekvisepsusbcjsv)."
     exit 1
 fi
-SUPABASE_URL_INPUT="${SUPABASE_URL_INPUT%/}"
-
-# Extrai automaticamente o project ref da URL
-SUPABASE_PROJECT_REF="$(echo "$SUPABASE_URL_INPUT" | sed -E 's#https://([^.]+)\.supabase\.co#\1#')"
 
 echo
-echo "SUPABASE ANON KEY (chave pública 'anon / public', JWT longo começando com eyJ...)"
-read -rp "SUPABASE_ANON_KEY: " SUPABASE_ANON_KEY
-if [[ -z "${SUPABASE_ANON_KEY:-}" ]]; then
-    err "Anon key não pode ser vazia."
+echo "Cole o Classic Access Token (formato sbp_...). A entrada fica oculta."
+read -rsp "SUPABASE_ACCESS_TOKEN: " SUPABASE_ACCESS_TOKEN
+echo
+if [[ -z "${SUPABASE_ACCESS_TOKEN:-}" ]]; then
+    err "Access Token não pode ser vazio."
     exit 1
 fi
-if [[ ! "$SUPABASE_ANON_KEY" =~ ^eyJ ]]; then
-    err "Anon key inválida (deve começar com 'eyJ')."
+if [[ ! "$SUPABASE_ACCESS_TOKEN" =~ ^sbp_ ]]; then
+    err "Token inválido — deve começar com 'sbp_' (Classic Access Token)."
     exit 1
 fi
+
+SUPABASE_URL_INPUT="https://${SUPABASE_PROJECT_REF}.supabase.co"
+
+# Garante curl + jq disponíveis (usados na descoberta da anon key)
+if ! command -v curl >/dev/null 2>&1; then apt-get update -y && apt-get install -y curl; fi
+if ! command -v jq >/dev/null 2>&1;   then apt-get update -y && apt-get install -y jq;   fi
+
+info "Validando token e buscando chaves API do projeto $SUPABASE_PROJECT_REF..."
+API_KEYS_JSON="$(curl -fsS \
+    -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+    -H "Accept: application/json" \
+    "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/api-keys" 2>&1)" || {
+    err "Falha ao acessar Management API. Verifique o Project Ref e o Access Token."
+    err "Resposta: $API_KEYS_JSON"
+    exit 1
+}
+
+SUPABASE_ANON_KEY="$(echo "$API_KEYS_JSON" | jq -r '.[] | select(.name=="anon") | .api_key')"
+SUPABASE_SERVICE_ROLE_KEY="$(echo "$API_KEYS_JSON" | jq -r '.[] | select(.name=="service_role") | .api_key')"
+
+if [[ -z "$SUPABASE_ANON_KEY" || "$SUPABASE_ANON_KEY" == "null" ]]; then
+    err "Não foi possível extrair a anon key. Resposta da API: $API_KEYS_JSON"
+    exit 1
+fi
+ok "Anon key obtida via Management API (${#SUPABASE_ANON_KEY} chars)"
+ok "Service role key obtida (uso server-side)"
 
 ###############################################################################
 # STEP 1 — Instalar app (Node + Git + Nginx + build + config SPA)
