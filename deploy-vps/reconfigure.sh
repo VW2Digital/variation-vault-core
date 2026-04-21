@@ -106,6 +106,58 @@ fi
 ok "Bundle aponta para ${SUPABASE_PROJECT_REF}.supabase.co"
 
 chown -R www-data:www-data "$APP_DIR/dist"
+
+# Garantir que o vhost do app tenha /healthz e seja default_server.
+# Em instalações antigas o config foi criado sem /healthz (causa 404 no verify).
+VHOST="/etc/nginx/sites-available/app"
+if [[ -f "$VHOST" ]]; then
+    DOMAIN_FROM_VHOST="$(grep -E '^\s*server_name' "$VHOST" | head -n1 | awk '{print $2}' | tr -d ';' || true)"
+    DOMAIN_FROM_VHOST="${DOMAIN_FROM_VHOST:-_}"
+    if ! grep -q 'location = /healthz' "$VHOST"; then
+        step "Atualizando vhost Nginx (adicionando /healthz e default_server)"
+        cat > "$VHOST" <<NGINX
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name ${DOMAIN_FROM_VHOST};
+
+    root /var/www/app/dist;
+    index index.html;
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml application/javascript application/json image/svg+xml;
+
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files \$uri =404;
+    }
+
+    location = /healthz {
+        access_log off;
+        add_header Content-Type text/plain;
+        add_header Cache-Control "no-store";
+        return 200 "ok\n";
+    }
+
+    location / {
+        try_files \$uri \$uri/ /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    location ~ /\\. { deny all; access_log off; log_not_found off; }
+}
+NGINX
+        ok "Vhost atualizado com /healthz"
+    fi
+fi
+
 nginx -t && systemctl reload nginx
 ok "Nginx recarregado"
 
