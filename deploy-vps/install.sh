@@ -410,6 +410,7 @@ ok "Supabase externo: $SUPABASE_URL_INPUT (ref: $SUPABASE_PROJECT_REF)"
 ok "Credenciais salvas em $ENV_FILE (chmod 600)"
 echo
 echo -e "${BLUE}Acesse: https://${DOMAIN}${NC}"
+echo -e "${BLUE}Healthcheck: https://${DOMAIN}/healthz${NC}"
 echo
 echo "Para atualizar o app no futuro (mantém o .env com Supabase externo):"
 echo "  cd $APP_DIR && git pull && npm install && npm run build && systemctl reload nginx"
