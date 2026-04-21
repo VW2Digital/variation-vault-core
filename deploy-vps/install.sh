@@ -424,7 +424,11 @@ echo -e "${GREEN}║                    INSTALAÇÃO CONCLUÍDA                 
 echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
 echo
 ok "App buildado e servido via Nginx → $APP_DIR/dist/"
-ok "SSL ativo em https://${DOMAIN}"
+if [[ "$SSL_STAGING" -eq 1 ]]; then
+    ok "SSL STAGING (teste) ativo em https://${DOMAIN} — navegador mostrará aviso"
+else
+    ok "SSL ativo em https://${DOMAIN}"
+fi
 ok "Conectado ao Supabase: $SUPABASE_URL_INPUT"
 ok "Credenciais salvas em $ENV_FILE (chmod 600)"
 echo
