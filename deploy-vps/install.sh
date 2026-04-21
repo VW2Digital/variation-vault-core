@@ -339,11 +339,6 @@ export UCF_FORCE_CONFOLD=1
 export APT_LISTCHANGES_FRONTEND=none
 
 # ---------- defaults ---------------------------------------------------------
-APP_DIR="${APP_DIR:-/opt/liberty-pharma}"
-REPO_URL="${REPO_URL:-https://github.com/VW2Digital/variation-vault-core.git}"
-BRANCH="${BRANCH:-main}"
-DOMAIN="${DOMAIN:-_}"
-
 # Defaults reais do projeto (mesmos do .env do repo). Podem ser sobrescritos.
 VITE_SUPABASE_URL="${VITE_SUPABASE_URL:-https://vkomfiplmhpkhfpidrng.supabase.co}"
 VITE_SUPABASE_PUBLISHABLE_KEY="${VITE_SUPABASE_PUBLISHABLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrb21maXBsbWhwa2hmcGlkcm5nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxNDE0NzMsImV4cCI6MjA4NzcxNzQ3M30.kvxMTwPuOjZR6D8P8AM3LOBOd9U-mym-mCRjp5eMoKE}"
