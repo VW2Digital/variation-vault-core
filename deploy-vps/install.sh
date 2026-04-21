@@ -52,6 +52,41 @@ if [[ -z "$REPO_URL" ]]; then
     exit 1
 fi
 
+# ----------------------------- Coleta Supabase ANTES do build ---------------
+# Precisamos das credenciais agora porque elas entram no bundle do Vite
+# como variáveis VITE_* durante `npm run build`.
+echo
+info "Configuração do Supabase (banco externo da sua VPS)"
+echo "Você precisa de um projeto Supabase próprio (https://supabase.com/dashboard)."
+echo "Encontre URL e anon key em: Project Settings → API"
+echo
+
+read -rp "SUPABASE URL (ex: https://xxxxx.supabase.co): " SUPABASE_URL_INPUT
+if [[ -z "${SUPABASE_URL_INPUT:-}" ]]; then
+    err "SUPABASE URL não pode ser vazia."
+    exit 1
+fi
+if [[ ! "$SUPABASE_URL_INPUT" =~ ^https://[a-z0-9]+\.supabase\.co/?$ ]]; then
+    err "URL inválida. Formato esperado: https://xxxxx.supabase.co"
+    exit 1
+fi
+SUPABASE_URL_INPUT="${SUPABASE_URL_INPUT%/}"
+
+# Extrai automaticamente o project ref da URL
+SUPABASE_PROJECT_REF="$(echo "$SUPABASE_URL_INPUT" | sed -E 's#https://([^.]+)\.supabase\.co#\1#')"
+
+echo
+echo "SUPABASE ANON KEY (chave pública 'anon / public', JWT longo começando com eyJ...)"
+read -rp "SUPABASE_ANON_KEY: " SUPABASE_ANON_KEY
+if [[ -z "${SUPABASE_ANON_KEY:-}" ]]; then
+    err "Anon key não pode ser vazia."
+    exit 1
+fi
+if [[ ! "$SUPABASE_ANON_KEY" =~ ^eyJ ]]; then
+    err "Anon key inválida (deve começar com 'eyJ')."
+    exit 1
+fi
+
 ###############################################################################
 # STEP 1 — Instalar app (Node + Git + Nginx + build + config SPA)
 ###############################################################################
