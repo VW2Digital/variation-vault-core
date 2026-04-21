@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key, x-signature, x-request-id, x-hub-signature",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key, x-signature, x-request-id, x-hub-signature, idempotency-key",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
@@ -54,6 +54,25 @@ function getServiceClient() {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const buffer = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function jsonResponse(status: number, body: unknown, extraHeaders: Record<string, string> = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+      ...extraHeaders,
+    },
+  });
 }
 
 function getRoutePath(req: Request) {
@@ -148,22 +167,55 @@ async function updateOrderRecord(
   const unauthorized = await requireApiKey(req, supabase);
   if (unauthorized) return unauthorized;
 
-  const payload = await req.json().catch(() => null);
+  const rawBody = await req.text();
+  let payload: any;
+  try {
+    payload = rawBody ? JSON.parse(rawBody) : null;
+  } catch {
+    payload = null;
+  }
   if (!payload || typeof payload !== "object") {
-    return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse(400, { error: "Invalid JSON body" });
   }
 
   const orderId = typeof payload.order_id === "string" ? payload.order_id : "";
   const shipmentId = typeof payload.shipment_id === "string" ? payload.shipment_id : "";
 
   if (!orderId && !shipmentId) {
-    return new Response(JSON.stringify({ error: "Provide order_id or shipment_id" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse(400, { error: "Provide order_id or shipment_id" });
+  }
+
+  // ----- Idempotência -----
+  // Prioridade: header Idempotency-Key. Fallback: hash(route + body).
+  const headerKey = req.headers.get("idempotency-key")?.trim() || "";
+  const requestHash = await sha256Hex(`${route}\n${rawBody}`);
+  const idempotencyKey = headerKey
+    ? `hdr:${route}:${headerKey}`
+    : `auto:${route}:${requestHash}`;
+
+  const { data: cached } = await supabase
+    .from("api_idempotency_keys")
+    .select("response_status, response_body, request_hash, expires_at")
+    .eq("key", idempotencyKey)
+    .maybeSingle();
+
+  if (cached) {
+    const isExpired = new Date(cached.expires_at as string).getTime() < Date.now();
+    if (!isExpired) {
+      // Header explícito com hash diferente => conflito (rejeitar 409)
+      if (headerKey && cached.request_hash !== requestHash) {
+        return jsonResponse(409, {
+          error: "Idempotency-Key reutilizada com payload diferente",
+          idempotency_key: headerKey,
+        });
+      }
+      // Replay: devolve a resposta original
+      return jsonResponse(
+        cached.response_status as number,
+        cached.response_body,
+        { "Idempotent-Replay": "true" },
+      );
+    }
   }
 
   const updatePayload: Record<string, unknown> = {};
@@ -178,10 +230,7 @@ async function updateOrderRecord(
   }
 
   if (Object.keys(updatePayload).length === 0) {
-    return new Response(JSON.stringify({ error: "No valid fields provided for update" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse(400, { error: "No valid fields provided for update" });
   }
 
   updatePayload.updated_at = new Date().toISOString();
@@ -189,32 +238,51 @@ async function updateOrderRecord(
   const matchField = orderId ? "id" : "shipment_id";
   const matchValue = orderId || shipmentId;
 
-  const { data, error } = await supabase
+  // Lê o estado atual ANTES de aplicar para detectar no-op (mesmo dado já presente)
+  const { data: existing } = await supabase
     .from("orders")
-    .update(updatePayload)
+    .select("id, status, delivery_status, shipping_status, tracking_code, shipment_id, payment_gateway, gateway_environment, asaas_payment_id")
     .eq(matchField, matchValue)
-    .select("id, status, delivery_status, shipping_status, tracking_code, shipment_id, payment_gateway, gateway_environment")
     .maybeSingle();
+
+  if (!existing) {
+    const responseBody = { error: "Order not found" };
+    await logApiCall(route, 404, payload, "Order not found");
+    return jsonResponse(404, responseBody);
+  }
+
+  // No-op: todos os campos a atualizar já têm o valor desejado → não toca no banco
+  let didChange = false;
+  for (const [key, value] of Object.entries(updatePayload)) {
+    if (key === "updated_at") continue;
+    if ((existing as Record<string, unknown>)[key] !== value) {
+      didChange = true;
+      break;
+    }
+  }
+
+  let data: Record<string, unknown> | null = existing as Record<string, unknown>;
+  let error: { message: string } | null = null;
+
+  if (didChange) {
+    const updateRes = await supabase
+      .from("orders")
+      .update(updatePayload)
+      .eq(matchField, matchValue)
+      .select("id, status, delivery_status, shipping_status, tracking_code, shipment_id, payment_gateway, gateway_environment, asaas_payment_id")
+      .maybeSingle();
+    data = (updateRes.data as Record<string, unknown> | null) ?? data;
+    error = updateRes.error ? { message: updateRes.error.message } : null;
+  }
 
   if (error) {
     await logApiCall(route, 500, payload, error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse(500, { error: error.message });
   }
 
-  if (!data) {
-    await logApiCall(route, 404, payload, "Order not found");
-    return new Response(JSON.stringify({ error: "Order not found" }), {
-      status: 404,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  if (route === "/api/shipping/status") {
+  if (route === "/api/shipping/status" && didChange) {
     await supabase.from("shipping_logs").insert({
-      order_id: data.id,
+      order_id: (data as Record<string, unknown>).id,
       event_type: "api_shipping_status_update",
       request_payload: payload,
       response_payload: data,
@@ -224,10 +292,25 @@ async function updateOrderRecord(
 
   await logApiCall(route, 200, payload);
 
-  return new Response(JSON.stringify({ success: true, order: data }), {
-    status: 200,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  const responseBody = {
+    success: true,
+    order: data,
+    idempotent: !didChange,
+  };
+
+  // Persiste resultado para futuras retentativas (TTL 24h via default da tabela)
+  await supabase
+    .from("api_idempotency_keys")
+    .upsert({
+      key: idempotencyKey,
+      route,
+      request_hash: requestHash,
+      response_status: 200,
+      response_body: responseBody,
+      order_id: (data as { id?: string })?.id ?? null,
+    }, { onConflict: "key" });
+
+  return jsonResponse(200, responseBody);
 }
 
 Deno.serve(async (req) => {
