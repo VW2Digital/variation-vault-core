@@ -40,6 +40,7 @@ FUNCTIONS=(
   mercadopago-webhook
   notify-payment-failure
   orders-api
+  production-router
   pagarme-webhook
   pagarme-webhooks-admin
   pagbank-webhook
