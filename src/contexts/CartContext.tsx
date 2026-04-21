@@ -213,11 +213,21 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => { fetchCart(); }, [fetchCart]);
 
   const addToCart = async (productId: string, variationId: string, quantity = 1) => {
-    if (!userId) {
-      toast({ title: 'Faça login para adicionar ao carrinho', variant: 'destructive' });
-      return;
-    }
     try {
+      if (!userId) {
+        // Anonymous cart: persist to localStorage
+        const anon = readAnonCart();
+        const idx = anon.findIndex(e => e.variation_id === variationId);
+        if (idx >= 0) {
+          anon[idx].quantity += quantity;
+        } else {
+          anon.push({ product_id: productId, variation_id: variationId, quantity });
+        }
+        writeAnonCart(anon);
+        await fetchCart();
+        toast({ title: 'Adicionado ao carrinho!' });
+        return;
+      }
       // Upsert: if already exists, increment quantity
       const existing = items.find(i => i.variation_id === variationId);
       if (existing) {
@@ -257,8 +267,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const removeFromCart = async (variationId: string) => {
-    if (!userId) return;
     try {
+      if (!userId) {
+        const anon = readAnonCart().filter(e => e.variation_id !== variationId);
+        writeAnonCart(anon);
+        await fetchCart();
+        return;
+      }
       const { error } = await supabase
         .from('cart_items')
         .delete()
@@ -272,7 +287,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateQuantity = async (variationId: string, quantity: number) => {
-    if (!userId || quantity < 1) return;
+    if (quantity < 1) return;
     // Enforce wholesale minimum
     const item = items.find(i => i.variation_id === variationId);
     if (item && item.wholesale_prices.length > 0) {
@@ -280,6 +295,16 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       if (quantity < minQty) return;
     }
     try {
+      if (!userId) {
+        const anon = readAnonCart();
+        const idx = anon.findIndex(e => e.variation_id === variationId);
+        if (idx >= 0) {
+          anon[idx].quantity = quantity;
+          writeAnonCart(anon);
+          await fetchCart();
+        }
+        return;
+      }
       const { error } = await supabase
         .from('cart_items')
         .update({ quantity })
@@ -293,8 +318,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const clearCart = async () => {
-    if (!userId) return;
     try {
+      if (!userId) {
+        clearAnonCart();
+        setItems([]);
+        return;
+      }
       const { error } = await supabase
         .from('cart_items')
         .delete()
