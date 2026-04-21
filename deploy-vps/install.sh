@@ -36,7 +36,9 @@ fi
 
 # ----------------------------- Configuração ---------------------------------
 APP_DIR="/var/www/app"
-REPO_URL_DEFAULT="https://github.com/lovable-dev/liberty-pharma.git"
+REPO_URL_DEFAULT="https://github.com/VW2Digital/variation-vault-core.git"
+DOMAIN_DEFAULT="luminaeliberty.com"
+EMAIL_DEFAULT="libertyluminaepharma@gmail.com"
 
 echo -e "${BLUE}╔══════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║   Liberty Pharma — Instalação Nativa (Vite + Nginx)      ║${NC}"
@@ -159,13 +161,15 @@ ok "Nginx servindo $APP_DIR/dist na porta 80"
 ###############################################################################
 step "STEP 2 — Configurando SSL com Certbot"
 
-read -rp "Domínio (ex: app.seudominio.com): " DOMAIN
+read -rp "Domínio [${DOMAIN_DEFAULT}]: " DOMAIN
+DOMAIN="${DOMAIN:-$DOMAIN_DEFAULT}"
 if [[ -z "${DOMAIN:-}" ]]; then
     err "Domínio não pode ser vazio."
     exit 1
 fi
 
-read -rp "E-mail para alertas do Let's Encrypt: " EMAIL
+read -rp "E-mail para alertas do Let's Encrypt [${EMAIL_DEFAULT}]: " EMAIL
+EMAIL="${EMAIL:-$EMAIL_DEFAULT}"
 if [[ -z "${EMAIL:-}" ]]; then
     err "E-mail não pode ser vazio."
     exit 1
