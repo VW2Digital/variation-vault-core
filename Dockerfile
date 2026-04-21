@@ -37,10 +37,14 @@ COPY deploy-vps/nginx.conf /etc/nginx/conf.d/default.conf
 # Copia o build gerado
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-EXPOSE 80
+# Entrypoint que habilita HTTPS dinamicamente quando há certificado
+COPY deploy-vps/docker-entrypoint.sh /docker-entrypoint-custom.sh
+RUN chmod +x /docker-entrypoint-custom.sh
+
+EXPOSE 80 443
 
 # Healthcheck simples
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD wget -qO- http://localhost/ > /dev/null || exit 1
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/docker-entrypoint-custom.sh"]

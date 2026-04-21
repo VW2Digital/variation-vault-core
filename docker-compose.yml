@@ -9,8 +9,18 @@ services:
         VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
     container_name: liberty-pharma-app
     restart: unless-stopped
+    environment:
+      # Define o domínio servido por HTTPS. Pode ser sobrescrito no .env:
+      #   SERVER_NAME=meudominio.com
+      SERVER_NAME: ${SERVER_NAME:-_}
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      # Certificados Let's Encrypt do host (gerados por issue-ssl.sh / certbot)
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      # Webroot opcional p/ ACME challenge (renovação sem parar o nginx)
+      - /var/www/certbot:/var/www/certbot
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost/"]
       interval: 30s
