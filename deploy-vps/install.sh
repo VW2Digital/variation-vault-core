@@ -251,42 +251,15 @@ fi
 ok "SSL configurado para $DOMAIN"
 
 ###############################################################################
-# STEP 3 — Supabase: Project Ref + Classic Access Token
+# STEP 3 — Confirmação das credenciais Supabase já aplicadas no build
 ###############################################################################
-step "STEP 3 — Salvando credenciais Supabase"
+step "STEP 3 — Supabase externo configurado"
 
-SUPABASE_PROJECT_REF_DEFAULT="vkomfiplmhpkhfpidrng"
-
-echo "Project Ref do Supabase (ID do projeto, ex: ntlfjekvisepsusbcjsv)."
-echo "Encontre em: Supabase Dashboard → Project Settings → General → Reference ID"
-read -rp "SUPABASE_PROJECT_REF [${SUPABASE_PROJECT_REF_DEFAULT}]: " SUPABASE_PROJECT_REF
-SUPABASE_PROJECT_REF="${SUPABASE_PROJECT_REF:-$SUPABASE_PROJECT_REF_DEFAULT}"
-if [[ -z "${SUPABASE_PROJECT_REF:-}" ]]; then
-    err "Project Ref não pode ser vazio."
-    exit 1
-fi
-
-echo
-echo "Cole seu Classic Personal Access Token do Supabase."
-echo "Obtenha em: https://supabase.com/dashboard/account/tokens"
-read -rsp "SUPABASE_ACCESS_TOKEN: " SUPABASE_TOKEN
-echo
-if [[ -z "${SUPABASE_TOKEN:-}" ]]; then
-    err "Token não pode ser vazio."
-    exit 1
-fi
-
-ENV_FILE="$APP_DIR/.env"
-touch "$ENV_FILE"
-# Remove linhas antigas (se existirem) e adiciona as novas
-sed -i '/^SUPABASE_ACCESS_TOKEN=/d;/^SUPABASE_PROJECT_REF=/d' "$ENV_FILE"
-{
-    echo "SUPABASE_PROJECT_REF=${SUPABASE_PROJECT_REF}"
-    echo "SUPABASE_ACCESS_TOKEN=${SUPABASE_TOKEN}"
-} >> "$ENV_FILE"
-chmod 600 "$ENV_FILE"
-chown root:root "$ENV_FILE"
-ok "Credenciais salvas em $ENV_FILE (chmod 600)"
+ok "URL ............ $SUPABASE_URL_INPUT"
+ok "Project Ref .... $SUPABASE_PROJECT_REF"
+ok "Anon Key ....... ${SUPABASE_ANON_KEY:0:20}... (${#SUPABASE_ANON_KEY} chars)"
+ok "Arquivo ........ $ENV_FILE (chmod 600)"
+info "Credenciais aplicadas no bundle Vite durante o build acima."
 
 ###############################################################################
 # Resumo final
@@ -298,11 +271,14 @@ echo -e "${GREEN}╚════════════════════
 echo
 ok "App Vite/React buildado e servido via Nginx → $APP_DIR/dist/"
 ok "Certificado SSL configurado para $DOMAIN"
-ok "Supabase Project Ref: $SUPABASE_PROJECT_REF"
-ok "Token Supabase salvo em $ENV_FILE (chmod 600)"
+ok "Supabase externo: $SUPABASE_URL_INPUT (ref: $SUPABASE_PROJECT_REF)"
+ok "Credenciais salvas em $ENV_FILE (chmod 600)"
 echo
 echo -e "${BLUE}Acesse: https://${DOMAIN}${NC}"
 echo
-echo "Para atualizar o app no futuro:"
+echo "Para atualizar o app no futuro (mantém o .env com Supabase externo):"
 echo "  cd $APP_DIR && git pull && npm install && npm run build && systemctl reload nginx"
+echo
+echo "IMPORTANTE: o schema do banco precisa estar criado no seu Supabase."
+echo "Use o SQL em deploy-vps/supabase/schema.sql para provisionar tudo."
 echo
