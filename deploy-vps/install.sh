@@ -220,13 +220,20 @@ ok "Certbot: $(certbot --version 2>&1 | head -n1)"
 
 # Agente de e-mail mínimo (para alertas de falha do SSL via renew-ssl.sh)
 if ! command -v mail >/dev/null 2>&1 && ! command -v msmtp >/dev/null 2>&1; then
-  log "Instalando utilitários de e-mail (bsd-mailx) para alertas de SSL..."
-  apt-get install -y -qq bsd-mailx >/dev/null 2>&1 || apt-get install -y -qq mailutils >/dev/null 2>&1 || true
+  log "Instalando utilitário de e-mail (bsd-mailx) para alertas de SSL... [não bloqueante, timeout 60s]"
+  # IMPORTANTE: usar apenas bsd-mailx (não puxa postfix/exim e evita prompts interativos).
+  # mailutils é evitado de propósito porque depende de um MTA que abre debconf e trava o apt.
+  # Tudo roda em modo não-interativo com timeout para nunca pendurar a instalação.
+  DEBIAN_FRONTEND=noninteractive timeout 60 apt-get install -y -qq \
+    -o Dpkg::Options::="--force-confdef" \
+    -o Dpkg::Options::="--force-confold" \
+    bsd-mailx >/dev/null 2>&1 || true
 fi
 if command -v mail >/dev/null 2>&1 || command -v msmtp >/dev/null 2>&1; then
   ok "Agente de e-mail disponível para alertas de SSL"
 else
-  warn "Sem agente de e-mail (mail/msmtp). Alertas de falha de SSL serão só registrados em /var/log/ssl-renew.log."
+  warn "Sem agente de e-mail (mail/msmtp). Alertas de SSL ficarão apenas em /var/log/ssl-renew.log."
+  warn "Para receber e-mails: instale 'msmtp' depois e configure relay (Resend/Gmail/SendGrid)."
 fi
 
 # ----------------------------------------------------------------------------
