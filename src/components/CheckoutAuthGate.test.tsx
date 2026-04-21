@@ -117,12 +117,19 @@ describe('CheckoutAuthGate - autenticação bem-sucedida mantém usuário no che
     const onAuthenticated = vi.fn();
     render(<CheckoutAuthGate onAuthenticated={onAuthenticated} />);
 
-    // Trocar para aba de login
-    fireEvent.click(screen.getByRole('tab', { name: /Já sou cliente/i }));
+    // Trocar para aba de login (Radix Tabs)
+    const loginTab = screen.getByRole('tab', { name: /Já sou cliente/i });
+    fireEvent.pointerDown(loginTab, { button: 0, ctrlKey: false });
+    fireEvent.mouseDown(loginTab, { button: 0 });
+    fireEvent.click(loginTab);
 
-    fireEvent.change(screen.getByLabelText(/^Email$/i), { target: { value: 'cliente@teste.com' } });
-    fireEvent.change(screen.getByLabelText(/Senha/i), { target: { value: 'senha123' } });
-    fireEvent.click(screen.getByRole('button', { name: /Entrar e continuar/i }));
+    const loginEmailInput = await screen.findByLabelText(/^Email$/i);
+    const loginPasswordInput = await screen.findByLabelText(/Senha/i);
+    fireEvent.change(loginEmailInput, { target: { value: 'cliente@teste.com' } });
+    fireEvent.change(loginPasswordInput, { target: { value: 'senha123' } });
+
+    const loginButton = await screen.findByRole('button', { name: /Entrar e continuar/i });
+    fireEvent.click(loginButton);
 
     await waitFor(() => {
       expect(signInMock).toHaveBeenCalledWith({
