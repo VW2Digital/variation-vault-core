@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Activity, AlertTriangle, CheckCircle2, ShieldAlert, Trash2, RefreshCw, Eye } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Activity, AlertTriangle, CheckCircle2, ShieldAlert, Trash2, RefreshCw, Eye, Download, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 type WebhookLog = {
@@ -38,6 +39,22 @@ const GATEWAY_COLORS: Record<string, string> = {
   pagarme: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
   pagbank: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30',
   'melhor-envio': 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30',
+};
+
+// Códigos de erro conhecidos (E-WBH-XXXX do Melhor Envio, etc)
+// Detecta no error_message ou no payload bruto.
+const ERROR_CODE_REGEX = /\bE-[A-Z]+-\d{4}\b/g;
+
+const extractErrorCodes = (log: WebhookLog): string[] => {
+  const haystack = [
+    log.error_message || '',
+    log.signature_error || '',
+    typeof log.request_payload === 'string'
+      ? log.request_payload
+      : JSON.stringify(log.request_payload || {}),
+  ].join(' ');
+  const matches = haystack.match(ERROR_CODE_REGEX);
+  return matches ? Array.from(new Set(matches)) : [];
 };
 
 export default function WebhookLogsPage() {
