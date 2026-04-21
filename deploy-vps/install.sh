@@ -255,6 +255,18 @@ server {
         proxy_buffering off;
     }
 
+    # Webhook do Melhor Envio cadastrado como /admin/configuracoes/logistica:
+    # GET serve a SPA normalmente; POST é roteado para a edge function
+    # melhor-envio-webhook no Supabase. Resolve E-WBH-0002 (405) ao usar a URL
+    # da página de configuração como callback.
+    location = /admin/configuracoes/logistica {
+        if (\$request_method = POST) {
+            rewrite ^ /melhor-envio-webhook last;
+        }
+        try_files \$uri /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
@@ -391,4 +403,7 @@ for FN in melhor-envio-webhook asaas-webhook mercadopago-webhook pagarme-webhook
     echo "    https://${DOMAIN}/${FN}              (recomendado)"
     echo "    ${SUPABASE_URL_INPUT}/functions/v1/${FN}   (direto Supabase)"
 done
+echo
+echo "  Melhor Envio (URL alternativa, aceita POST na página de configuração):"
+echo "    https://${DOMAIN}/admin/configuracoes/logistica"
 echo

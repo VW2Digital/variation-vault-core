@@ -140,6 +140,7 @@ if [[ -f "$VHOST" ]]; then
     NEEDS_REWRITE=0
     grep -q 'location = /healthz' "$VHOST" || NEEDS_REWRITE=1
     grep -q 'melhor-envio-webhook' "$VHOST" || NEEDS_REWRITE=1
+    grep -q '/admin/configuracoes/logistica' "$VHOST" || NEEDS_REWRITE=1
     if [[ "$NEEDS_REWRITE" -eq 1 ]]; then
         step "Atualizando vhost Nginx (/healthz + proxy de webhooks)"
         cat > "$VHOST" <<NGINX
@@ -188,6 +189,16 @@ server {
         proxy_buffering off;
     }
 
+    # Webhook do Melhor Envio cadastrado na URL da página de configuração:
+    # GET serve a SPA; POST é redirecionado internamente para a edge function.
+    location = /admin/configuracoes/logistica {
+        if (\$request_method = POST) {
+            rewrite ^ /melhor-envio-webhook last;
+        }
+        try_files \$uri /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
@@ -221,4 +232,9 @@ for FN in melhor-envio-webhook asaas-webhook mercadopago-webhook pagarme-webhook
     fi
     echo "    ${SUPABASE_URL_INPUT}/functions/v1/${FN}   (direto Supabase)"
 done
+if [[ -n "$DOMAIN_FROM_VHOST" && "$DOMAIN_FROM_VHOST" != "_" ]]; then
+    echo
+    echo "  Melhor Envio (URL alternativa, aceita POST na página de configuração):"
+    echo "    https://${DOMAIN_FROM_VHOST}/admin/configuracoes/logistica"
+fi
 echo
