@@ -231,7 +231,7 @@ echo -e "${BOLD}━━━ Etapa 3/4 · Repositório e Docker ━━━${NC}"
 
 if [ ! -f "$APP_DIR/Dockerfile" ]; then
   log "Clonando repositório em $APP_DIR..."
-  command -v git >/dev/null 2>&1 || apt-get install -y -qq git
+  command -v git >/dev/null 2>&1 || apt_safe git || { err "git falhou"; add_err "git"; exit 1; }
   mkdir -p "$(dirname "$APP_DIR")"
   [ -d "$APP_DIR" ] && [ -z "$(ls -A "$APP_DIR" 2>/dev/null)" ] && rmdir "$APP_DIR"
   git clone --depth 1 -b "$REPO_BRANCH" "$REPO_URL" "${APP_DIR}.tmp"
@@ -243,51 +243,61 @@ if [ ! -f "$APP_DIR/Dockerfile" ]; then
   ok "Repositório clonado"
 fi
 cd "$APP_DIR"
+add_ok "Repositório em $APP_DIR"
 
 if ! command -v docker >/dev/null 2>&1; then
   log "Instalando Docker..."
-  curl -fsSL https://get.docker.com | sh
+  timeout 600 bash -c 'curl -fsSL https://get.docker.com | sh' || { err "Instalação do Docker falhou/timeout"; add_err "Docker"; exit 1; }
   systemctl enable --now docker
 fi
 ok "Docker: $(docker --version)"
+add_ok "Docker $(docker --version | awk '{print $3}' | tr -d ',')"
 
 if ! docker compose version >/dev/null 2>&1; then
   log "Instalando docker-compose-plugin..."
-  apt-get update -qq && apt-get install -y -qq docker-compose-plugin
+  apt_update_safe; apt_safe docker-compose-plugin || { err "docker-compose-plugin falhou"; add_err "compose plugin"; exit 1; }
 fi
 ok "Compose: $(docker compose version --short)"
+add_ok "Docker Compose $(docker compose version --short)"
 
 # Certbot — necessário para emitir/renovar SSL depois via issue-ssl.sh
 if ! command -v certbot >/dev/null 2>&1; then
   log "Instalando Certbot (Let's Encrypt)..."
-  apt-get install -y -qq certbot
+  apt_safe certbot || { warn "Certbot não instalou — você pode instalar depois com: apt install -y certbot"; add_warn "Certbot (instale depois)"; }
 fi
-ok "Certbot: $(certbot --version 2>&1 | head -n1)"
+if command -v certbot >/dev/null 2>&1; then
+  ok "Certbot: $(certbot --version 2>&1 | head -n1)"
+  add_ok "Certbot"
+fi
 
 # Agente de e-mail mínimo (para alertas de falha do SSL via renew-ssl.sh)
-if ! command -v mail >/dev/null 2>&1 && ! command -v msmtp >/dev/null 2>&1; then
+if [ "$SKIP_MAIL" -eq 1 ]; then
+  warn "--skip-mail: pulando instalação do agente de e-mail."
+  add_warn "Agente de e-mail pulado (--skip-mail)"
+elif ! command -v mail >/dev/null 2>&1 && ! command -v msmtp >/dev/null 2>&1; then
   log "Instalando utilitário de e-mail (bsd-mailx) para alertas de SSL... [não bloqueante, timeout 60s]"
-  # IMPORTANTE: usar apenas bsd-mailx (não puxa postfix/exim e evita prompts interativos).
-  # mailutils é evitado de propósito porque depende de um MTA que abre debconf e trava o apt.
-  # Tudo roda em modo não-interativo com timeout para nunca pendurar a instalação.
-  DEBIAN_FRONTEND=noninteractive timeout 60 apt-get install -y -qq \
-    -o Dpkg::Options::="--force-confdef" \
-    -o Dpkg::Options::="--force-confold" \
-    bsd-mailx >/dev/null 2>&1 || true
+  # bsd-mailx é leve e não puxa postfix/exim. Tudo não-interativo com timeout.
+  timeout 60 apt_safe bsd-mailx >/dev/null 2>&1 || true
 fi
 if command -v mail >/dev/null 2>&1 || command -v msmtp >/dev/null 2>&1; then
   ok "Agente de e-mail disponível para alertas de SSL"
-else
+  add_ok "Agente de e-mail (alertas SSL)"
+elif [ "$SKIP_MAIL" -ne 1 ]; then
   warn "Sem agente de e-mail (mail/msmtp). Alertas de SSL ficarão apenas em /var/log/ssl-renew.log."
   warn "Para receber e-mails: instale 'msmtp' depois e configure relay (Resend/Gmail/SendGrid)."
+  add_warn "Sem agente de e-mail (alertas SSL ficam só em log)"
 fi
 
 # ----------------------------------------------------------------------------
 # Firewall (UFW) — garante portas 80/443/22 abertas
 # ----------------------------------------------------------------------------
+if [ "$SKIP_UFW" -eq 1 ]; then
+  warn "--skip-ufw: pulando configuração de firewall."
+  add_warn "Firewall (UFW) pulado (--skip-ufw)"
+else
 log "Configurando firewall (portas 80, 443, 22)..."
 if ! command -v ufw >/dev/null 2>&1; then
-  apt-get install -y -qq ufw || true
+  apt_safe ufw >/dev/null 2>&1 || true
 fi
 if command -v ufw >/dev/null 2>&1; then
   ufw allow 22/tcp   >/dev/null 2>&1 || true
@@ -300,8 +310,11 @@ if command -v ufw >/dev/null 2>&1; then
     ufw reload >/dev/null 2>&1 || true
   fi
   ok "UFW: 22, 80, 443/tcp liberadas"
+  add_ok "Firewall UFW (22/80/443)"
 else
   warn "UFW indisponível — verifique manualmente que 80/443 estão abertas no firewall do provedor (Oracle/AWS/etc)."
+  add_warn "UFW indisponível — confirme firewall do provedor"
+fi
 fi
 
 # iptables direto (caso UFW não esteja em uso, ex: Oracle Cloud)
