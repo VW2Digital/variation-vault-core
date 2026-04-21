@@ -163,13 +163,19 @@ fi
 ENV_FILE="$APP_DIR/.env"
 info "Gravando credenciais Supabase em $ENV_FILE (usadas no build do Vite)..."
 cat > "$ENV_FILE" <<ENV
+# --- Públicas (entram no bundle do Vite) ---
 VITE_SUPABASE_URL=${SUPABASE_URL_INPUT}
 VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_ANON_KEY}
 VITE_SUPABASE_PROJECT_ID=${SUPABASE_PROJECT_REF}
+
+# --- Privadas (server-side / scripts / Management API) ---
+SUPABASE_PROJECT_REF=${SUPABASE_PROJECT_REF}
+SUPABASE_ACCESS_TOKEN=${SUPABASE_ACCESS_TOKEN}
+SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
 ENV
 chmod 600 "$ENV_FILE"
 chown root:root "$ENV_FILE"
-ok "Variáveis VITE_* gravadas (apontando para $SUPABASE_URL_INPUT)"
+ok "Credenciais gravadas em $ENV_FILE (apontando para $SUPABASE_URL_INPUT)"
 
 # Build
 cd "$APP_DIR"
