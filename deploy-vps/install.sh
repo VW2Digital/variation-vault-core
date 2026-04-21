@@ -499,19 +499,34 @@ else
     err "Solução comum:  ufw allow out 443/tcp && ufw reload"
     exit 1
   fi
-  log "Executando instalador do Docker (~2 min)…"
-  if timeout 300 sh "$DOCKER_SH" >/tmp/docker-install.log 2>&1; then
+  log "Executando instalador do Docker (timeout 600s, até 2 tentativas)…"
+  DOCKER_RC=1
+  for attempt in 1 2; do
+    log "  tentativa $attempt/2…"
+    timeout 600 sh "$DOCKER_SH" >/tmp/docker-install.log 2>&1
+    DOCKER_RC=$?
+    [ "$DOCKER_RC" -eq 0 ] && break
+    warn "  tentativa $attempt falhou (código $DOCKER_RC) — aguardando 10s…"
+    sleep 10
+  done
+  if [ "$DOCKER_RC" -eq 0 ]; then
     ok "Docker instalado"
   else
-    err "Falha ao instalar Docker. Últimas 25 linhas do log:"
-    tail -n 25 /tmp/docker-install.log >&2 || true
+    err "Falha ao instalar Docker (código $DOCKER_RC). Últimas 30 linhas do log:"
+    tail -n 30 /tmp/docker-install.log >&2 || true
+    echo
+    err "Causas comuns para timeout (exit 124):"
+    err "  • download.docker.com lento — teste: curl -v https://download.docker.com"
+    err "  • DNS lento — troque para 1.1.1.1: echo 'nameserver 1.1.1.1' | sudo tee /etc/resolv.conf"
+    err "  • mirror apt lento — instale manualmente:"
+    err "      sudo apt-get install -y docker.io docker-compose-v2"
     exit 1
   fi
 
   # Plugin compose (caso não tenha vindo no get.docker.com)
   if ! docker compose version >/dev/null 2>&1; then
     log "Instalando docker-compose-plugin via apt…"
-    timeout 180 apt-get install -y -qq docker-compose-plugin >>"$APT_LOG" 2>&1 || \
+    timeout 300 apt-get install -y -qq docker-compose-plugin >>"$APT_LOG" 2>&1 || \
       warn "docker-compose-plugin não instalou via apt — tente reiniciar a sessão"
   fi
 fi
