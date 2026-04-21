@@ -86,6 +86,7 @@ fi
 ok "Anon key obtida automaticamente para $SUPABASE_PROJECT_REF"
 
 step "Reescrevendo $ENV_FILE"
+PRESERVED_ENV="$(grep -Ev '^(VITE_SUPABASE_URL|VITE_SUPABASE_PUBLISHABLE_KEY|VITE_SUPABASE_PROJECT_ID|SUPABASE_PROXY_HOST|SUPABASE_FUNCTIONS_BASE_URL)=' "$ENV_FILE" 2>/dev/null || true)"
 cat > "$ENV_FILE" <<ENV
 VITE_SUPABASE_URL=${SUPABASE_URL_INPUT}
 VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_ANON_KEY}
@@ -93,12 +94,12 @@ VITE_SUPABASE_PROJECT_ID=${SUPABASE_PROJECT_REF}
 SUPABASE_PROXY_HOST=${SUPABASE_PROJECT_REF}.supabase.co
 SUPABASE_FUNCTIONS_BASE_URL=${SUPABASE_URL_INPUT}/functions/v1
 ENV
+if [[ -n "$PRESERVED_ENV" ]]; then
+    printf '\n%s\n' "$PRESERVED_ENV" >> "$ENV_FILE"
+fi
 chmod 600 "$ENV_FILE"; chown root:root "$ENV_FILE"
 ok ".env atualizado"
-
-if grep -q '^SERVER_NAME=' "$ENV_FILE"; then
-    info "SERVER_NAME preservado no .env"
-fi
+grep -q '^SERVER_NAME=' "$ENV_FILE" && info "SERVER_NAME preservado no .env"
 
 step "Rebuild da aplicação"
 cd "$APP_DIR"
