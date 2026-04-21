@@ -358,24 +358,44 @@ ok ".env criado com $(grep -c '=' "$APP_DIR/.env") variáveis"
 unset PAT SUPA_SECRET SUPA_DBURL SUPA_DBPASS SUPA_WHSEC
 
 log "Buildando imagem (pode levar 2-4 min)..."
-docker compose build app || { err "Build falhou. Veja o erro acima."; exit 1; }
-log "Subindo container..."
-docker compose up -d || { err "docker compose up falhou."; docker compose logs --tail=50 app || true; exit 1; }
-
-log "Aguardando Nginx subir e responder (até 90s)..."
-APP_UP=0
-for i in $(seq 1 45); do
-  if curl -sf http://localhost/ -o /dev/null; then
-    ok "Site no ar (HTTP local respondendo)"
-    APP_UP=1
-    break
-  fi
-  sleep 2
-done
-if [ "$APP_UP" -ne 1 ]; then
-  err "App não respondeu em 90s. Últimos logs:"
-  docker compose logs --tail=40 app
+if ! timeout 900 docker compose build app; then
+  err "Build falhou ou excedeu 15min. Veja o erro acima."
+  add_err "docker compose build"
   exit 1
+fi
+add_ok "Imagem Docker compilada"
+
+log "Subindo container..."
+if ! docker compose up -d; then
+  err "docker compose up falhou."
+  docker compose logs --tail=50 app || true
+  add_err "docker compose up"
+  exit 1
+fi
+add_ok "Container ativo"
+
+if [ "$SKIP_HEALTHCHECK" -eq 1 ]; then
+  warn "--skip-healthcheck: pulando espera do Nginx."
+  add_warn "Health check Nginx pulado (--skip-healthcheck)"
+else
+  log "Aguardando Nginx subir e responder (até 90s)..."
+  APP_UP=0
+  for i in $(seq 1 45); do
+    if curl -sf -m 3 http://localhost/ -o /dev/null; then
+      ok "Site no ar (HTTP local respondendo)"
+      APP_UP=1
+      break
+    fi
+    sleep 2
+  done
+  if [ "$APP_UP" -ne 1 ]; then
+    warn "App não respondeu em 90s. Últimos logs do container:"
+    docker compose logs --tail=40 app || true
+    warn "Continuando — verifique manualmente: docker compose logs -f app"
+    add_warn "Nginx não respondeu em 90s (verificar logs)"
+  else
+    add_ok "Nginx respondendo em http://localhost/"
+  fi
 fi
 
 echo
