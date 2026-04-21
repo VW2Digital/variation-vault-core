@@ -134,20 +134,31 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const fetchCart = useCallback(async () => {
-    if (!userId) { setItems([]); return; }
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('cart_items')
-        .select('id, product_id, variation_id, quantity')
-        .eq('user_id', userId);
-      if (error) throw error;
+      // Source rows: from DB if logged in, otherwise from localStorage
+      let rows: { id: string; product_id: string; variation_id: string; quantity: number }[] = [];
+      if (userId) {
+        const { data, error } = await supabase
+          .from('cart_items')
+          .select('id, product_id, variation_id, quantity')
+          .eq('user_id', userId);
+        if (error) throw error;
+        rows = data || [];
+      } else {
+        rows = readAnonCart().map((e) => ({
+          id: `anon-${e.variation_id}`,
+          product_id: e.product_id,
+          variation_id: e.variation_id,
+          quantity: e.quantity,
+        }));
+      }
 
-      if (!data || data.length === 0) { setItems([]); return; }
+      if (rows.length === 0) { setItems([]); return; }
 
       // Fetch product + variation details
-      const varIds = data.map(i => i.variation_id);
-      const prodIds = [...new Set(data.map(i => i.product_id))];
+      const varIds = rows.map(i => i.variation_id);
+      const prodIds = [...new Set(rows.map(i => i.product_id))];
 
       const [{ data: variations }, { data: products }] = await Promise.all([
         supabase.from('product_variations').select('id, dosage, price, offer_price, is_offer, image_url, images, in_stock').in('id', varIds),
@@ -170,7 +181,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const varMap = new Map((variations || []).map(v => [v.id, v]));
       const prodMap = new Map((products || []).map(p => [p.id, p]));
 
-      const enriched: CartItem[] = data.map(ci => {
+      const enriched: CartItem[] = rows.map(ci => {
         const v = varMap.get(ci.variation_id);
         const p = prodMap.get(ci.product_id);
         const isOffer = v?.is_offer && v?.offer_price;
