@@ -213,8 +213,12 @@ echo
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${BLUE}URLs prontas para colar nos painéis dos gateways/webhooks:${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+DOMAIN_FROM_VHOST="$(grep -E '^\s*server_name' /etc/nginx/sites-available/app 2>/dev/null | head -n1 | awk '{print $2}' | tr -d ';' || true)"
 for FN in melhor-envio-webhook asaas-webhook mercadopago-webhook pagarme-webhook pagbank-webhook; do
     echo "  $FN:"
-    echo "    ${SUPABASE_URL_INPUT}/functions/v1/${FN}"
+    if [[ -n "$DOMAIN_FROM_VHOST" && "$DOMAIN_FROM_VHOST" != "_" ]]; then
+        echo "    https://${DOMAIN_FROM_VHOST}/${FN}              (recomendado — proxy local)"
+    fi
+    echo "    ${SUPABASE_URL_INPUT}/functions/v1/${FN}   (direto Supabase)"
 done
 echo
