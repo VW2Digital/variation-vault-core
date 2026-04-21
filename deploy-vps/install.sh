@@ -455,19 +455,32 @@ fi
 log "Instalando dependências mínimas (curl, ca-certificates, git, gnupg)…"
 # Sem `set -e` matando o script — capturamos o código e logamos antes de sair.
 set +e
-timeout 180 apt-get install -y --no-install-recommends \
-  -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
-  ca-certificates curl git gnupg >>"$APT_LOG" 2>&1
-APT_RC=$?
+# Tentamos até 3x com timeout 300s cada — mirrors do apt podem estar lentos.
+APT_RC=1
+for attempt in 1 2 3; do
+  log "  tentativa $attempt/3 (timeout 300s)…"
+  timeout 300 apt-get install -y --no-install-recommends \
+    -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+    -o Acquire::Retries=3 -o Acquire::http::Timeout=30 \
+    ca-certificates curl git gnupg >>"$APT_LOG" 2>&1
+  APT_RC=$?
+  [ "$APT_RC" -eq 0 ] && break
+  warn "  tentativa $attempt falhou (código $APT_RC) — aguardando 5s…"
+  sleep 5
+done
 set -e
 if [ "$APT_RC" -ne 0 ]; then
-  err "apt-get install falhou (código $APT_RC). Últimas 30 linhas do log:"
-  tail -n 30 "$APT_LOG" >&2 || true
+  err "apt-get install falhou após 3 tentativas (código $APT_RC)."
+  err "Últimas 40 linhas do log:"
+  tail -n 40 "$APT_LOG" >&2 || true
   echo
-  err "Causas comuns:"
+  err "Causas comuns para timeout (exit 124):"
+  err "  • DNS lento:     cat /etc/resolv.conf  (teste: dig deb.debian.org)"
+  err "  • mirror lento:  edite /etc/apt/sources.list e troque para mirror BR"
+  err "                   ex: http://br.archive.ubuntu.com/ubuntu/"
   err "  • dpkg travado:  sudo dpkg --configure -a && sudo apt-get install -f"
-  err "  • repo offline:  verifique /etc/apt/sources.list e DNS"
   err "  • disco cheio:   df -h /var"
+  err "  • firewall out:  ufw allow out 80/tcp && ufw allow out 443/tcp"
   exit 1
 fi
 ok "Dependências base instaladas (log: $APT_LOG)"
