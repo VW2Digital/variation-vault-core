@@ -5,8 +5,9 @@
 # Faz APENAS 3 coisas:
 #   STEP 1 — Instala Node.js LTS, Git, Nginx, builda o app e configura SPA
 #   STEP 2 — Instala Certbot e emite certificado SSL para o domínio
-#   STEP 3 — Coleta credenciais de um Supabase EXTERNO (URL, anon key, ref),
-#            grava em /var/www/app/.env e rebuilda o app apontando pra ele.
+#   STEP 3 — Conecta a um Supabase EXTERNO via Classic Access Token:
+#            descobre a anon key automaticamente pela Management API,
+#            aplica o schema SQL e grava credenciais em /var/www/app/.env.
 #
 # Sem Docker, sem PM2, sem Postgres, sem extras.
 ###############################################################################
