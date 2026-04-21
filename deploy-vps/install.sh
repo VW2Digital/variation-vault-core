@@ -16,6 +16,12 @@
 #   - Não emite SSL (rode `bash deploy-vps/issue-ssl.sh` depois, se quiser)
 #   - Não aplica schema Supabase (use `deploy-vps/supabase/schema.sql` no SQL Editor)
 #
+# OPCIONAL — Supabase self-hosted local:
+#   Se rodado em terminal interativo, pergunta se quer subir uma stack Supabase
+#   completa (Postgres + Auth + REST + Storage + Studio) em containers vizinhos,
+#   exposta apenas em 127.0.0.1 (acesso externo via SSH tunnel).
+#   Para forçar não-interativo: export INSTALL_SUPABASE=yes (ou no)
+#
 # USO:
 #   curl -fsSL https://raw.githubusercontent.com/VW2Digital/variation-vault-core/main/deploy-vps/install.sh -o /tmp/install.sh
 #   sudo bash /tmp/install.sh
@@ -26,6 +32,7 @@
 #   BRANCH     (default: main)
 #   DOMAIN     (default: _ — serve qualquer host em HTTP)
 #   VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY / VITE_SUPABASE_PROJECT_ID
+#   INSTALL_SUPABASE  (yes|no — pula o prompt interativo)
 # =============================================================================
 
 set -Eeuo pipefail
