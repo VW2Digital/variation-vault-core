@@ -122,11 +122,6 @@ const Index = () => {
                           className="w-full text-xs bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                           onClick={async (e) => {
                             e.stopPropagation();
-                            const { data: { session } } = await supabase.auth.getSession();
-                            if (!session) {
-                              navigate(`/cliente/login?redirect=${encodeURIComponent('/catalogo')}`);
-                              return;
-                            }
                             addToCart(product.id, variation.id, 1);
                           }}
                         >
