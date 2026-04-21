@@ -10,6 +10,7 @@ import UpsellSection from '@/components/UpsellSection';
 import { AnimatedSection } from '@/components/AnimatedSection';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import CheckoutAuthGate from '@/components/CheckoutAuthGate';
 import productHeroImg from '@/assets/product-hero.png';
 import { useToast } from '@/hooks/use-toast';
 
@@ -18,15 +19,18 @@ const CartCheckout = () => {
   const { toast } = useToast();
   const { items, totalPrice, clearCart, loading } = useCart();
   const [ready, setReady] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [freeShippingInfo, setFreeShippingInfo] = useState<{ freeShipping: boolean; minValue: number }>({ freeShipping: false, minValue: 0 });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate(`/cliente/login?redirect=${encodeURIComponent('/checkout-carrinho')}`);
-      }
+      setIsAuthenticated(!!session);
     });
-  }, [navigate]);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Only redirect to cart if items are empty AND cart has finished loading
   useEffect(() => {
@@ -223,8 +227,14 @@ const CartCheckout = () => {
           {/* Upsell Section - suggested products before payment */}
           <UpsellSection />
 
-          {/* Checkout Form - uses total price as unit price with qty 1 */}
-          <CheckoutForm
+          {/* Auth gate: show login/signup if not authenticated */}
+          {isAuthenticated === false && (
+            <CheckoutAuthGate onAuthenticated={() => setIsAuthenticated(true)} />
+          )}
+
+          {/* Checkout Form - only render once user is authenticated */}
+          {isAuthenticated && (
+            <CheckoutForm
             productName={productName}
             paymentDescription={hasFantasyNames ? paymentDesc : undefined}
             dosage={combinedDosage}
@@ -235,7 +245,8 @@ const CartCheckout = () => {
             pixDiscountPercentProp={cartPaymentSettings.pixDiscount}
             maxInstallmentsProp={cartPaymentSettings.maxInstallments}
             installmentsInterestProp={cartPaymentSettings.installmentsInterest}
-          />
+            />
+          )}
         </AnimatedSection>
       </section>
       <Footer />
