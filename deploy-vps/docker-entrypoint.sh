@@ -20,17 +20,17 @@ if [ -n "$SERVER_NAME" ] && [ "$SERVER_NAME" != "_" ]; then
     WWW="www.$APEX"
     CERT_DIR="/etc/letsencrypt/live/$APEX"
 
-    # Se o cert cobrir também o www, inclui no server_name
-    SERVER_NAMES="$APEX"
+    # Detecta se o cert cobre também o www (para gerar bloco de redirect canônico)
+    HAS_WWW=0
     if [ -f "$CERT_DIR/fullchain.pem" ] && \
        openssl x509 -in "$CERT_DIR/fullchain.pem" -noout -text 2>/dev/null \
          | grep -q "DNS:$WWW"; then
-        SERVER_NAMES="$APEX $WWW"
-        echo "[entrypoint] Certificado cobre $APEX e $WWW."
+        HAS_WWW=1
+        echo "[entrypoint] Certificado cobre $APEX e $WWW (será aplicado redirect canônico www → apex)."
     fi
 
     if [ -f "$CERT_DIR/fullchain.pem" ] && [ -f "$CERT_DIR/privkey.pem" ]; then
-        echo "[entrypoint] Certificado encontrado para $APEX — habilitando HTTPS (443) em: $SERVER_NAMES"
+        echo "[entrypoint] Certificado encontrado para $APEX — habilitando HTTPS (443) no apex."
 
         cat > "$REDIRECT_CONF" <<EOF
 # Força HTTPS (gerado pelo entrypoint)
@@ -46,7 +46,7 @@ EOF
 server {
     listen 443 ssl;
     http2 on;
-    server_name $SERVER_NAMES;
+    server_name $APEX;
 
     ssl_certificate     $CERT_DIR/fullchain.pem;
     ssl_certificate_key $CERT_DIR/privkey.pem;
@@ -112,6 +112,43 @@ server {
     }
 }
 EOF
+
+        # Bloco canônico: redireciona www → apex (HTTP e HTTPS) com 301
+        if [ "$HAS_WWW" = "1" ]; then
+            cat >> "$SSL_CONF" <<EOF
+
+# Redirect canônico: www.$APEX → $APEX (HTTPS, 301)
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name $WWW;
+
+    ssl_certificate     $CERT_DIR/fullchain.pem;
+    ssl_certificate_key $CERT_DIR/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    return 301 https://$APEX\$request_uri;
+}
+
+# Redirect canônico: http://www.$APEX → https://$APEX (301)
+server {
+    listen 80;
+    server_name $WWW;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type "text/plain";
+        try_files \$uri =404;
+    }
+
+    location / {
+        return 301 https://$APEX\$request_uri;
+    }
+}
+EOF
+        fi
     else
         echo "[entrypoint] Sem certificado para $SERVER_NAME ainda — servindo só HTTP."
     fi
