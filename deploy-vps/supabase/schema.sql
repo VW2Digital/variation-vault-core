@@ -605,3 +605,39 @@ BEGIN
     END IF;
   END LOOP;
 END $$;
+
+-- =============================================================================
+-- TABLE: webhook_logs (logs estruturados dos webhooks de gateway)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.webhook_logs (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  gateway         text NOT NULL,
+  event_type      text,
+  external_id     text,
+  order_id        uuid,
+  http_status     integer NOT NULL DEFAULT 200,
+  latency_ms      integer,
+  signature_valid boolean,
+  signature_error text,
+  error_message   text,
+  request_headers jsonb,
+  request_payload jsonb,
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_created_at ON public.webhook_logs (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_gateway    ON public.webhook_logs (gateway);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_order_id   ON public.webhook_logs (order_id);
+
+ALTER TABLE public.webhook_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins can view webhook logs"   ON public.webhook_logs;
+DROP POLICY IF EXISTS "Admins can delete webhook logs" ON public.webhook_logs;
+
+CREATE POLICY "Admins can view webhook logs"
+  ON public.webhook_logs FOR SELECT TO authenticated
+  USING (public.has_role(auth.uid(), 'admin'));
+
+CREATE POLICY "Admins can delete webhook logs"
+  ON public.webhook_logs FOR DELETE TO authenticated
+  USING (public.has_role(auth.uid(), 'admin'));
