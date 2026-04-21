@@ -33,6 +33,20 @@ sudo bash /tmp/install.sh
 
 > ⚠️ **NÃO use `curl ... | sudo bash`** — o instalador é interativo e precisa de TTY para os prompts. O pipe quebra a entrada do teclado e o script aborta. Sempre baixe primeiro com `-o /tmp/install.sh` e rode com `sudo bash /tmp/install.sh`.
 
+### Diagnóstico antes de instalar
+
+Quer saber se a VPS está pronta **antes** de comprar/instalar? Rode o `check-vps.sh`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/VW2Digital/variation-vault-core/main/deploy-vps/check-vps.sh -o /tmp/check-vps.sh
+bash /tmp/check-vps.sh                          # diagnóstico básico
+bash /tmp/check-vps.sh --domain meusite.com     # valida DNS também
+bash /tmp/check-vps.sh --supabase               # checks p/ Supabase self-hosted
+bash /tmp/check-vps.sh --json                   # saída p/ automação
+```
+
+Verifica em ~10 segundos: SO, RAM/CPU/disco/swap, portas 80/443/22, conectividade GitHub/Docker Hub, Docker, DNS apontando, sudo/root, firewall UFW. Cada item com ✓/!/✗ + comando exato pra corrigir.
+
 ### Extra opcional: Supabase self-hosted
 
 Ao final da instalação, o script pergunta se você quer subir uma stack **Supabase self-hosted** (Postgres + Studio + postgres-meta) em containers vizinhos, exposta apenas em `127.0.0.1`. Útil para:
