@@ -59,9 +59,279 @@ step() {
   echo -e "${BLU}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
+# ---------- defaults precoces (necessários no preflight) ---------------------
+APP_DIR="${APP_DIR:-/opt/liberty-pharma}"
+REPO_URL="${REPO_URL:-https://github.com/VW2Digital/variation-vault-core.git}"
+BRANCH="${BRANCH:-main}"
+DOMAIN="${DOMAIN:-_}"
+
+# ---------- parsing de flags -------------------------------------------------
+DRY_RUN=0
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run|-n)
+      DRY_RUN=1
+      ;;
+    --help|-h)
+      sed -n '2,44p' "$0" | sed 's/^# \{0,1\}//'
+      echo
+      echo "Flags:"
+      echo "  --dry-run, -n   Valida pré-requisitos sem instalar nada"
+      echo "  --help, -h      Mostra esta ajuda"
+      exit 0
+      ;;
+    *)
+      err "Flag desconhecida: $arg (use --help)"
+      exit 1
+      ;;
+  esac
+done
+
+# ---------- dry-run: validações de pré-requisitos ----------------------------
+# Roda checks read-only e reporta tudo. Sai com 0 se OK, 1 se algo crítico falhou.
+# Usado tanto via --dry-run quanto chamável internamente antes de instalar.
+run_preflight_checks() {
+  step "Pre-flight checks (modo $1)"
+
+  local ERRORS=0
+  local WARNS=0
+
+  # ---- 1. Privilégios ----
+  log "1. Privilégios"
+  if [ "${EUID:-$(id -u)}" -eq 0 ]; then
+    ok "   Rodando como root (uid=0)"
+  else
+    err "   Não está como root — use 'sudo bash $0'"
+    ERRORS=$((ERRORS+1))
+  fi
+
+  # ---- 2. Sistema operacional ----
+  log "2. Sistema operacional"
+  if [ -f /etc/os-release ]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    ok "   $PRETTY_NAME (kernel $(uname -r))"
+    case "${ID:-}" in
+      ubuntu|debian)
+        ok "   Distro suportada (apt-based)"
+        ;;
+      *)
+        warn "   Distro '$ID' não testada — script usa apt, pode falhar"
+        WARNS=$((WARNS+1))
+        ;;
+    esac
+  else
+    warn "   /etc/os-release não encontrado — distro desconhecida"
+    WARNS=$((WARNS+1))
+  fi
+
+  # ---- 3. Memória RAM ----
+  log "3. Memória RAM"
+  local MEM_MB
+  MEM_MB=$(awk '/MemTotal/{printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo 0)
+  if [ "$MEM_MB" -ge 3500 ]; then
+    ok "   ${MEM_MB} MB total (suficiente p/ app + Supabase self-hosted)"
+  elif [ "$MEM_MB" -ge 900 ]; then
+    ok "   ${MEM_MB} MB total (suficiente p/ app standalone)"
+    [ "${INSTALL_SUPABASE:-}" = "yes" ] && {
+      warn "   Mas <4 GB — Supabase self-hosted pode ficar instável"
+      WARNS=$((WARNS+1))
+    }
+  else
+    err "   ${MEM_MB} MB — abaixo do mínimo de 1024 MB"
+    ERRORS=$((ERRORS+1))
+  fi
+
+  # ---- 4. Espaço em disco ----
+  log "4. Espaço em disco"
+  local DISK_KB DISK_GB
+  DISK_KB=$(df -P / 2>/dev/null | awk 'NR==2 {print $4}')
+  DISK_KB=${DISK_KB:-0}
+  DISK_GB=$(( DISK_KB / 1024 / 1024 ))
+  # Sanity: filesystems sintéticos podem reportar números absurdos; clampa em 99999
+  [ "$DISK_GB" -gt 99999 ] && DISK_GB=99999
+  if [ "$DISK_GB" -ge 20 ]; then
+    ok "   ${DISK_GB} GB livres em / (suficiente para tudo)"
+  elif [ "$DISK_GB" -ge 8 ]; then
+    ok "   ${DISK_GB} GB livres (ok p/ app, apertado p/ Supabase local)"
+    [ "$DISK_GB" -lt 15 ] && [ "${INSTALL_SUPABASE:-}" = "yes" ] && {
+      warn "   Recomendado 20 GB+ se for usar Supabase self-hosted"
+      WARNS=$((WARNS+1))
+    }
+  else
+    err "   ${DISK_GB} GB livres — mínimo recomendado 8 GB"
+    ERRORS=$((ERRORS+1))
+  fi
+
+  # ---- 5. CPU ----
+  log "5. CPU"
+  local CPU_CORES
+  CPU_CORES=$(nproc 2>/dev/null || echo 1)
+  if [ "$CPU_CORES" -ge 2 ]; then
+    ok "   $CPU_CORES vCPUs"
+  else
+    warn "   Apenas $CPU_CORES vCPU — build do Vite pode demorar 10+ min"
+    WARNS=$((WARNS+1))
+  fi
+
+  # ---- 6. Portas obrigatórias (80, 443) ----
+  log "6. Portas obrigatórias"
+  check_port_free() {
+    local port="$1" label="$2" required="$3"
+    local in_use=""
+    if command -v ss >/dev/null 2>&1; then
+      in_use=$(ss -ltnH "sport = :$port" 2>/dev/null | head -1)
+    elif command -v netstat >/dev/null 2>&1; then
+      in_use=$(netstat -ltn 2>/dev/null | awk -v p=":$port" '$4 ~ p {print; exit}')
+    fi
+    if [ -z "$in_use" ]; then
+      ok "   Porta $port ($label) livre"
+      return 0
+    fi
+    # Verifica se quem está ocupando é nosso próprio container (re-execução)
+    if command -v docker >/dev/null 2>&1 && \
+       docker ps --format '{{.Names}} {{.Ports}}' 2>/dev/null | grep -qE "liberty.*:$port->"; then
+      warn "   Porta $port ($label) ocupada pelo próprio container Liberty (re-execução ok)"
+      return 0
+    fi
+    if [ "$required" = "1" ]; then
+      err "   Porta $port ($label) OCUPADA: $in_use"
+      ERRORS=$((ERRORS+1))
+    else
+      warn "   Porta $port ($label) ocupada: $in_use"
+      WARNS=$((WARNS+1))
+    fi
+  }
+  check_port_free 80  "HTTP"  1
+  check_port_free 443 "HTTPS" 1
+
+  # ---- 7. Porta SSH ----
+  log "7. SSH (porta 22)"
+  if command -v ss >/dev/null 2>&1 && ss -ltnH "sport = :22" 2>/dev/null | grep -q .; then
+    ok "   SSH ativo na porta 22 (você não vai se trancar fora)"
+  else
+    warn "   Porta 22 não está LISTEN — confirme acesso por outra via antes de continuar"
+    WARNS=$((WARNS+1))
+  fi
+
+  # ---- 8. Portas opcionais (Supabase) ----
+  if [ "${INSTALL_SUPABASE:-}" = "yes" ] || [ "$1" = "verboso" ]; then
+    log "8. Portas opcionais (Supabase self-hosted)"
+    check_port_free "${SB_PG_PORT:-5432}"     "Postgres" 0
+    check_port_free "${SB_STUDIO_PORT:-3001}" "Studio"   0
+  fi
+
+  # ---- 9. Docker ----
+  log "9. Docker"
+  if command -v docker >/dev/null 2>&1; then
+    local DV
+    DV=$(docker --version 2>/dev/null | head -c80 || echo "?")
+    ok "   Docker presente: $DV"
+    if docker info >/dev/null 2>&1; then
+      ok "   Docker daemon respondendo"
+    else
+      err "   Docker instalado mas daemon NÃO responde — 'systemctl start docker'"
+      ERRORS=$((ERRORS+1))
+    fi
+    if docker compose version >/dev/null 2>&1; then
+      ok "   Compose plugin: $(docker compose version --short 2>/dev/null || echo presente)"
+    else
+      warn "   docker compose plugin ausente — script tentará instalar via apt"
+      WARNS=$((WARNS+1))
+    fi
+  else
+    warn "   Docker não instalado — script tentará instalar via get.docker.com (~2 min)"
+    WARNS=$((WARNS+1))
+  fi
+
+  # ---- 10. Conectividade externa ----
+  log "10. Conectividade externa"
+  if curl -fsS -m 5 -o /dev/null https://github.com 2>/dev/null; then
+    ok "    GitHub alcançável (clone do repo vai funcionar)"
+  else
+    err "    Sem acesso a github.com — clone do repo vai falhar"
+    ERRORS=$((ERRORS+1))
+  fi
+  if curl -fsS -m 5 -o /dev/null https://registry-1.docker.io/v2/ 2>/dev/null; then
+    ok "    Docker Hub alcançável"
+  else
+    warn "    Docker Hub fora — pull de imagens pode falhar"
+    WARNS=$((WARNS+1))
+  fi
+
+  # ---- 11. Comandos auxiliares ----
+  log "11. Comandos auxiliares"
+  for cmd in curl git tar; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+      ok "    $cmd: $(command -v "$cmd")"
+    else
+      warn "    $cmd ausente — script instalará via apt"
+      WARNS=$((WARNS+1))
+    fi
+  done
+
+  # ---- 12. Permissões em $APP_DIR ----
+  log "12. Permissões em $APP_DIR"
+  if [ -d "$APP_DIR" ]; then
+    if [ -w "$APP_DIR" ]; then
+      ok "    $APP_DIR existe e é gravável"
+    else
+      err "    $APP_DIR existe mas NÃO é gravável"
+      ERRORS=$((ERRORS+1))
+    fi
+  else
+    local PARENT
+    PARENT=$(dirname "$APP_DIR")
+    if [ -w "$PARENT" ]; then
+      ok "    $APP_DIR não existe; pai $PARENT é gravável (será criado)"
+    else
+      err "    Não posso criar $APP_DIR — pai $PARENT não é gravável"
+      ERRORS=$((ERRORS+1))
+    fi
+  fi
+
+  # ---- Resumo ----
+  echo
+  echo -e "${BLU}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  if [ "$ERRORS" -eq 0 ] && [ "$WARNS" -eq 0 ]; then
+    echo -e "${GRN}✓ Pre-flight: tudo verde — VPS pronta para instalar${NC}"
+  elif [ "$ERRORS" -eq 0 ]; then
+    echo -e "${YLW}⚠ Pre-flight: $WARNS aviso(s), nenhum erro crítico — instalação deve funcionar${NC}"
+  else
+    echo -e "${RED}✗ Pre-flight: $ERRORS erro(s) crítico(s) e $WARNS aviso(s)${NC}"
+    echo -e "${RED}  Resolva os erros antes de instalar.${NC}"
+  fi
+  echo -e "${BLU}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+  return "$ERRORS"
+}
+
+# Se for dry-run, executa só os checks e sai
+if [ "$DRY_RUN" = "1" ]; then
+  # Permite rodar sem root pra inspecionar (mas avisa)
+  if [ "${EUID:-$(id -u)}" -ne 0 ]; then
+    warn "Rodando dry-run sem root — alguns checks podem ser limitados"
+  fi
+  if run_preflight_checks "dry-run"; then
+    echo
+    log "Para instalar de verdade: sudo bash $0"
+    exit 0
+  else
+    echo
+    err "Resolva os erros acima e rode 'sudo bash $0 --dry-run' de novo"
+    exit 1
+  fi
+fi
+
 # ---------- pré-checks -------------------------------------------------------
 if [ "${EUID:-$(id -u)}" -ne 0 ]; then
   err "Rode como root: sudo bash $0"
+  exit 1
+fi
+
+# Validação leve antes de mexer no sistema (só erros bloqueiam)
+if ! run_preflight_checks "instalação"; then
+  err "Pre-flight encontrou erros críticos. Use 'bash $0 --dry-run' para inspecionar."
   exit 1
 fi
 
@@ -72,11 +342,6 @@ export UCF_FORCE_CONFOLD=1
 export APT_LISTCHANGES_FRONTEND=none
 
 # ---------- defaults ---------------------------------------------------------
-APP_DIR="${APP_DIR:-/opt/liberty-pharma}"
-REPO_URL="${REPO_URL:-https://github.com/VW2Digital/variation-vault-core.git}"
-BRANCH="${BRANCH:-main}"
-DOMAIN="${DOMAIN:-_}"
-
 # Defaults reais do projeto (mesmos do .env do repo). Podem ser sobrescritos.
 VITE_SUPABASE_URL="${VITE_SUPABASE_URL:-https://vkomfiplmhpkhfpidrng.supabase.co}"
 VITE_SUPABASE_PUBLISHABLE_KEY="${VITE_SUPABASE_PUBLISHABLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrb21maXBsbWhwa2hmcGlkcm5nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxNDE0NzMsImV4cCI6MjA4NzcxNzQ3M30.kvxMTwPuOjZR6D8P8AM3LOBOd9U-mym-mCRjp5eMoKE}"
