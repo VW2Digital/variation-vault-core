@@ -227,8 +227,14 @@ const CartCheckout = () => {
           {/* Upsell Section - suggested products before payment */}
           <UpsellSection />
 
-          {/* Checkout Form - uses total price as unit price with qty 1 */}
-          <CheckoutForm
+          {/* Auth gate: show login/signup if not authenticated */}
+          {isAuthenticated === false && (
+            <CheckoutAuthGate onAuthenticated={() => setIsAuthenticated(true)} />
+          )}
+
+          {/* Checkout Form - only render once user is authenticated */}
+          {isAuthenticated && (
+            <CheckoutForm
             productName={productName}
             paymentDescription={hasFantasyNames ? paymentDesc : undefined}
             dosage={combinedDosage}
@@ -239,7 +245,8 @@ const CartCheckout = () => {
             pixDiscountPercentProp={cartPaymentSettings.pixDiscount}
             maxInstallmentsProp={cartPaymentSettings.maxInstallments}
             installmentsInterestProp={cartPaymentSettings.installmentsInterest}
-          />
+            />
+          )}
         </AnimatedSection>
       </section>
       <Footer />
