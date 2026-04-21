@@ -140,6 +140,21 @@ server {
         add_header Cache-Control "no-cache, no-store, must-revalidate";
     }
 
+    # Rotas de produção /api/* → production-router (Edge Function)
+    location /api/ {
+        proxy_pass ${SUPABASE_FUNCTIONS_BASE_URL}/production-router/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host ${SUPABASE_PROXY_HOST};
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_ssl_server_name on;
+        proxy_ssl_name ${SUPABASE_PROXY_HOST};
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+        proxy_buffering off;
+    }
+
     # Proxy webhooks → Edge Functions do backend configurado em runtime
     location ~ ^/(melhor-envio-webhook|asaas-webhook|mercadopago-webhook|pagarme-webhook|pagbank-webhook)(/.*)?\$ {
         proxy_pass ${SUPABASE_FUNCTIONS_BASE_URL}/\$1\$2\$is_args\$args;
