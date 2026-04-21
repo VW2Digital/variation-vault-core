@@ -383,8 +383,12 @@ echo
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${BLUE}URLs prontas para colar nos painéis dos gateways/webhooks:${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo "Use as URLs do SEU domínio (proxy Nginx → Supabase). Funcionam mesmo se"
+echo "o gateway bloquear domínios *.supabase.co (ex.: WAF do Melhor Envio)."
+echo
 for FN in melhor-envio-webhook asaas-webhook mercadopago-webhook pagarme-webhook pagbank-webhook; do
     echo "  $FN:"
-    echo "    ${SUPABASE_URL_INPUT}/functions/v1/${FN}"
+    echo "    https://${DOMAIN}/${FN}              (recomendado)"
+    echo "    ${SUPABASE_URL_INPUT}/functions/v1/${FN}   (direto Supabase)"
 done
 echo
