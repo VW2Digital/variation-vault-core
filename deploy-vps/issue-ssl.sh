@@ -80,7 +80,23 @@ fi
 log "Reiniciando container..."
 docker compose up -d app
 
-# 6. Valida HTTPS
+# 6. Instala cron de renovação automática (idempotente)
+RENEW_SCRIPT="$APP_DIR/deploy-vps/renew-ssl.sh"
+if [ -f "$RENEW_SCRIPT" ]; then
+  chmod +x "$RENEW_SCRIPT"
+  CRON_LINE="0 3 * * 1 $RENEW_SCRIPT >> /var/log/ssl-renew.log 2>&1"
+  if crontab -l 2>/dev/null | grep -Fq "$RENEW_SCRIPT"; then
+    ok "Cron de renovação já configurado (segunda 03:00)"
+  else
+    log "Configurando cron de renovação automática (toda segunda às 03:00)..."
+    (crontab -l 2>/dev/null; echo "$CRON_LINE") | crontab -
+    ok "Cron instalado. Logs em /var/log/ssl-renew.log"
+  fi
+else
+  warn "renew-ssl.sh não encontrado em $RENEW_SCRIPT — cron não instalado."
+fi
+
+# 7. Valida HTTPS
 log "Validando HTTPS (aguardando até 30s)..."
 for i in $(seq 1 15); do
   if curl -sfk "https://$DOMAIN/" -o /dev/null; then
