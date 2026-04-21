@@ -259,7 +259,7 @@ run_preflight_checks() {
       WARNS=$((WARNS+1))
     fi
   else
-    warn "   Docker não instalado — script tentará instalar via get.docker.com (~2 min)"
+    warn "   Docker não instalado — script tentará instalar via repositório APT oficial"
     WARNS=$((WARNS+1))
   fi
 
@@ -490,44 +490,88 @@ step "2/5  Instalando Docker Engine + Compose plugin"
 if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
   ok "Docker e Compose já presentes — $(docker --version | head -c80)"
 else
-  log "Baixando script oficial get.docker.com…"
-  DOCKER_SH=/tmp/get-docker.sh
-  if ! timeout 60 curl -fsSL --retry 3 --retry-delay 2 \
-      https://get.docker.com -o "$DOCKER_SH"; then
-    err "Não consegui baixar https://get.docker.com — VPS sem acesso à internet?"
-    err "Teste:  curl -v https://get.docker.com"
-    err "Solução comum:  ufw allow out 443/tcp && ufw reload"
+  DOCKER_LOG=/tmp/docker-install.log
+  : > "$DOCKER_LOG"
+
+  . /etc/os-release
+  DOCKER_DISTRO="${ID:-}"
+  DOCKER_CODENAME="${VERSION_CODENAME:-}"
+  if [ -z "$DOCKER_CODENAME" ] && command -v lsb_release >/dev/null 2>&1; then
+    DOCKER_CODENAME="$(lsb_release -cs 2>/dev/null || true)"
+  fi
+
+  if [ "$DOCKER_DISTRO" != "ubuntu" ] && [ "$DOCKER_DISTRO" != "debian" ]; then
+    err "Distribuição não suportada para instalação automática do Docker: ${DOCKER_DISTRO:-desconhecida}"
     exit 1
   fi
-  log "Executando instalador do Docker (timeout 600s, até 2 tentativas)…"
-  DOCKER_RC=1
-  for attempt in 1 2; do
-    log "  tentativa $attempt/2…"
-    timeout 600 sh "$DOCKER_SH" >/tmp/docker-install.log 2>&1
-    DOCKER_RC=$?
-    [ "$DOCKER_RC" -eq 0 ] && break
-    warn "  tentativa $attempt falhou (código $DOCKER_RC) — aguardando 10s…"
-    sleep 10
-  done
-  if [ "$DOCKER_RC" -eq 0 ]; then
-    ok "Docker instalado"
-  else
-    err "Falha ao instalar Docker (código $DOCKER_RC). Últimas 30 linhas do log:"
-    tail -n 30 /tmp/docker-install.log >&2 || true
-    echo
-    err "Causas comuns para timeout (exit 124):"
-    err "  • download.docker.com lento — teste: curl -v https://download.docker.com"
-    err "  • DNS lento — troque para 1.1.1.1: echo 'nameserver 1.1.1.1' | sudo tee /etc/resolv.conf"
-    err "  • mirror apt lento — instale manualmente:"
-    err "      sudo apt-get install -y docker.io docker-compose-v2"
+  if [ -z "$DOCKER_CODENAME" ]; then
+    err "Não consegui detectar o codename da distro (VERSION_CODENAME)."
     exit 1
   fi
 
-  # Plugin compose (caso não tenha vindo no get.docker.com)
+  log "Configurando repositório APT oficial do Docker para $DOCKER_DISTRO/$DOCKER_CODENAME…"
+  install -m 0755 -d /etc/apt/keyrings
+  if ! timeout 60 curl -fsSL --retry 3 --retry-delay 2 \
+      https://download.docker.com/linux/$DOCKER_DISTRO/gpg -o /etc/apt/keyrings/docker.asc >>"$DOCKER_LOG" 2>&1; then
+    err "Não consegui baixar a chave GPG do Docker."
+    tail -n 30 "$DOCKER_LOG" >&2 || true
+    exit 1
+  fi
+  chmod a+r /etc/apt/keyrings/docker.asc
+
+  cat > /etc/apt/sources.list.d/docker.list <<EOF
+deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/$DOCKER_DISTRO $DOCKER_CODENAME stable
+EOF
+
+  DOCKER_APT_RC=1
+  for attempt in 1 2; do
+    log "Atualizando índice do APT com repo do Docker ($attempt/2)…"
+    timeout 180 apt-get update -o Acquire::Retries=3 >>"$DOCKER_LOG" 2>&1
+    DOCKER_APT_RC=$?
+    [ "$DOCKER_APT_RC" -eq 0 ] && break
+    warn "  apt update do Docker falhou (código $DOCKER_APT_RC) — aguardando 5s…"
+    sleep 5
+  done
+
+  DOCKER_RC=1
+  if [ "$DOCKER_APT_RC" -eq 0 ]; then
+    log "Instalando Docker pelo repositório oficial…"
+    timeout 600 apt-get install -y --no-install-recommends \
+      docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin \
+      >>"$DOCKER_LOG" 2>&1
+    DOCKER_RC=$?
+  else
+    warn "Repo oficial do Docker não respondeu a tempo — usando fallback da distro."
+  fi
+
+  if [ "$DOCKER_RC" -ne 0 ]; then
+    warn "Instalação oficial do Docker falhou (código ${DOCKER_RC:-1}) — tentando fallback da distro…"
+    for pkg in "docker.io docker-compose-v2" "docker.io docker-compose-plugin" "docker.io"; do
+      log "Instalando fallback via apt: $pkg"
+      timeout 600 apt-get install -y --no-install-recommends $pkg >>"$DOCKER_LOG" 2>&1
+      DOCKER_RC=$?
+      [ "$DOCKER_RC" -eq 0 ] && break
+      warn "  fallback '$pkg' falhou (código $DOCKER_RC)"
+    done
+  fi
+
+  if [ "$DOCKER_RC" -eq 0 ]; then
+    ok "Docker instalado"
+  else
+    err "Falha ao instalar Docker. Últimas 40 linhas do log:"
+    tail -n 40 "$DOCKER_LOG" >&2 || true
+    echo
+    err "Tente validar manualmente:"
+    err "  • apt-get update"
+    err "  • curl -I https://download.docker.com/linux/$DOCKER_DISTRO/"
+    err "  • apt-cache policy docker-ce docker.io"
+    exit 1
+  fi
+
   if ! docker compose version >/dev/null 2>&1; then
-    log "Instalando docker-compose-plugin via apt…"
-    timeout 300 apt-get install -y -qq docker-compose-plugin >>"$APT_LOG" 2>&1 || \
-      warn "docker-compose-plugin não instalou via apt — tente reiniciar a sessão"
+    log "Compose ainda ausente — tentando instalar plugin extra via apt…"
+    timeout 300 apt-get install -y -qq docker-compose-plugin >>"$DOCKER_LOG" 2>&1 || \
+      warn "docker-compose-plugin não instalou via apt"
   fi
 fi
 
