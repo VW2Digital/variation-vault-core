@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { fetchSetting, upsertSetting, getCurrentUser } from "@/lib/api";
+import { supabase } from "@/integrations/supabase/client";
 import { Database, AlertTriangle, CheckCircle2, Loader2, RotateCcw } from "lucide-react";
 
 /**
@@ -18,7 +19,8 @@ import { Database, AlertTriangle, CheckCircle2, Loader2, RotateCcw } from "lucid
  */
 const SupabaseUrlOverrideCard = () => {
   const { toast } = useToast();
-  const buildUrl = (import.meta.env.VITE_SUPABASE_URL as string) || "";
+  // URL real usada pelo client em runtime (sempre reflete o projeto conectado de fato).
+  const clientUrl = (((supabase as any).supabaseUrl as string) || "").replace(/\/+$/, "");
   const [override, setOverride] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -30,8 +32,8 @@ const SupabaseUrlOverrideCard = () => {
     });
   }, []);
 
-  const effective = override?.trim() || buildUrl;
-  const mismatch = !!override?.trim() && override.trim() !== buildUrl;
+  const effective = override?.trim() || clientUrl;
+  const mismatch = !!override?.trim() && override.trim() !== clientUrl;
   const validUrl = !override?.trim() || /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(override.trim());
 
   const save = async () => {
@@ -87,8 +89,8 @@ const SupabaseUrlOverrideCard = () => {
       <CardContent className="space-y-4">
         <div className="space-y-1 text-xs">
           <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">URL do build:</span>
-            <code className="font-mono break-all">{buildUrl || "(vazio)"}</code>
+            <span className="text-muted-foreground">Projeto conectado:</span>
+            <code className="font-mono break-all">{clientUrl || "(vazio)"}</code>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">URL efetiva:</span>
@@ -100,18 +102,18 @@ const SupabaseUrlOverrideCard = () => {
             )}
             {!mismatch && override?.trim() && (
               <Badge variant="outline" className="gap-1">
-                <CheckCircle2 className="w-3 h-3 text-primary" /> igual ao build
+                <CheckCircle2 className="w-3 h-3 text-primary" /> igual ao projeto
               </Badge>
             )}
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label>URL do Supabase (deixe em branco para usar a do build)</Label>
+          <Label>URL do Supabase (deixe em branco para usar a do projeto conectado)</Label>
           <Input
             value={override}
             onChange={(e) => setOverride(e.target.value)}
-            placeholder="https://vkomfiplmhpkhfpidrng.supabase.co"
+            placeholder={clientUrl || "https://<ref>.supabase.co"}
             className="font-mono text-xs"
           />
           {!validUrl && (
@@ -126,7 +128,7 @@ const SupabaseUrlOverrideCard = () => {
           </Button>
           {override?.trim() && (
             <Button variant="outline" onClick={clear} disabled={saving} className="gap-2">
-              <RotateCcw className="w-4 h-4" /> Voltar para a URL do build
+              <RotateCcw className="w-4 h-4" /> Voltar para a URL do projeto
             </Button>
           )}
         </div>
