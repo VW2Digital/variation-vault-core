@@ -128,9 +128,10 @@ command -v curl >/dev/null 2>&1 || need_pkgs+=(curl)
 command -v jq   >/dev/null 2>&1 || need_pkgs+=(jq)
 if [ ${#need_pkgs[@]} -gt 0 ]; then
   log "Instalando dependências: ${need_pkgs[*]}..."
-  apt-get update -qq
-  apt-get install -y -qq "${need_pkgs[@]}"
+  apt_update_safe
+  apt_safe "${need_pkgs[@]}" || { err "Falha ao instalar ${need_pkgs[*]}"; add_err "deps básicas (curl/jq)"; exit 1; }
 fi
+add_ok "Dependências básicas (curl, jq)"
 
 # ============================================================================
 # Etapa 1: Coleta credencial mínima
