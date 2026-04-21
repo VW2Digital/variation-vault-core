@@ -62,6 +62,39 @@ export type Database = {
         }
         Relationships: []
       }
+      api_idempotency_keys: {
+        Row: {
+          created_at: string
+          expires_at: string
+          key: string
+          order_id: string | null
+          request_hash: string
+          response_body: Json
+          response_status: number
+          route: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          key: string
+          order_id?: string | null
+          request_hash: string
+          response_body: Json
+          response_status: number
+          route: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          key?: string
+          order_id?: string | null
+          request_hash?: string
+          response_body?: Json
+          response_status?: number
+          route?: string
+        }
+        Relationships: []
+      }
       banner_slides: {
         Row: {
           active: boolean
