@@ -131,14 +131,27 @@ docker compose up -d --force-recreate app
 RENEW_SCRIPT="$APP_DIR/deploy-vps/renew-ssl.sh"
 if [ -f "$RENEW_SCRIPT" ]; then
   chmod +x "$RENEW_SCRIPT"
-  CRON_LINE="0 3 * * 1 $RENEW_SCRIPT >> /var/log/ssl-renew.log 2>&1"
-  if crontab -l 2>/dev/null | grep -Fq "$RENEW_SCRIPT"; then
-    ok "Cron de renovação já configurado (segunda 03:00)"
-  else
-    log "Configurando cron de renovação automática (toda segunda às 03:00)..."
-    (crontab -l 2>/dev/null; echo "$CRON_LINE") | crontab -
-    ok "Cron instalado. Logs em /var/log/ssl-renew.log"
+  CRON_RENEW="0 3 * * 1 $RENEW_SCRIPT >> /var/log/ssl-renew.log 2>&1"
+  CRON_DRYRUN="0 4 1 * * $RENEW_SCRIPT --dry-run >> /var/log/ssl-renew.log 2>&1"
+
+  # Configura SSL_ALERT_EMAIL no .env (usa o mesmo e-mail do Let's Encrypt como default)
+  if [ -f "$ENV_FILE" ]; then
+    if grep -q '^SSL_ALERT_EMAIL=' "$ENV_FILE"; then
+      sed -i "s|^SSL_ALERT_EMAIL=.*|SSL_ALERT_EMAIL=$EMAIL|" "$ENV_FILE"
+    else
+      echo "SSL_ALERT_EMAIL=$EMAIL" >> "$ENV_FILE"
+    fi
+    ok "SSL_ALERT_EMAIL=$EMAIL gravado no .env (alertas de falha de SSL)"
   fi
+
+  # Remove qualquer cron antigo do mesmo script e re-adiciona os 2 jobs
+  CURRENT_CRON="$(crontab -l 2>/dev/null | grep -Fv "$RENEW_SCRIPT" || true)"
+  printf '%s\n%s\n%s\n' "$CURRENT_CRON" "$CRON_RENEW" "$CRON_DRYRUN" \
+    | sed '/^$/d' | crontab -
+  ok "Cron instalado:"
+  ok "  • Renovação real: toda segunda 03:00"
+  ok "  • Teste --dry-run: dia 1 de cada mês 04:00 (alerta por e-mail se falhar)"
+  ok "  Logs: /var/log/ssl-renew.log"
 else
   warn "renew-ssl.sh não encontrado em $RENEW_SCRIPT — cron não instalado."
 fi
