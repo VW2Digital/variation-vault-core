@@ -143,15 +143,29 @@ else
   warn "renew-ssl.sh não encontrado em $RENEW_SCRIPT — cron não instalado."
 fi
 
-# 7. Valida HTTPS
-log "Validando HTTPS (aguardando até 30s)..."
-for i in $(seq 1 15); do
-  if curl -sfk "https://$DOMAIN/" -o /dev/null; then
+# 7. Aguarda Nginx subir e valida HTTPS localmente primeiro
+log "Aguardando container/Nginx subir (até 60s)..."
+for i in $(seq 1 30); do
+  if curl -sf "http://localhost/" -H "Host: $DOMAIN" -o /dev/null; then
+    ok "Nginx respondendo em HTTP local"
+    break
+  fi
+  sleep 2
+  if [ "$i" = "30" ]; then
+    warn "Container recriado, mas o Nginx ainda não respondeu em localhost após 60s."
+    warn "Verifique os logs: docker compose logs --tail=50 app"
+    exit 0
+  fi
+done
+
+log "Validando HTTPS localmente (até 60s)..."
+for i in $(seq 1 30); do
+  if curl -sfk --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/" -o /dev/null; then
     ok "HTTPS respondendo em https://$DOMAIN ✓"
     exit 0
   fi
   sleep 2
 done
 
-warn "HTTPS ainda não respondeu, mas o certificado foi gerado."
+warn "Certificado gerado e container recriado, mas o HTTPS ainda não respondeu localmente após 60s."
 warn "Verifique os logs: docker compose logs --tail=50 app"
