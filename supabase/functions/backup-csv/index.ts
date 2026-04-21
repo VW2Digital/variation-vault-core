@@ -14,6 +14,12 @@ const TABLES = [
   "user_roles", "video_testimonials", "wholesale_prices",
 ];
 
+// Per-table conflict key for upsert. Default is "id" when omitted.
+const UPSERT_CONFLICT: Record<string, string> = {
+  // All listed tables have an "id" PK, so default works — keep this map for
+  // future overrides (e.g. composite unique constraints).
+};
+
 // CSV helpers
 const csvEscape = (val: unknown): string => {
   if (val === null || val === undefined) return "";
@@ -44,19 +50,26 @@ const parseCSV = (text: string): Record<string, string>[] => {
     } else {
       if (ch === '"') inQuotes = true;
       else if (ch === ",") { cur.push(field); field = ""; }
-      else if (ch === "\n") { cur.push(field); rows.push(cur); cur = []; field = ""; }
-      else if (ch === "\r") continue;
+      else if (ch === "\n" || ch === "\r") {
+        // Handle \r\n by skipping the \n that follows \r
+        if (ch === "\r" && text[i + 1] === "\n") i++;
+        cur.push(field); rows.push(cur); cur = []; field = "";
+      }
       else field += ch;
     }
   }
+  // Flush trailing line (file may not end with newline)
   if (field.length > 0 || cur.length > 0) { cur.push(field); rows.push(cur); }
   if (rows.length < 2) return [];
   const headers = rows[0];
-  return rows.slice(1).filter(r => r.length === headers.length).map((r) => {
-    const obj: Record<string, string> = {};
-    headers.forEach((h, idx) => { obj[h] = r[idx]; });
-    return obj;
-  });
+  return rows.slice(1)
+    // Drop fully empty trailing rows but keep partial rows (pad with empty)
+    .filter(r => !(r.length === 1 && r[0] === ""))
+    .map((r) => {
+      const obj: Record<string, string> = {};
+      headers.forEach((h, idx) => { obj[h] = r[idx] ?? ""; });
+      return obj;
+    });
 };
 
 // Coerce CSV string values back to proper types for Postgres
@@ -235,11 +248,15 @@ serve(async (req) => {
       });
 
       const query = mode === "upsert"
-        ? admin.from(table).upsert(coerced, { onConflict: "id" })
+        ? admin.from(table).upsert(coerced, { onConflict: UPSERT_CONFLICT[table] ?? "id" })
         : admin.from(table).insert(coerced);
       const { error, count } = await query;
       if (error) {
-        return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: corsHeaders });
+        const detail = [error.message, (error as { details?: string }).details, (error as { hint?: string }).hint]
+          .filter(Boolean)
+          .join(" — ");
+        console.error(`Import ${table} (${mode}) failed:`, detail);
+        return new Response(JSON.stringify({ error: detail || "Erro desconhecido" }), { status: 400, headers: corsHeaders });
       }
       return new Response(JSON.stringify({ ok: true, table, rows: coerced.length, count }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

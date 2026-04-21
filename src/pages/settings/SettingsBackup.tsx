@@ -108,11 +108,23 @@ const SettingsBackup = () => {
     setLastResult(null);
     try {
       const csv = await csvFile.text();
-      const { data, error } = await supabase.functions.invoke('backup-csv?action=import', {
-        body: { table: selectedTable, csv, mode: importMode },
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+      if (!token) throw new Error('Sessão expirada');
+
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/backup-csv?action=import`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ table: selectedTable, csv, mode: importMode }),
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.error) {
+        throw new Error(data?.error || `Erro ${res.status}`);
+      }
 
       setLastResult({ ok: true, message: `${data.rows} linhas processadas em "${selectedTable}".` });
       toast({ title: 'Importação concluída', description: `${data.rows} linhas em ${selectedTable}.` });
