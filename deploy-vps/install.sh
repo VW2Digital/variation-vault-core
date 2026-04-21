@@ -376,16 +376,35 @@ else
     ok "[verify] Bundle livre de referências ao Lovable Cloud"
 fi
 
-# 4) Endpoint Supabase externo está acessível com a anon key (espera 200 ou 404)
-SB_HTTP="$(curl -sS -o /dev/null -w '%{http_code}' \
-    -H "apikey: ${SUPABASE_ANON_KEY}" \
-    -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
-    "${SUPABASE_URL_INPUT}/rest/v1/" || echo "000")"
-if [[ "$SB_HTTP" == "200" || "$SB_HTTP" == "404" ]]; then
-    ok "[verify] Supabase externo respondeu HTTP $SB_HTTP com a anon key"
-else
-    err "[verify] Supabase externo retornou HTTP $SB_HTTP — chave inválida ou projeto inacessível"
+# 4) Endpoint Supabase externo está acessível com a anon key
+# Estratégia em 2 passos para evitar falsos positivos do PostgREST:
+#   a) /auth/v1/health → sempre 200 se o projeto está no ar (não exige key)
+#   b) /auth/v1/settings com apikey → 200 confirma que a anon key é válida
+AUTH_HEALTH="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
+    "${SUPABASE_URL_INPUT}/auth/v1/health" || echo "000")"
+if [[ "$AUTH_HEALTH" != "200" ]]; then
+    err "[verify] Projeto Supabase inacessível em ${SUPABASE_URL_INPUT}/auth/v1/health (HTTP $AUTH_HEALTH)"
     VERIFY_FAIL=1
+else
+    ok "[verify] Projeto Supabase online (auth/health HTTP 200)"
+    AUTH_SETTINGS="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
+        -H "apikey: ${SUPABASE_ANON_KEY}" \
+        "${SUPABASE_URL_INPUT}/auth/v1/settings" || echo "000")"
+    if [[ "$AUTH_SETTINGS" == "200" ]]; then
+        ok "[verify] Anon key válida (auth/settings HTTP 200)"
+    else
+        # Fallback: tenta REST root — alguns projetos respondem 200, outros 401 sem JWT de usuário
+        REST_HTTP="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            "${SUPABASE_URL_INPUT}/rest/v1/" || echo "000")"
+        if [[ "$REST_HTTP" == "200" || "$REST_HTTP" == "404" ]]; then
+            ok "[verify] Anon key aceita pelo REST (HTTP $REST_HTTP)"
+        else
+            err "[verify] Anon key rejeitada (auth/settings HTTP $AUTH_SETTINGS, rest HTTP $REST_HTTP)"
+            VERIFY_FAIL=1
+        fi
+    fi
 fi
 
 # 5) Healthcheck do Nginx local
