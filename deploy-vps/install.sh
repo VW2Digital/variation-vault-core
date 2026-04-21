@@ -627,18 +627,10 @@ YML
   fi
 
   ok "Supabase self-hosted no ar"
-  echo
-  echo -e "${GRN}📦 SUPABASE SELF-HOSTED${NC}"
-  echo "   • Postgres:       $SB_BIND_HOST:$SB_PG_PORT  (user: $SB_PG_USER  db: $SB_PG_DB)"
-  echo "   • Container:      $SB_PG_CONTAINER  (volume: $SB_PG_VOLUME — dados persistem)"
-  echo "   • Studio (UI):    http://$SB_BIND_HOST:$SB_STUDIO_PORT"
-  echo "   • Credenciais:    cat $SB_ENV   (perms 600)"
-  echo "   • Acesso remoto:  ssh -L $SB_STUDIO_PORT:127.0.0.1:$SB_STUDIO_PORT -L $SB_PG_PORT:127.0.0.1:$SB_PG_PORT root@<vps>"
-  echo "   • Conectar:       psql -h $SB_BIND_HOST -p $SB_PG_PORT -U $SB_PG_USER -d $SB_PG_DB"
-  echo "   • Migrations:     coloque .sql em deploy-vps/supabase/migrations/ e re-rode"
-  echo "   • Seed:           coloque .sql em deploy-vps/supabase/seed/ e re-rode"
-  echo "   • Parar:          cd $SB_DIR && docker compose down  (dados ficam no volume)"
-  echo "   • Apagar tudo:    cd $SB_DIR && docker compose down -v"
+  # Exporta para o checklist final
+  export SUPABASE_INSTALLED=1
+  export SB_PG_USER SB_PG_DB SB_PG_PORT SB_PG_CONTAINER SB_PG_VOLUME
+  export SB_STUDIO_PORT SB_BIND_HOST SB_DIR SB_ENV
 }
 
 # Decide se pergunta ou usa env var
