@@ -50,42 +50,40 @@ if [[ -n "$CURRENT_URL" ]]; then
 fi
 echo
 
-read -rp "Nova SUPABASE_URL (ex: https://xxx.supabase.co): " SUPABASE_URL_INPUT
-SUPABASE_URL_INPUT="${SUPABASE_URL_INPUT%/}"
-if [[ ! "$SUPABASE_URL_INPUT" =~ ^https://([a-z0-9]+)\.supabase\.(co|in)$ ]]; then
-    err "URL inválida. Esperado https://abcdef123456.supabase.co"
-    exit 1
-fi
-SUPABASE_PROJECT_REF="${BASH_REMATCH[1]}"
-
+echo "Cole o SUPABASE_ACCESS_TOKEN (sbp_...). A entrada fica oculta."
+echo "Crie em: https://supabase.com/dashboard/account/tokens"
+read -rsp "SUPABASE_ACCESS_TOKEN: " SUPABASE_ACCESS_TOKEN
 echo
-echo "Cole a nova SUPABASE_ANON_KEY (eyJ...). A entrada fica oculta."
-read -rsp "SUPABASE_ANON_KEY: " SUPABASE_ANON_KEY
-echo
-if [[ -z "${SUPABASE_ANON_KEY:-}" ]] || [[ ! "$SUPABASE_ANON_KEY" =~ ^eyJ ]]; then
-    err "Anon key inválida (deve começar com eyJ)."
+if [[ -z "${SUPABASE_ACCESS_TOKEN:-}" ]] || [[ ! "$SUPABASE_ACCESS_TOKEN" =~ ^sbp_ ]]; then
+    err "Access token inválido (deve começar com sbp_)."
     exit 1
 fi
 
-# Validação leve do JWT (mesma lógica do install.sh)
-jwt_field() {
-    local jwt="$1" field="$2" payload
-    payload="$(echo "$jwt" | cut -d. -f2)"
-    payload="${payload//-/+}"; payload="${payload//_/\/}"
-    case $(( ${#payload} % 4 )) in 2) payload="${payload}==";; 3) payload="${payload}=";; esac
-    echo "$payload" | base64 -d 2>/dev/null | jq -r ".${field} // empty"
-}
-ANON_REF="$(jwt_field "$SUPABASE_ANON_KEY" "ref")"
-ANON_ROLE="$(jwt_field "$SUPABASE_ANON_KEY" "role")"
-if [[ "$ANON_ROLE" != "anon" ]]; then
-    err "Chave tem role '$ANON_ROLE', esperado 'anon'."
+read -rp "SUPABASE_PROJECT_REF (ex: ntlfjekvisepsusbcjsv): " SUPABASE_PROJECT_REF
+SUPABASE_PROJECT_REF="${SUPABASE_PROJECT_REF##*/}"
+SUPABASE_PROJECT_REF="${SUPABASE_PROJECT_REF%%\?*}"
+if [[ ! "$SUPABASE_PROJECT_REF" =~ ^[a-z0-9]{20}$ ]]; then
+    err "Project ref inválido (20 caracteres minúsculos/dígitos)."
     exit 1
 fi
-if [[ -n "$ANON_REF" && "$ANON_REF" != "$SUPABASE_PROJECT_REF" ]]; then
-    err "Anon key pertence ao projeto '$ANON_REF', mas a URL aponta para '$SUPABASE_PROJECT_REF'."
+SUPABASE_URL_INPUT="https://${SUPABASE_PROJECT_REF}.supabase.co"
+
+info "Buscando anon key via Supabase Management API..."
+API_RESP="$(curl -sS -w '\n%{http_code}' \
+    -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+    "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/api-keys?reveal=true" || true)"
+API_BODY="$(echo "$API_RESP" | sed '$d')"
+API_CODE="$(echo "$API_RESP" | tail -n1)"
+if [[ "$API_CODE" != "200" ]]; then
+    err "Management API retornou HTTP $API_CODE: $API_BODY"
     exit 1
 fi
-ok "Anon key válida para o projeto $SUPABASE_PROJECT_REF"
+SUPABASE_ANON_KEY="$(echo "$API_BODY" | jq -r '.[] | select(.name=="anon") | .api_key')"
+if [[ -z "$SUPABASE_ANON_KEY" || "$SUPABASE_ANON_KEY" == "null" ]]; then
+    err "Anon key não encontrada na resposta: $API_BODY"
+    exit 1
+fi
+ok "Anon key obtida automaticamente para $SUPABASE_PROJECT_REF"
 
 step "Reescrevendo $ENV_FILE"
 cat > "$ENV_FILE" <<ENV
