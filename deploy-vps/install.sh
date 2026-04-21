@@ -33,6 +33,14 @@
 #   DOMAIN     (default: _ — serve qualquer host em HTTP)
 #   VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY / VITE_SUPABASE_PROJECT_ID
 #   INSTALL_SUPABASE  (yes|no — pula o prompt interativo)
+#   SB_PG_USER         (default: postgres)
+#   SB_PG_PASSWORD     (default: gerada com openssl rand)
+#   SB_PG_DB           (default: postgres)
+#   SB_PG_PORT         (default: 5432)
+#   SB_PG_CONTAINER    (default: liberty-supabase-db)
+#   SB_PG_VOLUME       (default: liberty_supabase_db — volume Docker persistente)
+#   SB_STUDIO_PORT     (default: 3001)
+#   SB_BIND_HOST       (default: 127.0.0.1 — só localhost, use 0.0.0.0 por sua conta)
 # =============================================================================
 
 set -Eeuo pipefail
