@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import SettingsBackButton from './SettingsBackButton';
 import DeployUpdateCard from '@/components/admin/DeployUpdateCard';
 import SiteUrlCard from '@/components/admin/SiteUrlCard';
+import SupabaseUrlOverrideCard from '@/components/admin/SupabaseUrlOverrideCard';
 
 interface ScriptEntry {
   id: string;
@@ -127,6 +128,8 @@ const SettingsAdvanced = () => {
       <SettingsBackButton title="Scripts & Widgets" description="Widget de chat, scripts customizados e configurações técnicas" />
 
       <SiteUrlCard />
+
+      <SupabaseUrlOverrideCard />
 
       <DeployUpdateCard />
 
