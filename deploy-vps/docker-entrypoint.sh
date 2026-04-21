@@ -1,14 +1,22 @@
 #!/bin/sh
 # =============================================================================
 # Entrypoint do container Nginx
-# - Se houver certificado Let's Encrypt para $SERVER_NAME, gera ssl.conf (443)
-#   e redirect.conf (force HTTP→HTTPS).
-# - Senão, deixa ambos vazios e o site responde só em HTTP.
+# Gerencia 3 arquivos em /etc/nginx/conf.d/:
+#   • http.conf      — server block porta 80 (sempre presente)
+#   • redirect.conf  — server block porta 80 que redireciona p/ HTTPS (só com SSL)
+#   • ssl.conf       — server block porta 443 (só com SSL)
+# Quando há SSL, http.conf é substituído por uma versão mínima (só ACME challenge)
+# para evitar conflito de "default_server" entre os dois server blocks na 80.
 # =============================================================================
 set -eu
 
+HTTP_CONF="/etc/nginx/conf.d/http.conf"
 SSL_CONF="/etc/nginx/conf.d/ssl.conf"
 REDIRECT_CONF="/etc/nginx/conf.d/redirect.conf"
+HTTP_TEMPLATE="/etc/nginx/templates/http.conf"
+
+# Sempre começa com o template padrão de http.conf (serve site em HTTP)
+cp "$HTTP_TEMPLATE" "$HTTP_CONF"
 : > "$SSL_CONF"
 : > "$REDIRECT_CONF"
 
@@ -32,14 +40,26 @@ if [ -n "$SERVER_NAME" ] && [ "$SERVER_NAME" != "_" ]; then
     if [ -f "$CERT_DIR/fullchain.pem" ] && [ -f "$CERT_DIR/privkey.pem" ]; then
         echo "[entrypoint] Certificado encontrado para $APEX — habilitando HTTPS (443) no apex."
 
-        cat > "$REDIRECT_CONF" <<EOF
-# Força HTTPS (gerado pelo entrypoint)
-# O location ^~ /.well-known/acme-challenge/ no server block tem prioridade,
-# então renovações webroot continuam funcionando antes de cair neste bloco.
-location / {
-    return 301 https://\$host\$request_uri;
+        # Substitui http.conf por versão mínima: só ACME challenge + redirect.
+        # Isso evita conflito de default_server e duplicação de location /.
+        cat > "$HTTP_CONF" <<EOF
+server {
+    listen 80 default_server;
+    server_name _;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type "text/plain";
+        try_files \$uri =404;
+    }
+
+    location / {
+        return 301 https://\$host\$request_uri;
+    }
 }
 EOF
+        # redirect.conf agora fica vazio (lógica movida para http.conf acima)
+        : > "$REDIRECT_CONF"
 
         cat > "$SSL_CONF" <<EOF
 server {
