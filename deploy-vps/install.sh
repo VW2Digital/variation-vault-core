@@ -627,18 +627,10 @@ YML
   fi
 
   ok "Supabase self-hosted no ar"
-  echo
-  echo -e "${GRN}📦 SUPABASE SELF-HOSTED${NC}"
-  echo "   • Postgres:       $SB_BIND_HOST:$SB_PG_PORT  (user: $SB_PG_USER  db: $SB_PG_DB)"
-  echo "   • Container:      $SB_PG_CONTAINER  (volume: $SB_PG_VOLUME — dados persistem)"
-  echo "   • Studio (UI):    http://$SB_BIND_HOST:$SB_STUDIO_PORT"
-  echo "   • Credenciais:    cat $SB_ENV   (perms 600)"
-  echo "   • Acesso remoto:  ssh -L $SB_STUDIO_PORT:127.0.0.1:$SB_STUDIO_PORT -L $SB_PG_PORT:127.0.0.1:$SB_PG_PORT root@<vps>"
-  echo "   • Conectar:       psql -h $SB_BIND_HOST -p $SB_PG_PORT -U $SB_PG_USER -d $SB_PG_DB"
-  echo "   • Migrations:     coloque .sql em deploy-vps/supabase/migrations/ e re-rode"
-  echo "   • Seed:           coloque .sql em deploy-vps/supabase/seed/ e re-rode"
-  echo "   • Parar:          cd $SB_DIR && docker compose down  (dados ficam no volume)"
-  echo "   • Apagar tudo:    cd $SB_DIR && docker compose down -v"
+  # Exporta para o checklist final
+  export SUPABASE_INSTALLED=1
+  export SB_PG_USER SB_PG_DB SB_PG_PORT SB_PG_CONTAINER SB_PG_VOLUME
+  export SB_STUDIO_PORT SB_BIND_HOST SB_DIR SB_ENV
 }
 
 # Decide se pergunta ou usa env var
@@ -681,21 +673,10 @@ for i in $(seq 1 30); do
   sleep 2
 done
 
-echo
-echo -e "${BLU}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-if [ "$HEALTHY" = "1" ]; then
-  ok "Aplicação respondendo em http://localhost/"
-  IP=$(curl -fsS -m 3 https://api.ipify.org 2>/dev/null || echo "<seu-ip>")
+# ---------- diagnóstico em caso de falha ------------------------------------
+if [ "$HEALTHY" != "1" ]; then
   echo
-  echo -e "${GRN}🎉 INSTALAÇÃO CONCLUÍDA${NC}"
-  echo "   • Site (HTTP):   http://$IP/"
-  if [ "$DOMAIN" != "_" ]; then
-    echo "   • Domínio:       http://$DOMAIN/"
-    echo "   • Para SSL:      sudo bash $APP_DIR/deploy-vps/issue-ssl.sh $DOMAIN seu@email.com"
-  fi
-  echo "   • Logs:          docker compose -f $APP_DIR/docker-compose.yml logs -f app"
-  echo "   • Atualizar:     cd $APP_DIR && bash deploy-vps/deploy.sh"
-else
+  echo -e "${BLU}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   warn "Container subiu mas não respondeu HTTP em 60s. Diagnóstico:"
   docker compose ps || true
   echo
@@ -703,6 +684,110 @@ else
   docker compose logs --tail=40 app || true
   echo
   echo "Investigue com: docker compose -f $APP_DIR/docker-compose.yml logs -f app"
+  echo -e "${BLU}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   exit 1
 fi
-echo -e "${BLU}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+# =============================================================================
+# CHECKLIST PÓS-DEPLOY
+# =============================================================================
+IP=$(curl -fsS -m 3 https://api.ipify.org 2>/dev/null || echo "<seu-ip>")
+APP_URL="http://$IP/"
+[ "$DOMAIN" != "_" ] && APP_URL="http://$DOMAIN/"
+SSL_STATUS="❌ não emitido (HTTP only)"
+if [ -d "/etc/letsencrypt/live/$DOMAIN" ] && [ "$DOMAIN" != "_" ]; then
+  SSL_STATUS="✅ ativo (Let's Encrypt)"
+  APP_URL="https://$DOMAIN/"
+fi
+
+APP_VOLUME_SIZE="—"
+if docker volume inspect liberty_supabase_db >/dev/null 2>&1; then
+  APP_VOLUME_SIZE=$(docker run --rm -v liberty_supabase_db:/v alpine du -sh /v 2>/dev/null | awk '{print $1}' || echo "?")
+fi
+
+echo
+echo -e "${GRN}╔══════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${GRN}║              🎉  INSTALAÇÃO CONCLUÍDA COM SUCESSO            ║${NC}"
+echo -e "${GRN}╚══════════════════════════════════════════════════════════════╝${NC}"
+echo
+echo -e "${BLU}🌐 APLICAÇÃO${NC}"
+echo "   URL pública:     $APP_URL"
+echo "   IP da VPS:       $IP"
+[ "$DOMAIN" != "_" ] && echo "   Domínio:         $DOMAIN"
+echo "   SSL/HTTPS:       $SSL_STATUS"
+echo "   Status:          $(docker inspect -f '{{.State.Status}}' liberty-pharma-app 2>/dev/null || echo '?')"
+echo
+echo -e "${BLU}✅ VERIFICAR APP${NC}"
+echo "   curl -I $APP_URL"
+echo "   docker ps --filter name=liberty-pharma-app"
+echo "   docker logs -f --tail=50 liberty-pharma-app"
+echo "   docker stats --no-stream liberty-pharma-app"
+echo
+if [ "${SSL_STATUS:0:1}" = "❌" ] && [ "$DOMAIN" != "_" ]; then
+  echo -e "${BLU}🔒 EMITIR SSL (Let's Encrypt)${NC}"
+  echo "   sudo bash $APP_DIR/deploy-vps/issue-ssl.sh $DOMAIN seu@email.com"
+  echo "   → Renovação automática via cron já configurada após emissão"
+  echo
+elif [ "${SSL_STATUS:0:1}" = "✅" ]; then
+  echo -e "${BLU}🔒 VERIFICAR SSL${NC}"
+  echo "   curl -vI https://$DOMAIN/ 2>&1 | grep -E '(SSL|expire|subject)'"
+  echo "   sudo certbot certificates"
+  echo "   sudo bash $APP_DIR/deploy-vps/renew-ssl.sh   # renovação manual"
+  echo "   → Validar nota A: https://www.ssllabs.com/ssltest/analyze.html?d=$DOMAIN"
+  echo
+fi
+
+if [ "${SUPABASE_INSTALLED:-0}" = "1" ]; then
+  echo -e "${BLU}🗄️  BANCO DE DADOS (Supabase self-hosted)${NC}"
+  echo "   Postgres:        $SB_BIND_HOST:$SB_PG_PORT  (user: $SB_PG_USER  db: $SB_PG_DB)"
+  echo "   Studio (UI):     http://$SB_BIND_HOST:$SB_STUDIO_PORT"
+  echo "   Credenciais:     sudo cat $SB_ENV"
+  echo
+  echo -e "${BLU}✅ VERIFICAR BANCO${NC}"
+  echo "   docker exec $SB_PG_CONTAINER pg_isready -U $SB_PG_USER -d $SB_PG_DB"
+  echo "   docker exec -it $SB_PG_CONTAINER psql -U $SB_PG_USER -d $SB_PG_DB -c '\\dt'"
+  echo "   docker logs --tail=30 $SB_PG_CONTAINER"
+  echo
+  echo -e "${BLU}🔌 ACESSO REMOTO AO BANCO (SSH tunnel)${NC}"
+  echo "   # Do seu computador local:"
+  echo "   ssh -L $SB_STUDIO_PORT:127.0.0.1:$SB_STUDIO_PORT -L $SB_PG_PORT:127.0.0.1:$SB_PG_PORT root@$IP"
+  echo "   # Depois abra: http://localhost:$SB_STUDIO_PORT"
+  echo
+fi
+
+echo -e "${BLU}💾 VOLUMES DE PERSISTÊNCIA${NC}"
+echo "   Listar volumes:    docker volume ls --filter name=liberty"
+echo "   Inspecionar:       docker volume inspect liberty_supabase_db"
+echo "   Tamanho atual:     $APP_VOLUME_SIZE"
+echo "   Localização:       /var/lib/docker/volumes/liberty_supabase_db/_data"
+echo "   SSL certs:         /etc/letsencrypt/   (montado read-only no container)"
+echo
+echo -e "${BLU}🛟 BACKUP RECOMENDADO${NC}"
+if [ "${SUPABASE_INSTALLED:-0}" = "1" ]; then
+  echo "   # Dump SQL diário do banco:"
+  echo "   docker exec $SB_PG_CONTAINER pg_dump -U $SB_PG_USER $SB_PG_DB | gzip > /root/backup-\$(date +%F).sql.gz"
+fi
+echo "   # Snapshot do volume Docker:"
+echo "   docker run --rm -v liberty_supabase_db:/v -v /root:/b alpine tar czf /b/db-vol-\$(date +%F).tgz -C /v ."
+echo "   # Backup do .env e certs:"
+echo "   tar czf /root/config-\$(date +%F).tgz $APP_DIR/.env /etc/letsencrypt/"
+echo
+echo -e "${BLU}🔄 OPERAÇÕES COMUNS${NC}"
+echo "   Atualizar app:     cd $APP_DIR && bash deploy-vps/deploy.sh"
+echo "   Restart app:       docker compose -f $APP_DIR/docker-compose.yml restart"
+echo "   Parar tudo:        docker compose -f $APP_DIR/docker-compose.yml down"
+echo "   Logs em tempo real: docker compose -f $APP_DIR/docker-compose.yml logs -f"
+if [ "${SUPABASE_INSTALLED:-0}" = "1" ]; then
+  echo "   Restart banco:     cd $SB_DIR && docker compose restart"
+  echo "   Parar banco:       cd $SB_DIR && docker compose down  (dados preservados)"
+fi
+echo
+echo -e "${BLU}📚 DOCUMENTAÇÃO${NC}"
+echo "   Deploy/troubleshoot: $APP_DIR/deploy-vps/README.md"
+echo "   Schema SQL:          $APP_DIR/deploy-vps/supabase/README.md"
+echo "   Oracle Free Tier:    $APP_DIR/deploy-vps/GUIA-ORACLE-FREE-TIER.md"
+echo "   Re-rodar checks:     bash $APP_DIR/deploy-vps/install.sh --dry-run"
+echo
+echo -e "${GRN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GRN}Tudo pronto. Acesse $APP_URL para conferir.${NC}"
+echo -e "${GRN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
