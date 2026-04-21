@@ -15,11 +15,56 @@
 set -euo pipefail
 printf '\e[?2004l' 2>/dev/null || true
 
+# ----------------------------------------------------------------------------
+# Modo não-interativo GLOBAL — evita travamentos do apt/debconf/needrestart
+# ----------------------------------------------------------------------------
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+export APT_LISTCHANGES_FRONTEND=none
+export UCF_FORCE_CONFOLD=1
+
+# Flags opcionais para pular etapas problemáticas
+SKIP_MAIL=0; SKIP_UFW=0; SKIP_HEALTHCHECK=0
+for arg in "$@"; do
+  case "$arg" in
+    --skip-mail)        SKIP_MAIL=1 ;;
+    --skip-ufw)         SKIP_UFW=1 ;;
+    --skip-healthcheck) SKIP_HEALTHCHECK=1 ;;
+  esac
+done
+
 GREEN='\033[0;32m'; BLUE='\033[0;34m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
 log()  { echo -e "${BLUE}[INFO]${NC} $*"; }
 ok()   { echo -e "${GREEN}[ OK ]${NC} $*"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 err()  { echo -e "${RED}[ERR ]${NC} $*" >&2; }
+
+# Wrapper apt seguro: timeout 300s + opções que evitam prompts e conflitos de config
+apt_safe() {
+  timeout 300 apt-get install -y -qq \
+    -o Dpkg::Options::="--force-confdef" \
+    -o Dpkg::Options::="--force-confold" \
+    "$@"
+}
+# Update com timeout — se falhar, segue (warn, não erro fatal)
+apt_update_safe() {
+  timeout 120 apt-get update -qq || warn "apt-get update demorou/falhou — seguindo com cache atual."
+}
+
+# Resumo final (preenchido durante o script)
+SUMMARY_OK=(); SUMMARY_WARN=(); SUMMARY_ERR=()
+add_ok()   { SUMMARY_OK+=("$1"); }
+add_warn() { SUMMARY_WARN+=("$1"); }
+add_err()  { SUMMARY_ERR+=("$1"); }
+print_summary() {
+  echo
+  echo -e "${BOLD}━━━ Resumo da instalação ━━━${NC}"
+  for i in "${SUMMARY_OK[@]}";   do echo -e "  ${GREEN}✓${NC} $i"; done
+  for i in "${SUMMARY_WARN[@]}"; do echo -e "  ${YELLOW}⚠${NC} $i"; done
+  for i in "${SUMMARY_ERR[@]}";  do echo -e "  ${RED}✗${NC} $i"; done
+  echo
+}
+trap 'print_summary' EXIT
 
 clean() {
   printf '%s' "$1" \
@@ -83,9 +128,10 @@ command -v curl >/dev/null 2>&1 || need_pkgs+=(curl)
 command -v jq   >/dev/null 2>&1 || need_pkgs+=(jq)
 if [ ${#need_pkgs[@]} -gt 0 ]; then
   log "Instalando dependências: ${need_pkgs[*]}..."
-  apt-get update -qq
-  apt-get install -y -qq "${need_pkgs[@]}"
+  apt_update_safe
+  apt_safe "${need_pkgs[@]}" || { err "Falha ao instalar ${need_pkgs[*]}"; add_err "deps básicas (curl/jq)"; exit 1; }
 fi
+add_ok "Dependências básicas (curl, jq)"
 
 # ============================================================================
 # Etapa 1: Coleta credencial mínima
@@ -185,7 +231,7 @@ echo -e "${BOLD}━━━ Etapa 3/4 · Repositório e Docker ━━━${NC}"
 
 if [ ! -f "$APP_DIR/Dockerfile" ]; then
   log "Clonando repositório em $APP_DIR..."
-  command -v git >/dev/null 2>&1 || apt-get install -y -qq git
+  command -v git >/dev/null 2>&1 || apt_safe git || { err "git falhou"; add_err "git"; exit 1; }
   mkdir -p "$(dirname "$APP_DIR")"
   [ -d "$APP_DIR" ] && [ -z "$(ls -A "$APP_DIR" 2>/dev/null)" ] && rmdir "$APP_DIR"
   git clone --depth 1 -b "$REPO_BRANCH" "$REPO_URL" "${APP_DIR}.tmp"
@@ -197,51 +243,61 @@ if [ ! -f "$APP_DIR/Dockerfile" ]; then
   ok "Repositório clonado"
 fi
 cd "$APP_DIR"
+add_ok "Repositório em $APP_DIR"
 
 if ! command -v docker >/dev/null 2>&1; then
   log "Instalando Docker..."
-  curl -fsSL https://get.docker.com | sh
+  timeout 600 bash -c 'curl -fsSL https://get.docker.com | sh' || { err "Instalação do Docker falhou/timeout"; add_err "Docker"; exit 1; }
   systemctl enable --now docker
 fi
 ok "Docker: $(docker --version)"
+add_ok "Docker $(docker --version | awk '{print $3}' | tr -d ',')"
 
 if ! docker compose version >/dev/null 2>&1; then
   log "Instalando docker-compose-plugin..."
-  apt-get update -qq && apt-get install -y -qq docker-compose-plugin
+  apt_update_safe; apt_safe docker-compose-plugin || { err "docker-compose-plugin falhou"; add_err "compose plugin"; exit 1; }
 fi
 ok "Compose: $(docker compose version --short)"
+add_ok "Docker Compose $(docker compose version --short)"
 
 # Certbot — necessário para emitir/renovar SSL depois via issue-ssl.sh
 if ! command -v certbot >/dev/null 2>&1; then
   log "Instalando Certbot (Let's Encrypt)..."
-  apt-get install -y -qq certbot
+  apt_safe certbot || { warn "Certbot não instalou — você pode instalar depois com: apt install -y certbot"; add_warn "Certbot (instale depois)"; }
 fi
-ok "Certbot: $(certbot --version 2>&1 | head -n1)"
+if command -v certbot >/dev/null 2>&1; then
+  ok "Certbot: $(certbot --version 2>&1 | head -n1)"
+  add_ok "Certbot"
+fi
 
 # Agente de e-mail mínimo (para alertas de falha do SSL via renew-ssl.sh)
-if ! command -v mail >/dev/null 2>&1 && ! command -v msmtp >/dev/null 2>&1; then
+if [ "$SKIP_MAIL" -eq 1 ]; then
+  warn "--skip-mail: pulando instalação do agente de e-mail."
+  add_warn "Agente de e-mail pulado (--skip-mail)"
+elif ! command -v mail >/dev/null 2>&1 && ! command -v msmtp >/dev/null 2>&1; then
   log "Instalando utilitário de e-mail (bsd-mailx) para alertas de SSL... [não bloqueante, timeout 60s]"
-  # IMPORTANTE: usar apenas bsd-mailx (não puxa postfix/exim e evita prompts interativos).
-  # mailutils é evitado de propósito porque depende de um MTA que abre debconf e trava o apt.
-  # Tudo roda em modo não-interativo com timeout para nunca pendurar a instalação.
-  DEBIAN_FRONTEND=noninteractive timeout 60 apt-get install -y -qq \
-    -o Dpkg::Options::="--force-confdef" \
-    -o Dpkg::Options::="--force-confold" \
-    bsd-mailx >/dev/null 2>&1 || true
+  # bsd-mailx é leve e não puxa postfix/exim. Tudo não-interativo com timeout.
+  timeout 60 apt_safe bsd-mailx >/dev/null 2>&1 || true
 fi
 if command -v mail >/dev/null 2>&1 || command -v msmtp >/dev/null 2>&1; then
   ok "Agente de e-mail disponível para alertas de SSL"
-else
+  add_ok "Agente de e-mail (alertas SSL)"
+elif [ "$SKIP_MAIL" -ne 1 ]; then
   warn "Sem agente de e-mail (mail/msmtp). Alertas de SSL ficarão apenas em /var/log/ssl-renew.log."
   warn "Para receber e-mails: instale 'msmtp' depois e configure relay (Resend/Gmail/SendGrid)."
+  add_warn "Sem agente de e-mail (alertas SSL ficam só em log)"
 fi
 
 # ----------------------------------------------------------------------------
 # Firewall (UFW) — garante portas 80/443/22 abertas
 # ----------------------------------------------------------------------------
+if [ "$SKIP_UFW" -eq 1 ]; then
+  warn "--skip-ufw: pulando configuração de firewall."
+  add_warn "Firewall (UFW) pulado (--skip-ufw)"
+else
 log "Configurando firewall (portas 80, 443, 22)..."
 if ! command -v ufw >/dev/null 2>&1; then
-  apt-get install -y -qq ufw || true
+  apt_safe ufw >/dev/null 2>&1 || true
 fi
 if command -v ufw >/dev/null 2>&1; then
   ufw allow 22/tcp   >/dev/null 2>&1 || true
@@ -254,8 +310,11 @@ if command -v ufw >/dev/null 2>&1; then
     ufw reload >/dev/null 2>&1 || true
   fi
   ok "UFW: 22, 80, 443/tcp liberadas"
+  add_ok "Firewall UFW (22/80/443)"
 else
   warn "UFW indisponível — verifique manualmente que 80/443 estão abertas no firewall do provedor (Oracle/AWS/etc)."
+  add_warn "UFW indisponível — confirme firewall do provedor"
+fi
 fi
 
 # iptables direto (caso UFW não esteja em uso, ex: Oracle Cloud)
@@ -299,24 +358,44 @@ ok ".env criado com $(grep -c '=' "$APP_DIR/.env") variáveis"
 unset PAT SUPA_SECRET SUPA_DBURL SUPA_DBPASS SUPA_WHSEC
 
 log "Buildando imagem (pode levar 2-4 min)..."
-docker compose build app || { err "Build falhou. Veja o erro acima."; exit 1; }
-log "Subindo container..."
-docker compose up -d || { err "docker compose up falhou."; docker compose logs --tail=50 app || true; exit 1; }
-
-log "Aguardando Nginx subir e responder (até 90s)..."
-APP_UP=0
-for i in $(seq 1 45); do
-  if curl -sf http://localhost/ -o /dev/null; then
-    ok "Site no ar (HTTP local respondendo)"
-    APP_UP=1
-    break
-  fi
-  sleep 2
-done
-if [ "$APP_UP" -ne 1 ]; then
-  err "App não respondeu em 90s. Últimos logs:"
-  docker compose logs --tail=40 app
+if ! timeout 900 docker compose build app; then
+  err "Build falhou ou excedeu 15min. Veja o erro acima."
+  add_err "docker compose build"
   exit 1
+fi
+add_ok "Imagem Docker compilada"
+
+log "Subindo container..."
+if ! docker compose up -d; then
+  err "docker compose up falhou."
+  docker compose logs --tail=50 app || true
+  add_err "docker compose up"
+  exit 1
+fi
+add_ok "Container ativo"
+
+if [ "$SKIP_HEALTHCHECK" -eq 1 ]; then
+  warn "--skip-healthcheck: pulando espera do Nginx."
+  add_warn "Health check Nginx pulado (--skip-healthcheck)"
+else
+  log "Aguardando Nginx subir e responder (até 90s)..."
+  APP_UP=0
+  for i in $(seq 1 45); do
+    if curl -sf -m 3 http://localhost/ -o /dev/null; then
+      ok "Site no ar (HTTP local respondendo)"
+      APP_UP=1
+      break
+    fi
+    sleep 2
+  done
+  if [ "$APP_UP" -ne 1 ]; then
+    warn "App não respondeu em 90s. Últimos logs do container:"
+    docker compose logs --tail=40 app || true
+    warn "Continuando — verifique manualmente: docker compose logs -f app"
+    add_warn "Nginx não respondeu em 90s (verificar logs)"
+  else
+    add_ok "Nginx respondendo em http://localhost/"
+  fi
 fi
 
 echo
