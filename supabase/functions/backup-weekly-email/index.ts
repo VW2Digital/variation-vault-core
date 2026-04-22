@@ -1,4 +1,7 @@
+// Backup semanal: gera ZIP com CSV de todas as tabelas principais e envia
+// por email (com anexo) usando SMTP Hostinger (denomailer).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,7 +16,6 @@ const TABLES = [
   "user_roles", "video_testimonials", "wholesale_prices",
 ];
 
-// CRC32 implementation for ZIP
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256);
   for (let i = 0; i < 256; i++) {
@@ -46,31 +48,25 @@ function buildZip(files: { name: string; data: Uint8Array }[]): Uint8Array {
   const localParts: Uint8Array[] = [];
   const centralParts: Uint8Array[] = [];
   let offset = 0;
-
   for (const file of files) {
     const nameBytes = new TextEncoder().encode(file.name);
     const crc = crc32(file.data);
     const size = file.data.length;
-
-    // Local file header
     const local = new Uint8Array(30 + nameBytes.length);
     const lv = new DataView(local.buffer);
     lv.setUint32(0, 0x04034b50, true);
-    lv.setUint16(4, 20, true); // version
-    lv.setUint16(6, 0, true);  // flags
-    lv.setUint16(8, 0, true);  // method = stored
-    lv.setUint16(10, 0, true); // time
-    lv.setUint16(12, 0, true); // date
+    lv.setUint16(4, 20, true);
+    lv.setUint16(6, 0, true);
+    lv.setUint16(8, 0, true);
+    lv.setUint16(10, 0, true);
+    lv.setUint16(12, 0, true);
     lv.setUint32(14, crc, true);
     lv.setUint32(18, size, true);
     lv.setUint32(22, size, true);
     lv.setUint16(26, nameBytes.length, true);
     lv.setUint16(28, 0, true);
     local.set(nameBytes, 30);
-
     localParts.push(local, file.data);
-
-    // Central directory header
     const central = new Uint8Array(46 + nameBytes.length);
     const cv = new DataView(central.buffer);
     cv.setUint32(0, 0x02014b50, true);
@@ -92,14 +88,10 @@ function buildZip(files: { name: string; data: Uint8Array }[]): Uint8Array {
     cv.setUint32(42, offset, true);
     central.set(nameBytes, 46);
     centralParts.push(central);
-
     offset += local.length + file.data.length;
   }
-
   const centralSize = centralParts.reduce((a, b) => a + b.length, 0);
   const centralOffset = offset;
-
-  // End of central directory
   const end = new Uint8Array(22);
   const ev = new DataView(end.buffer);
   ev.setUint32(0, 0x06054b50, true);
@@ -107,7 +99,6 @@ function buildZip(files: { name: string; data: Uint8Array }[]): Uint8Array {
   ev.setUint16(10, files.length, true);
   ev.setUint32(12, centralSize, true);
   ev.setUint32(16, centralOffset, true);
-
   const total = offset + centralSize + 22;
   const out = new Uint8Array(total);
   let p = 0;
@@ -115,15 +106,6 @@ function buildZip(files: { name: string; data: Uint8Array }[]): Uint8Array {
   for (const part of centralParts) { out.set(part, p); p += part.length; }
   out.set(end, p);
   return out;
-}
-
-function uint8ToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
 }
 
 Deno.serve(async (req) => {
@@ -135,7 +117,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Build ZIP with all tables
     const files: { name: string; data: Uint8Array }[] = [];
     let totalRows = 0;
     for (const table of TABLES) {
@@ -154,24 +135,34 @@ Deno.serve(async (req) => {
     const dateStr = new Date().toISOString().slice(0, 10);
     const filename = `backup-liberty-pharma-${dateStr}.zip`;
 
-    // Get recipient + sender from site_settings
     const { data: settings } = await supabase
       .from("site_settings")
       .select("key,value")
-      .in("key", ["backup_recipient_email", "backup_email_from"]);
-    const settingsMap = new Map((settings || []).map((s: any) => [s.key, s.value]));
-    const recipient = settingsMap.get("backup_recipient_email") || "libertyluminaepharma@gmail.com";
-    // Default to Resend's test sender (no domain verification needed).
-    // NOTE: with onboarding@resend.dev, Resend only allows sending to the Resend account owner's email.
-    const fromAddress = settingsMap.get("backup_email_from") || "Liberty Pharma Backup <onboarding@resend.dev>";
+      .in("key", [
+        "backup_recipient_email",
+        "smtp_host", "smtp_port", "smtp_user", "smtp_pass",
+        "smtp_from_email", "smtp_from_name", "smtp_secure",
+        "store_name",
+      ]);
+    const m = new Map((settings || []).map((s: any) => [s.key, s.value]));
+    const recipient = m.get("backup_recipient_email") || "libertyluminaepharma@gmail.com";
 
-    // Send via Resend
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY not configured");
+    const smtpHost = (m.get("smtp_host") || Deno.env.get("SMTP_HOST") || "").trim();
+    const smtpPort = parseInt(m.get("smtp_port") || Deno.env.get("SMTP_PORT") || "465", 10);
+    const smtpUser = (m.get("smtp_user") || Deno.env.get("SMTP_USER") || "").trim();
+    const smtpPass = m.get("smtp_pass") || Deno.env.get("SMTP_PASS") || "";
+    const smtpFromEmail = (m.get("smtp_from_email") || Deno.env.get("SMTP_FROM_EMAIL") || smtpUser).trim();
+    const smtpFromName = (m.get("smtp_from_name") || Deno.env.get("SMTP_FROM_NAME") || "").trim();
+    const smtpSecure = (m.get("smtp_secure") || Deno.env.get("SMTP_SECURE") || "").trim().toLowerCase();
+    const storeName = m.get("store_name") || "Liberty Pharma";
+
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      throw new Error("SMTP não configurado. Defina smtp_host/user/pass em Configurações → Comunicação.");
+    }
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #b8860b;">Backup Semanal - Liberty Pharma</h2>
+        <h2 style="color: #b8860b;">Backup Semanal - ${storeName}</h2>
         <p>Olá,</p>
         <p>Segue em anexo o backup completo do banco de dados gerado automaticamente.</p>
         <ul>
@@ -181,36 +172,52 @@ Deno.serve(async (req) => {
           <li><strong>Tamanho do ZIP:</strong> ${sizeMB} MB</li>
         </ul>
         <p style="color: #666; font-size: 12px; margin-top: 24px;">
-          Email automático enviado pelo sistema. Para alterar o destinatário ou desativar, acesse o painel administrativo.
+          Email automático enviado pelo sistema. Para alterar o destinatário, acesse o painel administrativo.
         </p>
       </div>
     `;
 
-    const resendRes = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
+    const useSsl = smtpSecure === "ssl" || smtpPort === 465;
+    const client = new SMTPClient({
+      connection: {
+        hostname: smtpHost,
+        port: smtpPort,
+        tls: useSsl,
+        auth: { username: smtpUser, password: smtpPass },
       },
-      body: JSON.stringify({
-        from: fromAddress,
-        to: [recipient],
-        subject: `Backup Semanal - ${dateStr} (${sizeMB} MB)`,
-        html,
-        attachments: [{ filename, content: uint8ToBase64(zipBytes) }],
-      }),
+      pool: false,
     });
 
-    const resendData = await resendRes.json();
-    if (!resendRes.ok) {
-      console.error("[backup] Resend error:", resendData);
-      throw new Error(`Resend failed: ${JSON.stringify(resendData)}`);
+    const fromHeader = smtpFromName
+      ? `${smtpFromName} <${smtpFromEmail || smtpUser}>`
+      : `${storeName} <${smtpFromEmail || smtpUser}>`;
+
+    try {
+      await client.send({
+        from: fromHeader,
+        to: [recipient],
+        subject: `Backup Semanal - ${dateStr} (${sizeMB} MB)`,
+        content: "auto",
+        html,
+        attachments: [{
+          filename,
+          contentType: "application/zip",
+          encoding: "binary",
+          content: zipBytes,
+        }],
+      });
+      await client.close();
+    } catch (e: any) {
+      try { await client.close(); } catch (_) { /* noop */ }
+      let msg = e?.message || String(e);
+      if (smtpPass && msg) msg = msg.split(smtpPass).join("***");
+      throw new Error(`SMTP failed: ${msg}`);
     }
 
     console.log(`[backup] Sent ${filename} (${sizeMB}MB) to ${recipient}`);
 
     return new Response(
-      JSON.stringify({ success: true, filename, sizeMB, totalRows, tables: files.length, recipient, resendId: resendData.id }),
+      JSON.stringify({ success: true, filename, sizeMB, totalRows, tables: files.length, recipient, provider: "smtp" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error: any) {

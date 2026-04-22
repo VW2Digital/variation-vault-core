@@ -139,7 +139,7 @@ serve(async (req) => {
             .select('key, value')
             .in('key', [
               'evolution_api_url', 'evolution_api_key', 'evolution_instance_name',
-              'whatsapp_number', 'resend_api_key', 'resend_from_email',
+              'whatsapp_number',
               'notify_customer_on_payment',
             ]);
 
