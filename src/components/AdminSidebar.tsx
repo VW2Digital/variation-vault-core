@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, LogOut, LayoutDashboard, Video, Megaphone, Settings, ShoppingBag, Users, MessageCircle, Star, MousePointerClick, AlertTriangle, Mail, LinkIcon, Ticket, FileBarChart, ChevronDown, Activity } from 'lucide-react';
+import { Package, LogOut, LayoutDashboard, Video, Megaphone, Settings, ShoppingBag, Users, MessageCircle, Star, MousePointerClick, AlertTriangle, Mail, LinkIcon, Ticket, FileBarChart, ChevronDown, Activity, Send } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
   Sidebar,
@@ -55,6 +55,7 @@ const menuCategories = [
       { title: 'Avaliações', url: '/admin/avaliacoes', icon: Star },
       { title: 'Suporte', url: '/admin/suporte', icon: MessageCircle },
       { title: 'Templates Email', url: '/admin/templates-email', icon: Mail },
+      { title: 'Logs de Email', url: '/admin/logs-email', icon: Send },
     ],
   },
   {

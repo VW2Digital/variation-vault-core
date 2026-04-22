@@ -320,6 +320,28 @@ serve(async (req) => {
     const latency = Date.now() - sendStart;
     const resBody = await res.json().catch(() => ({}));
 
+    // Persist a row per recipient in email_send_log (best-effort).
+    const logRows = recipients.map((r) => ({
+      message_id: resBody?.id ?? null,
+      template_name: body.template,
+      recipient_email: r,
+      subject: rendered.subject,
+      status: res.ok ? "sent" : "failed",
+      error_message: res.ok
+        ? null
+        : (resBody?.message || resBody?.name || `HTTP ${res.status}`),
+      provider_response: resBody ?? null,
+      metadata: {
+        from_used: fromEmail,
+        fallback: isPublicDomain,
+        latency_ms: latency,
+        provider_status: res.status,
+      },
+    }));
+    admin.from("email_send_log").insert(logRows).then(({ error }) => {
+      if (error) console.error("email_send_log insert error:", error.message);
+    });
+
     if (!res.ok) {
       // Diagnostic log WITHOUT secrets
       console.error(JSON.stringify({
