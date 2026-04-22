@@ -124,6 +124,28 @@ DOMAIN="${DOMAIN:-$DOMAIN_DEFAULT}"
 read -rp "E-mail para alertas do Let's Encrypt [${EMAIL_DEFAULT}]: " EMAIL
 EMAIL="${EMAIL:-$EMAIL_DEFAULT}"
 
+# 4.1) Subdomínio público para API/Webhooks (proxy reverso → Supabase / app)
+echo
+echo "Subdomínio público para webhooks/API (Supabase, n8n, Stripe, Meta, etc.)."
+echo "Cria um vhost Nginx separado escutando em https://api.<seu_dominio>/api/*"
+echo "que faz proxy para as Edge Functions do Supabase + webhooks dos gateways."
+API_SUBDOMAIN_DEFAULT="api.${DOMAIN}"
+read -rp "Subdomínio de API/Webhooks [${API_SUBDOMAIN_DEFAULT}] (vazio para pular): " API_SUBDOMAIN
+API_SUBDOMAIN="${API_SUBDOMAIN-$API_SUBDOMAIN_DEFAULT}"
+if [[ -n "$API_SUBDOMAIN" ]]; then
+    info "Subdomínio de API: $API_SUBDOMAIN — DNS deve ter um A apontando para este IP."
+else
+    info "Subdomínio de API pulado — webhooks ficarão acessíveis em https://${DOMAIN}/<webhook>."
+fi
+
+# 4.2) Webhook secret (compartilhado com integrações n8n/Meta/Stripe/etc.)
+echo
+read -rp "WEBHOOK_SECRET (deixe vazio para gerar automaticamente): " WEBHOOK_SECRET
+if [[ -z "${WEBHOOK_SECRET:-}" ]]; then
+    WEBHOOK_SECRET="$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 40)"
+    info "WEBHOOK_SECRET gerado automaticamente (40 chars). Será gravado no .env."
+fi
+
 # 5) Modo SSL — staging (teste) ou produção (real)
 echo
 echo "Modo de emissão do certificado SSL:"
