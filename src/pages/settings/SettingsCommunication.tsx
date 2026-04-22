@@ -20,6 +20,12 @@ const SettingsCommunication = () => {
   const [resendFromEmail, setResendFromEmail] = useState('');
   const [showResendKey, setShowResendKey] = useState(false);
 
+  // Teste de envio de email
+  const [testEmailTo, setTestEmailTo] = useState('');
+  const [testEmailSubject, setTestEmailSubject] = useState('');
+  const [testEmailMessage, setTestEmailMessage] = useState('');
+  const [sendingTestEmail, setSendingTestEmail] = useState(false);
+
   const PUBLIC_EMAIL_DOMAINS = ['gmail.com','googlemail.com','hotmail.com','outlook.com','live.com','yahoo.com','yahoo.com.br','icloud.com','msn.com','bol.com.br','uol.com.br','terra.com.br'];
   const fromDomain = resendFromEmail.split('@')[1]?.toLowerCase() || '';
   const isPublicEmailDomain = PUBLIC_EMAIL_DOMAINS.includes(fromDomain);
@@ -133,6 +139,73 @@ const SettingsCommunication = () => {
                   <p>Para usar seu próprio domínio (ex.: <code className="font-mono">noreply@seudominio.com.br</code>), verifique-o em <a href="https://resend.com/domains" target="_blank" rel="noreferrer" className="underline">resend.com/domains</a>.</p>
                 </div>
               </div>
+            )}
+          </div>
+
+          <div className="pt-4 border-t border-border/50">
+            <p className="text-sm font-medium text-foreground mb-3">Enviar email de teste</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Email do destinatário</Label>
+                <Input
+                  type="email"
+                  value={testEmailTo}
+                  onChange={(e) => setTestEmailTo(e.target.value)}
+                  placeholder="seuemail@exemplo.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Assunto (opcional)</Label>
+                <Input
+                  value={testEmailSubject}
+                  onChange={(e) => setTestEmailSubject(e.target.value)}
+                  placeholder="✅ Teste de envio - Resend"
+                />
+              </div>
+            </div>
+            <div className="space-y-2 mt-4">
+              <Label>Mensagem (opcional)</Label>
+              <Input
+                value={testEmailMessage}
+                onChange={(e) => setTestEmailMessage(e.target.value)}
+                placeholder="Este é um e-mail de teste enviado pelo painel administrativo."
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-3 flex items-center gap-2"
+              disabled={sendingTestEmail || !testEmailTo || !resendApiKey}
+              onClick={async () => {
+                setSendingTestEmail(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke('test-resend-email', {
+                    body: {
+                      to: testEmailTo,
+                      subject: testEmailSubject,
+                      message: testEmailMessage,
+                    },
+                  });
+                  if (error) throw new Error(error.message);
+                  if (data?.error) throw new Error(data.error);
+                  toast({
+                    title: 'Email enviado com sucesso!',
+                    description: data?.usedFallback
+                      ? `Enviado via onboarding@resend.dev (Reply-To: ${data?.replyTo || 'n/a'}). Verifique a caixa de entrada de ${testEmailTo}.`
+                      : `Enviado de ${data?.from} para ${testEmailTo}. Verifique a caixa de entrada (e o spam).`,
+                  });
+                } catch (err: any) {
+                  toast({ title: 'Erro ao enviar email', description: err.message, variant: 'destructive' });
+                } finally { setSendingTestEmail(false); }
+              }}
+            >
+              {sendingTestEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {sendingTestEmail ? 'Enviando...' : 'Enviar Email de Teste'}
+            </Button>
+            {!resendApiKey && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Salve uma API Key do Resend antes de enviar testes.
+              </p>
             )}
           </div>
         </CardContent>
