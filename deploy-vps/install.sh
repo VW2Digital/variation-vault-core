@@ -1440,11 +1440,38 @@ if [[ "${DEPLOY_EDGE_FUNCTIONS:-0}" -eq 1 ]]; then
 
     # 6) Lembrete sobre secrets das Edge Functions
     echo
-    info "Lembrete: Edge Functions precisam de SECRETS configurados no Supabase para autenticar webhooks."
+    info "Edge Functions precisam de SECRETS configurados no Supabase para autenticar webhooks e enviar e-mails."
     info "  Liste:    supabase secrets list --project-ref $SUPABASE_PROJECT_REF"
-    info "  Configure: supabase secrets set RESEND_API_KEY=xxx WEBHOOK_SECRET=$WEBHOOK_SECRET ... --project-ref $SUPABASE_PROJECT_REF"
-    info "  Variáveis típicas: WEBHOOK_SECRET, MP_WEBHOOK_SECRET, RESEND_API_KEY, STRIPE_SECRET_KEY,"
-    info "                     OPENAI_API_KEY, evolution_api_url, evolution_api_key."
+    info "  Configure (NUNCA cole a chave neste terminal — use o painel ou \$VAR):"
+    info "    supabase secrets set RESEND_API_KEY=\"\$RESEND_API_KEY\" --project-ref $SUPABASE_PROJECT_REF"
+    info "  Secrets usadas pela aplicação:"
+    info "    • RESEND_API_KEY      — provedor de envio (e-mails transacionais via send-email)"
+    info "    • WEBHOOK_SECRET      — autenticação dos webhooks externos (gerada acima)"
+    info "    • MP_WEBHOOK_SECRET   — assinatura HMAC do Mercado Pago"
+    info "    • LOVABLE_API_KEY     — Lovable AI Gateway (opcional)"
+    echo
+
+    # 7) SMTP do Supabase Auth (signup, recuperação de senha, magic links)
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}E-mails do Supabase Auth (cadastro / reset de senha / magic link)${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    info "Por padrão o Supabase envia esses e-mails pelo SMTP interno (limite ~4/h)."
+    info "Para produção, configure SMTP customizado no painel do Supabase:"
+    info "  Dashboard → Authentication → Emails → SMTP Settings → Enable Custom SMTP"
+    info ""
+    info "Sugestão de provedor: Resend (a chave já está em RESEND_API_KEY)."
+    info "  Host:     smtp.resend.com"
+    info "  Port:     465 (SSL) ou 587 (STARTTLS)"
+    info "  User:     resend"
+    info "  Password: <sua RESEND_API_KEY>   ← NÃO digite aqui, copie do painel Resend"
+    info "  Sender:   no-reply@<seu-dominio-verificado>"
+    info ""
+    info "Os e-mails transacionais customizados (pedido, frete, falha, recuperação"
+    info "de carrinho, notificação admin) já são enviados via Edge Function 'send-email'."
+    info "Chame de qualquer função/UI:"
+    info "  POST ${SUPABASE_URL_INPUT}/functions/v1/send-email"
+    info "  body: { template: 'order_paid', to: 'cliente@x.com', data: { order_id, total_value } }"
+    echo
 fi
 
 ###############################################################################
