@@ -26,7 +26,16 @@ serve(async (req) => {
     (settings || []).forEach((s: any) => { cfg[s.key] = s.value; });
 
     const resendApiKey = cfg['resend_api_key'] || Deno.env.get('RESEND_API_KEY');
-    const fromEmail = cfg['resend_from_email'] || 'noreply@libertypharma.com.br';
+    const configuredFrom = cfg['resend_from_email'] || '';
+    const PUBLIC_DOMAINS = ['gmail.com','googlemail.com','hotmail.com','outlook.com','live.com','yahoo.com','yahoo.com.br','icloud.com','msn.com','bol.com.br','uol.com.br','terra.com.br'];
+    const fromDomain = configuredFrom.split('@')[1]?.toLowerCase() || '';
+    const isPublicDomain = PUBLIC_DOMAINS.includes(fromDomain);
+    // Resend rejeita envios de domínios públicos. Fallback para onboarding@resend.dev.
+    const fromEmail = isPublicDomain || !configuredFrom ? 'onboarding@resend.dev' : configuredFrom;
+    const replyToEmail = configuredFrom && configuredFrom.includes('@') ? configuredFrom : undefined;
+    if (isPublicDomain) {
+      console.warn(`[Cart Abandonment] resend_from_email (${configuredFrom}) é domínio público — usando fallback onboarding@resend.dev.`);
+    }
     const storePublicUrl = (cfg['store_public_url'] || '').replace(/\/+$/, '');
     const cartUrl = storePublicUrl ? `${storePublicUrl}/carrinho` : '';
 
@@ -142,8 +151,9 @@ serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            from: fromEmail,
+            from: `Liberty Pharma <${fromEmail}>`,
             to: email,
+            ...(replyToEmail ? { reply_to: replyToEmail } : {}),
             subject: `${name}, seus itens estão esperando por você! 🛒`,
             html: htmlBody,
           }),

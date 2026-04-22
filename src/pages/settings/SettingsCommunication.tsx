@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Phone, Mail, MessageSquare, Eye, EyeOff, Send, Loader2, BellRing } from 'lucide-react';
+import { Phone, Mail, MessageSquare, Eye, EyeOff, Send, Loader2, BellRing, AlertTriangle } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import SettingsBackButton from './SettingsBackButton';
@@ -19,6 +19,10 @@ const SettingsCommunication = () => {
   const [resendApiKey, setResendApiKey] = useState('');
   const [resendFromEmail, setResendFromEmail] = useState('');
   const [showResendKey, setShowResendKey] = useState(false);
+
+  const PUBLIC_EMAIL_DOMAINS = ['gmail.com','googlemail.com','hotmail.com','outlook.com','live.com','yahoo.com','yahoo.com.br','icloud.com','msn.com','bol.com.br','uol.com.br','terra.com.br'];
+  const fromDomain = resendFromEmail.split('@')[1]?.toLowerCase() || '';
+  const isPublicEmailDomain = PUBLIC_EMAIL_DOMAINS.includes(fromDomain);
 
   // Evolution API
   const [evolutionApiUrl, setEvolutionApiUrl] = useState('');
@@ -120,6 +124,16 @@ const SettingsCommunication = () => {
           <div className="space-y-2">
             <Label>Email de envio (From)</Label>
             <Input value={resendFromEmail} onChange={(e) => setResendFromEmail(e.target.value)} placeholder="onboarding@resend.dev" />
+            {isPublicEmailDomain && (
+              <div className="flex items-start gap-2 p-3 rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400">
+                <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <div className="text-xs space-y-1">
+                  <p className="font-semibold">Domínio público não é aceito pelo Resend</p>
+                  <p>O Resend bloqueia envios usando endereços @{fromDomain}. Os emails serão enviados automaticamente via <code className="font-mono">onboarding@resend.dev</code> e o seu email será adicionado como <strong>Reply-To</strong>.</p>
+                  <p>Para usar seu próprio domínio (ex.: <code className="font-mono">noreply@seudominio.com.br</code>), verifique-o em <a href="https://resend.com/domains" target="_blank" rel="noreferrer" className="underline">resend.com/domains</a>.</p>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
