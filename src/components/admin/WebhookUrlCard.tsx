@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Webhook, Copy, AlertCircle, Loader2, CheckCircle2, XCircle, Activity } from 'lucide-react';
+import { usePublicBaseUrl } from '@/hooks/usePublicBaseUrl';
 
 interface WebhookUrlCardProps {
   /** Nome do gateway, exibido no título (ex.: "Asaas", "Mercado Pago") */
@@ -24,6 +25,10 @@ interface WebhookUrlCardProps {
  */
 const WebhookUrlCard = ({ gatewayName, functionSlug, cadastroHint, eventos }: WebhookUrlCardProps) => {
   const { toast } = useToast();
+  // URL pública canônica configurada pelo admin (ou origem do navegador
+  // quando estamos em produção real, fora do preview Lovable).
+  const { publicUrl, configuredByAdmin, browserIsInternal } = usePublicBaseUrl();
+
   // Lê a URL diretamente do client Supabase em runtime — sempre reflete o projeto
   // efetivamente conectado, mesmo se o .env do build estiver errado/desatualizado.
   const clientUrl = (((supabase as any).supabaseUrl as string) || '').replace(/\/+$/, '');
@@ -51,7 +56,18 @@ const WebhookUrlCard = ({ gatewayName, functionSlug, cadastroHint, eventos }: We
     };
   }, []);
 
-  const url = `${baseUrl}/functions/v1/${functionSlug}`;
+  // URL DIRETA no Supabase (fallback técnico — funciona, mas pode ser bloqueada
+  // por WAFs externos como o do Melhor Envio, que rejeita IPs Supabase).
+  const supabaseUrl = `${baseUrl}/functions/v1/${functionSlug}`;
+
+  // URL PÚBLICA recomendada (proxy Nginx → Supabase) — esconde a URL Supabase,
+  // contorna WAFs e mantém branding consistente. Vazio se admin não configurou.
+  const publicWebhookUrl = publicUrl ? `${publicUrl}/${functionSlug}` : '';
+
+  // URL exibida/copiada por padrão: pública se disponível; fallback Supabase.
+  const url = publicWebhookUrl || supabaseUrl;
+  const usingPublic = !!publicWebhookUrl;
+
   // Avisa apenas quando o admin sobrescreveu manualmente para algo diferente do client real.
   const mismatch = !!baseUrl && !!clientUrl && baseUrl !== clientUrl;
 
@@ -60,13 +76,19 @@ const WebhookUrlCard = ({ gatewayName, functionSlug, cadastroHint, eventos }: We
     toast({ title: 'URL do webhook copiada!' });
   };
 
+  const copySupabaseFallback = () => {
+    navigator.clipboard.writeText(supabaseUrl);
+    toast({ title: 'URL alternativa (Supabase direto) copiada!' });
+  };
+
   const test = async () => {
     setTesting(true);
     setResult(null);
     const start = performance.now();
     try {
-      // GET simples — todas as nossas edge functions de webhook devem responder 200 ao GET
-      const res = await fetch(url, { method: 'GET' });
+      // Testa SEMPRE o endpoint Supabase direto (mais confiável e independente
+      // do DNS público da loja, que pode não estar resolvendo do navegador atual).
+      const res = await fetch(supabaseUrl, { method: 'GET' });
       await res.text(); // consome o body para evitar leak
       const latencyMs = Math.round(performance.now() - start);
       const ok = res.status >= 200 && res.status < 300;
@@ -97,7 +119,9 @@ const WebhookUrlCard = ({ gatewayName, functionSlug, cadastroHint, eventos }: We
       </div>
       <p className="text-xs text-muted-foreground">
         Cole esta URL exata {cadastroHint ?? `no painel do ${gatewayName}, em Configurações → Webhooks`}.
-        Não use o domínio da loja — use sempre o endpoint abaixo para evitar erros de validação (ex.: status 405).
+        {usingPublic
+          ? ' Endpoint público da sua loja (proxy → Edge Function) — recomendado, contorna WAFs como o do Melhor Envio.'
+          : ' Configure a URL pública da loja acima para usar seu próprio domínio em vez do endpoint Supabase.'}
       </p>
       <div className="flex gap-2">
         <Input
@@ -114,6 +138,36 @@ const WebhookUrlCard = ({ gatewayName, functionSlug, cadastroHint, eventos }: We
           Testar
         </Button>
       </div>
+
+      {usingPublic && (
+        <details className="text-xs">
+          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+            URL alternativa (direto no Supabase, caso o gateway não aceite o domínio público)
+          </summary>
+          <div className="mt-2 flex gap-2">
+            <Input
+              readOnly
+              value={supabaseUrl}
+              className="bg-background text-xs font-mono"
+              onClick={(e) => (e.target as HTMLInputElement).select()}
+            />
+            <Button type="button" variant="outline" size="icon" onClick={copySupabaseFallback}>
+              <Copy className="w-4 h-4" />
+            </Button>
+          </div>
+        </details>
+      )}
+
+      {!usingPublic && browserIsInternal && (
+        <div className="flex items-start gap-2 text-xs rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-amber-700 dark:text-amber-400">
+          <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <span>
+            Configure <strong>URL pública da loja</strong> em Configurações → Logística para que webhooks
+            apareçam com o domínio real da sua VPS (ex.: <code>https://store.pharmaliberty.com/{functionSlug}</code>).
+          </span>
+        </div>
+      )}
+
       {result && (
         <div
           className={`flex items-start gap-2 text-xs rounded-md border p-2 ${
