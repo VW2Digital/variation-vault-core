@@ -176,7 +176,17 @@ async function sendReviewResultNotification(supabase: any, data: ReviewNotificat
 
   // ── Email notification ──
   const resendKey = cfg['resend_api_key'] || Deno.env.get('RESEND_API_KEY');
-  const fromEmail = cfg['resend_from_email'];
+  const configuredFrom = cfg['resend_from_email'] || '';
+  const PUBLIC_DOMAINS = ['gmail.com','googlemail.com','hotmail.com','outlook.com','live.com','yahoo.com','yahoo.com.br','icloud.com','msn.com','bol.com.br','uol.com.br','terra.com.br'];
+  const fromDomain = configuredFrom.split('@')[1]?.toLowerCase() || '';
+  const isPublicDomain = PUBLIC_DOMAINS.includes(fromDomain);
+  // Resend bloqueia envios usando domínios públicos (gmail/hotmail/etc).
+  // Fallback: usa onboarding@resend.dev e mantém reply_to no email do admin.
+  const fromEmail = isPublicDomain || !configuredFrom ? 'onboarding@resend.dev' : configuredFrom;
+  const replyToEmail = configuredFrom && configuredFrom.includes('@') ? configuredFrom : undefined;
+  if (isPublicDomain) {
+    console.warn(`[MP Webhook] resend_from_email (${configuredFrom}) usa domínio público — usando fallback onboarding@resend.dev. Configure um domínio verificado no Resend para usar seu próprio email.`);
+  }
 
   if (resendKey && fromEmail) {
     // Email to admin
@@ -202,12 +212,14 @@ async function sendReviewResultNotification(supabase: any, data: ReviewNotificat
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendKey}` },
         body: JSON.stringify({
           from: `Liberty Pharma <${fromEmail}>`,
-          to: [fromEmail],
+          to: [replyToEmail || fromEmail],
+          ...(replyToEmail ? { reply_to: replyToEmail } : {}),
           subject: `${statusEmoji} Pagamento ${statusLabel} - ${data.customerName || 'Cliente'} - ${valueFormatted}`,
           html: adminHtml,
         }),
       });
-      console.log(`[MP Webhook] Admin email notification: ${res.ok ? 'sent' : `error:${res.status}`}`);
+      const adminBody = await res.text();
+      console.log(`[MP Webhook] Admin email: ${res.ok ? 'sent' : `error:${res.status} body:${adminBody.slice(0,300)}`}`);
     } catch (e: any) {
       console.error(`[MP Webhook] Admin email error: ${e.message}`);
     }
@@ -241,13 +253,15 @@ async function sendReviewResultNotification(supabase: any, data: ReviewNotificat
           body: JSON.stringify({
             from: `Liberty Pharma <${fromEmail}>`,
             to: [data.customerEmail],
+            ...(replyToEmail ? { reply_to: replyToEmail } : {}),
             subject: isApproved
               ? `✅ Pagamento Aprovado - ${data.productName}`
               : `Pagamento Não Aprovado - ${data.productName}`,
             html: customerHtml,
           }),
         });
-        console.log(`[MP Webhook] Customer email notification: ${res.ok ? 'sent' : `error:${res.status}`}`);
+        const custBody = await res.text();
+        console.log(`[MP Webhook] Customer email: ${res.ok ? 'sent' : `error:${res.status} body:${custBody.slice(0,300)}`}`);
       } catch (e: any) {
         console.error(`[MP Webhook] Customer email error: ${e.message}`);
       }

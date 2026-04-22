@@ -272,7 +272,16 @@ serve(async (req) => {
 
           // Email to customer
           const resendKey = cfg['resend_api_key'] || Deno.env.get('RESEND_API_KEY');
-          const fromEmail = cfg['resend_from_email'];
+          const configuredFrom = cfg['resend_from_email'] || '';
+          const PUBLIC_DOMAINS = ['gmail.com','googlemail.com','hotmail.com','outlook.com','live.com','yahoo.com','yahoo.com.br','icloud.com','msn.com','bol.com.br','uol.com.br','terra.com.br'];
+          const fromDomain = configuredFrom.split('@')[1]?.toLowerCase() || '';
+          const isPublicDomain = PUBLIC_DOMAINS.includes(fromDomain);
+          // Resend bloqueia envios usando domínios públicos. Fallback: onboarding@resend.dev + reply_to admin.
+          const fromEmail = isPublicDomain || !configuredFrom ? 'onboarding@resend.dev' : configuredFrom;
+          const replyToEmail = configuredFrom && configuredFrom.includes('@') ? configuredFrom : undefined;
+          if (isPublicDomain) {
+            console.warn(`[Asaas Webhook] resend_from_email (${configuredFrom}) usa domínio público — usando fallback onboarding@resend.dev.`);
+          }
           if (notifyCustomer && resendKey && fromEmail && orderForNotif.customer_email) {
             const customerHtml = isApproved
               ? `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
@@ -295,13 +304,15 @@ serve(async (req) => {
                 body: JSON.stringify({
                   from: `Liberty Pharma <${fromEmail}>`,
                   to: [orderForNotif.customer_email],
+                  ...(replyToEmail ? { reply_to: replyToEmail } : {}),
                   subject: isApproved
                     ? `✅ Pagamento Aprovado - ${orderForNotif.product_name}`
                     : `Pagamento Não Aprovado - ${orderForNotif.product_name}`,
                   html: customerHtml,
                 }),
               });
-              console.log(`[Webhook] Customer email: ${eRes.ok ? 'sent' : `error:${eRes.status}`}`);
+              const eBody = await eRes.text();
+              console.log(`[Asaas Webhook] Customer email: ${eRes.ok ? 'sent' : `error:${eRes.status} body:${eBody.slice(0,300)}`}`);
             } catch (e: any) {
               console.error(`[Webhook] Customer email error: ${e.message}`);
             }
