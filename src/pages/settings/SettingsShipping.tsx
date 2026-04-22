@@ -170,6 +170,8 @@ const SettingsShipping = () => {
     <div className="space-y-6 w-full">
       <SettingsBackButton title="Melhor Envio & Frete" description="Integração, remetente e dimensões de embalagem" />
 
+      <PublicSiteUrlCard />
+
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2"><Truck className="w-5 h-5" /> Melhor Envio</CardTitle>
