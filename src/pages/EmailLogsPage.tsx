@@ -1,7 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Search, RefreshCw, Trash2, Mail, CheckCircle2, XCircle, Clock } from "lucide-react";
+import {
+  Search,
+  RefreshCw,
+  Trash2,
+  Mail,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  AlertTriangle,
+  ShieldOff,
+  MailWarning,
+  Send,
+  TrendingUp,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,6 +68,10 @@ const statusBadge = (status: string) => {
     sent: { label: "Enviado", className: "bg-emerald-500/15 text-emerald-700 border-emerald-200", Icon: CheckCircle2 },
     failed: { label: "Falhou", className: "bg-destructive/15 text-destructive border-destructive/30", Icon: XCircle },
     pending: { label: "Pendente", className: "bg-amber-500/15 text-amber-700 border-amber-200", Icon: Clock },
+    dlq: { label: "DLQ (falhou)", className: "bg-destructive/15 text-destructive border-destructive/30", Icon: AlertTriangle },
+    suppressed: { label: "Suprimido", className: "bg-amber-500/15 text-amber-700 border-amber-200", Icon: ShieldOff },
+    bounced: { label: "Devolvido", className: "bg-orange-500/15 text-orange-700 border-orange-200", Icon: MailWarning },
+    complained: { label: "Reclamação", className: "bg-purple-500/15 text-purple-700 border-purple-200", Icon: MailWarning },
   };
   const cfg = map[status] ?? { label: status, className: "bg-muted text-muted-foreground", Icon: Mail };
   const Icon = cfg.Icon;
