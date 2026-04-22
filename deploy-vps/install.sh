@@ -63,9 +63,12 @@ fi
 
 # ----------------------------- Configuração ---------------------------------
 APP_DIR="/var/www/app"
-REPO_URL_DEFAULT="https://github.com/VW2Digital/variation-vault-core.git"
-DOMAIN_DEFAULT="luminaeliberty.com"
-EMAIL_DEFAULT="libertyluminaepharma@gmail.com"
+# ATENÇÃO: NUNCA hardcode valores reais (repositórios privados, domínios de
+# produção, e-mails reais ou credenciais) neste script. Use placeholders
+# genéricos — o script é distribuído publicamente e usado em prints/suporte.
+REPO_URL_DEFAULT="https://github.com/seu-usuario/seu-repositorio.git"
+DOMAIN_DEFAULT="seu-dominio.com"
+EMAIL_DEFAULT="seu-email@example.com"
 
 echo -e "${BLUE}╔══════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║   Liberty Pharma — Instalação Nativa (Vite + Nginx)      ║${NC}"
@@ -597,7 +600,7 @@ cleanup_conflicting_vhosts() {
 # contendo apenas:
 #
 #     server {
-#         server_name api.luminaeliberty.com;
+#         server_name api.seu-dominio.com;
 #         listen 443 ssl;
 #         ...
 #         return 404; # managed by Certbot
@@ -605,8 +608,8 @@ cleanup_conflicting_vhosts() {
 #
 # Esse bloco é um PLACEHOLDER e intercepta TODAS as requisições HTTPS para
 # o subdomínio antes do nosso vhost real responder, fazendo com que:
-#   • https://api.dominio.com/api/admin-users         → 404 (falso)
-#   • https://api.dominio.com/api/melhor-envio-webhook → 404 (falso)
+#   • https://api.seu-dominio.com/api/<funcao>          → 404 (falso)
+#   • https://api.seu-dominio.com/api/<webhook>         → 404 (falso)
 #   • OAuth2 callbacks                                 → quebrados
 # mesmo com o Supabase 100% saudável.
 #
