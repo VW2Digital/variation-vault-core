@@ -219,7 +219,18 @@ const SettingsShipping = () => {
                   upsertSetting('melhor_envio_environment', melhorEnvioEnv),
                 ]);
                 const { data: userData } = await supabase.auth.getUser();
-                const redirectUri = `${window.location.origin}/admin/configuracoes/logistica`;
+                // IMPORTANTE: usa SEMPRE a URL pública canônica (configurada pelo admin)
+                // — o Melhor Envio rejeita redirect_uri com o host interno do Lovable.
+                const baseForOAuth = publicUrl || window.location.origin;
+                if (browserIsInternal && !publicUrl) {
+                  toast({
+                    title: 'Configure a URL pública primeiro',
+                    description: 'Defina a URL pública da loja no card acima antes de conectar — o Melhor Envio rejeita o domínio do preview.',
+                    variant: 'destructive',
+                  });
+                  return;
+                }
+                const redirectUri = `${baseForOAuth}/admin/configuracoes/logistica`;
                 const { data, error } = await supabase.functions.invoke('melhor-envio-oauth', {
                   body: { action: 'get_auth_url', user_id: userData.user?.id, redirect_uri: redirectUri },
                 });
