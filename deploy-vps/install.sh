@@ -73,6 +73,7 @@ echo -e "${BLUE}╚════════════════════�
 if ! command -v curl >/dev/null 2>&1; then apt-get update -y && apt-get install -y curl; fi
 if ! command -v jq >/dev/null 2>&1;   then apt-get update -y && apt-get install -y jq;   fi
 if ! command -v openssl >/dev/null 2>&1; then apt-get update -y && apt-get install -y openssl; fi
+if ! command -v dig >/dev/null 2>&1; then apt-get update -y && apt-get install -y dnsutils; fi
 
 echo
 info "Todas as perguntas serão feitas agora, antes de qualquer instalação."
