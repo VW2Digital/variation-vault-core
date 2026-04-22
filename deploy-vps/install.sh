@@ -326,8 +326,8 @@ ok "Build concluído em $APP_DIR/dist"
 info "Configurando Nginx para servir SPA estática..."
 cat > /etc/nginx/sites-available/app <<NGINX
 server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
+    listen 80;
+    listen [::]:80;
     server_name ${DOMAIN};
 
     root /var/www/app/dist;
