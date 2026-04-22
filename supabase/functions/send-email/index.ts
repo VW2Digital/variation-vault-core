@@ -1,11 +1,8 @@
 // Centralized transactional email dispatcher.
-// Single entry point for all app emails (order, shipping, payment, custom).
-// - Renders one of the registered templates and sends via:
-//     1) SMTP customizado (Hostinger por padrão) — provider primário
-//     2) Resend HTTP API — fallback automático se SMTP falhar
-// - Authenticates either with a Supabase JWT (admin) or with the
-//   service role key (server-side / Edge Function -> Edge Function)
-// - Never logs API keys or secrets in plain text
+// Uses SMTP (Hostinger ou qualquer SMTP) como ÚNICO provider.
+// Não há fallback Resend — o projeto removeu qualquer dependência da
+// Resend API. Para alta entregabilidade, configure SPF/DKIM/DMARC do
+// domínio do remetente.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
@@ -21,21 +18,6 @@ const json = (status: number, body: unknown) =>
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-
-const PUBLIC_DOMAINS = [
-  "gmail.com",
-  "googlemail.com",
-  "hotmail.com",
-  "outlook.com",
-  "live.com",
-  "yahoo.com",
-  "yahoo.com.br",
-  "icloud.com",
-  "msn.com",
-  "bol.com.br",
-  "uol.com.br",
-  "terra.com.br",
-];
 
 type TemplateName =
   | "order_created"
@@ -70,6 +52,10 @@ const wrap = (storeName: string, content: string, footer?: string) => `
 const brl = (n: number) =>
   Number.isFinite(n) ? `R$ ${Number(n).toFixed(2).replace(".", ",")}` : "—";
 
+function escapeHtml(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 function renderTemplate(
   template: TemplateName,
   data: Record<string, any>,
@@ -81,30 +67,24 @@ function renderTemplate(
   switch (template) {
     case "order_created": {
       const subject = `Pedido recebido — ${data.product_name ?? "seu pedido"}`;
-      const html = wrap(
-        storeName,
-        `
-          <p>Olá <strong>${customer}</strong>,</p>
-          <p>Recebemos seu pedido <strong>#${data.order_id ?? "—"}</strong> e ele já está na fila.</p>
-          <p><strong>Produto:</strong> ${data.product_name ?? "—"}<br/>
-             <strong>Valor:</strong> ${brl(data.total_value)}<br/>
-             <strong>Pagamento:</strong> ${data.payment_method ?? "—"}</p>
-          ${storeUrl ? `<p><a href="${storeUrl}/minha-conta" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Ver meu pedido</a></p>` : ""}
-        `,
-      );
+      const html = wrap(storeName, `
+        <p>Olá <strong>${customer}</strong>,</p>
+        <p>Recebemos seu pedido <strong>#${data.order_id ?? "—"}</strong> e ele já está na fila.</p>
+        <p><strong>Produto:</strong> ${data.product_name ?? "—"}<br/>
+           <strong>Valor:</strong> ${brl(data.total_value)}<br/>
+           <strong>Pagamento:</strong> ${data.payment_method ?? "—"}</p>
+        ${storeUrl ? `<p><a href="${storeUrl}/minha-conta" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Ver meu pedido</a></p>` : ""}
+      `);
       return { subject, html };
     }
     case "order_paid": {
       const subject = `Pagamento confirmado — pedido #${data.order_id ?? ""}`;
-      const html = wrap(
-        storeName,
-        `
-          <p>Olá <strong>${customer}</strong>,</p>
-          <p>Seu pagamento foi <strong>confirmado</strong>! Já estamos preparando o envio.</p>
-          <p><strong>Pedido:</strong> #${data.order_id ?? "—"}<br/>
-             <strong>Total:</strong> ${brl(data.total_value)}</p>
-        `,
-      );
+      const html = wrap(storeName, `
+        <p>Olá <strong>${customer}</strong>,</p>
+        <p>Seu pagamento foi <strong>confirmado</strong>! Já estamos preparando o envio.</p>
+        <p><strong>Pedido:</strong> #${data.order_id ?? "—"}<br/>
+           <strong>Total:</strong> ${brl(data.total_value)}</p>
+      `);
       return { subject, html };
     }
     case "shipping_update": {
@@ -112,75 +92,52 @@ function renderTemplate(
       const trackBlock = data.tracking_url
         ? `<p><a href="${data.tracking_url}" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Rastrear envio</a></p>`
         : "";
-      const html = wrap(
-        storeName,
-        `
-          <p>Olá <strong>${customer}</strong>,</p>
-          <p>Status atual: <strong>${data.status ?? "atualizado"}</strong></p>
-          ${data.tracking_code ? `<p><strong>Código de rastreio:</strong> ${data.tracking_code}</p>` : ""}
-          ${trackBlock}
-        `,
-      );
+      const html = wrap(storeName, `
+        <p>Olá <strong>${customer}</strong>,</p>
+        <p>Status atual: <strong>${data.status ?? "atualizado"}</strong></p>
+        ${data.tracking_code ? `<p><strong>Código de rastreio:</strong> ${data.tracking_code}</p>` : ""}
+        ${trackBlock}
+      `);
       return { subject, html };
     }
     case "payment_failure": {
       const subject = `Falha no pagamento — pedido #${data.order_id ?? ""}`;
-      const html = wrap(
-        storeName,
-        `
-          <p>Olá <strong>${customer}</strong>,</p>
-          <p>Tivemos um problema processando seu pagamento.</p>
-          <p><strong>Motivo:</strong> ${data.error_message ?? "não informado"}</p>
-          ${storeUrl ? `<p><a href="${storeUrl}/minha-conta" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Tentar novamente</a></p>` : ""}
-        `,
-      );
+      const html = wrap(storeName, `
+        <p>Olá <strong>${customer}</strong>,</p>
+        <p>Tivemos um problema processando seu pagamento.</p>
+        <p><strong>Motivo:</strong> ${data.error_message ?? "não informado"}</p>
+        ${storeUrl ? `<p><a href="${storeUrl}/minha-conta" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Tentar novamente</a></p>` : ""}
+      `);
       return { subject, html };
     }
     case "cart_abandonment": {
       const items = Array.isArray(data.items) ? data.items : [];
-      const itemsHtml = items
-        .map(
-          (i: any) =>
-            `<tr><td style="padding:6px 0;">${i.product_name ?? ""} ${i.dosage ? `(${i.dosage})` : ""} x${i.quantity ?? 1}</td><td style="text-align:right;">${brl((i.price ?? 0) * (i.quantity ?? 1))}</td></tr>`,
-        )
-        .join("");
+      const itemsHtml = items.map((i: any) =>
+        `<tr><td style="padding:6px 0;">${i.product_name ?? ""} ${i.dosage ? `(${i.dosage})` : ""} x${i.quantity ?? 1}</td><td style="text-align:right;">${brl((i.price ?? 0) * (i.quantity ?? 1))}</td></tr>`,
+      ).join("");
       const cartUrl = storeUrl ? `${storeUrl}/carrinho` : "#";
       const subject = `${customer}, seus itens estão esperando por você!`;
-      const html = wrap(
-        storeName,
-        `
-          <p>Olá <strong>${customer}</strong>,</p>
-          <p>Você deixou alguns itens no carrinho. Garanta antes que esgote!</p>
-          <table style="width:100%;border-collapse:collapse;">${itemsHtml}</table>
-          <p style="text-align:right;font-weight:bold;">Total: ${brl(data.total_value)}</p>
-          <p><a href="${cartUrl}" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Finalizar minha compra</a></p>
-        `,
-      );
+      const html = wrap(storeName, `
+        <p>Olá <strong>${customer}</strong>,</p>
+        <p>Você deixou alguns itens no carrinho. Garanta antes que esgote!</p>
+        <table style="width:100%;border-collapse:collapse;">${itemsHtml}</table>
+        <p style="text-align:right;font-weight:bold;">Total: ${brl(data.total_value)}</p>
+        <p><a href="${cartUrl}" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Finalizar minha compra</a></p>
+      `);
       return { subject, html };
     }
     case "admin_notification": {
       const subject = data.subject ?? `Notificação interna — ${storeName}`;
-      const html = wrap(
-        storeName,
-        `
-          <p><strong>Evento:</strong> ${data.event ?? "—"}</p>
-          <p>${data.message ?? ""}</p>
-          ${data.details ? `<pre style="background:#f5f5f5;padding:12px;border-radius:8px;overflow:auto;">${escapeHtml(JSON.stringify(data.details, null, 2))}</pre>` : ""}
-        `,
-        "Notificação automática enviada pelo sistema.",
-      );
+      const html = wrap(storeName, `
+        <p><strong>Evento:</strong> ${data.event ?? "—"}</p>
+        <p>${data.message ?? ""}</p>
+        ${data.details ? `<pre style="background:#f5f5f5;padding:12px;border-radius:8px;overflow:auto;">${escapeHtml(JSON.stringify(data.details, null, 2))}</pre>` : ""}
+      `, "Notificação automática enviada pelo sistema.");
       return { subject, html };
     }
     default:
       throw new Error(`Template desconhecido: ${template}`);
   }
-}
-
-function escapeHtml(s: string) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }
 
 serve(async (req) => {
@@ -218,9 +175,7 @@ serve(async (req) => {
       }
     }
 
-    if (!isAuthorized) {
-      return json(401, { error: "Unauthorized" });
-    }
+    if (!isAuthorized) return json(401, { error: "Unauthorized" });
 
     const body = (await req.json()) as SendEmailRequest;
     if (!body?.template || !body?.to) {
@@ -236,9 +191,6 @@ serve(async (req) => {
       .from("site_settings")
       .select("key, value")
       .in("key", [
-        "resend_api_key",
-        "resend_from_email",
-        // SMTP customizado (Hostinger / qualquer SMTP) — provider primário em prod
         "smtp_host",
         "smtp_port",
         "smtp_user",
@@ -255,15 +207,10 @@ serve(async (req) => {
     const cfg: Record<string, string> = {};
     (settings || []).forEach((s: any) => (cfg[s.key] = s.value));
 
-    // ── Provider config ────────────────────────────────────────────────────────
-    // Ordem de tentativa: SMTP customizado (Hostinger) → Resend HTTP API.
-    // SMTP é preferido em produção pois usa o domínio próprio + SPF/DKIM/DMARC
-    // configurados pelo cliente (melhor entregabilidade, sem dependência de
-    // provedor SaaS pago para volumes baixos/médios).
+    // ── SMTP config (Hostinger por padrão) ─────────────────────────────────
     const smtpHost = (cfg["smtp_host"] || Deno.env.get("SMTP_HOST") || "").trim();
     const smtpPort = parseInt(
-      cfg["smtp_port"] || Deno.env.get("SMTP_PORT") || "465",
-      10,
+      cfg["smtp_port"] || Deno.env.get("SMTP_PORT") || "465", 10,
     );
     const smtpUser = (cfg["smtp_user"] || Deno.env.get("SMTP_USER") || "").trim();
     const smtpPass = cfg["smtp_pass"] || Deno.env.get("SMTP_PASS") || "";
@@ -273,30 +220,17 @@ serve(async (req) => {
       (cfg["smtp_from_name"] || Deno.env.get("SMTP_FROM_NAME") || "").trim();
     const smtpSecure =
       (cfg["smtp_secure"] || Deno.env.get("SMTP_SECURE") || "").trim().toLowerCase();
-    const hasSmtp = !!(smtpHost && smtpUser && smtpPass);
 
-    const resendApiKey = cfg["resend_api_key"] || Deno.env.get("RESEND_API_KEY");
-    if (!hasSmtp && !resendApiKey) {
+    if (!smtpHost || !smtpUser || !smtpPass) {
       return json(500, {
         error:
-          "Nenhum provedor de e-mail configurado. Configure SMTP (smtp_host/user/pass) " +
-          "ou RESEND_API_KEY em Configurações → Comunicação.",
+          "SMTP não configurado. Defina smtp_host, smtp_user e smtp_pass em " +
+          "Configurações → Comunicação (ou variáveis de ambiente SMTP_*).",
       });
     }
 
     const storeName = cfg["store_name"] || "Liberty Pharma";
     const storePublicUrl = (cfg["store_public_url"] || "").replace(/\/+$/, "");
-    // Remetente: prioriza smtp_from_email (quando SMTP estiver configurado),
-    // depois resend_from_email. Domínios públicos (gmail/hotmail) NUNCA podem
-    // ser usados como FROM em produção — caem no fallback do Resend sandbox.
-    const configuredFrom =
-      (hasSmtp ? smtpFromEmail : "") || cfg["resend_from_email"] || smtpFromEmail || "";
-    const fromDomain = configuredFrom.split("@")[1]?.toLowerCase() || "";
-    const isPublicDomain = PUBLIC_DOMAINS.includes(fromDomain);
-    const fromEmail =
-      isPublicDomain || !configuredFrom ? "onboarding@resend.dev" : configuredFrom;
-    const replyTo =
-      configuredFrom && configuredFrom.includes("@") ? configuredFrom : undefined;
 
     let rendered: { subject: string; html: string };
     if (body.template === "custom") {
@@ -313,8 +247,6 @@ serve(async (req) => {
     }
 
     // Apply admin overrides from site_settings (if defined).
-    // Supports {{var}} placeholders that map to keys in body.data, plus
-    // {{store_name}}, {{store_url}}, {{customer_name}}.
     const overrideSubject = cfg[`email_template_${body.template}_subject`];
     const overrideHtml = cfg[`email_template_${body.template}_html`];
     if (overrideSubject || overrideHtml) {
@@ -340,111 +272,52 @@ serve(async (req) => {
     }
 
     const sendStart = Date.now();
-
-    // ── 1) Tenta SMTP customizado (Hostinger por padrão) ──────────────────────
-    let providerUsed: "smtp" | "resend" | "none" = "none";
     let messageId: string | null = null;
-    let usedFrom = fromEmail;
-    let autoFallback = false;
-    let providerStatus = 0;
     let providerErr: string | null = null;
-    let providerRaw: any = null;
+    let providerStatus = 0;
+    let ok = false;
 
-    const trySmtp = async (): Promise<boolean> => {
-      if (!hasSmtp) return false;
-      // Decide TLS por porta + override explícito (smtp_secure="ssl"|"tls").
-      // Hostinger: 465 = SSL implícito; 587 = STARTTLS.
-      const useSsl = smtpSecure === "ssl" || smtpPort === 465;
-      const client = new SMTPClient({
-        connection: {
-          hostname: smtpHost,
-          port: smtpPort,
-          tls: useSsl,
-          auth: { username: smtpUser, password: smtpPass },
-        },
-        // Reduz risco de loops longos em Edge Function.
-        pool: false,
+    // Decide TLS por porta + override explícito (smtp_secure="ssl"|"tls").
+    // Hostinger: 465 = SSL implícito; 587 = STARTTLS.
+    const useSsl = smtpSecure === "ssl" || smtpPort === 465;
+    const client = new SMTPClient({
+      connection: {
+        hostname: smtpHost,
+        port: smtpPort,
+        tls: useSsl,
+        auth: { username: smtpUser, password: smtpPass },
+      },
+      pool: false,
+    });
+
+    try {
+      const fromHeader = smtpFromName
+        ? `${smtpFromName} <${smtpFromEmail || smtpUser}>`
+        : `${storeName} <${smtpFromEmail || smtpUser}>`;
+      await client.send({
+        from: fromHeader,
+        to: recipients,
+        replyTo: smtpFromEmail || smtpUser,
+        subject: rendered.subject,
+        content: "auto",
+        html: rendered.html,
       });
-      try {
-        const fromHeader = smtpFromName
-          ? `${smtpFromName} <${smtpFromEmail || smtpUser}>`
-          : `${storeName} <${smtpFromEmail || smtpUser}>`;
-        await client.send({
-          from: fromHeader,
-          to: recipients,
-          replyTo: replyTo,
-          subject: rendered.subject,
-          content: "auto",
-          html: rendered.html,
-        });
-        await client.close();
-        providerUsed = "smtp";
-        usedFrom = smtpFromEmail || smtpUser;
-        providerStatus = 250; // SMTP OK
-        // SMTP padrão não retorna message_id estruturado; gera um sintético.
-        messageId = `smtp-${crypto.randomUUID()}`;
-        return true;
-      } catch (e) {
-        providerErr = e instanceof Error ? e.message : String(e);
-        try { await client.close(); } catch (_) { /* noop */ }
-        // Mascara qualquer eco de senha em mensagem de erro.
-        if (smtpPass && providerErr) {
-          providerErr = providerErr.split(smtpPass).join("***");
-        }
-        console.warn(`send-email: SMTP falhou (${smtpHost}:${smtpPort}) — ${providerErr}`);
-        return false;
+      await client.close();
+      providerStatus = 250;
+      messageId = `smtp-${crypto.randomUUID()}`;
+      ok = true;
+    } catch (e) {
+      providerErr = e instanceof Error ? e.message : String(e);
+      try { await client.close(); } catch (_) { /* noop */ }
+      // Mascara qualquer eco de senha em mensagem de erro.
+      if (smtpPass && providerErr) {
+        providerErr = providerErr.split(smtpPass).join("***");
       }
-    };
-
-    const tryResend = async (): Promise<boolean> => {
-      if (!resendApiKey) return false;
-      const sendVia = (fromAddress: string) =>
-        fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${resendApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: `${storeName} <${fromAddress}>`,
-            to: recipients,
-            ...(replyTo ? { reply_to: replyTo } : {}),
-            subject: rendered.subject,
-            html: rendered.html,
-          }),
-        });
-      let res = await sendVia(fromEmail);
-      let resBody: any = await res.json().catch(() => ({}));
-      let from = fromEmail;
-      // Auto-fallback Resend sandbox quando domínio não verificado.
-      if (
-        !res.ok &&
-        res.status === 403 &&
-        fromEmail !== "onboarding@resend.dev" &&
-        typeof resBody?.message === "string" &&
-        /domain is not verified/i.test(resBody.message)
-      ) {
-        res = await sendVia("onboarding@resend.dev");
-        resBody = await res.json().catch(() => ({}));
-        from = "onboarding@resend.dev";
-        autoFallback = true;
-      }
-      providerStatus = res.status;
-      providerRaw = resBody;
-      if (res.ok) {
-        providerUsed = "resend";
-        usedFrom = from;
-        messageId = resBody?.id ?? null;
-        return true;
-      }
-      providerErr = resBody?.message || resBody?.name || `HTTP ${res.status}`;
-      return false;
-    };
-
-    let ok = await trySmtp();
-    if (!ok) ok = await tryResend();
+      console.warn(`send-email: SMTP falhou (${smtpHost}:${smtpPort}) — ${providerErr}`);
+    }
 
     const latency = Date.now() - sendStart;
+    const usedFrom = smtpFromEmail || smtpUser;
 
     // Persist a row per recipient in email_send_log (best-effort).
     const logRows = recipients.map((r) => ({
@@ -454,12 +327,10 @@ serve(async (req) => {
       subject: rendered.subject,
       status: ok ? "sent" : "failed",
       error_message: ok ? null : providerErr,
-      provider_response: providerRaw,
+      provider_response: null,
       metadata: {
-        provider: providerUsed,
+        provider: "smtp",
         from_used: usedFrom,
-        fallback: isPublicDomain || autoFallback,
-        auto_fallback: autoFallback,
         latency_ms: latency,
         provider_status: providerStatus,
       },
@@ -473,15 +344,15 @@ serve(async (req) => {
         scope: "send-email",
         template: body.template,
         to_count: recipients.length,
-        provider: providerUsed,
+        provider: "smtp",
         from_used: usedFrom,
         provider_status: providerStatus,
         provider_error: providerErr,
         latency_ms: latency,
       }));
       return json(502, {
-        error: providerErr || "Nenhum provedor conseguiu enviar",
-        provider: providerUsed,
+        error: providerErr || "SMTP falhou ao enviar",
+        provider: "smtp",
         provider_status: providerStatus,
       });
     }
@@ -490,19 +361,16 @@ serve(async (req) => {
       scope: "send-email",
       template: body.template,
       to_count: recipients.length,
-      provider: providerUsed,
+      provider: "smtp",
       from_used: usedFrom,
-      fallback: isPublicDomain || autoFallback,
       latency_ms: latency,
       message_id: messageId,
     }));
 
     return json(200, {
       success: true,
-      provider: providerUsed,
+      provider: "smtp",
       message_id: messageId,
-      fallback: isPublicDomain || autoFallback,
-      auto_fallback: autoFallback,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
