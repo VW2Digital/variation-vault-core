@@ -255,6 +255,7 @@ fi
 
 # Grava .env do Vite ANTES do build para apontar pro Supabase informado
 ENV_FILE="$APP_DIR/.env"
+ENV_PROD_FILE="$APP_DIR/.env.production"
 info "Gravando credenciais Supabase em $ENV_FILE (usadas no build do Vite)..."
 cat > "$ENV_FILE" <<ENV
 VITE_SUPABASE_URL=${SUPABASE_URL_INPUT}
@@ -265,13 +266,22 @@ SUPABASE_FUNCTIONS_BASE_URL=${SUPABASE_URL_INPUT}/functions/v1
 # Compatibilidade com integrações externas (n8n, Stripe, Meta, etc.)
 SUPABASE_URL=${SUPABASE_URL_INPUT}
 SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+# Compat. Next.js / frameworks que usam prefixo NEXT_PUBLIC_*
+NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL_INPUT}
+NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
 WEBHOOK_SECRET=${WEBHOOK_SECRET}
 NEXT_PUBLIC_API_URL=${API_SUBDOMAIN:+https://${API_SUBDOMAIN}}
 PUBLIC_API_BASE_URL=${API_SUBDOMAIN:+https://${API_SUBDOMAIN}/api}
 ENV
 chmod 600 "$ENV_FILE"
 chown root:root "$ENV_FILE"
-ok "Credenciais gravadas em $ENV_FILE (apontando para $SUPABASE_URL_INPUT)"
+# .env.production é uma cópia idêntica usada por build tools (Vite/Next) que
+# carregam variáveis específicas em modo produção. Mesmas permissões.
+cp "$ENV_FILE" "$ENV_PROD_FILE"
+chmod 600 "$ENV_PROD_FILE"
+chown root:root "$ENV_PROD_FILE"
+ok "Credenciais gravadas em $ENV_FILE e $ENV_PROD_FILE (apontando para $SUPABASE_URL_INPUT)"
 
 # ---------- Validação das variáveis de ambiente exigidas ----------
 info "Validando variáveis de ambiente em $ENV_FILE..."
