@@ -88,11 +88,28 @@ serve(async (req) => {
       });
     }
 
+    // Respect user contact preferences: skip users who opted out of email marketing.
+    const { data: prefs } = await supabase
+      .from('contact_preferences')
+      .select('user_id, allow_email_marketing')
+      .in('user_id', eligibleUserIds);
+    const optedOut = new Set(
+      (prefs || [])
+        .filter((p: any) => p.allow_email_marketing === false)
+        .map((p: any) => p.user_id),
+    );
+    const consentingUserIds = eligibleUserIds.filter((uid) => !optedOut.has(uid));
+    if (consentingUserIds.length === 0) {
+      return new Response(JSON.stringify({ message: 'All eligible users opted out of email marketing', sent: 0 }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Get profiles for names
     const { data: profiles } = await supabase
       .from('profiles')
       .select('user_id, full_name')
-      .in('user_id', eligibleUserIds);
+      .in('user_id', consentingUserIds);
 
     const profileMap: Record<string, string> = {};
     (profiles || []).forEach((p: any) => { profileMap[p.user_id] = p.full_name; });
@@ -113,7 +130,7 @@ serve(async (req) => {
 
     let sentCount = 0;
 
-    for (const userId of eligibleUserIds) {
+    for (const userId of consentingUserIds) {
       const email = emailMap[userId];
       if (!email) continue;
 

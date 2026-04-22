@@ -69,6 +69,21 @@ serve(async (req) => {
       });
     }
 
+    // Respect user opt-out for email marketing
+    const { data: pref } = await admin
+      .from('contact_preferences')
+      .select('allow_email_marketing')
+      .eq('user_id', payload.user_id)
+      .maybeSingle();
+    if (pref && pref.allow_email_marketing === false) {
+      return new Response(JSON.stringify({
+        error: 'Cliente optou por não receber emails de marketing.',
+        opted_out: true,
+      }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Resolve recipient email if not provided
     let recipient = payload.email || '';
     let recipientName = payload.full_name || 'Cliente';
