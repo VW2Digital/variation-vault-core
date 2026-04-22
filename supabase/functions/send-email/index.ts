@@ -355,8 +355,9 @@ serve(async (req) => {
         : (resBody?.message || resBody?.name || `HTTP ${res.status}`),
       provider_response: resBody ?? null,
       metadata: {
-        from_used: fromEmail,
-        fallback: isPublicDomain,
+        from_used: usedFrom,
+        fallback: isPublicDomain || autoFallback,
+        auto_fallback: autoFallback,
         latency_ms: latency,
         provider_status: res.status,
       },
@@ -371,8 +372,8 @@ serve(async (req) => {
         scope: "send-email",
         template: body.template,
         to_count: recipients.length,
-        from_used: fromEmail,
-        fallback: isPublicDomain,
+        from_used: usedFrom,
+        fallback: isPublicDomain || autoFallback,
         provider_status: res.status,
         provider_error: resBody?.message ?? resBody?.name ?? "unknown",
         latency_ms: latency,
@@ -387,8 +388,8 @@ serve(async (req) => {
       scope: "send-email",
       template: body.template,
       to_count: recipients.length,
-      from_used: fromEmail,
-      fallback: isPublicDomain,
+      from_used: usedFrom,
+      fallback: isPublicDomain || autoFallback,
       latency_ms: latency,
       message_id: resBody?.id,
     }));
@@ -396,7 +397,8 @@ serve(async (req) => {
     return json(200, {
       success: true,
       message_id: resBody?.id,
-      fallback: isPublicDomain,
+      fallback: isPublicDomain || autoFallback,
+      auto_fallback: autoFallback,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
