@@ -603,9 +603,33 @@ echo
 for FN in melhor-envio-webhook asaas-webhook mercadopago-webhook pagarme-webhook pagbank-webhook; do
     echo "  $FN:"
     echo "    https://${DOMAIN}/${FN}              (recomendado)"
+    if [[ -n "$API_SUBDOMAIN" ]]; then
+        echo "    https://${API_SUBDOMAIN}/api/${FN}    (subdomínio dedicado)"
+    fi
     echo "    ${SUPABASE_URL_INPUT}/functions/v1/${FN}   (direto Supabase)"
 done
 echo
 echo "  Melhor Envio (URL alternativa, aceita POST na página de configuração):"
 echo "    https://${DOMAIN}/admin/configuracoes/logistica"
+echo
+
+if [[ -n "$API_SUBDOMAIN" ]]; then
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}Endpoint genérico para integrações externas (n8n, Stripe, Meta):${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo "  https://${API_SUBDOMAIN}/api/<nome-da-edge-function>"
+    echo "  Healthcheck: https://${API_SUBDOMAIN}/api/healthz   (deve responder 'ok')"
+    echo "  WEBHOOK_SECRET salvo em $ENV_FILE — use no header das integrações."
+    echo
+fi
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}Troubleshooting rápido:${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo "  • SSL falhou        → sudo certbot certificates  /  /var/log/letsencrypt/letsencrypt.log"
+echo "  • DNS não aponta    → dig +short ${DOMAIN}   (deve retornar IP desta VPS)"
+echo "  • Porta bloqueada   → sudo ss -tlnp | grep -E ':80|:443'  /  sudo ufw status"
+echo "  • Webhook 404/502   → sudo tail -f /var/log/nginx/error.log  /  /var/log/nginx/access.log"
+echo "  • Edge Function     → curl -i ${SUPABASE_URL_INPUT}/functions/v1/<nome>"
+echo "  • Rebuild da SPA    → cd $APP_DIR && git pull && npm install && npm run build && systemctl reload nginx"
 echo
