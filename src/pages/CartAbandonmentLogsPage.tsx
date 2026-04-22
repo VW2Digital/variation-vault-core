@@ -379,21 +379,38 @@ export default function CartAbandonmentLogsPage() {
                               {format(new Date(user.oldest_item_date), "dd/MM/yyyy", { locale: ptBR })}
                             </TableCell>
                             <TableCell className="text-center">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="gap-1.5 text-green-700 border-green-300 hover:bg-green-50 hover:text-green-800"
-                                disabled={!user.phone || sendingWhatsApp === user.user_id}
-                                onClick={() => handleSendWhatsApp(user)}
-                                title={!user.phone ? 'Sem telefone cadastrado' : 'Enviar via WhatsApp'}
-                              >
-                                {sendingWhatsApp === user.user_id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <MessageCircle className="h-4 w-4" />
-                                )}
-                                WhatsApp
-                              </Button>
+                              <div className="flex items-center justify-center gap-1.5">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1.5 text-green-700 border-green-300 hover:bg-green-50 hover:text-green-800"
+                                  disabled={!user.phone || sendingWhatsApp === user.user_id}
+                                  onClick={() => handleSendWhatsApp(user)}
+                                  title={!user.phone ? 'Sem telefone cadastrado' : 'Enviar via WhatsApp'}
+                                >
+                                  {sendingWhatsApp === user.user_id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <MessageCircle className="h-4 w-4" />
+                                  )}
+                                  WhatsApp
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1.5 text-blue-700 border-blue-300 hover:bg-blue-50 hover:text-blue-800"
+                                  disabled={!user.email || sendingEmail === user.user_id}
+                                  onClick={() => handleSendEmail(user)}
+                                  title={!user.email ? 'Sem email cadastrado' : 'Enviar email de recuperação'}
+                                >
+                                  {sendingEmail === user.user_id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Mail className="h-4 w-4" />
+                                  )}
+                                  Email
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
