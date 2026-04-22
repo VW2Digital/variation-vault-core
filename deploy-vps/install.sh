@@ -410,6 +410,23 @@ nginx -t
 systemctl reload nginx
 ok "Nginx servindo $APP_DIR/dist na porta 80 (server_name=$DOMAIN)"
 
+# ---------- Catch-all default_server (rejeita Host headers desconhecidos) ----
+# Sem isso, qualquer requisição com Host arbitrário (ex.: scanner) cai no
+# primeiro vhost e pode acabar em endpoint errado. 444 = close sem resposta.
+info "Configurando default_server catch-all (rejeita Hosts desconhecidos)..."
+cat > /etc/nginx/sites-available/00-default-deny <<'NGINX_DEFAULT'
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    # Healthcheck público para load balancers / uptime checks
+    location = /healthz { return 200 "ok\n"; add_header Content-Type text/plain; }
+    # Tudo o mais: drop silencioso
+    location / { return 444; }
+}
+NGINX_DEFAULT
+ln -sf /etc/nginx/sites-available/00-default-deny /etc/nginx/sites-enabled/00-default-deny
+
 # ---------- Vhost dedicado para subdomínio de API/Webhooks ----------
 if [[ -n "$API_SUBDOMAIN" ]]; then
     info "Configurando vhost dedicado para webhooks/API em $API_SUBDOMAIN..."
