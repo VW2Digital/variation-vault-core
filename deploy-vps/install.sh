@@ -1736,6 +1736,29 @@ echo "        sudo grep -RIl 'server_name.*${API_SUBDOMAIN}' /etc/nginx/sites-en
 fi
 echo "        Deve haver APENAS UM arquivo por server_name. Remova duplicados e:"
 echo "        sudo nginx -t && sudo systemctl reload nginx"
+if [[ -n "$API_SUBDOMAIN" ]]; then
+echo
+echo "  ⚠️  FALSO 404 no subdomínio de API (causa #1 de OAuth/webhook quebrado):"
+echo "    Sintoma: https://${API_SUBDOMAIN}/api/admin-users → HTTP 404"
+echo "             https://${API_SUBDOMAIN}/api/<webhook>   → HTTP 404"
+echo "             mesmo com Supabase 100% saudável."
+echo
+echo "    Causa:   o plugin do Certbot insere um bloco placeholder:"
+echo "             server { server_name ${API_SUBDOMAIN}; return 404; # managed by Certbot }"
+echo "             Esse bloco intercepta TUDO antes do vhost real."
+echo
+echo "    Diagnóstico:"
+echo "      sudo grep -RIn 'return 404' /etc/nginx/sites-enabled /etc/nginx/sites-available /etc/nginx/conf.d"
+echo "      sudo nginx -T | grep -B2 -A8 'server_name.*${API_SUBDOMAIN}'"
+echo
+echo "    Correção automática (este script já aplica após Certbot):"
+echo "      sudo bash $APP_DIR/deploy-vps/install.sh   (re-executa purge_certbot_fake_vhosts)"
+echo
+echo "    Correção manual (se a automática falhar):"
+echo "      1. Remova o bloco 'return 404; # managed by Certbot' do arquivo identificado"
+echo "      2. sudo nginx -t && sudo systemctl reload nginx"
+echo "      3. curl -i https://${API_SUBDOMAIN}/api/admin-users   (deve retornar 401, não 404)"
+fi
 echo "    • Root retorna 404  → quase sempre é vhost duplicado capturando o host antes do correto."
 echo "    • Teste local sem DNS → curl -i -H 'Host: ${API_SUBDOMAIN:-$DOMAIN}' http://127.0.0.1/api/healthz"
 echo "    • Porta bloqueada   → sudo ss -tlnp | grep -E ':80|:443'   /   sudo ufw status verbose"
