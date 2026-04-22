@@ -286,7 +286,11 @@ serve(async (req) => {
 
     const storeName = cfg["store_name"] || "Liberty Pharma";
     const storePublicUrl = (cfg["store_public_url"] || "").replace(/\/+$/, "");
-    const configuredFrom = cfg["resend_from_email"] || "";
+    // Remetente: prioriza smtp_from_email (quando SMTP estiver configurado),
+    // depois resend_from_email. Domínios públicos (gmail/hotmail) NUNCA podem
+    // ser usados como FROM em produção — caem no fallback do Resend sandbox.
+    const configuredFrom =
+      (hasSmtp ? smtpFromEmail : "") || cfg["resend_from_email"] || smtpFromEmail || "";
     const fromDomain = configuredFrom.split("@")[1]?.toLowerCase() || "";
     const isPublicDomain = PUBLIC_DOMAINS.includes(fromDomain);
     const fromEmail =
