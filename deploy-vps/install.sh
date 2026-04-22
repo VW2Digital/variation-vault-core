@@ -1138,6 +1138,16 @@ echo "    • DNS não aponta    → dig +short ${DOMAIN}   (deve retornar o IP 
 if [[ -n "$API_SUBDOMAIN" ]]; then
     echo "                          dig +short ${API_SUBDOMAIN}   (idem)"
 fi
+echo "    • Vhosts conflitantes (causa #1 de /api/healthz e webhook intermitentes):"
+echo "        sudo nginx -T 2>&1 | grep -i 'conflicting server name'"
+echo "        sudo grep -RIl 'server_name.*${DOMAIN}' /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null"
+if [[ -n "$API_SUBDOMAIN" ]]; then
+echo "        sudo grep -RIl 'server_name.*${API_SUBDOMAIN}' /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null"
+fi
+echo "        Deve haver APENAS UM arquivo por server_name. Remova duplicados e:"
+echo "        sudo nginx -t && sudo systemctl reload nginx"
+echo "    • Root retorna 404  → quase sempre é vhost duplicado capturando o host antes do correto."
+echo "    • Teste local sem DNS → curl -i -H 'Host: ${API_SUBDOMAIN:-$DOMAIN}' http://127.0.0.1/api/healthz"
 echo "    • Porta bloqueada   → sudo ss -tlnp | grep -E ':80|:443'   /   sudo ufw status verbose"
 echo "                          Cloud firewall (Oracle/AWS/etc.) também precisa liberar 80 e 443."
 echo "    • Nginx erro/access → sudo tail -f /var/log/nginx/error.log /var/log/nginx/access.log"
