@@ -906,7 +906,7 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
             },
             items: [{
               id: orderId,
-              title: `${productName} ${dosage}`,
+              title: `${paymentDescription || productName}${dosage ? ` ${dosage}` : ''}`,
               quantity,
               unit_price: unitPrice,
             }],
@@ -1027,7 +1027,7 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
             },
             items: [{
               id: orderId,
-              title: `${productName} ${dosage}`,
+              title: `${paymentDescription || productName}${dosage ? ` ${dosage}` : ''}`,
               quantity,
               unit_price: unitPrice,
             }],
