@@ -303,22 +303,45 @@ serve(async (req) => {
     }
 
     const sendStart = Date.now();
-    const res = await fetch("https://api.resend.com/emails", {
+    const sendVia = async (fromAddress: string) =>
+      fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${resendApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: `${storeName} <${fromEmail}>`,
+        from: `${storeName} <${fromAddress}>`,
         to: recipients,
         ...(replyTo ? { reply_to: replyTo } : {}),
         subject: rendered.subject,
         html: rendered.html,
       }),
     });
+
+    let res = await sendVia(fromEmail);
+    let resBody: any = await res.json().catch(() => ({}));
+    let usedFrom = fromEmail;
+    let autoFallback = false;
+
+    // Auto-fallback when configured domain is not verified on Resend.
+    if (
+      !res.ok &&
+      res.status === 403 &&
+      fromEmail !== "onboarding@resend.dev" &&
+      typeof resBody?.message === "string" &&
+      /domain is not verified/i.test(resBody.message)
+    ) {
+      console.warn(
+        `send-email: ${fromEmail} not verified on Resend, retrying with onboarding@resend.dev`,
+      );
+      res = await sendVia("onboarding@resend.dev");
+      resBody = await res.json().catch(() => ({}));
+      usedFrom = "onboarding@resend.dev";
+      autoFallback = true;
+    }
+
     const latency = Date.now() - sendStart;
-    const resBody = await res.json().catch(() => ({}));
 
     // Persist a row per recipient in email_send_log (best-effort).
     const logRows = recipients.map((r) => ({
@@ -332,8 +355,9 @@ serve(async (req) => {
         : (resBody?.message || resBody?.name || `HTTP ${res.status}`),
       provider_response: resBody ?? null,
       metadata: {
-        from_used: fromEmail,
-        fallback: isPublicDomain,
+        from_used: usedFrom,
+        fallback: isPublicDomain || autoFallback,
+        auto_fallback: autoFallback,
         latency_ms: latency,
         provider_status: res.status,
       },
@@ -348,8 +372,8 @@ serve(async (req) => {
         scope: "send-email",
         template: body.template,
         to_count: recipients.length,
-        from_used: fromEmail,
-        fallback: isPublicDomain,
+        from_used: usedFrom,
+        fallback: isPublicDomain || autoFallback,
         provider_status: res.status,
         provider_error: resBody?.message ?? resBody?.name ?? "unknown",
         latency_ms: latency,
@@ -364,8 +388,8 @@ serve(async (req) => {
       scope: "send-email",
       template: body.template,
       to_count: recipients.length,
-      from_used: fromEmail,
-      fallback: isPublicDomain,
+      from_used: usedFrom,
+      fallback: isPublicDomain || autoFallback,
       latency_ms: latency,
       message_id: resBody?.id,
     }));
@@ -373,7 +397,8 @@ serve(async (req) => {
     return json(200, {
       success: true,
       message_id: resBody?.id,
-      fallback: isPublicDomain,
+      fallback: isPublicDomain || autoFallback,
+      auto_fallback: autoFallback,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
