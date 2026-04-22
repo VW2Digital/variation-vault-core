@@ -638,6 +638,46 @@ server {
     }
 
     # ─────────────────────────────────────────────────────────────────────────
+    # /api/*  →  Supabase Edge Functions  (replica arquitetura do Lovable)
+    #
+    # Garante que chamadas do frontend como:
+    #   fetch('/api/admin-users')
+    #   fetch('/api/orders-api')
+    #   fetch('/api/payment-checkout')
+    # funcionem direto pelo domínio próprio, SEM depender da URL pública do
+    # Supabase. Evita os 502 vistos em /api/admin-users quando o app embute
+    # rotas relativas /api/* esperando um reverse proxy.
+    #
+    # Headers críticos preservados (Authorization Bearer, apikey, etc.):
+    #   • proxy_pass_request_headers on   → repassa Authorization do client
+    #   • Host fixado no host real do Supabase (SNI correto)
+    # ─────────────────────────────────────────────────────────────────────────
+    location ~ ^/api/(.+)\$ {
+        if (\$request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin "*";
+            add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS";
+            add_header Access-Control-Allow-Headers "authorization, x-client-info, apikey, content-type, x-webhook-secret, x-signature, x-api-key, stripe-signature";
+            add_header Access-Control-Max-Age 86400;
+            add_header Content-Length 0;
+            return 204;
+        }
+        proxy_pass ${SUPABASE_URL_INPUT}/functions/v1/\$1\$is_args\$args;
+        proxy_http_version 1.1;
+        proxy_set_header Host ${SUPABASE_PROJECT_REF}.supabase.co;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-Forwarded-Host \$host;
+        proxy_pass_request_headers on;
+        proxy_ssl_server_name on;
+        proxy_ssl_name ${SUPABASE_PROJECT_REF}.supabase.co;
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+        proxy_buffering off;
+        client_max_body_size 10m;
+    }
+
+    # ─────────────────────────────────────────────────────────────────────────
     # SPA FALLBACK (React Router / Vite)
     # CRÍTICO para OAuth2 (Melhor Envio, etc.): o callback retorna para
     #   https://${DOMAIN}/admin/configuracoes/logistica?code=...
@@ -880,20 +920,73 @@ rm -f /tmp/oauth_smoke.html
 
 # ---------- Firewall (UFW) — libera 80/443 para webhooks externos ----------
 if command -v ufw >/dev/null 2>&1; then
-    info "Configurando firewall (UFW) — liberando 22, 80 e 443..."
+    info "Configurando firewall (UFW) — liberando 22, 80, 443 (inbound) e 443 (outbound)..."
     ufw allow OpenSSH >/dev/null 2>&1 || ufw allow 22/tcp >/dev/null 2>&1 || true
     ufw allow 80/tcp  >/dev/null 2>&1 || true
     ufw allow 443/tcp >/dev/null 2>&1 || true
+    # OUTBOUND HTTPS — crítico para Nginx → Supabase (evita 502 Bad Gateway).
+    # Sem isso, /api/admin-users e webhooks via proxy retornam 502 em runtime.
+    ufw allow out 443/tcp >/dev/null 2>&1 || true
+    ufw allow out 53      >/dev/null 2>&1 || true   # DNS outbound
     UFW_STATUS="$(ufw status | head -n1 || true)"
     if [[ "$UFW_STATUS" != *"active"* ]]; then
         info "UFW está inativo — não vamos forçar enable para evitar derrubar a sessão SSH."
         info "Para ativar manualmente depois: sudo ufw enable"
     else
-        ok "Firewall UFW: 80/443 liberados"
+        ok "Firewall UFW: 80/443 inbound + 443 outbound liberados"
     fi
 else
     info "UFW não instalado — pulando configuração de firewall."
-    info "Se sua VPS usar outro firewall (cloud provider, iptables), libere TCP 80 e 443."
+    info "Se sua VPS usar outro firewall (cloud provider, iptables), libere:"
+    info "   • INBOUND  TCP 80, 443  (público)"
+    info "   • OUTBOUND TCP 443      (Nginx → Supabase Edge Functions)"
+    info "   • OUTBOUND UDP 53       (DNS)"
+fi
+
+# ---------- Smoke test do proxy /api/* no domínio principal ----------
+# Valida que a arquitetura "Lovable-like" está funcionando:
+#   browser → https://${DOMAIN}/api/<edge-function>  →  Nginx  →  Supabase
+# Não basta /api/healthz responder — precisamos confirmar que rotas REAIS
+# da aplicação (admin-users, payment-checkout, melhor-envio-webhook) chegam
+# ao Supabase sem 502. Caso contrário, painel admin e checkout quebram.
+info "[proxy] Smoke test do reverse proxy /api/* no domínio principal ($DOMAIN)"
+REAL_FNS=(admin-users orders-api payment-checkout melhor-envio-webhook mercadopago-webhook)
+PROXY_502_COUNT=0
+for FN in "${REAL_FNS[@]}"; do
+    CODE="$(curl -sS -o /dev/null -w '%{http_code}' \
+        -H "Host: ${DOMAIN}" \
+        -H "apikey: ${SUPABASE_ANON_KEY}" \
+        -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+        --max-time 12 "http://127.0.0.1/api/${FN}" || echo "000")"
+    case "$CODE" in
+        2*|400|401|403|404|405)
+            ok "[proxy] /api/${FN} → HTTP $CODE  (proxy chega ao Supabase)"
+            ;;
+        502|504)
+            err "[proxy] /api/${FN} → HTTP $CODE  — Nginx NÃO alcança Supabase"
+            PROXY_502_COUNT=$((PROXY_502_COUNT+1))
+            ;;
+        000)
+            err "[proxy] /api/${FN} → timeout — outbound HTTPS provavelmente bloqueado"
+            PROXY_502_COUNT=$((PROXY_502_COUNT+1))
+            ;;
+        *)
+            info "[proxy] /api/${FN} → HTTP $CODE (inesperado, verifique manualmente)"
+            ;;
+    esac
+done
+if [[ "$PROXY_502_COUNT" -gt 0 ]]; then
+    err "[proxy] $PROXY_502_COUNT rota(s) /api/* falharam com 502/timeout."
+    err "        Causa-raiz mais comum: outbound TCP 443 bloqueado pelo cloud provider."
+    err "        Diagnóstico:"
+    err "          curl -v --max-time 10 ${SUPABASE_URL_INPUT}/functions/v1/admin-users"
+    err "          nc -zv ${SUPABASE_PROJECT_REF}.supabase.co 443"
+    err "        Oracle Cloud  → Networking → Security Lists → Egress Rules → TCP 443 ALLOW"
+    err "        AWS EC2       → Security Group → Outbound → HTTPS (443) ALLOW"
+    err "        GCP Compute   → VPC Firewall  → Egress    → tcp:443      ALLOW"
+    err "        UFW           → sudo ufw allow out 443/tcp && sudo ufw reload"
+else
+    ok "[proxy] Reverse proxy /api/* operacional — arquitetura replica Lovable corretamente."
 fi
 
 # ----------------------------- Verificação pós-build (local) ----------------
@@ -1305,6 +1398,27 @@ done
 echo
 echo "  Melhor Envio (URL alternativa, aceita POST na página de configuração):"
 echo "    https://${DOMAIN}/admin/configuracoes/logistica"
+echo
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}Arquitetura replicada (igual ao Lovable, em produção própria):${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo "  Internet"
+echo "    └── 443/HTTPS (público)  →  Nginx Reverse Proxy"
+echo "          ├── /                     →  SPA estática (dist/index.html, fallback React Router)"
+echo "          ├── /api/<fn>             →  ${SUPABASE_URL_INPUT}/functions/v1/<fn>"
+echo "          ├── /<gateway>-webhook    →  ${SUPABASE_URL_INPUT}/functions/v1/<gateway>-webhook"
+echo "          └── /admin/configuracoes/logistica  →  GET=SPA (OAuth callback) / POST=webhook ME"
+echo
+echo "  Portas:"
+echo "    • 80   →  redirect 301 para HTTPS (gerenciado pelo Certbot)"
+echo "    • 443  →  produção pública (única porta exposta)"
+echo "    • 3000 →  NUNCA exposta (app é estática, não há server Node em produção)"
+echo "    • 5432 →  apenas interno (PostgreSQL fica no Supabase, não na VPS)"
+echo
+echo "  Outbound necessário (firewall do cloud provider DEVE liberar):"
+echo "    • TCP 443 → ${SUPABASE_PROJECT_REF}.supabase.co  (REST + Edge Functions + Realtime)"
+echo "    • UDP 53  → resolvers DNS (8.8.8.8, 1.1.1.1)"
 echo
 
 if [[ -n "$API_SUBDOMAIN" ]]; then
