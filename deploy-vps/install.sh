@@ -218,10 +218,37 @@ VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_ANON_KEY}
 VITE_SUPABASE_PROJECT_ID=${SUPABASE_PROJECT_REF}
 SUPABASE_PROXY_HOST=${SUPABASE_PROJECT_REF}.supabase.co
 SUPABASE_FUNCTIONS_BASE_URL=${SUPABASE_URL_INPUT}/functions/v1
+# Compatibilidade com integrações externas (n8n, Stripe, Meta, etc.)
+SUPABASE_URL=${SUPABASE_URL_INPUT}
+SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+WEBHOOK_SECRET=${WEBHOOK_SECRET}
+NEXT_PUBLIC_API_URL=${API_SUBDOMAIN:+https://${API_SUBDOMAIN}}
+PUBLIC_API_BASE_URL=${API_SUBDOMAIN:+https://${API_SUBDOMAIN}/api}
 ENV
 chmod 600 "$ENV_FILE"
 chown root:root "$ENV_FILE"
 ok "Credenciais gravadas em $ENV_FILE (apontando para $SUPABASE_URL_INPUT)"
+
+# ---------- Validação das variáveis de ambiente exigidas ----------
+info "Validando variáveis de ambiente em $ENV_FILE..."
+REQUIRED_ENV=(VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY SUPABASE_URL SUPABASE_ANON_KEY WEBHOOK_SECRET)
+ENV_MISSING=0
+for v in "${REQUIRED_ENV[@]}"; do
+    val="$(grep -E "^${v}=" "$ENV_FILE" | cut -d= -f2- || true)"
+    if [[ -z "${val// /}" ]]; then
+        err "[env] Variável obrigatória ausente ou vazia: $v"
+        ENV_MISSING=1
+    else
+        ok "[env] $v presente"
+    fi
+done
+if [[ -z "${API_SUBDOMAIN}" ]]; then
+    info "[env] NEXT_PUBLIC_API_URL não setado (subdomínio de API foi pulado)."
+fi
+if [[ "$ENV_MISSING" -eq 1 ]]; then
+    err "Corrija $ENV_FILE antes de prosseguir — webhooks podem falhar."
+    exit 1
+fi
 
 # Build
 cd "$APP_DIR"
