@@ -804,6 +804,45 @@ NGINX_API
     fi
 fi
 
+# ---------- Smoke test OAuth callback (Melhor Envio + qualquer OAuth2) ----------
+# OAuth2 do Melhor Envio usa a SPA como redirect_uri:
+#   https://${DOMAIN}/admin/configuracoes/logistica?code=...
+# Se o Nginx retornar 404 nessa rota OU não preservar a query string ?code=...
+# o OAuth quebra silenciosamente. Validamos os 3 cenários críticos.
+info "[oauth] Smoke test do callback OAuth2 (rota SPA com ?code=...)"
+OAUTH_PATH="/admin/configuracoes/logistica"
+OAUTH_CODE_TEST="?code=smoke_test_$(date +%s)&state=test"
+OAUTH_RESP="$(curl -s -o /tmp/oauth_smoke.html -w '%{http_code}' \
+    -H "Host: ${DOMAIN}" \
+    "http://127.0.0.1${OAUTH_PATH}${OAUTH_CODE_TEST}" || echo 000)"
+if [[ "$OAUTH_RESP" == "200" ]] && grep -qi '<div id="root"\|<title>' /tmp/oauth_smoke.html 2>/dev/null; then
+    ok "[oauth] GET ${OAUTH_PATH}?code=... → 200 (SPA carrega para processar o code)"
+else
+    err "[oauth] GET ${OAUTH_PATH}?code=... retornou HTTP $OAUTH_RESP — OAuth2 do Melhor Envio NÃO funcionará"
+    err "        Causa: vhost de ${DOMAIN} não tem fallback SPA correto para a rota."
+    err "        Esperado: Nginx deve servir /index.html preservando ?code=..."
+    err "        Inspecione: sudo nginx -T | grep -A20 'server_name ${DOMAIN}'"
+fi
+# Garante também que POST na mesma rota é roteado para webhook (não SPA)
+OAUTH_POST="$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+    -H "Host: ${DOMAIN}" \
+    -H "Content-Type: application/json" \
+    --data '{"smoke":"test"}' \
+    "http://127.0.0.1${OAUTH_PATH}" || echo 000)"
+case "$OAUTH_POST" in
+    2*|400|401|403|404)
+        ok "[oauth] POST ${OAUTH_PATH} → HTTP $OAUTH_POST (rotaeado para edge function)"
+        ;;
+    502|504)
+        err "[oauth] POST ${OAUTH_PATH} → HTTP $OAUTH_POST — proxy NÃO alcança Supabase"
+        err "        Webhook do Melhor Envio falhará. Veja seção '502/504' no troubleshooting."
+        ;;
+    *)
+        warn "[oauth] POST ${OAUTH_PATH} → HTTP $OAUTH_POST (verifique manualmente)"
+        ;;
+esac
+rm -f /tmp/oauth_smoke.html
+
 # ---------- Firewall (UFW) — libera 80/443 para webhooks externos ----------
 if command -v ufw >/dev/null 2>&1; then
     info "Configurando firewall (UFW) — liberando 22, 80 e 443..."
