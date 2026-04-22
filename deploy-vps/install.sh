@@ -586,6 +586,162 @@ cleanup_conflicting_vhosts() {
     fi
 }
 
+###############################################################################
+# purge_certbot_fake_vhosts <server_name>
+#
+# PROBLEMA REAL OBSERVADO EM PRODUÇÃO
+# -----------------------------------
+# Após `certbot --nginx -d api.dominio.com`, em algumas situações o plugin
+# python3-certbot-nginx insere um SEGUNDO bloco `server { ... }` no MESMO
+# arquivo (ex.: /etc/nginx/sites-available/api) ou em /etc/nginx/sites-enabled
+# contendo apenas:
+#
+#     server {
+#         server_name api.luminaeliberty.com;
+#         listen 443 ssl;
+#         ...
+#         return 404; # managed by Certbot
+#     }
+#
+# Esse bloco é um PLACEHOLDER e intercepta TODAS as requisições HTTPS para
+# o subdomínio antes do nosso vhost real responder, fazendo com que:
+#   • https://api.dominio.com/api/admin-users         → 404 (falso)
+#   • https://api.dominio.com/api/melhor-envio-webhook → 404 (falso)
+#   • OAuth2 callbacks                                 → quebrados
+# mesmo com o Supabase 100% saudável.
+#
+# Esta função detecta e remove esses blocos placeholder.
+###############################################################################
+purge_certbot_fake_vhosts() {
+    local target="$1"
+    [[ -z "$target" ]] && return 0
+    info "[certbot] Procurando vhosts placeholder do Certbot para '$target'..."
+
+    local found=0
+    local target_re="${target//./\\.}"
+
+    # 1) Varre todos os arquivos de configuração que contém o server_name alvo
+    #    E a string "return 404" (placeholder do Certbot).
+    local suspects=()
+    while IFS= read -r f; do
+        [[ -z "$f" ]] && continue
+        suspects+=("$f")
+    done < <(grep -RIlE "server_name[[:space:]]+[^;]*\\b${target_re}\\b" \
+               /etc/nginx/sites-enabled \
+               /etc/nginx/sites-available \
+               /etc/nginx/conf.d 2>/dev/null || true)
+
+    for f in "${suspects[@]}"; do
+        # Pula se o arquivo não tiver nenhum bloco "return 404"
+        if ! grep -qE "return[[:space:]]+404" "$f"; then
+            continue
+        fi
+
+        # Conta quantos blocos `server {` o arquivo tem.
+        local server_blocks
+        server_blocks="$(grep -cE "^[[:space:]]*server[[:space:]]*\{" "$f" || echo 0)"
+
+        # CASO A — arquivo tem APENAS o placeholder (1 bloco server + return 404):
+        # arquivo é 100% Certbot fake. Desabilita o arquivo inteiro.
+        if [[ "$server_blocks" -eq 1 ]] && \
+           grep -qE "return[[:space:]]+404[[:space:]]*;([[:space:]]*#.*managed by Certbot)?" "$f"; then
+            # Confirma que é placeholder real: não tem proxy_pass / try_files / location /api
+            if ! grep -qE "proxy_pass|try_files|/api/|functions/v1" "$f"; then
+                warn "[certbot] Vhost placeholder detectado (apenas 'return 404'): $f"
+                if [[ "$f" == /etc/nginx/sites-enabled/* ]]; then
+                    rm -f "$f"
+                    warn "          → removido (link de sites-enabled)"
+                else
+                    mv -f "$f" "$f.certbot-disabled"
+                    warn "          → renomeado para $f.certbot-disabled"
+                fi
+                found=$((found+1))
+                continue
+            fi
+        fi
+
+        # CASO B — arquivo tem MÚLTIPLOS blocos server e um deles é o placeholder
+        # adicionado pelo Certbot. Removemos APENAS o bloco placeholder, preservando
+        # o vhost real (nosso `api`).
+        if [[ "$server_blocks" -gt 1 ]] && grep -qE "return[[:space:]]+404[[:space:]]*;[[:space:]]*#?[[:space:]]*managed by Certbot" "$f"; then
+            warn "[certbot] Bloco server placeholder dentro de $f — extraindo..."
+            cp -f "$f" "$f.bak.$(date +%s)"
+            python3 - "$f" "$target" <<'PYEOF' || warn "          → falha ao limpar $f (verifique manualmente)"
+import re, sys, pathlib
+path = pathlib.Path(sys.argv[1])
+target = sys.argv[2]
+text = path.read_text()
+
+# Encontra TODOS os blocos `server { ... }` balanceando chaves.
+def iter_server_blocks(s):
+    i = 0
+    while True:
+        m = re.search(r'(?m)^\s*server\s*\{', s[i:])
+        if not m:
+            return
+        start = i + m.start()
+        # Acha o fechamento balanceado a partir de '{'
+        depth = 0
+        j = i + m.end() - 1  # posição do '{'
+        while j < len(s):
+            c = s[j]
+            if c == '{':
+                depth += 1
+            elif c == '}':
+                depth -= 1
+                if depth == 0:
+                    yield (start, j + 1)
+                    i = j + 1
+                    break
+            j += 1
+        else:
+            return
+
+blocks = list(iter_server_blocks(text))
+keep = []
+removed = 0
+for (a, b) in blocks:
+    block = text[a:b]
+    has_target = re.search(rf'server_name\s+[^;]*\b{re.escape(target)}\b', block)
+    has_return_404 = re.search(r'return\s+404\s*;', block)
+    has_real = re.search(r'(proxy_pass|try_files|/api/|functions/v1)', block)
+    if has_target and has_return_404 and not has_real:
+        # placeholder: descarta
+        removed += 1
+        continue
+    keep.append((a, b))
+
+if removed == 0:
+    sys.exit(0)
+
+# Reconstrói o arquivo preservando intervalos fora dos blocos descartados.
+out = []
+cursor = 0
+for (a, b) in blocks:
+    if (a, b) in keep:
+        out.append(text[cursor:b])
+    else:
+        # pula o bloco; mantém o que vem ANTES dele desde o cursor
+        out.append(text[cursor:a])
+    cursor = b
+out.append(text[cursor:])
+path.write_text(''.join(out))
+print(f"removed {removed} placeholder block(s) from {path}", file=sys.stderr)
+PYEOF
+            found=$((found+1))
+        fi
+    done
+
+    if [[ $found -gt 0 ]]; then
+        ok "[certbot] $found vhost(s)/bloco(s) placeholder removido(s) para '$target'"
+        nginx -t >/dev/null 2>&1 && systemctl reload nginx \
+            && ok "[certbot] nginx recarregado com sucesso" \
+            || warn "[certbot] nginx -t falhou após limpeza — restaure dos arquivos .bak.*"
+    else
+        info "[certbot] Nenhum placeholder 'return 404; # managed by Certbot' encontrado para '$target'"
+    fi
+}
+
 cleanup_conflicting_vhosts "$DOMAIN"
 if [[ -n "${API_SUBDOMAIN:-}" ]]; then
     cleanup_conflicting_vhosts "$API_SUBDOMAIN"
@@ -1352,6 +1508,94 @@ else
 fi
 
 ###############################################################################
+# Pós-Certbot: limpar vhosts placeholder e validar API real via HTTPS
+#
+# O plugin nginx do Certbot pode injetar um bloco `server { ... return 404; }`
+# duplicado ao processar o subdomínio de API. Esse bloco intercepta tudo e
+# faz /api/admin-users / webhook do Melhor Envio falharem com 404 falso.
+# Removemos QUALQUER placeholder e revalidamos o endpoint real.
+###############################################################################
+if [[ -n "$API_SUBDOMAIN" ]]; then
+    info "[pós-certbot] Validando integridade do vhost de API ($API_SUBDOMAIN)..."
+
+    # 1) Remove placeholders 'return 404; # managed by Certbot'
+    purge_certbot_fake_vhosts "$API_SUBDOMAIN"
+    purge_certbot_fake_vhosts "$DOMAIN"
+
+    # 2) Garante que o link sites-enabled/api ainda existe
+    if [[ ! -e /etc/nginx/sites-enabled/api ]]; then
+        warn "[pós-certbot] sites-enabled/api ausente — recriando link simbólico"
+        ln -sf /etc/nginx/sites-available/api /etc/nginx/sites-enabled/api
+        nginx -t && systemctl reload nginx
+    fi
+
+    # 3) Reconfirma que não há 'return 404' direto no server_name de API
+    if nginx -T 2>/dev/null | awk -v host="$API_SUBDOMAIN" '
+        BEGIN { in_block=0; depth=0; has_host=0; has_404=0; has_real=0 }
+        /^[[:space:]]*server[[:space:]]*\{/ {
+            in_block=1; depth=1; has_host=0; has_404=0; has_real=0; next
+        }
+        in_block {
+            n=gsub(/\{/,"{"); depth+=n
+            n=gsub(/\}/,"}"); depth-=n
+            if ($0 ~ "server_name[[:space:]]+[^;]*"host) has_host=1
+            if ($0 ~ /return[[:space:]]+404/) has_404=1
+            if ($0 ~ /(proxy_pass|try_files|\/api\/|functions\/v1)/) has_real=1
+            if (depth<=0) {
+                if (has_host && has_404 && !has_real) { print "FAKE"; exit 0 }
+                in_block=0
+            }
+        }
+    ' | grep -q FAKE; then
+        err "[pós-certbot] AINDA existe vhost placeholder do Certbot para $API_SUBDOMAIN"
+        err "             Inspecione manualmente:"
+        err "               sudo nginx -T | grep -B2 -A8 'server_name.*$API_SUBDOMAIN'"
+    else
+        ok "[pós-certbot] Nenhum vhost placeholder ativo para $API_SUBDOMAIN"
+    fi
+
+    # 4) Smoke test HTTPS REAL (não apenas loopback)
+    info "[pós-certbot] Testando https://$API_SUBDOMAIN/api/healthz..."
+    HZ_HTTPS="$(curl -s -o /tmp/hz.out -w '%{http_code}' --max-time 10 \
+        "https://${API_SUBDOMAIN}/api/healthz" 2>/dev/null || echo 000)"
+    if [[ "$HZ_HTTPS" == "200" ]] && grep -q "ok" /tmp/hz.out 2>/dev/null; then
+        ok "[pós-certbot] /api/healthz HTTPS = 200 OK ✓"
+    else
+        warn "[pós-certbot] /api/healthz HTTPS retornou HTTP $HZ_HTTPS"
+        warn "              → DNS de $API_SUBDOMAIN propagou? Cert válido?"
+        warn "              → Teste: curl -i https://${API_SUBDOMAIN}/api/healthz"
+    fi
+
+    # 5) Smoke test de função real (admin-users) — confirma que o proxy
+    #    REALMENTE alcança o Supabase. Esperamos 401 (auth required) ou 200,
+    #    NUNCA 404 (que indicaria o placeholder do Certbot ainda ativo).
+    info "[pós-certbot] Testando https://$API_SUBDOMAIN/api/admin-users (proxy real → Supabase)..."
+    AU_HTTPS="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+        "https://${API_SUBDOMAIN}/api/admin-users" 2>/dev/null || echo 000)"
+    case "$AU_HTTPS" in
+        200|401|403|405)
+            ok "[pós-certbot] /api/admin-users = HTTP $AU_HTTPS (proxy alcança Supabase ✓)"
+            ;;
+        404)
+            err "[pós-certbot] /api/admin-users = HTTP 404 — VHOST PLACEHOLDER DO CERTBOT AINDA ATIVO!"
+            err "              Causa: bloco 'server { server_name $API_SUBDOMAIN; return 404; # managed by Certbot }'"
+            err "              Localize:  sudo grep -RIn 'return 404' /etc/nginx/sites-enabled /etc/nginx/conf.d"
+            err "              E remova o bloco antes de prosseguir."
+            ;;
+        502|504)
+            warn "[pós-certbot] /api/admin-users = HTTP $AU_HTTPS — Nginx não alcança Supabase"
+            warn "              Verifique: outbound 443/tcp liberado? DNS resolve ${SUPABASE_PROJECT_REF}.supabase.co?"
+            ;;
+        000)
+            warn "[pós-certbot] /api/admin-users sem resposta — DNS/SSL pode ainda estar propagando"
+            ;;
+        *)
+            warn "[pós-certbot] /api/admin-users retornou HTTP $AU_HTTPS (inesperado, mas proxy ativo)"
+            ;;
+    esac
+fi
+
+###############################################################################
 # Resumo final
 ###############################################################################
 echo
@@ -1492,6 +1736,29 @@ echo "        sudo grep -RIl 'server_name.*${API_SUBDOMAIN}' /etc/nginx/sites-en
 fi
 echo "        Deve haver APENAS UM arquivo por server_name. Remova duplicados e:"
 echo "        sudo nginx -t && sudo systemctl reload nginx"
+if [[ -n "$API_SUBDOMAIN" ]]; then
+echo
+echo "  ⚠️  FALSO 404 no subdomínio de API (causa #1 de OAuth/webhook quebrado):"
+echo "    Sintoma: https://${API_SUBDOMAIN}/api/admin-users → HTTP 404"
+echo "             https://${API_SUBDOMAIN}/api/<webhook>   → HTTP 404"
+echo "             mesmo com Supabase 100% saudável."
+echo
+echo "    Causa:   o plugin do Certbot insere um bloco placeholder:"
+echo "             server { server_name ${API_SUBDOMAIN}; return 404; # managed by Certbot }"
+echo "             Esse bloco intercepta TUDO antes do vhost real."
+echo
+echo "    Diagnóstico:"
+echo "      sudo grep -RIn 'return 404' /etc/nginx/sites-enabled /etc/nginx/sites-available /etc/nginx/conf.d"
+echo "      sudo nginx -T | grep -B2 -A8 'server_name.*${API_SUBDOMAIN}'"
+echo
+echo "    Correção automática (este script já aplica após Certbot):"
+echo "      sudo bash $APP_DIR/deploy-vps/install.sh   (re-executa purge_certbot_fake_vhosts)"
+echo
+echo "    Correção manual (se a automática falhar):"
+echo "      1. Remova o bloco 'return 404; # managed by Certbot' do arquivo identificado"
+echo "      2. sudo nginx -t && sudo systemctl reload nginx"
+echo "      3. curl -i https://${API_SUBDOMAIN}/api/admin-users   (deve retornar 401, não 404)"
+fi
 echo "    • Root retorna 404  → quase sempre é vhost duplicado capturando o host antes do correto."
 echo "    • Teste local sem DNS → curl -i -H 'Host: ${API_SUBDOMAIN:-$DOMAIN}' http://127.0.0.1/api/healthz"
 echo "    • Porta bloqueada   → sudo ss -tlnp | grep -E ':80|:443'   /   sudo ufw status verbose"
