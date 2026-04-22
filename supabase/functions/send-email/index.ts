@@ -238,6 +238,14 @@ serve(async (req) => {
       .in("key", [
         "resend_api_key",
         "resend_from_email",
+        // SMTP customizado (Hostinger / qualquer SMTP) — provider primário em prod
+        "smtp_host",
+        "smtp_port",
+        "smtp_user",
+        "smtp_pass",
+        "smtp_from_email",
+        "smtp_from_name",
+        "smtp_secure", // "ssl" (465) | "tls" (587/STARTTLS)
         "store_public_url",
         "store_name",
         // Template overrides (one row per key)
@@ -247,10 +255,32 @@ serve(async (req) => {
     const cfg: Record<string, string> = {};
     (settings || []).forEach((s: any) => (cfg[s.key] = s.value));
 
+    // ── Provider config ────────────────────────────────────────────────────────
+    // Ordem de tentativa: SMTP customizado (Hostinger) → Resend HTTP API.
+    // SMTP é preferido em produção pois usa o domínio próprio + SPF/DKIM/DMARC
+    // configurados pelo cliente (melhor entregabilidade, sem dependência de
+    // provedor SaaS pago para volumes baixos/médios).
+    const smtpHost = (cfg["smtp_host"] || Deno.env.get("SMTP_HOST") || "").trim();
+    const smtpPort = parseInt(
+      cfg["smtp_port"] || Deno.env.get("SMTP_PORT") || "465",
+      10,
+    );
+    const smtpUser = (cfg["smtp_user"] || Deno.env.get("SMTP_USER") || "").trim();
+    const smtpPass = cfg["smtp_pass"] || Deno.env.get("SMTP_PASS") || "";
+    const smtpFromEmail =
+      (cfg["smtp_from_email"] || Deno.env.get("SMTP_FROM_EMAIL") || smtpUser).trim();
+    const smtpFromName =
+      (cfg["smtp_from_name"] || Deno.env.get("SMTP_FROM_NAME") || "").trim();
+    const smtpSecure =
+      (cfg["smtp_secure"] || Deno.env.get("SMTP_SECURE") || "").trim().toLowerCase();
+    const hasSmtp = !!(smtpHost && smtpUser && smtpPass);
+
     const resendApiKey = cfg["resend_api_key"] || Deno.env.get("RESEND_API_KEY");
-    if (!resendApiKey) {
+    if (!hasSmtp && !resendApiKey) {
       return json(500, {
-        error: "RESEND_API_KEY ausente. Configure em Configurações → Comunicação ou nas secrets do Supabase.",
+        error:
+          "Nenhum provedor de e-mail configurado. Configure SMTP (smtp_host/user/pass) " +
+          "ou RESEND_API_KEY em Configurações → Comunicação.",
       });
     }
 
