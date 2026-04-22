@@ -255,11 +255,35 @@ const SettingsShipping = () => {
           </div>
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">URL de Redirecionamento OAuth</Label>
-            <Input readOnly value={`${window.location.origin}/admin/configuracoes/logistica`} className="bg-muted text-xs" onClick={(e) => {
-              (e.target as HTMLInputElement).select();
-              navigator.clipboard.writeText(`${window.location.origin}/admin/configuracoes/logistica`);
-              toast({ title: 'URL copiada!' });
-            }} />
+            <Input
+              readOnly
+              value={
+                publicUrl
+                  ? `${publicUrl}/admin/configuracoes/logistica`
+                  : browserIsInternal
+                    ? '⚠️ Configure a URL pública da loja acima'
+                    : `${window.location.origin}/admin/configuracoes/logistica`
+              }
+              className="bg-muted text-xs font-mono"
+              onClick={(e) => {
+                if (!publicUrl && browserIsInternal) {
+                  toast({
+                    title: 'URL pública não configurada',
+                    description: 'Defina a URL pública da loja no card no topo desta página.',
+                    variant: 'destructive',
+                  });
+                  return;
+                }
+                const base = publicUrl || window.location.origin;
+                const url = `${base}/admin/configuracoes/logistica`;
+                (e.target as HTMLInputElement).select();
+                navigator.clipboard.writeText(url);
+                toast({ title: 'URL copiada!' });
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              Cole exatamente esta URL no Melhor Envio em <strong>Aplicativos → Sua app → Redirect URIs</strong>.
+            </p>
           </div>
 
           <WebhookUrlCard
