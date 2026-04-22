@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Mail, ShoppingCart, Users, AlertTriangle, MessageCircle, CalendarIcon, X, Loader2, RefreshCw } from 'lucide-react';
+import { Mail, ShoppingCart, Users, AlertTriangle, MessageCircle, CalendarIcon, X, Loader2, RefreshCw, Send } from 'lucide-react';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -34,6 +34,7 @@ interface ActiveCartUser {
 export default function CartAbandonmentLogsPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [sendingWhatsApp, setSendingWhatsApp] = useState<string | null>(null);
+  const [sendingEmail, setSendingEmail] = useState<string | null>(null);
 
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['cart-abandonment-logs'],
@@ -163,6 +164,36 @@ export default function CartAbandonmentLogsPage() {
       toast.error(`Erro ao enviar: ${err.message || 'Tente novamente.'}`);
     } finally {
       setSendingWhatsApp(null);
+    }
+  };
+
+  const handleSendEmail = async (user: ActiveCartUser) => {
+    if (!user.email) {
+      toast.error('Este cliente não possui email cadastrado.');
+      return;
+    }
+    setSendingEmail(user.user_id);
+    try {
+      const { data, error } = await supabase.functions.invoke('cart-abandonment-send', {
+        body: {
+          user_id: user.user_id,
+          email: user.email,
+          full_name: user.full_name,
+          items: user.items,
+          total_value: user.total_value,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(
+        data?.fallback
+          ? `Email enviado para ${user.email} (via domínio público de teste).`
+          : `Email enviado para ${user.email}!`
+      );
+    } catch (err: any) {
+      toast.error(`Erro ao enviar email: ${err.message || 'Tente novamente.'}`);
+    } finally {
+      setSendingEmail(null);
     }
   };
 
@@ -348,21 +379,38 @@ export default function CartAbandonmentLogsPage() {
                               {format(new Date(user.oldest_item_date), "dd/MM/yyyy", { locale: ptBR })}
                             </TableCell>
                             <TableCell className="text-center">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="gap-1.5 text-green-700 border-green-300 hover:bg-green-50 hover:text-green-800"
-                                disabled={!user.phone || sendingWhatsApp === user.user_id}
-                                onClick={() => handleSendWhatsApp(user)}
-                                title={!user.phone ? 'Sem telefone cadastrado' : 'Enviar via WhatsApp'}
-                              >
-                                {sendingWhatsApp === user.user_id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <MessageCircle className="h-4 w-4" />
-                                )}
-                                WhatsApp
-                              </Button>
+                              <div className="flex items-center justify-center gap-1.5">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1.5 text-green-700 border-green-300 hover:bg-green-50 hover:text-green-800"
+                                  disabled={!user.phone || sendingWhatsApp === user.user_id}
+                                  onClick={() => handleSendWhatsApp(user)}
+                                  title={!user.phone ? 'Sem telefone cadastrado' : 'Enviar via WhatsApp'}
+                                >
+                                  {sendingWhatsApp === user.user_id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <MessageCircle className="h-4 w-4" />
+                                  )}
+                                  WhatsApp
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1.5 text-blue-700 border-blue-300 hover:bg-blue-50 hover:text-blue-800"
+                                  disabled={!user.email || sendingEmail === user.user_id}
+                                  onClick={() => handleSendEmail(user)}
+                                  title={!user.email ? 'Sem email cadastrado' : 'Enviar email de recuperação'}
+                                >
+                                  {sendingEmail === user.user_id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Mail className="h-4 w-4" />
+                                  )}
+                                  Email
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -402,20 +450,36 @@ export default function CartAbandonmentLogsPage() {
                             R$ {user.total_value.toFixed(2).replace('.', ',')}
                           </span>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full gap-1.5 text-green-700 border-green-300 hover:bg-green-50 hover:text-green-800"
-                          disabled={!user.phone || sendingWhatsApp === user.user_id}
-                          onClick={() => handleSendWhatsApp(user)}
-                        >
-                          {sendingWhatsApp === user.user_id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <MessageCircle className="h-4 w-4" />
-                          )}
-                          {user.phone ? 'Enviar WhatsApp' : 'Sem telefone'}
-                        </Button>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5 text-green-700 border-green-300 hover:bg-green-50 hover:text-green-800"
+                            disabled={!user.phone || sendingWhatsApp === user.user_id}
+                            onClick={() => handleSendWhatsApp(user)}
+                          >
+                            {sendingWhatsApp === user.user_id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <MessageCircle className="h-4 w-4" />
+                            )}
+                            WhatsApp
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5 text-blue-700 border-blue-300 hover:bg-blue-50 hover:text-blue-800"
+                            disabled={!user.email || sendingEmail === user.user_id}
+                            onClick={() => handleSendEmail(user)}
+                          >
+                            {sendingEmail === user.user_id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Mail className="h-4 w-4" />
+                            )}
+                            Email
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
