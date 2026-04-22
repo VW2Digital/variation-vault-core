@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Download, Upload, Database, AlertTriangle, Loader2, CheckCircle2, Mail, Send } from 'lucide-react';
+import SettingsBackButton from './SettingsBackButton';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -141,15 +142,12 @@ const SettingsBackup = () => {
   };
 
   return (
-    <div className="space-y-6 w-full max-w-4xl">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
-          <Database className="w-6 h-6" /> BACKUP & RESTAURAÇÃO
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Exporte todas as tabelas em ZIP de CSVs ou restaure uma tabela específica a partir de um arquivo CSV.
-        </p>
-      </div>
+    <div className="space-y-6 w-full">
+      <SettingsBackButton
+        title="BACKUP & RESTAURAÇÃO"
+        description="Exporte todas as tabelas em ZIP de CSVs ou restaure uma tabela específica a partir de um arquivo CSV."
+      />
+
 
       {/* Download */}
       <Card className="p-6 space-y-4">
