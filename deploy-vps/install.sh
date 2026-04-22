@@ -210,6 +210,106 @@ if [[ -z "$SUPABASE_ANON_KEY" || "$SUPABASE_ANON_KEY" == "null" ]]; then
 fi
 ok "Anon key obtida automaticamente para o projeto $SUPABASE_PROJECT_REF  ($(mask "$SUPABASE_ANON_KEY"))"
 
+###############################################################################
+# VALIDAÇÃO OUTBOUND: DNS + HTTPS + Edge Functions
+# -----------------------------------------------------------------------------
+# Diagnostica a causa-raiz de 502 Bad Gateway no proxy /api/* ANTES de
+# prosseguir. Sem essas validações, o instalador conclui "com sucesso" mas o
+# Nginx não consegue alcançar o Supabase em runtime.
+#
+# Cenários cobertos:
+#   1) DNS outbound → resolver PROJECT_REF.supabase.co
+#   2) HTTPS outbound (porta 443) → conectar de fato ao Supabase
+#   3) Project ref correto → endpoint /functions/v1/ responde
+#   4) Edge Function existe → testa /functions/v1/healthz se possível
+###############################################################################
+validate_supabase_outbound() {
+    local supa_host="${SUPABASE_PROJECT_REF}.supabase.co"
+    local supa_url="https://${supa_host}"
+    step "Validando alcance outbound ao Supabase ($supa_host)"
+
+    # 1) DNS específico do projeto
+    if ! getent hosts "$supa_host" >/dev/null 2>&1; then
+        err "DNS NÃO resolve $supa_host"
+        err "Causa provável: project ref incorreto OU DNS outbound bloqueado."
+        err "  Teste:  nslookup $supa_host"
+        err "  Confira o ref em https://supabase.com/dashboard/project/<REF>"
+        exit 1
+    fi
+    ok "[1/4] DNS resolve $supa_host"
+
+    # 2) HTTPS outbound (porta 443) — TLS handshake
+    local tls_code
+    tls_code="$(curl -sS -o /dev/null -w '%{http_code}' \
+        --max-time 10 --connect-timeout 5 \
+        "$supa_url" 2>/dev/null || echo "000")"
+    case "$tls_code" in
+        000)
+            err "HTTPS outbound BLOQUEADO — sem resposta de $supa_url em 10s"
+            err "Causa provável: firewall outbound (UFW/cloud provider) bloqueia TCP 443"
+            err "  Teste:  curl -v --max-time 10 $supa_url"
+            err "          nc -zv $supa_host 443"
+            err "  Oracle/AWS/GCP: libere TCP 443 outbound nas Security Lists/Groups"
+            exit 1
+            ;;
+        2*|3*|4*|5*)
+            ok "[2/4] HTTPS outbound OK ($supa_url → HTTP $tls_code)"
+            ;;
+    esac
+
+    # 3) Project ref correto — REST endpoint anônimo deve responder com 200/401
+    local rest_code
+    rest_code="$(curl -sS -o /dev/null -w '%{http_code}' \
+        --max-time 10 \
+        -H "apikey: ${SUPABASE_ANON_KEY}" \
+        "${supa_url}/rest/v1/" 2>/dev/null || echo "000")"
+    case "$rest_code" in
+        200|401|404)
+            ok "[3/4] Project ref VÁLIDO ($supa_url/rest/v1/ → HTTP $rest_code)"
+            ;;
+        000)
+            err "REST endpoint timeout — outbound HTTPS instável"
+            exit 1
+            ;;
+        *)
+            err "REST endpoint retornou HTTP $rest_code — project ref pode estar incorreto"
+            err "  Teste manual: curl -i -H 'apikey: $(mask "$SUPABASE_ANON_KEY")' ${supa_url}/rest/v1/"
+            exit 1
+            ;;
+    esac
+
+    # 4) Edge Functions runtime acessível — endpoint canônico /functions/v1/
+    # Espera 401/404 (sem função informada) — qualquer 2xx/4xx prova que o
+    # runtime de functions está LIVE no projeto. 5xx/timeout = problema real.
+    local fn_code
+    fn_code="$(curl -sS -o /dev/null -w '%{http_code}' \
+        --max-time 10 \
+        -H "apikey: ${SUPABASE_ANON_KEY}" \
+        -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+        "${supa_url}/functions/v1/" 2>/dev/null || echo "000")"
+    case "$fn_code" in
+        2*|401|403|404|405)
+            ok "[4/4] Runtime de Edge Functions LIVE (${supa_url}/functions/v1/ → HTTP $fn_code)"
+            ;;
+        502|503|504)
+            err "Runtime de Edge Functions com falha (HTTP $fn_code) — projeto pode estar pausado"
+            err "  Verifique: https://supabase.com/dashboard/project/${SUPABASE_PROJECT_REF}"
+            exit 1
+            ;;
+        000)
+            err "Runtime de Edge Functions timeout — outbound HTTPS bloqueado para *.supabase.co/functions/*"
+            err "  Alguns firewalls inspecionam SNI e bloqueiam subpaths — libere completamente $supa_host:443"
+            exit 1
+            ;;
+        *)
+            info "Runtime retornou HTTP $fn_code — pode estar OK, prosseguindo."
+            ;;
+    esac
+
+    ok "Outbound para Supabase 100% validado — proxy /api/* terá upstream alcançável."
+}
+validate_supabase_outbound
+
 # Service role key — opt-in. Apenas com confirmação explícita do usuário, pois
 # concede acesso administrativo total ao banco (bypass de RLS).
 SUPABASE_SERVICE_ROLE_KEY=""
@@ -960,7 +1060,32 @@ if [[ "${DEPLOY_EDGE_FUNCTIONS:-0}" -eq 1 ]]; then
                     err "  Proxy /api/${FIRST_FN} retornou 404 — verifique vhost Nginx."
                     ;;
                 502|504)
-                    err "  Proxy /api/${FIRST_FN} retornou $PROXY_CODE — Nginx não consegue alcançar Supabase. Verifique DNS/firewall outbound."
+                    err "  Proxy /api/${FIRST_FN} retornou $PROXY_CODE — Nginx NÃO alcança Supabase em runtime."
+                    err "  Diagnóstico automático:"
+                    # Testa se a função responde direto no Supabase (bypass Nginx)
+                    DIRECT_CODE="$(curl -sS -o /dev/null -w '%{http_code}' \
+                        -H "apikey: ${SUPABASE_ANON_KEY}" \
+                        -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+                        --max-time 10 "${SUPABASE_URL_INPUT}/functions/v1/${FIRST_FN}" || echo "000")"
+                    case "$DIRECT_CODE" in
+                        2*|401|403|405)
+                            err "    ✓ Função responde direto no Supabase (HTTP $DIRECT_CODE)"
+                            err "    ✗ Mas Nginx falha — provável causa: outbound HTTPS bloqueado APENAS pela rede da VPS"
+                            err "    Teste: curl -v ${SUPABASE_URL_INPUT}/functions/v1/${FIRST_FN}"
+                            err "    Verifique firewall do provedor (Oracle/AWS Security Group) — TCP 443 outbound"
+                            ;;
+                        404)
+                            err "    ✗ Função '${FIRST_FN}' NÃO existe no Supabase (HTTP 404)"
+                            err "    Rode: cd $APP_DIR && supabase functions deploy ${FIRST_FN} --project-ref ${SUPABASE_PROJECT_REF}"
+                            ;;
+                        000)
+                            err "    ✗ Supabase inalcançável tanto via Nginx quanto direto"
+                            err "    Outbound TCP 443 da VPS está bloqueado. Veja firewall do provedor."
+                            ;;
+                        *)
+                            err "    Função direto retornou HTTP $DIRECT_CODE"
+                            ;;
+                    esac
                     ;;
                 *)
                     info "  Proxy /api/${FIRST_FN} retornou $PROXY_CODE."
@@ -1130,6 +1255,9 @@ echo "    • 403 Forbidden             → função com verify_jwt=true sem JWT
 echo "    • 500 Internal              → supabase functions logs <nome> --project-ref ${SUPABASE_PROJECT_REF}"
 echo "    • 502/504 Bad Gateway       → Nginx não alcança Supabase. Teste outbound:"
 echo "                                  curl -v ${SUPABASE_URL_INPUT}/functions/v1/healthz"
+echo "                                  Se direto OK mas via Nginx 502 → firewall outbound da VPS"
+echo "                                  Se direto 404 → supabase functions deploy <nome> --project-ref ${SUPABASE_PROJECT_REF}"
+echo "                                  Cloud provider Security Group/UFW: liberar TCP 443 OUTBOUND"
 echo "    • timeout                   → firewall outbound bloqueia HTTPS para *.supabase.co"
 echo
 echo "  Infra (Nginx, SSL, DNS, firewall):"
