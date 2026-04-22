@@ -1400,6 +1400,27 @@ echo "  Melhor Envio (URL alternativa, aceita POST na página de configuração)
 echo "    https://${DOMAIN}/admin/configuracoes/logistica"
 echo
 
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}Arquitetura replicada (igual ao Lovable, em produção própria):${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo "  Internet"
+echo "    └── 443/HTTPS (público)  →  Nginx Reverse Proxy"
+echo "          ├── /                     →  SPA estática (dist/index.html, fallback React Router)"
+echo "          ├── /api/<fn>             →  ${SUPABASE_URL_INPUT}/functions/v1/<fn>"
+echo "          ├── /<gateway>-webhook    →  ${SUPABASE_URL_INPUT}/functions/v1/<gateway>-webhook"
+echo "          └── /admin/configuracoes/logistica  →  GET=SPA (OAuth callback) / POST=webhook ME"
+echo
+echo "  Portas:"
+echo "    • 80   →  redirect 301 para HTTPS (gerenciado pelo Certbot)"
+echo "    • 443  →  produção pública (única porta exposta)"
+echo "    • 3000 →  NUNCA exposta (app é estática, não há server Node em produção)"
+echo "    • 5432 →  apenas interno (PostgreSQL fica no Supabase, não na VPS)"
+echo
+echo "  Outbound necessário (firewall do cloud provider DEVE liberar):"
+echo "    • TCP 443 → ${SUPABASE_PROJECT_REF}.supabase.co  (REST + Edge Functions + Realtime)"
+echo "    • UDP 53  → resolvers DNS (8.8.8.8, 1.1.1.1)"
+echo
+
 if [[ -n "$API_SUBDOMAIN" ]]; then
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${BLUE}Endpoint genérico para integrações externas (n8n, Stripe, Meta):${NC}"
