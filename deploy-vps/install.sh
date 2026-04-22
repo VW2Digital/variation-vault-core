@@ -257,6 +257,13 @@ fi
 ENV_FILE="$APP_DIR/.env"
 ENV_PROD_FILE="$APP_DIR/.env.production"
 info "Gravando credenciais Supabase em $ENV_FILE (usadas no build do Vite)..."
+# Apenas variáveis com prefixo VITE_* entram no bundle do frontend.
+# As demais (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, WEBHOOK_SECRET) ficam
+# disponíveis para edge functions / scripts server-side que rodem nesta VPS.
+API_PUBLIC_URL=""
+if [[ -n "$API_SUBDOMAIN" ]]; then
+    API_PUBLIC_URL="https://${API_SUBDOMAIN}"
+fi
 cat > "$ENV_FILE" <<ENV
 VITE_SUPABASE_URL=${SUPABASE_URL_INPUT}
 VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_ANON_KEY}
@@ -271,8 +278,8 @@ SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
 NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL_INPUT}
 NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
 WEBHOOK_SECRET=${WEBHOOK_SECRET}
-NEXT_PUBLIC_API_URL=${API_SUBDOMAIN:+https://${API_SUBDOMAIN}}
-PUBLIC_API_BASE_URL=${API_SUBDOMAIN:+https://${API_SUBDOMAIN}/api}
+NEXT_PUBLIC_API_URL=${API_PUBLIC_URL}
+PUBLIC_API_BASE_URL=${API_PUBLIC_URL:+${API_PUBLIC_URL}/api}
 ENV
 chmod 600 "$ENV_FILE"
 chown root:root "$ENV_FILE"
