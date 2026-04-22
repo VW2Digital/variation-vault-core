@@ -1,196 +1,367 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  install-supabase-only.sh  —  versão ENXUTA
+#  install-supabase-only.sh
 # -----------------------------------------------------------------------------
-#  Provisiona uma VPS (Ubuntu/Debian) para servir APENAS o frontend.
+#  Provisionamento profissional de VPS (Ubuntu/Debian) para aplicações Docker
+#  cuja comunicação SMTP é feita EXCLUSIVAMENTE via Supabase Edge Functions.
 #
-#  📌 Toda a lógica de e-mail (SMTP, Resend, templates) continua executando
-#     dentro do Supabase, exatamente como funciona no preview do Lovable.
-#     Os secrets (SMTP_*, RESEND_API_KEY, SUPABASE_SERVICE_ROLE_KEY) já vivem
-#     em: Supabase → Project Settings → Edge Functions → Secrets.
+#  ⚠️  POLÍTICA DE SEGURANÇA (LEIA ANTES DE EXECUTAR)
+#  ---------------------------------------------------------------------------
+#   ❌ NÃO salvamos credenciais SMTP na VPS
+#   ❌ NÃO usamos arquivo .env local para SMTP
+#   ❌ NÃO armazenamos credenciais SMTP em tabelas do banco (site_settings, etc)
+#   ❌ NÃO salvamos SUPABASE_SERVICE_ROLE_KEY em arquivos da VPS ou do banco
 #
-#  Por isso, esta VPS:
-#    ❌ NÃO precisa do Supabase CLI
-#    ❌ NÃO precisa de secrets de SMTP
-#    ❌ NÃO precisa de SUPABASE_SERVICE_ROLE_KEY
-#    ❌ NÃO precisa de portas 25/465/587
+#   ✅ Toda credencial sensível vive APENAS em:
+#        Supabase Dashboard → Project Settings → Edge Functions → Secrets
+#        (equivalente CLI: `supabase secrets set NOME=valor`)
 #
-#  Ela só precisa de:
-#    ✅ Docker (para subir o container do frontend)
-#    ✅ UFW liberando 22/80/443
-#    ✅ VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY (chaves PÚBLICAS,
-#       seguras de viver no .env de build do frontend)
+#   Secrets gerenciados por este script:
+#     SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS,
+#     SMTP_FROM, SMTP_FROM_NAME, SMTP_SECURE,
+#     SUPABASE_SERVICE_ROLE_KEY
 #
 #  Uso:
 #     sudo bash deploy-vps/install-supabase-only.sh
+#
+#  Variáveis opcionais (somente para automação não-interativa):
+#     SUPABASE_PROJECT_REF=abcd1234 \
+#     SUPABASE_ACCESS_TOKEN=sbp_xxx \
+#     NON_INTERACTIVE=1 \
+#         sudo -E bash deploy-vps/install-supabase-only.sh
+#
+#  ATENÇÃO: Mesmo em modo não-interativo, valores de SECRETS NUNCA são lidos de
+#  arquivos no disco. Eles são solicitados via prompt (read -s) e enviados
+#  diretamente ao Supabase, sem persistência local.
 # =============================================================================
 
 set -Eeuo pipefail
 
-RED=$'\033[0;31m'; GREEN=$'\033[0;32m'; YELLOW=$'\033[1;33m'
-BLUE=$'\033[0;34m'; BOLD=$'\033[1m'; NC=$'\033[0m'
+# ---------------------------------------------------------------------------
+# Estilo de saída
+# ---------------------------------------------------------------------------
+RED=$'\033[0;31m'
+GREEN=$'\033[0;32m'
+YELLOW=$'\033[1;33m'
+BLUE=$'\033[0;34m'
+BOLD=$'\033[1m'
+NC=$'\033[0m'
 
-log()  { echo -e "${BLUE}[INFO]${NC}  $*"; }
-ok()   { echo -e "${GREEN}[ OK ]${NC}  $*"; }
-warn() { echo -e "${YELLOW}[WARN]${NC}  $*"; }
-err()  { echo -e "${RED}[FAIL]${NC}  $*" >&2; }
-step() { echo -e "\n${BOLD}${BLUE}▶ $*${NC}"; }
-banner(){ echo -e "\n${BOLD}${YELLOW}============================================================${NC}\n${BOLD}${YELLOW} $* ${NC}\n${BOLD}${YELLOW}============================================================${NC}\n"; }
+log()    { echo -e "${BLUE}[INFO]${NC}  $*"; }
+ok()     { echo -e "${GREEN}[ OK ]${NC}  $*"; }
+warn()   { echo -e "${YELLOW}[WARN]${NC}  $*"; }
+err()    { echo -e "${RED}[FAIL]${NC}  $*" >&2; }
+step()   { echo -e "\n${BOLD}${BLUE}▶ $*${NC}"; }
+banner() {
+  echo -e "\n${BOLD}${YELLOW}============================================================${NC}"
+  echo -e "${BOLD}${YELLOW} $* ${NC}"
+  echo -e "${BOLD}${YELLOW}============================================================${NC}\n"
+}
 
 trap 'err "Falha na linha $LINENO. Abortando."; exit 1' ERR
 
 # ---------------------------------------------------------------------------
 # 0. Pré-checagens
 # ---------------------------------------------------------------------------
-banner "VPS Frontend  +  Supabase remoto (sem SMTP local)"
+banner "Provisionamento VPS  +  Supabase Edge Functions (SMTP remoto)"
 
 if [[ $EUID -ne 0 ]]; then
-  err "Execute como root: sudo bash $0"; exit 1
+  err "Execute como root: sudo bash $0"
+  exit 1
 fi
+
 if ! command -v apt-get >/dev/null 2>&1; then
-  err "Distribuição não suportada. Use Ubuntu/Debian."; exit 1
+  err "Distribuição não suportada (apt-get ausente). Use Ubuntu/Debian."
+  exit 1
 fi
 
-cat <<EOF
-${BOLD}O que este script faz:${NC}
-  1. Atualiza a VPS
-  2. Instala dependências essenciais + Docker
-  3. Configura firewall UFW (22, 80, 443)
-  4. Pergunta APENAS as chaves PÚBLICAS do Supabase (URL + anon key)
-  5. Gera /opt/app/.env de build do frontend
-  6. Sobe o container com docker compose
+NON_INTERACTIVE="${NON_INTERACTIVE:-0}"
 
-${BOLD}O que este script NÃO faz (porque já está no Supabase):${NC}
-  • Não configura SMTP
-  • Não instala Supabase CLI
-  • Não faz deploy de Edge Functions
-  • Não toca em SUPABASE_SERVICE_ROLE_KEY
-
-EOF
+# Sanidade: avisa se algum secret SMTP foi exportado no shell
+for v in SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS SMTP_FROM SMTP_FROM_NAME \
+         SMTP_SECURE SUPABASE_SERVICE_ROLE_KEY; do
+  if [[ -n "${!v:-}" ]]; then
+    warn "Variável $v presente no ambiente. Ela será usada no prompt como sugestão,"
+    warn "mas NÃO será gravada em nenhum arquivo desta VPS."
+  fi
+done
 
 # ---------------------------------------------------------------------------
 # 1. Atualização do sistema
 # ---------------------------------------------------------------------------
-step "1/6  Atualizando sistema"
+step "1/9  Atualizando sistema (apt update && apt upgrade -y)"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get upgrade -y
 ok "Sistema atualizado"
 
 # ---------------------------------------------------------------------------
-# 2. Dependências + Docker
+# 2. Dependências essenciais
 # ---------------------------------------------------------------------------
-step "2/6  Instalando dependências essenciais"
-apt-get install -y --no-install-recommends \
-  curl wget git unzip zip nano \
-  ufw net-tools software-properties-common \
-  ca-certificates openssl \
+step "2/9  Instalando dependências essenciais"
+APT_PACKAGES=(
+  curl wget git unzip zip nano
+  ufw net-tools software-properties-common
+  ca-certificates openssl
+  telnet netcat-openbsd
+  python3 python3-pip python3-venv python3-dev
+  build-essential
   docker.io docker-compose
-ok "Pacotes instalados"
+  jq
+)
+apt-get install -y --no-install-recommends "${APT_PACKAGES[@]}"
+ok "Pacotes instalados: ${APT_PACKAGES[*]}"
 
+# ---------------------------------------------------------------------------
+# 3. Docker
+# ---------------------------------------------------------------------------
+step "3/9  Habilitando e iniciando Docker"
 systemctl enable docker
 systemctl start docker
+
 if [[ -n "${SUDO_USER:-}" ]] && id "$SUDO_USER" >/dev/null 2>&1; then
   usermod -aG docker "$SUDO_USER" || true
+  log "Usuário '$SUDO_USER' adicionado ao grupo docker (faça logout/login para efetivar)"
 fi
+
 docker --version
 docker compose version 2>/dev/null || docker-compose --version
-ok "Docker pronto"
+ok "Docker operacional"
 
 # ---------------------------------------------------------------------------
-# 3. Firewall
+# 4. Firewall (UFW) — apenas portas web. Sem portas SMTP locais.
 # ---------------------------------------------------------------------------
-step "3/6  Configurando firewall (UFW: 22, 80, 443)"
+step "4/9  Configurando firewall UFW (22, 80, 443)"
 ufw --force reset >/dev/null
 ufw default deny incoming
 ufw default allow outgoing
-ufw allow 22/tcp  comment 'SSH'
-ufw allow 80/tcp  comment 'HTTP'
-ufw allow 443/tcp comment 'HTTPS'
+ufw allow 22/tcp   comment 'SSH'
+ufw allow 80/tcp   comment 'HTTP'
+ufw allow 443/tcp  comment 'HTTPS'
+# Sem 25/465/587 — envio de e-mail é responsabilidade do Supabase Edge Functions
 ufw --force enable
 ufw status verbose | sed 's/^/    /'
-ok "Firewall ativo"
+ok "Firewall ativo apenas com portas web (22/80/443). SMTP é remoto via Supabase."
 
 # ---------------------------------------------------------------------------
-# 4. Chaves PÚBLICAS do Supabase
+# 5. Supabase CLI
 # ---------------------------------------------------------------------------
-step "4/6  Configurando endpoint do Supabase (chaves públicas)"
+step "5/9  Instalando Supabase CLI"
+
+install_supabase_cli() {
+  if command -v supabase >/dev/null 2>&1; then
+    ok "Supabase CLI já instalada: $(supabase --version)"
+    return
+  fi
+
+  log "Baixando última release de github.com/supabase/cli ..."
+  ARCH="$(dpkg --print-architecture)"
+  case "$ARCH" in
+    amd64) ASSET="supabase_linux_amd64.deb" ;;
+    arm64) ASSET="supabase_linux_arm64.deb" ;;
+    *) err "Arquitetura não suportada: $ARCH"; exit 1 ;;
+  esac
+
+  TMPDEB="$(mktemp --suffix=.deb)"
+  URL="$(curl -fsSL https://api.github.com/repos/supabase/cli/releases/latest \
+        | jq -r --arg a "$ASSET" '.assets[] | select(.name==$a) | .browser_download_url')"
+
+  if [[ -z "$URL" || "$URL" == "null" ]]; then
+    err "Não foi possível resolver URL do pacote $ASSET no GitHub."
+    exit 1
+  fi
+
+  curl -fsSL "$URL" -o "$TMPDEB"
+  apt-get install -y "$TMPDEB"
+  rm -f "$TMPDEB"
+  ok "Supabase CLI instalada: $(supabase --version)"
+}
+install_supabase_cli
+
+# ---------------------------------------------------------------------------
+# 6. Login + link do projeto
+# ---------------------------------------------------------------------------
+step "6/9  Autenticação e vínculo do projeto Supabase"
+
+# IMPORTANTE: SUPABASE_ACCESS_TOKEN é apenas variável de SESSÃO desta execução.
+# Não é gravada em /etc, ~/.bashrc, .env, nem em nenhum arquivo desta VPS.
+if [[ -z "${SUPABASE_ACCESS_TOKEN:-}" ]]; then
+  if [[ "$NON_INTERACTIVE" == "1" ]]; then
+    err "NON_INTERACTIVE=1 mas SUPABASE_ACCESS_TOKEN não foi exportado."
+    exit 1
+  fi
+  echo -e "${YELLOW}Gere um Personal Access Token em:${NC} https://supabase.com/dashboard/account/tokens"
+  read -rs -p "Cole o SUPABASE_ACCESS_TOKEN (sbp_...): " SUPABASE_ACCESS_TOKEN
+  echo
+  export SUPABASE_ACCESS_TOKEN
+fi
+
+if [[ -z "${SUPABASE_PROJECT_REF:-}" ]]; then
+  if [[ "$NON_INTERACTIVE" == "1" ]]; then
+    err "NON_INTERACTIVE=1 mas SUPABASE_PROJECT_REF não foi definido."
+    exit 1
+  fi
+  read -r -p "Project Ref do Supabase (ex: abcd1234efgh5678): " SUPABASE_PROJECT_REF
+fi
+
+log "Linkando projeto $SUPABASE_PROJECT_REF ..."
+WORKDIR="/opt/supabase-link"
+mkdir -p "$WORKDIR"
+cd "$WORKDIR"
+
+# `supabase link` cria apenas metadados em .supabase/ — sem secrets em disco.
+supabase link --project-ref "$SUPABASE_PROJECT_REF"
+ok "Projeto vinculado: $SUPABASE_PROJECT_REF"
+
+# ---------------------------------------------------------------------------
+# 7. Configuração de SECRETS (somente no Supabase, nunca em disco)
+# ---------------------------------------------------------------------------
+step "7/9  Configurando Edge Function Secrets no Supabase"
 
 cat <<EOF
-${BOLD}Você só precisa de duas informações públicas do seu projeto Supabase:${NC}
-  • VITE_SUPABASE_URL              (ex: https://abcd1234.supabase.co)
-  • VITE_SUPABASE_PUBLISHABLE_KEY  (anon key — pode aparecer no frontend)
 
-${YELLOW}Encontre em:${NC} Lovable → Cloud → Overview → API Keys
+${BOLD}Os seguintes valores serão enviados para:${NC}
+    Supabase → Project Settings → Edge Functions → Secrets
+
+${RED}Eles NÃO serão escritos em nenhum arquivo desta VPS.${NC}
+${RED}Eles NÃO serão escritos em nenhuma tabela do banco.${NC}
+
 EOF
-echo
 
-read -r  -p "VITE_SUPABASE_URL: "             VITE_SUPABASE_URL
-read -r  -p "VITE_SUPABASE_PUBLISHABLE_KEY: " VITE_SUPABASE_PUBLISHABLE_KEY
-read -r  -p "VITE_SUPABASE_PROJECT_ID (opcional, ex: abcd1234): " VITE_SUPABASE_PROJECT_ID || true
+ask_secret() {
+  # ask_secret <NOME> <descrição> <default-opcional> <silencioso 0|1>
+  local name="$1" desc="$2" default="${3:-}" silent="${4:-0}" value=""
+  local current="${!name:-}"
+  if [[ -n "$current" ]]; then default="$current"; fi
 
-if [[ -z "$VITE_SUPABASE_URL" || -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]]; then
-  err "URL e PUBLISHABLE_KEY são obrigatórios."; exit 1
+  if [[ "$NON_INTERACTIVE" == "1" ]]; then
+    if [[ -z "$default" ]]; then
+      err "NON_INTERACTIVE=1 e $name não foi fornecido via env."
+      exit 1
+    fi
+    printf -v "$name" '%s' "$default"
+    return
+  fi
+
+  local prompt="${BOLD}$name${NC} — $desc"
+  [[ -n "$default" ]] && prompt+=" ${YELLOW}[$default]${NC}"
+  prompt+=": "
+
+  if [[ "$silent" == "1" ]]; then
+    read -rs -p "$(echo -e "$prompt")" value; echo
+  else
+    read -r  -p "$(echo -e "$prompt")" value
+  fi
+  [[ -z "$value" && -n "$default" ]] && value="$default"
+
+  if [[ -z "$value" ]]; then
+    err "$name é obrigatório."
+    exit 1
+  fi
+  printf -v "$name" '%s' "$value"
+}
+
+ask_secret SMTP_HOST       "Host SMTP"                              "smtp.hostinger.com"           0
+ask_secret SMTP_PORT       "Porta SMTP (465 SSL / 587 STARTTLS)"    "465"                          0
+ask_secret SMTP_SECURE     "Conexão segura? (true=SSL/465, false=STARTTLS/587)" "true"             0
+ask_secret SMTP_USER       "Usuário SMTP (e-mail completo)"         ""                             0
+ask_secret SMTP_PASS       "Senha SMTP"                             ""                             1
+ask_secret SMTP_FROM       "Endereço remetente (From)"              "${SMTP_USER}"                 0
+ask_secret SMTP_FROM_NAME  "Nome do remetente"                      "Equipe"                       0
+ask_secret SUPABASE_SERVICE_ROLE_KEY "Service Role Key do Supabase" ""                             1
+
+log "Enviando secrets para o Supabase (supabase secrets set ...)"
+# Cada secret é enviado individualmente para que falhas sejam atribuíveis.
+# Os valores são passados como argumento e NÃO ecoados em log.
+supabase secrets set \
+  "SMTP_HOST=$SMTP_HOST" \
+  "SMTP_PORT=$SMTP_PORT" \
+  "SMTP_SECURE=$SMTP_SECURE" \
+  "SMTP_USER=$SMTP_USER" \
+  "SMTP_PASS=$SMTP_PASS" \
+  "SMTP_FROM=$SMTP_FROM" \
+  "SMTP_FROM_NAME=$SMTP_FROM_NAME" \
+  "SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY" \
+  >/dev/null
+
+# Limpa imediatamente da memória do shell — defesa em profundidade.
+unset SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_USER SMTP_PASS \
+      SMTP_FROM SMTP_FROM_NAME SUPABASE_SERVICE_ROLE_KEY
+
+ok "Secrets gravados em Supabase. Verificação:"
+supabase secrets list | sed 's/^/    /'
+
+# ---------------------------------------------------------------------------
+# 8. Deploy das Edge Functions
+# ---------------------------------------------------------------------------
+step "8/9  Deploy das Edge Functions"
+
+REPO_FUNCTIONS_DIR=""
+# Se o script for executado de dentro de um clone do repositório, usamos as
+# functions versionadas. Caso contrário, apenas listamos as existentes no projeto.
+if [[ -d "$(dirname "$0")/../supabase/functions" ]]; then
+  REPO_FUNCTIONS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 fi
 
-APP_DIR="/opt/app"
-mkdir -p "$APP_DIR"
-cat > "$APP_DIR/.env" <<EOF
-# Gerado por install-supabase-only.sh — chaves PÚBLICAS de build do Vite.
-# Não há segredo aqui: a anon key é projetada para viver no frontend.
-VITE_SUPABASE_URL=$VITE_SUPABASE_URL
-VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
-VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
-EOF
-chmod 644 "$APP_DIR/.env"
-ok ".env de build gerado em $APP_DIR/.env"
+if [[ -n "$REPO_FUNCTIONS_DIR" ]]; then
+  log "Diretório de functions detectado: $REPO_FUNCTIONS_DIR/supabase/functions"
+  cd "$REPO_FUNCTIONS_DIR"
+  supabase link --project-ref "$SUPABASE_PROJECT_REF" >/dev/null 2>&1 || true
 
-# ---------------------------------------------------------------------------
-# 5. Subindo o container
-# ---------------------------------------------------------------------------
-step "5/6  Subindo container do frontend"
-
-if [[ -f "$APP_DIR/docker-compose.yml" ]]; then
-  cd "$APP_DIR"
-  log "docker compose up -d --build"
-  docker compose up -d --build || docker-compose up -d --build
-  ok "Container no ar"
+  mapfile -t FNS < <(find supabase/functions -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+  for fn in "${FNS[@]}"; do
+    log "  → deploy: $fn"
+    supabase functions deploy "$fn" --project-ref "$SUPABASE_PROJECT_REF" >/dev/null
+  done
+  ok "Deploy concluído (${#FNS[@]} functions)"
 else
-  warn "Nenhum docker-compose.yml encontrado em $APP_DIR."
-  warn "Faça o clone do repositório dentro de $APP_DIR e rode:"
-  warn "    cd $APP_DIR && docker compose up -d --build"
+  warn "Não estamos dentro do repositório (sem supabase/functions). Pulando deploy."
+  warn "Para deployar depois: rode este script a partir do clone do projeto."
 fi
 
 # ---------------------------------------------------------------------------
-# 6. Conferência
+# 9. Teste de funcionamento
 # ---------------------------------------------------------------------------
-step "6/6  Conferência"
-docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | sed 's/^/    /' || true
+step "9/9  Teste rápido"
 
-banner "✅ VPS pronta"
+log "Listando functions ativas no projeto:"
+supabase functions list --project-ref "$SUPABASE_PROJECT_REF" | sed 's/^/    /' || true
+
+log "Listando secrets configurados (nomes apenas, valores ocultos):"
+supabase secrets list --project-ref "$SUPABASE_PROJECT_REF" | sed 's/^/    /'
+
+# ---------------------------------------------------------------------------
+# Encerramento
+# ---------------------------------------------------------------------------
+banner "✅ Provisionamento concluído"
 
 cat <<EOF
 ${BOLD}Resumo${NC}
-  • VPS atualizada, Docker rodando, UFW liberando 22/80/443
-  • Frontend usa Supabase remoto: ${BOLD}$VITE_SUPABASE_URL${NC}
-  • E-mail / SMTP / Edge Functions: ${GREEN}continuam executando no Supabase${NC}
+  • VPS atualizada e endurecida (UFW: 22/80/443)
+  • Docker pronto para containers da aplicação
+  • Supabase CLI instalada e projeto vinculado: ${BOLD}${SUPABASE_PROJECT_REF}${NC}
+  • Secrets SMTP + SERVICE_ROLE_KEY: ${GREEN}armazenados APENAS no Supabase${NC}
+  • Edge Functions deployadas (se o script foi executado do repositório)
 
-${BOLD}Onde gerenciar SMTP / segredos${NC}
-  Não nesta VPS. No Supabase:
-    Project Settings → Edge Functions → Secrets
-  As mesmas credenciais que já funcionam no preview do Lovable serão usadas
-  pelo seu app aqui — não há nada para "copiar" de volta para a VPS.
+${BOLD}Onde gerenciar as credenciais daqui em diante${NC}
+  Dashboard: Project Settings → Edge Functions → Secrets
+  CLI     : supabase secrets set NOME=valor --project-ref ${SUPABASE_PROJECT_REF}
+  Listar  : supabase secrets list --project-ref ${SUPABASE_PROJECT_REF}
+  Remover : supabase secrets unset NOME --project-ref ${SUPABASE_PROJECT_REF}
 
-${BOLD}Operação${NC}
-  cd /opt/app
-  docker compose logs -f          # ver logs
-  docker compose pull && docker compose up -d   # atualizar
-  docker compose down && docker compose up -d --build   # rebuild
+${BOLD}Operação da aplicação${NC}
+  • Sobir containers   : docker compose up -d
+  • Atualizar          : docker compose pull && docker compose up -d
+  • Rebuild completo   : docker compose down && docker compose up -d --build
+  • Logs em tempo real : docker compose logs -f
 
 ${BOLD}Boas práticas${NC}
-  ${GREEN}✓${NC} Esta VPS só conhece chaves PÚBLICAS — zero risco de vazar segredo.
-  ${GREEN}✓${NC} Se trocar SMTP no futuro, troque APENAS no Supabase. A VPS não muda.
-  ${RED}✗${NC} Nunca cole SUPABASE_SERVICE_ROLE_KEY ou SMTP_PASS em arquivos daqui.
+  ${RED}✗${NC} NUNCA grave SMTP_PASS em .env, docker-compose.yml ou repositório.
+  ${RED}✗${NC} NUNCA persista SUPABASE_SERVICE_ROLE_KEY em tabelas (ex: site_settings).
+  ${GREEN}✓${NC} Toda Edge Function lê via Deno.env.get('SMTP_PASS') etc.
+  ${GREEN}✓${NC} Rotacione segredos periodicamente: supabase secrets set ...
+  ${GREEN}✓${NC} Em caso de exposição acidental, rotacione SERVICE_ROLE_KEY no Dashboard.
+
 EOF
 
-ok "Tudo pronto. 🚀"
+ok "Tudo pronto. Boa operação! 🚀"
