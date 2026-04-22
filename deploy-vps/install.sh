@@ -943,6 +943,52 @@ else
     info "   • OUTBOUND UDP 53       (DNS)"
 fi
 
+# ---------- Smoke test do proxy /api/* no domínio principal ----------
+# Valida que a arquitetura "Lovable-like" está funcionando:
+#   browser → https://${DOMAIN}/api/<edge-function>  →  Nginx  →  Supabase
+# Não basta /api/healthz responder — precisamos confirmar que rotas REAIS
+# da aplicação (admin-users, payment-checkout, melhor-envio-webhook) chegam
+# ao Supabase sem 502. Caso contrário, painel admin e checkout quebram.
+info "[proxy] Smoke test do reverse proxy /api/* no domínio principal ($DOMAIN)"
+REAL_FNS=(admin-users orders-api payment-checkout melhor-envio-webhook mercadopago-webhook)
+PROXY_502_COUNT=0
+for FN in "${REAL_FNS[@]}"; do
+    CODE="$(curl -sS -o /dev/null -w '%{http_code}' \
+        -H "Host: ${DOMAIN}" \
+        -H "apikey: ${SUPABASE_ANON_KEY}" \
+        -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+        --max-time 12 "http://127.0.0.1/api/${FN}" || echo "000")"
+    case "$CODE" in
+        2*|400|401|403|404|405)
+            ok "[proxy] /api/${FN} → HTTP $CODE  (proxy chega ao Supabase)"
+            ;;
+        502|504)
+            err "[proxy] /api/${FN} → HTTP $CODE  — Nginx NÃO alcança Supabase"
+            PROXY_502_COUNT=$((PROXY_502_COUNT+1))
+            ;;
+        000)
+            err "[proxy] /api/${FN} → timeout — outbound HTTPS provavelmente bloqueado"
+            PROXY_502_COUNT=$((PROXY_502_COUNT+1))
+            ;;
+        *)
+            info "[proxy] /api/${FN} → HTTP $CODE (inesperado, verifique manualmente)"
+            ;;
+    esac
+done
+if [[ "$PROXY_502_COUNT" -gt 0 ]]; then
+    err "[proxy] $PROXY_502_COUNT rota(s) /api/* falharam com 502/timeout."
+    err "        Causa-raiz mais comum: outbound TCP 443 bloqueado pelo cloud provider."
+    err "        Diagnóstico:"
+    err "          curl -v --max-time 10 ${SUPABASE_URL_INPUT}/functions/v1/admin-users"
+    err "          nc -zv ${SUPABASE_PROJECT_REF}.supabase.co 443"
+    err "        Oracle Cloud  → Networking → Security Lists → Egress Rules → TCP 443 ALLOW"
+    err "        AWS EC2       → Security Group → Outbound → HTTPS (443) ALLOW"
+    err "        GCP Compute   → VPC Firewall  → Egress    → tcp:443      ALLOW"
+    err "        UFW           → sudo ufw allow out 443/tcp && sudo ufw reload"
+else
+    ok "[proxy] Reverse proxy /api/* operacional — arquitetura replica Lovable corretamente."
+fi
+
 # ----------------------------- Verificação pós-build (local) ----------------
 info "Executando verificação local..."
 VERIFY_FAIL=0
