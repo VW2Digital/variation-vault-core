@@ -428,6 +428,67 @@ ok "Build concluído em $APP_DIR/dist"
 
 # Configurar Nginx (SPA + cache de assets) — server_name ajustado abaixo
 info "Configurando Nginx para servir SPA estática..."
+
+# ---------- Limpeza de vhosts conflitantes ANTES de gravar a nova config ----
+# Causa raiz comum de webhooks/healthz instáveis em VPS com várias instalações:
+# múltiplos arquivos em /etc/nginx/sites-enabled/ declaram o mesmo server_name
+# (DOMAIN ou API_SUBDOMAIN), o Nginx loga "conflicting server name ... ignored"
+# e mantém apenas o primeiro encontrado — que pode ser um vhost antigo sem as
+# rotas /api/*. Resultado: /api/healthz responde 404 às vezes, webhook falha,
+# root retorna 404. Aqui detectamos e desativamos qualquer vhost duplicado.
+cleanup_conflicting_vhosts() {
+    local target="$1"
+    [[ -z "$target" ]] && return 0
+    local sites_enabled=/etc/nginx/sites-enabled
+    local sites_available=/etc/nginx/sites-available
+    local conf_d=/etc/nginx/conf.d
+    local keep_basenames=("app" "api" "00-default-deny")
+    local removed=0
+
+    info "[nginx] Procurando vhosts duplicados para server_name '$target'..."
+    # 1) sites-enabled/*  (inclui o default que vem do pacote nginx)
+    if [[ -d "$sites_enabled" ]]; then
+        while IFS= read -r f; do
+            [[ -z "$f" ]] && continue
+            local base
+            base="$(basename "$f")"
+            local skip=0
+            for keep in "${keep_basenames[@]}"; do
+                [[ "$base" == "$keep" ]] && skip=1 && break
+            done
+            [[ $skip -eq 1 ]] && continue
+            warn "  Removendo vhost conflitante: $f"
+            rm -f "$f"
+            removed=$((removed+1))
+        done < <(grep -lE "server_name[[:space:]]+[^;]*\\b${target//./\\.}\\b" "$sites_enabled"/* 2>/dev/null || true)
+    fi
+    # 2) conf.d/*.conf  (vhosts soltos de instalações antigas / Lovable / certbot)
+    if [[ -d "$conf_d" ]]; then
+        while IFS= read -r f; do
+            [[ -z "$f" ]] && continue
+            warn "  Desativando vhost em conf.d: $f → $f.disabled"
+            mv -f "$f" "$f.disabled"
+            removed=$((removed+1))
+        done < <(grep -lE "server_name[[:space:]]+[^;]*\\b${target//./\\.}\\b" "$conf_d"/*.conf 2>/dev/null || true)
+    fi
+    # 3) Remove o symlink "default" do pacote nginx (sempre)
+    if [[ -L "$sites_enabled/default" ]]; then
+        warn "  Removendo $sites_enabled/default (vhost padrão do pacote)"
+        rm -f "$sites_enabled/default"
+        removed=$((removed+1))
+    fi
+    if [[ $removed -gt 0 ]]; then
+        ok "[nginx] $removed vhost(s) conflitante(s) removido(s) para '$target'"
+    else
+        info "[nginx] Nenhum vhost conflitante encontrado para '$target'"
+    fi
+}
+
+cleanup_conflicting_vhosts "$DOMAIN"
+if [[ -n "${API_SUBDOMAIN:-}" ]]; then
+    cleanup_conflicting_vhosts "$API_SUBDOMAIN"
+fi
+
 cat > /etc/nginx/sites-available/app <<NGINX
 server {
     listen 80;
@@ -616,6 +677,31 @@ NGINX_API
     nginx -t
     systemctl reload nginx
     ok "Vhost de API ativo: http://${API_SUBDOMAIN}/api/<rota>  (HTTPS após Certbot)"
+
+    # ---------- Verificação anti-conflito ----------
+    # Mesmo após cleanup, revalida que `nginx -T` não emite "conflicting server
+    # name" para o subdomínio de API. Se emitir, é sinal de que algum include
+    # exótico (snippets, /etc/nginx/nginx.conf custom) ainda referencia o host.
+    NGINX_DUMP="$(nginx -T 2>&1 || true)"
+    if echo "$NGINX_DUMP" | grep -qiE "conflicting server name.*${API_SUBDOMAIN//./\\.}"; then
+        warn "[nginx] AVISO: Nginx ainda reporta 'conflicting server name' para $API_SUBDOMAIN"
+        warn "        Isso causa /api/healthz e /api/webhook intermitentes."
+        warn "        Arquivos suspeitos:"
+        grep -RIlE "server_name[[:space:]]+[^;]*\\b${API_SUBDOMAIN//./\\.}\\b" /etc/nginx 2>/dev/null \
+            | sed 's/^/          • /' || true
+        warn "        Remova/edite manualmente os arquivos acima e rode: sudo nginx -t && sudo systemctl reload nginx"
+    else
+        ok "[nginx] Sem conflitos de server_name para $API_SUBDOMAIN"
+    fi
+
+    # Smoke test local (loopback + Host header) — não depende de DNS/SSL prontos
+    HZ_LOCAL="$(curl -s -o /dev/null -w '%{http_code}' -H "Host: ${API_SUBDOMAIN}" http://127.0.0.1/api/healthz || echo 000)"
+    if [[ "$HZ_LOCAL" == "200" ]]; then
+        ok "[nginx] /api/healthz responde 200 localmente (Host: ${API_SUBDOMAIN})"
+    else
+        warn "[nginx] /api/healthz retornou HTTP $HZ_LOCAL via loopback — vhost de API pode estar sendo ofuscado"
+        warn "        Liste vhosts ativos para o host:  sudo nginx -T | grep -nE 'server_name|listen' | less"
+    fi
 fi
 
 # ---------- Firewall (UFW) — libera 80/443 para webhooks externos ----------
@@ -1052,6 +1138,16 @@ echo "    • DNS não aponta    → dig +short ${DOMAIN}   (deve retornar o IP 
 if [[ -n "$API_SUBDOMAIN" ]]; then
     echo "                          dig +short ${API_SUBDOMAIN}   (idem)"
 fi
+echo "    • Vhosts conflitantes (causa #1 de /api/healthz e webhook intermitentes):"
+echo "        sudo nginx -T 2>&1 | grep -i 'conflicting server name'"
+echo "        sudo grep -RIl 'server_name.*${DOMAIN}' /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null"
+if [[ -n "$API_SUBDOMAIN" ]]; then
+echo "        sudo grep -RIl 'server_name.*${API_SUBDOMAIN}' /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null"
+fi
+echo "        Deve haver APENAS UM arquivo por server_name. Remova duplicados e:"
+echo "        sudo nginx -t && sudo systemctl reload nginx"
+echo "    • Root retorna 404  → quase sempre é vhost duplicado capturando o host antes do correto."
+echo "    • Teste local sem DNS → curl -i -H 'Host: ${API_SUBDOMAIN:-$DOMAIN}' http://127.0.0.1/api/healthz"
 echo "    • Porta bloqueada   → sudo ss -tlnp | grep -E ':80|:443'   /   sudo ufw status verbose"
 echo "                          Cloud firewall (Oracle/AWS/etc.) também precisa liberar 80 e 443."
 echo "    • Nginx erro/access → sudo tail -f /var/log/nginx/error.log /var/log/nginx/access.log"
