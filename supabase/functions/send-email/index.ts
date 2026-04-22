@@ -1,11 +1,14 @@
 // Centralized transactional email dispatcher.
 // Single entry point for all app emails (order, shipping, payment, custom).
-// - Renders one of the registered templates and sends via Resend
+// - Renders one of the registered templates and sends via:
+//     1) SMTP customizado (Hostinger por padrão) — provider primário
+//     2) Resend HTTP API — fallback automático se SMTP falhar
 // - Authenticates either with a Supabase JWT (admin) or with the
 //   service role key (server-side / Edge Function -> Edge Function)
 // - Never logs API keys or secrets in plain text
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
