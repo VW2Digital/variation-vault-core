@@ -614,6 +614,153 @@ fi
 ok "Verificação local concluída sem erros"
 
 ###############################################################################
+# STEP 1.5 — Deploy real das Supabase Edge Functions (opcional)
+###############################################################################
+DEPLOYED_FUNCTIONS=()
+FAILED_FUNCTIONS=()
+if [[ "${DEPLOY_EDGE_FUNCTIONS:-0}" -eq 1 ]]; then
+    step "STEP 1.5 — Deploy das Supabase Edge Functions"
+
+    # 1) Garante a Supabase CLI instalada (npm global)
+    if ! command -v supabase >/dev/null 2>&1; then
+        info "Instalando Supabase CLI (npm i -g supabase)..."
+        npm install -g supabase >/dev/null 2>&1 || {
+            err "Falha ao instalar Supabase CLI via npm. Tentando binário oficial..."
+            curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz \
+                -o /tmp/supabase-cli.tgz
+            tar -xzf /tmp/supabase-cli.tgz -C /usr/local/bin/ supabase
+            chmod +x /usr/local/bin/supabase
+        }
+    fi
+    if command -v supabase >/dev/null 2>&1; then
+        ok "Supabase CLI: $(supabase --version 2>/dev/null || echo 'instalada')"
+    else
+        err "Supabase CLI não pôde ser instalada — pulando deploy de Edge Functions."
+        DEPLOY_EDGE_FUNCTIONS=0
+    fi
+fi
+
+if [[ "${DEPLOY_EDGE_FUNCTIONS:-0}" -eq 1 ]]; then
+    # 2) Linka o projeto usando o access token já validado
+    export SUPABASE_ACCESS_TOKEN
+    info "Linkando projeto $SUPABASE_PROJECT_REF (cwd=$APP_DIR)..."
+    cd "$APP_DIR"
+    if ! supabase link --project-ref "$SUPABASE_PROJECT_REF" >/dev/null 2>&1; then
+        err "Falha ao linkar projeto via 'supabase link'. Verifique o access token."
+        DEPLOY_EDGE_FUNCTIONS=0
+    else
+        ok "Projeto linkado: $SUPABASE_PROJECT_REF"
+    fi
+fi
+
+if [[ "${DEPLOY_EDGE_FUNCTIONS:-0}" -eq 1 ]]; then
+    # 3) Descobre todas as funções no diretório (excluindo arquivos compartilhados como _shared)
+    FN_DIR="$APP_DIR/supabase/functions"
+    if [[ ! -d "$FN_DIR" ]]; then
+        err "Diretório $FN_DIR não existe — nenhuma Edge Function para deployar."
+    else
+        mapfile -t ALL_FNS < <(find "$FN_DIR" -mindepth 1 -maxdepth 1 -type d \
+            -not -name '_*' -printf '%f\n' | sort)
+        info "Encontradas ${#ALL_FNS[@]} Edge Functions para deploy:"
+        printf '  - %s\n' "${ALL_FNS[@]}"
+
+        for FN in "${ALL_FNS[@]}"; do
+            echo
+            info "▶ Deployando: $FN"
+            if supabase functions deploy "$FN" --project-ref "$SUPABASE_PROJECT_REF" 2>&1 | tail -n 20; then
+                DEPLOYED_FUNCTIONS+=("$FN")
+                ok "  $FN deployada"
+            else
+                FAILED_FUNCTIONS+=("$FN")
+                err "  Falha ao deployar $FN — veja log acima."
+            fi
+        done
+
+        # 4) Validação: lista funções publicadas e confirma cada uma
+        echo
+        info "Validando publicação via 'supabase functions list'..."
+        FN_LIST_OUT="$(supabase functions list --project-ref "$SUPABASE_PROJECT_REF" 2>&1 || true)"
+        echo "$FN_LIST_OUT" | head -n 50
+
+        echo
+        info "Healthcheck HTTP de cada função (espera 2xx, 401 ou 405 — indica que está LIVE)..."
+        for FN in "${DEPLOYED_FUNCTIONS[@]}"; do
+            FN_URL="${SUPABASE_URL_INPUT}/functions/v1/${FN}"
+            FN_CODE="$(curl -sS -o /dev/null -w '%{http_code}' \
+                -H "apikey: ${SUPABASE_ANON_KEY}" \
+                -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+                --max-time 15 "$FN_URL" || echo "000")"
+            case "$FN_CODE" in
+                2*|401|403|405)
+                    ok "  [$FN_CODE] $FN  (LIVE em $FN_URL)"
+                    ;;
+                404)
+                    err "  [404] $FN  — função NÃO publicada. Rode: supabase functions deploy $FN"
+                    ;;
+                000)
+                    err "  [timeout] $FN  — sem resposta do Supabase em 15s."
+                    ;;
+                *)
+                    info "  [$FN_CODE] $FN  — código inesperado, mas pode estar OK."
+                    ;;
+            esac
+        done
+
+        # 5) Healthcheck via gateway local /api/* (se subdomínio configurado)
+        if [[ -n "$API_SUBDOMAIN" && ${#DEPLOYED_FUNCTIONS[@]} -gt 0 ]]; then
+            echo
+            info "Testando proxy local /api/<fn> via Nginx (Host: $API_SUBDOMAIN)..."
+            FIRST_FN="${DEPLOYED_FUNCTIONS[0]}"
+            PROXY_CODE="$(curl -sS -o /dev/null -w '%{http_code}' \
+                -H "Host: ${API_SUBDOMAIN}" \
+                -H "apikey: ${SUPABASE_ANON_KEY}" \
+                -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+                --max-time 15 "http://127.0.0.1/api/${FIRST_FN}" || echo "000")"
+            case "$PROXY_CODE" in
+                2*|401|403|405)
+                    ok "  Proxy /api/${FIRST_FN} OK (HTTP $PROXY_CODE) — gateway funcionando."
+                    ;;
+                404)
+                    err "  Proxy /api/${FIRST_FN} retornou 404 — verifique vhost Nginx."
+                    ;;
+                502|504)
+                    err "  Proxy /api/${FIRST_FN} retornou $PROXY_CODE — Nginx não consegue alcançar Supabase. Verifique DNS/firewall outbound."
+                    ;;
+                *)
+                    info "  Proxy /api/${FIRST_FN} retornou $PROXY_CODE."
+                    ;;
+            esac
+
+            # Healthcheck do gateway em si
+            HZ_CODE="$(curl -sS -o /tmp/api_healthz.out -w '%{http_code}' \
+                -H "Host: ${API_SUBDOMAIN}" --max-time 5 \
+                http://127.0.0.1/api/healthz || echo "000")"
+            if [[ "$HZ_CODE" == "200" ]] && grep -q '^ok' /tmp/api_healthz.out; then
+                ok "  /api/healthz responde 200 'ok'"
+            else
+                err "  /api/healthz retornou HTTP $HZ_CODE — vhost de API pode não estar carregado."
+            fi
+        fi
+    fi
+
+    if [[ ${#FAILED_FUNCTIONS[@]} -gt 0 ]]; then
+        err "Edge Functions com falha no deploy (${#FAILED_FUNCTIONS[@]}):"
+        printf '  - %s\n' "${FAILED_FUNCTIONS[@]}"
+        err "Rode manualmente após o install: cd $APP_DIR && supabase functions deploy <nome>"
+    else
+        ok "Todas as Edge Functions deployadas com sucesso (${#DEPLOYED_FUNCTIONS[@]})."
+    fi
+
+    # 6) Lembrete sobre secrets das Edge Functions
+    echo
+    info "Lembrete: Edge Functions precisam de SECRETS configurados no Supabase para autenticar webhooks."
+    info "  Liste:    supabase secrets list --project-ref $SUPABASE_PROJECT_REF"
+    info "  Configure: supabase secrets set RESEND_API_KEY=xxx WEBHOOK_SECRET=$WEBHOOK_SECRET ... --project-ref $SUPABASE_PROJECT_REF"
+    info "  Variáveis típicas: WEBHOOK_SECRET, MP_WEBHOOK_SECRET, RESEND_API_KEY, STRIPE_SECRET_KEY,"
+    info "                     OPENAI_API_KEY, evolution_api_url, evolution_api_key."
+fi
+
+###############################################################################
 # STEP 2 — Certbot (SSL)
 ###############################################################################
 step "STEP 2 — Configurando SSL com Certbot para $DOMAIN"
