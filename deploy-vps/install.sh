@@ -837,10 +837,27 @@ if [[ "$OAUTH_RESP" == "200" ]] && grep -qi '<div id="root"\|<title>' /tmp/oauth
     ok "[oauth] GET ${OAUTH_PATH}?code=... → 200 (SPA carrega para processar o code)"
 else
     err "[oauth] GET ${OAUTH_PATH}?code=... retornou HTTP $OAUTH_RESP — OAuth2 do Melhor Envio NÃO funcionará"
-    err "        Causa: vhost de ${DOMAIN} não tem fallback SPA correto para a rota."
+    err "        Causa provável: vhost de ${DOMAIN} sem fallback SPA (try_files \$uri /index.html)"
+    err "        Nginx está procurando o arquivo físico /var/www/app/dist${OAUTH_PATH}"
+    err "        e retornando 404 porque ele não existe (rota é resolvida pelo React Router)."
     err "        Esperado: Nginx deve servir /index.html preservando ?code=..."
     err "        Inspecione: sudo nginx -T | grep -A20 'server_name ${DOMAIN}'"
+    err "        Verifique:  sudo tail -n 20 /var/log/nginx/error.log"
 fi
+
+# Smoke test extra: deep links genéricos do admin (refresh de qualquer rota)
+for DEEP in "/admin/pedidos" "/admin/configuracoes/pagamento" "/minha-conta"; do
+    DEEP_RESP="$(curl -s -o /tmp/deep_smoke.html -w '%{http_code}' \
+        -H "Host: ${DOMAIN}" "http://127.0.0.1${DEEP}" || echo 000)"
+    if [[ "$DEEP_RESP" == "200" ]] && grep -qi '<div id="root"\|<title>' /tmp/deep_smoke.html 2>/dev/null; then
+        ok "[spa] GET ${DEEP} → 200 (SPA fallback OK)"
+    else
+        err "[spa] GET ${DEEP} retornou HTTP $DEEP_RESP — refresh nessa rota dará 404 no browser"
+        err "      try_files ausente ou root incorreto no vhost de ${DOMAIN}"
+    fi
+done
+rm -f /tmp/deep_smoke.html
+
 # Garante também que POST na mesma rota é roteado para webhook (não SPA)
 OAUTH_POST="$(curl -s -o /dev/null -w '%{http_code}' -X POST \
     -H "Host: ${DOMAIN}" \
