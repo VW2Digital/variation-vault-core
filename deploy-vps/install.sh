@@ -620,17 +620,6 @@ server {
         return 200 "ok\n";
     }
 
-    # Fallback SPA (React Router)
-    location / {
-        # POST na raiz → webhook do Melhor Envio (resolve E-WBH-0002 / 405
-        # quando a URL cadastrada no painel do ME é apenas https://${DOMAIN}/).
-        if (\$request_method = POST) {
-            rewrite ^ /melhor-envio-webhook last;
-        }
-        try_files \$uri \$uri/ /index.html;
-        add_header Cache-Control "no-cache, no-store, must-revalidate";
-    }
-
     # Proxy de webhooks → Edge Functions do Supabase configurado.
     # Permite que gateways (Melhor Envio, Asaas, MP, PagBank, Pagar.me)
     # postem em https://${DOMAIN}/<webhook> sem precisar saber a URL do Supabase.
@@ -648,15 +637,42 @@ server {
         proxy_buffering off;
     }
 
-    # Webhook do Melhor Envio cadastrado como /admin/configuracoes/logistica:
-    # GET serve a SPA normalmente; POST é roteado para a edge function
-    # melhor-envio-webhook no Supabase. Resolve E-WBH-0002 (405) ao usar a URL
-    # da página de configuração como callback.
+    # ─────────────────────────────────────────────────────────────────────────
+    # SPA FALLBACK (React Router / Vite)
+    # CRÍTICO para OAuth2 (Melhor Envio, etc.): o callback retorna para
+    #   https://${DOMAIN}/admin/configuracoes/logistica?code=...
+    # Sem fallback, o Nginx procura o arquivo físico
+    #   /var/www/app/dist/admin/configuracoes/logistica
+    # e retorna 404 — quebrando OAuth2, refresh de página e deep links.
+    #
+    # try_files preserva automaticamente a query string (?code=...&state=...).
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # Match exato: webhook do Melhor Envio cadastrado como a URL da página de
+    # configuração. GET serve a SPA (OAuth callback); POST → edge function.
+    # Resolve E-WBH-0002 (405) ao usar a URL da página como callback.
     location = /admin/configuracoes/logistica {
         if (\$request_method = POST) {
             rewrite ^ /melhor-envio-webhook last;
         }
         try_files \$uri /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    # Fallback explícito para TODAS as rotas /admin/* (deep links, OAuth, refresh)
+    location ^~ /admin/ {
+        try_files \$uri \$uri/ /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    # Fallback SPA genérico — última linha de defesa para qualquer rota React
+    location / {
+        # POST na raiz → webhook do Melhor Envio (resolve E-WBH-0002 / 405
+        # quando a URL cadastrada no painel do ME é apenas https://${DOMAIN}/).
+        if (\$request_method = POST) {
+            rewrite ^ /melhor-envio-webhook last;
+        }
+        try_files \$uri \$uri/ /index.html;
         add_header Cache-Control "no-cache, no-store, must-revalidate";
     }
 
@@ -821,10 +837,27 @@ if [[ "$OAUTH_RESP" == "200" ]] && grep -qi '<div id="root"\|<title>' /tmp/oauth
     ok "[oauth] GET ${OAUTH_PATH}?code=... → 200 (SPA carrega para processar o code)"
 else
     err "[oauth] GET ${OAUTH_PATH}?code=... retornou HTTP $OAUTH_RESP — OAuth2 do Melhor Envio NÃO funcionará"
-    err "        Causa: vhost de ${DOMAIN} não tem fallback SPA correto para a rota."
+    err "        Causa provável: vhost de ${DOMAIN} sem fallback SPA (try_files \$uri /index.html)"
+    err "        Nginx está procurando o arquivo físico /var/www/app/dist${OAUTH_PATH}"
+    err "        e retornando 404 porque ele não existe (rota é resolvida pelo React Router)."
     err "        Esperado: Nginx deve servir /index.html preservando ?code=..."
     err "        Inspecione: sudo nginx -T | grep -A20 'server_name ${DOMAIN}'"
+    err "        Verifique:  sudo tail -n 20 /var/log/nginx/error.log"
 fi
+
+# Smoke test extra: deep links genéricos do admin (refresh de qualquer rota)
+for DEEP in "/admin/pedidos" "/admin/configuracoes/pagamento" "/minha-conta"; do
+    DEEP_RESP="$(curl -s -o /tmp/deep_smoke.html -w '%{http_code}' \
+        -H "Host: ${DOMAIN}" "http://127.0.0.1${DEEP}" || echo 000)"
+    if [[ "$DEEP_RESP" == "200" ]] && grep -qi '<div id="root"\|<title>' /tmp/deep_smoke.html 2>/dev/null; then
+        ok "[spa] GET ${DEEP} → 200 (SPA fallback OK)"
+    else
+        err "[spa] GET ${DEEP} retornou HTTP $DEEP_RESP — refresh nessa rota dará 404 no browser"
+        err "      try_files ausente ou root incorreto no vhost de ${DOMAIN}"
+    fi
+done
+rm -f /tmp/deep_smoke.html
+
 # Garante também que POST na mesma rota é roteado para webhook (não SPA)
 OAUTH_POST="$(curl -s -o /dev/null -w '%{http_code}' -X POST \
     -H "Host: ${DOMAIN}" \
@@ -1316,6 +1349,20 @@ echo "                                    supabase secrets list --project-ref ${
 echo "                                  E logs:  supabase functions logs melhor-envio-oauth --project-ref ${SUPABASE_PROJECT_REF}"
 echo "    • OAuth direto OK, custom falha → Nginx não preserva query string ou rota cai em 404"
 echo "                                      Veja seção 'Vhosts conflitantes' abaixo"
+echo
+echo "  SPA fallback (404 em /admin/*, refresh, deep links, OAuth callback):"
+echo "    • Sintoma: GET /admin/configuracoes/logistica → 404 (mas / funciona)"
+echo "    • Causa:   vhost sem 'try_files \$uri \$uri/ /index.html' no location /"
+echo "               Nginx procura o arquivo físico /var/www/app/dist/admin/... e não acha"
+echo "    • Fix:     este install.sh já configura fallback em 3 camadas:"
+echo "                 1. location = /admin/configuracoes/logistica (exato, GET=SPA / POST=webhook)"
+echo "                 2. location ^~ /admin/                       (todas as rotas admin)"
+echo "                 3. location /                                (catch-all SPA)"
+echo "    • Teste:   curl -I 'https://${DOMAIN}/admin/configuracoes/logistica?code=test'"
+echo "               Esperado: HTTP/2 200 + Content-Type text/html"
+echo "    • Validar: sudo nginx -T | grep -A3 'try_files'"
+echo "               sudo tail -n 20 /var/log/nginx/error.log   (procurar 'No such file')"
+echo "    • Lembrete: NÃO é problema de DNS, SSL ou Supabase — é fallback SPA do Nginx"
 echo
 echo "  Infra (Nginx, SSL, DNS, firewall):"
 echo "    • SSL falhou        → sudo certbot certificates  /  tail -n 100 /var/log/letsencrypt/letsencrypt.log"
