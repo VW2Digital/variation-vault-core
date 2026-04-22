@@ -75,7 +75,7 @@ async function sendPaymentNotification(supabase: any, data: NotificationData) {
     .select('key, value')
     .in('key', [
       'evolution_api_url', 'evolution_api_key', 'evolution_instance_name',
-      'whatsapp_number', 'resend_api_key', 'resend_from_email',
+      'whatsapp_number',
       'notify_customer_on_payment',
     ]);
 
@@ -166,99 +166,52 @@ async function sendPaymentNotification(supabase: any, data: NotificationData) {
     }
   }
 
-  // ── Email ──
-  const resendKey = cfg['resend_api_key'] || Deno.env.get('RESEND_API_KEY');
-  const configuredFrom = cfg['resend_from_email'] || '';
-  const PUBLIC_DOMAINS = ['gmail.com','googlemail.com','hotmail.com','outlook.com','live.com','yahoo.com','yahoo.com.br','icloud.com','msn.com','bol.com.br','uol.com.br','terra.com.br'];
-  const fromDomain = configuredFrom.split('@')[1]?.toLowerCase() || '';
-  const isPublicDomain = PUBLIC_DOMAINS.includes(fromDomain);
-  // Resend bloqueia envios usando domínios públicos (gmail/hotmail/etc).
-  // Fallback: usa onboarding@resend.dev e mantém reply_to no email do admin.
-  const fromEmail = isPublicDomain || !configuredFrom ? 'onboarding@resend.dev' : configuredFrom;
-  const replyToEmail = configuredFrom && configuredFrom.includes('@') ? configuredFrom : undefined;
-  if (isPublicDomain) {
-    console.warn(`[Pagar.me Webhook] resend_from_email (${configuredFrom}) usa domínio público — usando fallback onboarding@resend.dev. Configure um domínio verificado no Resend para usar seu próprio email.`);
-  }
-
-  if (resendKey && fromEmail) {
+  // ── Email notification (delegated to send-email / SMTP Hostinger) ──
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  const adminEmail = cfg['admin_notification_email'] || cfg['smtp_from_email'] || '';
+  const callSendEmail = async (to: string, subject: string, isAdmin: boolean) => {
+    if (!supabaseUrl || !serviceRoleKey || !to) return;
     try {
-      const adminHtml = `
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-          <h2 style="color:${isApproved ? '#38a169' : '#e53e3e'};">${statusEmoji} Pagamento ${statusLabel} (Pagar.me)</h2>
-          <table style="width:100%;border-collapse:collapse;">
-            <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Cliente</td><td style="padding:8px;border-bottom:1px solid #eee;">${data.customerName || 'N/A'}</td></tr>
-            <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Email</td><td style="padding:8px;border-bottom:1px solid #eee;">${data.customerEmail || 'N/A'}</td></tr>
-            <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Telefone</td><td style="padding:8px;border-bottom:1px solid #eee;">${data.customerPhone || 'N/A'}</td></tr>
-            <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Produto</td><td style="padding:8px;border-bottom:1px solid #eee;">${data.productName || 'N/A'}</td></tr>
-            <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Valor</td><td style="padding:8px;border-bottom:1px solid #eee;">${valueFormatted}</td></tr>
-            <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Método</td><td style="padding:8px;border-bottom:1px solid #eee;">${method}</td></tr>
-            <tr><td style="padding:8px;font-weight:bold;">Pedido</td><td style="padding:8px;">${data.orderId}</td></tr>
-          </table>
-          <p style="color:#666;font-size:12px;margin-top:16px;">Horário: ${now}</p>
-        </div>
-      `;
-
-      const res = await fetch('https://api.resend.com/emails', {
+      const r = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendKey}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceRoleKey}` },
         body: JSON.stringify({
-          from: `Liberty Pharma <${fromEmail}>`,
-          to: [replyToEmail || fromEmail],
-          ...(replyToEmail ? { reply_to: replyToEmail } : {}),
-          subject: `${statusEmoji} Pagamento ${statusLabel} (Pagar.me) - ${data.customerName || 'Cliente'} - ${valueFormatted}`,
-          html: adminHtml,
+          template: isAdmin ? 'admin_notification' : (isApproved ? 'order_paid' : 'payment_failure'),
+          to,
+          subject,
+          data: isAdmin ? {
+            event: `Pagamento ${statusLabel}`,
+            message: `Atualização de pagamento (após análise) — pedido ${data.orderId}`,
+            details: {
+              cliente: data.customerName, email: data.customerEmail, telefone: data.customerPhone,
+              produto: data.productName, valor: valueFormatted, metodo: method,
+              pedido: data.orderId, horario: now,
+            },
+          } : {
+            customer_name: data.customerName, order_id: data.orderId,
+            product_name: data.productName, total_value: data.totalValue,
+            payment_method: method,
+            error_message: isApproved ? undefined : 'Pagamento não aprovado pela operadora.',
+          },
         }),
       });
-      const adminBody = await res.text();
-      console.log(`[Pagar.me Webhook] Admin email: ${res.ok ? 'sent' : `error:${res.status} body:${adminBody.slice(0,300)}`}`);
+      console.log(`[Pagar.me Webhook] send-email ${isAdmin ? 'admin' : 'customer'}: ${r.status}`);
     } catch (e: any) {
-      console.error(`[Pagar.me Webhook] Admin email error: ${e.message}`);
+      console.error(`[Pagar.me Webhook] send-email error: ${e.message}`);
     }
+  };
 
-    if (notifyCustomer && data.customerEmail) {
-      try {
-        const customerHtml = isApproved
-          ? `
-            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-              <h2 style="color:#38a169;">✅ Pagamento Aprovado!</h2>
-              <p>Olá ${data.customerName?.split(' ')[0] || 'Cliente'},</p>
-              <p>Seu pagamento de <strong>${valueFormatted}</strong> para o pedido <strong>"${data.productName}"</strong> foi <strong>aprovado</strong>!</p>
-              <p>Agora vamos preparar seu pedido para envio. Você receberá o código de rastreio em breve.</p>
-              <p>Obrigado por comprar conosco! 💚</p>
-            </div>
-          `
-          : `
-            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-              <h2 style="color:#e53e3e;">Pagamento Não Aprovado</h2>
-              <p>Olá ${data.customerName?.split(' ')[0] || 'Cliente'},</p>
-              <p>Infelizmente, seu pagamento de <strong>${valueFormatted}</strong> para <strong>"${data.productName}"</strong> não foi aprovado pela operadora do cartão.</p>
-              <p>Você pode tentar novamente com outro cartão ou pagar via PIX para aprovação imediata.</p>
-              <p>Se precisar de ajuda, estamos à disposição!</p>
-            </div>
-          `;
-
-        const res = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendKey}` },
-          body: JSON.stringify({
-            from: `Liberty Pharma <${fromEmail}>`,
-            to: [data.customerEmail],
-            ...(replyToEmail ? { reply_to: replyToEmail } : {}),
-            subject: isApproved
-              ? `✅ Pagamento Aprovado - ${data.productName}`
-              : `Pagamento Não Aprovado - ${data.productName}`,
-            html: customerHtml,
-          }),
-        });
-        const custBody = await res.text();
-        console.log(`[Pagar.me Webhook] Customer email: ${res.ok ? 'sent' : `error:${res.status} body:${custBody.slice(0,300)}`}`);
-      } catch (e: any) {
-        console.error(`[Pagar.me Webhook] Customer email error: ${e.message}`);
-      }
-    }
+  if (adminEmail) {
+    await callSendEmail(adminEmail, `Pagamento ${statusLabel} - ${data.customerName || 'Cliente'} - ${valueFormatted}`, true);
   }
-
-  console.log(`[Pagar.me Webhook] Notifications sent for ${data.orderId}: ${statusLabel}`);
+  if (notifyCustomer && data.customerEmail) {
+    await callSendEmail(
+      data.customerEmail,
+      isApproved ? `Pagamento Aprovado - ${data.productName}` : `Pagamento Não Aprovado - ${data.productName}`,
+      false,
+    );
+  }
 }
 
 serve(async (req) => {

@@ -208,7 +208,7 @@ serve(async (req) => {
             .select('key, value')
             .in('key', [
               'evolution_api_url', 'evolution_api_key', 'evolution_instance_name',
-              'whatsapp_number', 'resend_api_key', 'resend_from_email',
+              'whatsapp_number',
               'notify_customer_on_payment',
             ]);
 
@@ -270,49 +270,30 @@ serve(async (req) => {
             }
           }
 
-          // Email to customer
-          const resendKey = cfg['resend_api_key'] || Deno.env.get('RESEND_API_KEY');
-          const configuredFrom = cfg['resend_from_email'] || '';
-          const PUBLIC_DOMAINS = ['gmail.com','googlemail.com','hotmail.com','outlook.com','live.com','yahoo.com','yahoo.com.br','icloud.com','msn.com','bol.com.br','uol.com.br','terra.com.br'];
-          const fromDomain = configuredFrom.split('@')[1]?.toLowerCase() || '';
-          const isPublicDomain = PUBLIC_DOMAINS.includes(fromDomain);
-          // Resend bloqueia envios usando domínios públicos. Fallback: onboarding@resend.dev + reply_to admin.
-          const fromEmail = isPublicDomain || !configuredFrom ? 'onboarding@resend.dev' : configuredFrom;
-          const replyToEmail = configuredFrom && configuredFrom.includes('@') ? configuredFrom : undefined;
-          if (isPublicDomain) {
-            console.warn(`[Asaas Webhook] resend_from_email (${configuredFrom}) usa domínio público — usando fallback onboarding@resend.dev.`);
-          }
-          if (notifyCustomer && resendKey && fromEmail && orderForNotif.customer_email) {
-            const customerHtml = isApproved
-              ? `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-                  <h2 style="color:#38a169;">✅ Pagamento Aprovado!</h2>
-                  <p>Olá ${firstName},</p>
-                  <p>Seu pagamento de <strong>${valueFormatted}</strong> para <strong>"${orderForNotif.product_name}"</strong> foi <strong>aprovado</strong>!</p>
-                  <p>Agora vamos preparar seu pedido para envio. Você receberá o código de rastreio em breve.</p>
-                  <p>Obrigado por comprar conosco! 💚</p>
-                </div>`
-              : `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-                  <h2 style="color:#e53e3e;">Pagamento Não Aprovado</h2>
-                  <p>Olá ${firstName},</p>
-                  <p>Infelizmente, seu pagamento de <strong>${valueFormatted}</strong> para <strong>"${orderForNotif.product_name}"</strong> não foi aprovado.</p>
-                  <p>Você pode tentar novamente com outro cartão ou pagar via PIX para aprovação imediata.</p>
-                </div>`;
+          // Email to customer (delegated to send-email / SMTP Hostinger)
+          const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+          const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+          if (notifyCustomer && supabaseUrl && serviceRoleKey && orderForNotif.customer_email) {
             try {
-              const eRes = await fetch('https://api.resend.com/emails', {
+              const eRes = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendKey}` },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceRoleKey}` },
                 body: JSON.stringify({
-                  from: `Liberty Pharma <${fromEmail}>`,
-                  to: [orderForNotif.customer_email],
-                  ...(replyToEmail ? { reply_to: replyToEmail } : {}),
+                  template: isApproved ? 'order_paid' : 'payment_failure',
+                  to: orderForNotif.customer_email,
                   subject: isApproved
-                    ? `✅ Pagamento Aprovado - ${orderForNotif.product_name}`
+                    ? `Pagamento Aprovado - ${orderForNotif.product_name}`
                     : `Pagamento Não Aprovado - ${orderForNotif.product_name}`,
-                  html: customerHtml,
+                  data: {
+                    customer_name: orderForNotif.customer_name,
+                    order_id: orderForNotif.id,
+                    product_name: orderForNotif.product_name,
+                    total_value: orderForNotif.total_value,
+                    error_message: isApproved ? undefined : 'Pagamento não aprovado.',
+                  },
                 }),
               });
-              const eBody = await eRes.text();
-              console.log(`[Asaas Webhook] Customer email: ${eRes.ok ? 'sent' : `error:${eRes.status} body:${eBody.slice(0,300)}`}`);
+              console.log(`[Asaas Webhook] Customer email: ${eRes.status}`);
             } catch (e: any) {
               console.error(`[Webhook] Customer email error: ${e.message}`);
             }
