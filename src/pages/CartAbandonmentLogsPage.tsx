@@ -76,10 +76,11 @@ export default function CartAbandonmentLogsPage() {
         const { data: usersData } = await supabase.functions.invoke('admin-users', {
           method: 'GET',
         });
-        if (usersData?.users) {
-          for (const u of usersData.users) {
-            userEmails[u.id] = u.email || '';
-          }
+        const usersList = Array.isArray(usersData)
+          ? usersData
+          : (usersData?.users ?? []);
+        for (const u of usersList) {
+          if (u?.id) userEmails[u.id] = u.email || '';
         }
       } catch {
         // fallback
