@@ -1181,29 +1181,43 @@ case "$OAUTH_POST" in
 esac
 rm -f /tmp/oauth_smoke.html
 
-# ---------- Firewall (UFW) — libera 80/443 para webhooks externos ----------
+# ---------- Firewall (UFW) — libera HTTP/HTTPS + SMTP outbound ---------------
+# INBOUND  : 22 (SSH), 80 (HTTP/Certbot), 443 (HTTPS público)
+# OUTBOUND : 443 (Nginx → Supabase, evita 502), 53 (DNS),
+#            465 (SMTPS/SSL), 587 (SMTP/STARTTLS), 25 (SMTP relay legado)
+# Sem 465/587 outbound, a Edge Function `send-email` falha silenciosamente
+# (timeout no provider SMTP) e cai no fallback Resend.
 if command -v ufw >/dev/null 2>&1; then
-    info "Configurando firewall (UFW) — liberando 22, 80, 443 (inbound) e 443 (outbound)..."
+    info "Configurando firewall (UFW) — inbound 22/80/443 + outbound 443/53/SMTP..."
     ufw allow OpenSSH >/dev/null 2>&1 || ufw allow 22/tcp >/dev/null 2>&1 || true
     ufw allow 80/tcp  >/dev/null 2>&1 || true
     ufw allow 443/tcp >/dev/null 2>&1 || true
+
     # OUTBOUND HTTPS — crítico para Nginx → Supabase (evita 502 Bad Gateway).
     # Sem isso, /api/admin-users e webhooks via proxy retornam 502 em runtime.
     ufw allow out 443/tcp >/dev/null 2>&1 || true
     ufw allow out 53      >/dev/null 2>&1 || true   # DNS outbound
+
+    # OUTBOUND SMTP — necessário para a Edge Function `send-email` falar com
+    # Hostinger / Gmail / SES / Mailgun. Idempotente.
+    ufw allow out 465/tcp >/dev/null 2>&1 || true   # SMTPS (SSL/TLS direto)
+    ufw allow out 587/tcp >/dev/null 2>&1 || true   # SMTP submission (STARTTLS)
+    ufw allow out 25/tcp  >/dev/null 2>&1 || true   # SMTP relay (legado)
+
     UFW_STATUS="$(ufw status | head -n1 || true)"
     if [[ "$UFW_STATUS" != *"active"* ]]; then
         info "UFW está inativo — não vamos forçar enable para evitar derrubar a sessão SSH."
         info "Para ativar manualmente depois: sudo ufw enable"
     else
-        ok "Firewall UFW: 80/443 inbound + 443 outbound liberados"
+        ok "Firewall UFW: 80/443 inbound + 443/53/465/587/25 outbound liberados"
     fi
 else
     info "UFW não instalado — pulando configuração de firewall."
     info "Se sua VPS usar outro firewall (cloud provider, iptables), libere:"
-    info "   • INBOUND  TCP 80, 443  (público)"
-    info "   • OUTBOUND TCP 443      (Nginx → Supabase Edge Functions)"
-    info "   • OUTBOUND UDP 53       (DNS)"
+    info "   • INBOUND  TCP 80, 443        (público)"
+    info "   • OUTBOUND TCP 443            (Nginx → Supabase Edge Functions)"
+    info "   • OUTBOUND TCP 465, 587, 25   (SMTP — envio de e-mails)"
+    info "   • OUTBOUND UDP 53             (DNS)"
 fi
 
 # ---------- Smoke test do proxy /api/* no domínio principal ----------
