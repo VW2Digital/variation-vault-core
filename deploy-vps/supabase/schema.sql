@@ -2,7 +2,8 @@
 -- LIBERTY PHARMA — SCHEMA COMPLETO + REALTIME
 -- Cole no SQL Editor de qualquer Supabase.com novo e clique RUN
 -- 100% idempotente — pode rodar várias vezes sem erro
--- Atualizado: inclui product_upsells, products.active e demais melhorias recentes
+-- Atualizado: inclui product_upsells, products.active, webhook_logs,
+--             contact_preferences, email_send_log, api_idempotency_keys
 -- =============================================================================
 
 -- EXTENSIONS
@@ -225,6 +226,59 @@ CREATE TABLE IF NOT EXISTS public.shipping_logs (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- Logs centralizados de webhooks de gateways (Asaas, MP, Pagar.me, PagBank, Melhor Envio)
+CREATE TABLE IF NOT EXISTS public.webhook_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  gateway text NOT NULL,
+  event_type text,
+  external_id text,
+  order_id uuid REFERENCES public.orders(id) ON DELETE SET NULL,
+  http_status integer NOT NULL DEFAULT 200,
+  latency_ms integer,
+  signature_valid boolean,
+  signature_error text,
+  error_message text,
+  request_headers jsonb,
+  request_payload jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Idempotência da REST orders-api (24h padrão)
+CREATE TABLE IF NOT EXISTS public.api_idempotency_keys (
+  key text PRIMARY KEY,
+  route text NOT NULL,
+  request_hash text NOT NULL,
+  response_status integer NOT NULL,
+  response_body jsonb NOT NULL,
+  order_id uuid,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL DEFAULT (now() + interval '24 hours')
+);
+
+-- Preferências de contato (email/whatsapp marketing)
+CREATE TABLE IF NOT EXISTS public.contact_preferences (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL UNIQUE,
+  allow_email_marketing boolean NOT NULL DEFAULT true,
+  allow_whatsapp_marketing boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Histórico de envio de e-mails transacionais (send-email Edge Function)
+CREATE TABLE IF NOT EXISTS public.email_send_log (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  template_name text NOT NULL,
+  recipient_email text NOT NULL,
+  subject text,
+  status text NOT NULL DEFAULT 'pending',
+  message_id text,
+  error_message text,
+  provider_response jsonb,
+  metadata jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS public.cart_abandonment_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -362,8 +416,8 @@ END $$;
 -- =============================================================================
 DO $$ DECLARE t text;
 BEGIN
-  FOR t IN VALUES ('addresses'),('banner_slides'),('cart_items'),('coupons'),
-                  ('orders'),('payment_links'),('popups'),('products'),
+  FOR t IN VALUES ('addresses'),('banner_slides'),('cart_items'),('contact_preferences'),
+                  ('coupons'),('orders'),('payment_links'),('popups'),('products'),
                   ('profiles'),('site_settings'),('support_tickets')
   LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS update_%I_updated_at ON public.%I;', t, t);
@@ -400,17 +454,26 @@ CREATE INDEX IF NOT EXISTS idx_shipping_logs_order_id     ON public.shipping_log
 CREATE INDEX IF NOT EXISTS idx_payment_logs_order_id      ON public.payment_logs (order_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_user_id            ON public.reviews (user_id);
 CREATE INDEX IF NOT EXISTS idx_user_roles_user_id         ON public.user_roles (user_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_gateway       ON public.webhook_logs (gateway);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_created_at    ON public.webhook_logs (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_order_id      ON public.webhook_logs (order_id);
+CREATE INDEX IF NOT EXISTS idx_email_send_log_created_at  ON public.email_send_log (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_email_send_log_recipient   ON public.email_send_log (recipient_email);
+CREATE INDEX IF NOT EXISTS idx_api_idempotency_expires    ON public.api_idempotency_keys (expires_at);
 
 -- =============================================================================
 -- ROW LEVEL SECURITY
 -- =============================================================================
 ALTER TABLE public.addresses             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.api_idempotency_keys  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.banner_slides         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.banners               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cart_abandonment_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cart_items            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.contact_preferences   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coupon_products       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coupons               ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.email_send_log        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders                ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payment_links         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payment_logs          ENABLE ROW LEVEL SECURITY;
@@ -426,6 +489,7 @@ ALTER TABLE public.support_messages      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.support_tickets       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_roles            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.video_testimonials    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.webhook_logs          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.wholesale_prices      ENABLE ROW LEVEL SECURITY;
 
 -- LIMPA TODAS AS POLICIES EXISTENTES (idempotência)
@@ -483,6 +547,12 @@ CREATE POLICY "Users can insert their own cart items" ON public.cart_items FOR I
 CREATE POLICY "Users can update their own cart items" ON public.cart_items FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete their own cart items" ON public.cart_items FOR DELETE USING (auth.uid() = user_id);
 
+-- Contact Preferences
+CREATE POLICY "Users view own contact preferences" ON public.contact_preferences FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users insert own contact preferences" ON public.contact_preferences FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users update own contact preferences" ON public.contact_preferences FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Admins view all contact preferences" ON public.contact_preferences FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'admin'));
+
 CREATE POLICY "Anyone can insert orders" ON public.orders FOR INSERT WITH CHECK (true);
 CREATE POLICY "Authenticated users can view orders" ON public.orders FOR SELECT USING (true);
 CREATE POLICY "Customers can view their own orders" ON public.orders FOR SELECT USING (auth.uid() = customer_user_id);
@@ -504,6 +574,17 @@ CREATE POLICY "Admins can delete payment logs" ON public.payment_logs FOR DELETE
 
 CREATE POLICY "Authenticated users can view shipping logs" ON public.shipping_logs FOR SELECT USING (true);
 CREATE POLICY "Service role can insert shipping logs" ON public.shipping_logs FOR INSERT WITH CHECK (true);
+
+-- Webhook Logs (somente admins; service role bypassa RLS por padrão)
+CREATE POLICY "Admins can view webhook logs" ON public.webhook_logs FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'admin'));
+CREATE POLICY "Admins can delete webhook logs" ON public.webhook_logs FOR DELETE TO authenticated USING (public.has_role(auth.uid(),'admin'));
+
+-- Email send log (admins only — service role insere)
+CREATE POLICY "Admins can view email send log" ON public.email_send_log FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'admin'));
+CREATE POLICY "Admins can delete email send log" ON public.email_send_log FOR DELETE TO authenticated USING (public.has_role(auth.uid(),'admin'));
+
+-- API idempotency keys (admins read-only — service role gerencia)
+CREATE POLICY "Admins can view idempotency keys" ON public.api_idempotency_keys FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'admin'));
 
 CREATE POLICY "Service role full access" ON public.cart_abandonment_logs FOR ALL USING (true) WITH CHECK (true);
 
@@ -588,13 +669,15 @@ ALTER TABLE public.product_variations REPLICA IDENTITY FULL;
 ALTER TABLE public.product_upsells    REPLICA IDENTITY FULL;
 ALTER TABLE public.site_settings      REPLICA IDENTITY FULL;
 ALTER TABLE public.reviews            REPLICA IDENTITY FULL;
+ALTER TABLE public.webhook_logs       REPLICA IDENTITY FULL;
+ALTER TABLE public.email_send_log     REPLICA IDENTITY FULL;
 
 DO $$
 DECLARE
   t text;
   tables text[] := ARRAY['orders','cart_items','support_tickets','support_messages',
                          'payment_logs','products','product_variations','product_upsells',
-                         'site_settings','reviews'];
+                         'site_settings','reviews','webhook_logs','email_send_log'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     IF NOT EXISTS (
@@ -605,39 +688,3 @@ BEGIN
     END IF;
   END LOOP;
 END $$;
-
--- =============================================================================
--- TABLE: webhook_logs (logs estruturados dos webhooks de gateway)
--- =============================================================================
-CREATE TABLE IF NOT EXISTS public.webhook_logs (
-  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  gateway         text NOT NULL,
-  event_type      text,
-  external_id     text,
-  order_id        uuid,
-  http_status     integer NOT NULL DEFAULT 200,
-  latency_ms      integer,
-  signature_valid boolean,
-  signature_error text,
-  error_message   text,
-  request_headers jsonb,
-  request_payload jsonb,
-  created_at      timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_webhook_logs_created_at ON public.webhook_logs (created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_webhook_logs_gateway    ON public.webhook_logs (gateway);
-CREATE INDEX IF NOT EXISTS idx_webhook_logs_order_id   ON public.webhook_logs (order_id);
-
-ALTER TABLE public.webhook_logs ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Admins can view webhook logs"   ON public.webhook_logs;
-DROP POLICY IF EXISTS "Admins can delete webhook logs" ON public.webhook_logs;
-
-CREATE POLICY "Admins can view webhook logs"
-  ON public.webhook_logs FOR SELECT TO authenticated
-  USING (public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Admins can delete webhook logs"
-  ON public.webhook_logs FOR DELETE TO authenticated
-  USING (public.has_role(auth.uid(), 'admin'));
