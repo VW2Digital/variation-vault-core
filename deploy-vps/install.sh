@@ -806,6 +806,32 @@ if [[ "${DEPLOY_EDGE_FUNCTIONS:-0}" -eq 1 ]]; then
         FN_LIST_OUT="$(supabase functions list --project-ref "$SUPABASE_PROJECT_REF" 2>&1 || true)"
         echo "$FN_LIST_OUT" | head -n 50
 
+        # Backup: lista funções via Management API (mais confiável que a CLI).
+        info "Confirmando via Management API (api.supabase.com)..."
+        PUBLISHED_JSON="$(curl -fsSL \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/functions" 2>/dev/null || echo '[]')"
+        PUBLISHED_NAMES="$(echo "$PUBLISHED_JSON" | jq -r '.[].slug // .[].name // empty' 2>/dev/null | sort -u)"
+        PUBLISHED_COUNT="$(echo "$PUBLISHED_NAMES" | grep -c . || echo 0)"
+        info "Functions publicadas no projeto ($PUBLISHED_COUNT):"
+        echo "$PUBLISHED_NAMES" | sed 's/^/    - /'
+
+        # Detecta cenário "apenas healthz publicada" — sinal de deploy incompleto.
+        if [[ "$PUBLISHED_COUNT" -le 1 ]] && echo "$PUBLISHED_NAMES" | grep -qx 'healthz'; then
+            err "ATENÇÃO: apenas a função 'healthz' está publicada — deploy real falhou."
+            err "Webhooks externos (Stripe, n8n, gateways) NÃO funcionarão."
+            err "Tente manualmente: cd $APP_DIR && supabase functions deploy <nome> --project-ref ${SUPABASE_PROJECT_REF}"
+        fi
+
+        # Confirma que cada função do repo está realmente publicada
+        for FN in "${ALL_FNS[@]}"; do
+            if echo "$PUBLISHED_NAMES" | grep -qx "$FN"; then
+                ok "  ✓ publicada: $FN"
+            else
+                err "  ✗ NÃO publicada: $FN  (rode: supabase functions deploy $FN --project-ref $SUPABASE_PROJECT_REF)"
+            fi
+        done
+
         echo
         info "Healthcheck HTTP de cada função (espera 2xx, 401 ou 405 — indica que está LIVE)..."
         for FN in "${DEPLOYED_FUNCTIONS[@]}"; do
