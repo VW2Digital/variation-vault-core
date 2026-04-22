@@ -16,9 +16,16 @@ const SettingsCommunication = () => {
   const [saving, setSaving] = useState(false);
 
   const [whatsapp, setWhatsapp] = useState('');
-  const [resendApiKey, setResendApiKey] = useState('');
-  const [resendFromEmail, setResendFromEmail] = useState('');
-  const [showResendKey, setShowResendKey] = useState(false);
+
+  // SMTP Hostinger (envio de e-mails)
+  const [smtpHost, setSmtpHost] = useState('');
+  const [smtpPort, setSmtpPort] = useState('465');
+  const [smtpUser, setSmtpUser] = useState('');
+  const [smtpPass, setSmtpPass] = useState('');
+  const [smtpFromEmail, setSmtpFromEmail] = useState('');
+  const [smtpFromName, setSmtpFromName] = useState('');
+  const [smtpSecure, setSmtpSecure] = useState(true);
+  const [showSmtpPass, setShowSmtpPass] = useState(false);
 
   // Teste de envio de email
   const [testEmailTo, setTestEmailTo] = useState('');
@@ -27,7 +34,7 @@ const SettingsCommunication = () => {
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
 
   const PUBLIC_EMAIL_DOMAINS = ['gmail.com','googlemail.com','hotmail.com','outlook.com','live.com','yahoo.com','yahoo.com.br','icloud.com','msn.com','bol.com.br','uol.com.br','terra.com.br'];
-  const fromDomain = resendFromEmail.split('@')[1]?.toLowerCase() || '';
+  const fromDomain = smtpFromEmail.split('@')[1]?.toLowerCase() || '';
   const isPublicEmailDomain = PUBLIC_EMAIL_DOMAINS.includes(fromDomain);
 
   // Evolution API
@@ -45,16 +52,26 @@ const SettingsCommunication = () => {
   useEffect(() => {
     Promise.all([
       fetchSetting('whatsapp_number'),
-      fetchSetting('resend_api_key'),
-      fetchSetting('resend_from_email'),
+      fetchSetting('smtp_host'),
+      fetchSetting('smtp_port'),
+      fetchSetting('smtp_user'),
+      fetchSetting('smtp_pass'),
+      fetchSetting('smtp_from_email'),
+      fetchSetting('smtp_from_name'),
+      fetchSetting('smtp_secure'),
       fetchSetting('evolution_api_url'),
       fetchSetting('evolution_api_key'),
       fetchSetting('evolution_instance_name'),
       fetchSetting('notify_customer_on_payment'),
-    ]).then(([wp, rKey, rFrom, evoUrl, evoKey, evoInstance, notifyFlag]) => {
+    ]).then(([wp, sHost, sPort, sUser, sPass, sFrom, sFromName, sSecure, evoUrl, evoKey, evoInstance, notifyFlag]) => {
       setWhatsapp(wp || '');
-      setResendApiKey(rKey || '');
-      setResendFromEmail(rFrom || 'onboarding@resend.dev');
+      setSmtpHost(sHost || 'smtp.hostinger.com');
+      setSmtpPort(sPort || '465');
+      setSmtpUser(sUser || '');
+      setSmtpPass(sPass || '');
+      setSmtpFromEmail(sFrom || '');
+      setSmtpFromName(sFromName || '');
+      setSmtpSecure(sSecure ? sSecure !== 'false' : true);
       setEvolutionApiUrl(evoUrl || '');
       setEvolutionApiKey(evoKey || '');
       setEvolutionInstanceName(evoInstance || '');
@@ -70,8 +87,13 @@ const SettingsCommunication = () => {
       const uid = user.id;
       await Promise.all([
         upsertSetting('whatsapp_number', whatsapp, uid),
-        upsertSetting('resend_api_key', resendApiKey, uid),
-        upsertSetting('resend_from_email', resendFromEmail, uid),
+        upsertSetting('smtp_host', smtpHost, uid),
+        upsertSetting('smtp_port', smtpPort, uid),
+        upsertSetting('smtp_user', smtpUser, uid),
+        upsertSetting('smtp_pass', smtpPass, uid),
+        upsertSetting('smtp_from_email', smtpFromEmail, uid),
+        upsertSetting('smtp_from_name', smtpFromName, uid),
+        upsertSetting('smtp_secure', smtpSecure ? 'true' : 'false', uid),
         upsertSetting('evolution_api_url', evolutionApiUrl, uid),
         upsertSetting('evolution_api_key', evolutionApiKey, uid),
         upsertSetting('evolution_instance_name', evolutionInstanceName, uid),
