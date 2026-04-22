@@ -303,6 +303,10 @@ const EmailLogsPage = () => {
               <SelectItem value="all">Todos os status</SelectItem>
               <SelectItem value="sent">Enviado</SelectItem>
               <SelectItem value="failed">Falhou</SelectItem>
+              <SelectItem value="dlq">DLQ (falhou após retry)</SelectItem>
+              <SelectItem value="suppressed">Suprimido</SelectItem>
+              <SelectItem value="bounced">Devolvido (bounce)</SelectItem>
+              <SelectItem value="complained">Reclamação (spam)</SelectItem>
               <SelectItem value="pending">Pendente</SelectItem>
             </SelectContent>
           </Select>
