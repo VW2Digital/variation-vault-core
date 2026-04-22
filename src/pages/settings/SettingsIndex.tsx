@@ -48,7 +48,7 @@ const categories = [
     label: 'COMUNICAÇÃO',
     icon: MessageSquare,
     items: [
-      { title: 'WhatsApp, Email & Mensagens', description: 'WhatsApp, Evolution API e Resend', icon: MessageSquare, path: 'comunicacao' },
+      { title: 'WhatsApp, Email & Mensagens', description: 'WhatsApp, Evolution API e SMTP Hostinger', icon: MessageSquare, path: 'comunicacao' },
     ],
   },
   {
