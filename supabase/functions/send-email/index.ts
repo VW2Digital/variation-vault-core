@@ -340,84 +340,149 @@ serve(async (req) => {
     }
 
     const sendStart = Date.now();
-    const sendVia = async (fromAddress: string) =>
-      fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: `${storeName} <${fromAddress}>`,
-        to: recipients,
-        ...(replyTo ? { reply_to: replyTo } : {}),
-        subject: rendered.subject,
-        html: rendered.html,
-      }),
-    });
 
-    let res = await sendVia(fromEmail);
-    let resBody: any = await res.json().catch(() => ({}));
+    // ── 1) Tenta SMTP customizado (Hostinger por padrão) ──────────────────────
+    let providerUsed: "smtp" | "resend" | "none" = "none";
+    let messageId: string | null = null;
     let usedFrom = fromEmail;
     let autoFallback = false;
+    let providerStatus = 0;
+    let providerErr: string | null = null;
+    let providerRaw: any = null;
 
-    // Auto-fallback when configured domain is not verified on Resend.
-    if (
-      !res.ok &&
-      res.status === 403 &&
-      fromEmail !== "onboarding@resend.dev" &&
-      typeof resBody?.message === "string" &&
-      /domain is not verified/i.test(resBody.message)
-    ) {
-      console.warn(
-        `send-email: ${fromEmail} not verified on Resend, retrying with onboarding@resend.dev`,
-      );
-      res = await sendVia("onboarding@resend.dev");
-      resBody = await res.json().catch(() => ({}));
-      usedFrom = "onboarding@resend.dev";
-      autoFallback = true;
-    }
+    const trySmtp = async (): Promise<boolean> => {
+      if (!hasSmtp) return false;
+      // Decide TLS por porta + override explícito (smtp_secure="ssl"|"tls").
+      // Hostinger: 465 = SSL implícito; 587 = STARTTLS.
+      const useSsl = smtpSecure === "ssl" || smtpPort === 465;
+      const client = new SMTPClient({
+        connection: {
+          hostname: smtpHost,
+          port: smtpPort,
+          tls: useSsl,
+          auth: { username: smtpUser, password: smtpPass },
+        },
+        // Reduz risco de loops longos em Edge Function.
+        pool: false,
+      });
+      try {
+        const fromHeader = smtpFromName
+          ? `${smtpFromName} <${smtpFromEmail || smtpUser}>`
+          : `${storeName} <${smtpFromEmail || smtpUser}>`;
+        await client.send({
+          from: fromHeader,
+          to: recipients,
+          replyTo: replyTo,
+          subject: rendered.subject,
+          content: "auto",
+          html: rendered.html,
+        });
+        await client.close();
+        providerUsed = "smtp";
+        usedFrom = smtpFromEmail || smtpUser;
+        providerStatus = 250; // SMTP OK
+        // SMTP padrão não retorna message_id estruturado; gera um sintético.
+        messageId = `smtp-${crypto.randomUUID()}`;
+        return true;
+      } catch (e) {
+        providerErr = e instanceof Error ? e.message : String(e);
+        try { await client.close(); } catch (_) { /* noop */ }
+        // Mascara qualquer eco de senha em mensagem de erro.
+        if (smtpPass && providerErr) {
+          providerErr = providerErr.split(smtpPass).join("***");
+        }
+        console.warn(`send-email: SMTP falhou (${smtpHost}:${smtpPort}) — ${providerErr}`);
+        return false;
+      }
+    };
+
+    const tryResend = async (): Promise<boolean> => {
+      if (!resendApiKey) return false;
+      const sendVia = (fromAddress: string) =>
+        fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${resendApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: `${storeName} <${fromAddress}>`,
+            to: recipients,
+            ...(replyTo ? { reply_to: replyTo } : {}),
+            subject: rendered.subject,
+            html: rendered.html,
+          }),
+        });
+      let res = await sendVia(fromEmail);
+      let resBody: any = await res.json().catch(() => ({}));
+      let from = fromEmail;
+      // Auto-fallback Resend sandbox quando domínio não verificado.
+      if (
+        !res.ok &&
+        res.status === 403 &&
+        fromEmail !== "onboarding@resend.dev" &&
+        typeof resBody?.message === "string" &&
+        /domain is not verified/i.test(resBody.message)
+      ) {
+        res = await sendVia("onboarding@resend.dev");
+        resBody = await res.json().catch(() => ({}));
+        from = "onboarding@resend.dev";
+        autoFallback = true;
+      }
+      providerStatus = res.status;
+      providerRaw = resBody;
+      if (res.ok) {
+        providerUsed = "resend";
+        usedFrom = from;
+        messageId = resBody?.id ?? null;
+        return true;
+      }
+      providerErr = resBody?.message || resBody?.name || `HTTP ${res.status}`;
+      return false;
+    };
+
+    let ok = await trySmtp();
+    if (!ok) ok = await tryResend();
 
     const latency = Date.now() - sendStart;
 
     // Persist a row per recipient in email_send_log (best-effort).
     const logRows = recipients.map((r) => ({
-      message_id: resBody?.id ?? null,
+      message_id: messageId,
       template_name: body.template,
       recipient_email: r,
       subject: rendered.subject,
-      status: res.ok ? "sent" : "failed",
-      error_message: res.ok
-        ? null
-        : (resBody?.message || resBody?.name || `HTTP ${res.status}`),
-      provider_response: resBody ?? null,
+      status: ok ? "sent" : "failed",
+      error_message: ok ? null : providerErr,
+      provider_response: providerRaw,
       metadata: {
+        provider: providerUsed,
         from_used: usedFrom,
         fallback: isPublicDomain || autoFallback,
         auto_fallback: autoFallback,
         latency_ms: latency,
-        provider_status: res.status,
+        provider_status: providerStatus,
       },
     }));
     admin.from("email_send_log").insert(logRows).then(({ error }) => {
       if (error) console.error("email_send_log insert error:", error.message);
     });
 
-    if (!res.ok) {
-      // Diagnostic log WITHOUT secrets
+    if (!ok) {
       console.error(JSON.stringify({
         scope: "send-email",
         template: body.template,
         to_count: recipients.length,
+        provider: providerUsed,
         from_used: usedFrom,
-        fallback: isPublicDomain || autoFallback,
-        provider_status: res.status,
-        provider_error: resBody?.message ?? resBody?.name ?? "unknown",
+        provider_status: providerStatus,
+        provider_error: providerErr,
         latency_ms: latency,
       }));
       return json(502, {
-        error: resBody?.message || "Provedor recusou o envio",
-        provider_status: res.status,
+        error: providerErr || "Nenhum provedor conseguiu enviar",
+        provider: providerUsed,
+        provider_status: providerStatus,
       });
     }
 
@@ -425,15 +490,17 @@ serve(async (req) => {
       scope: "send-email",
       template: body.template,
       to_count: recipients.length,
+      provider: providerUsed,
       from_used: usedFrom,
       fallback: isPublicDomain || autoFallback,
       latency_ms: latency,
-      message_id: resBody?.id,
+      message_id: messageId,
     }));
 
     return json(200, {
       success: true,
-      message_id: resBody?.id,
+      provider: providerUsed,
+      message_id: messageId,
       fallback: isPublicDomain || autoFallback,
       auto_fallback: autoFallback,
     });
