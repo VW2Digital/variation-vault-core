@@ -13,8 +13,9 @@ import {
   Loader2, Package, LogOut, Truck, Clock, CheckCircle2, XCircle,
   Copy, ExternalLink, ShoppingCart, User, Search, Filter,
   TrendingUp, CreditCard, MapPin, ChevronDown, RotateCw, Save, Phone, HelpCircle,
-  Star, MessageSquare,
+  Star, MessageSquare, Mail, BellRing,
 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
 import Header from '@/components/Header';
@@ -63,6 +64,9 @@ const CustomerDashboard = () => {
   const [profilePhone, setProfilePhone] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [allowEmailMkt, setAllowEmailMkt] = useState(true);
+  const [allowWhatsAppMkt, setAllowWhatsAppMkt] = useState(true);
+  const [prefsSaving, setPrefsSaving] = useState(false);
   const [reviews, setReviews] = useState<any[]>([]);
   const [reviewingOrderId, setReviewingOrderId] = useState<string | null>(defaultReviewOrder);
   const [reviewRating, setReviewRating] = useState(5);
@@ -170,6 +174,15 @@ const CustomerDashboard = () => {
         setProfileName(data.full_name || '');
         setProfilePhone(data.phone || '');
       }
+      const { data: prefs } = await supabase
+        .from('contact_preferences')
+        .select('allow_email_marketing, allow_whatsapp_marketing')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (prefs) {
+        setAllowEmailMkt(prefs.allow_email_marketing !== false);
+        setAllowWhatsAppMkt(prefs.allow_whatsapp_marketing !== false);
+      }
     } catch (err) {
       console.error('Profile fetch error:', err);
     } finally {
@@ -194,6 +207,35 @@ const CustomerDashboard = () => {
       toast({ title: 'Erro ao salvar perfil', description: err.message, variant: 'destructive' });
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  const saveContactPreferences = async (next: { email?: boolean; whatsapp?: boolean }) => {
+    if (!user) return;
+    const prevEmail = allowEmailMkt;
+    const prevWa = allowWhatsAppMkt;
+    const newEmail = next.email ?? prevEmail;
+    const newWa = next.whatsapp ?? prevWa;
+    setAllowEmailMkt(newEmail);
+    setAllowWhatsAppMkt(newWa);
+    setPrefsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('contact_preferences')
+        .upsert({
+          user_id: user.id,
+          allow_email_marketing: newEmail,
+          allow_whatsapp_marketing: newWa,
+        }, { onConflict: 'user_id' });
+      if (error) throw error;
+      toast({ title: 'Preferências atualizadas' });
+    } catch (err: any) {
+      // Revert on failure
+      setAllowEmailMkt(prevEmail);
+      setAllowWhatsAppMkt(prevWa);
+      toast({ title: 'Erro ao salvar preferências', description: err.message, variant: 'destructive' });
+    } finally {
+      setPrefsSaving(false);
     }
   };
 
@@ -768,6 +810,53 @@ const CustomerDashboard = () => {
                         </Button>
                       </>
                     )}
+                  </CardContent>
+                </Card>
+
+                {/* Contact Preferences */}
+                <Card className="border-border/50">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <BellRing className="w-5 h-5" /> Preferências de Contato
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Escolha como você prefere receber lembretes da loja, como o aviso de itens deixados no carrinho.
+                      Mensagens essenciais sobre seus pedidos (pagamento, envio, entrega) serão enviadas mesmo se você desativar.
+                    </p>
+                    <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 p-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <Mail className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm">Email de marketing</p>
+                          <p className="text-xs text-muted-foreground break-all">{user?.email}</p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={allowEmailMkt}
+                        disabled={prefsSaving}
+                        onCheckedChange={(v) => saveContactPreferences({ email: v })}
+                        aria-label="Receber emails de marketing"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 p-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <MessageSquare className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm">WhatsApp de marketing</p>
+                          <p className="text-xs text-muted-foreground">
+                            {profilePhone || 'Cadastre um telefone para receber'}
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={allowWhatsAppMkt}
+                        disabled={prefsSaving}
+                        onCheckedChange={(v) => saveContactPreferences({ whatsapp: v })}
+                        aria-label="Receber WhatsApp de marketing"
+                      />
+                    </div>
                   </CardContent>
                 </Card>
 
