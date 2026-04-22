@@ -1255,6 +1255,9 @@ echo "    • 403 Forbidden             → função com verify_jwt=true sem JWT
 echo "    • 500 Internal              → supabase functions logs <nome> --project-ref ${SUPABASE_PROJECT_REF}"
 echo "    • 502/504 Bad Gateway       → Nginx não alcança Supabase. Teste outbound:"
 echo "                                  curl -v ${SUPABASE_URL_INPUT}/functions/v1/healthz"
+echo "                                  Se direto OK mas via Nginx 502 → firewall outbound da VPS"
+echo "                                  Se direto 404 → supabase functions deploy <nome> --project-ref ${SUPABASE_PROJECT_REF}"
+echo "                                  Cloud provider Security Group/UFW: liberar TCP 443 OUTBOUND"
 echo "    • timeout                   → firewall outbound bloqueia HTTPS para *.supabase.co"
 echo
 echo "  Infra (Nginx, SSL, DNS, firewall):"
