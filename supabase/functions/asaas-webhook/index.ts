@@ -198,6 +198,37 @@ serve(async (req) => {
         }
       }
 
+      // ── Email notification (delegated to send-email / SMTP Hostinger) ──
+      // Respects the event toggles configured in /admin/eventos-email.
+      const statusChangedNow = previousStatus !== newStatus;
+      if (statusChangedNow && (newStatus === 'PAID' || newStatus === 'REFUSED' || newStatus === 'REPROVED')) {
+        const isApproved = newStatus === 'PAID';
+        const customerEmail = orderForNotif?.customer_email || '';
+        if (customerEmail) {
+          try {
+            const r = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
+              body: JSON.stringify({
+                template: isApproved ? 'order_paid' : 'payment_failure',
+                to: customerEmail,
+                data: {
+                  customer_name: orderForNotif?.customer_name,
+                  order_id: orderForNotif?.id || payment.externalReference,
+                  product_name: orderForNotif?.product_name,
+                  total_value: orderForNotif?.total_value,
+                  payment_method: orderForNotif?.payment_method === 'credit_card' ? 'Cartão de Crédito' : 'PIX',
+                  error_message: isApproved ? undefined : 'Pagamento não aprovado pela operadora.',
+                },
+              }),
+            });
+            console.log(`[Asaas Webhook] send-email: ${r.status}`);
+          } catch (e: any) {
+            console.error(`[Asaas Webhook] send-email error: ${e?.message || e}`);
+          }
+        }
+      }
+
       // ─── SEND CUSTOMER + ADMIN NOTIFICATIONS ON STATUS CHANGE ───
       const statusChanged = previousStatus !== newStatus;
       const isTerminal = newStatus === 'PAID' || newStatus === 'REFUSED' || newStatus === 'REPROVED';

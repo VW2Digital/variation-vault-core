@@ -95,6 +95,46 @@ Deno.serve(async (req) => {
             console.error("Error updating order:", error);
           } else {
             console.log(`Order updated for shipment ${shipmentId}:`, JSON.stringify(updateData));
+
+            // ── Notify customer about shipping update (SMTP via send-email) ──
+            // Only send when the delivery_status actually changed to a meaningful state.
+            const newDelivery = updateData.delivery_status as string | undefined;
+            if (newDelivery && (newDelivery === 'SHIPPED' || newDelivery === 'DELIVERED' || newDelivery === 'RETURNED')) {
+              try {
+                const { data: order } = await supabase
+                  .from('orders')
+                  .select('id, customer_name, customer_email, tracking_code, tracking_url, delivery_status')
+                  .eq('shipment_id', shipmentId)
+                  .maybeSingle();
+                if (order?.customer_email) {
+                  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+                  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+                  const statusLabelMap: Record<string, string> = {
+                    SHIPPED: 'Pedido enviado',
+                    DELIVERED: 'Pedido entregue',
+                    RETURNED: 'Envio cancelado',
+                  };
+                  const r = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceRoleKey}` },
+                    body: JSON.stringify({
+                      template: 'shipping_update',
+                      to: order.customer_email,
+                      data: {
+                        customer_name: order.customer_name,
+                        order_id: order.id,
+                        status: statusLabelMap[newDelivery] || newDelivery,
+                        tracking_code: order.tracking_code || (updateData.tracking_code as string | undefined),
+                        tracking_url: order.tracking_url || (updateData.tracking_url as string | undefined),
+                      },
+                    }),
+                  });
+                  console.log(`[ME Webhook] shipping email: ${r.status}`);
+                }
+              } catch (e) {
+                console.error('[ME Webhook] shipping email error:', e);
+              }
+            }
           }
         }
       }

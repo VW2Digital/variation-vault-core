@@ -200,12 +200,58 @@ serve(async (req) => {
         "smtp_secure", // "ssl" (465) | "tls" (587/STARTTLS)
         "store_public_url",
         "store_name",
+        // Event toggles managed in /admin/eventos-email
+        `email_event_${body.template}_enabled`,
+        "email_admin_copy_enabled",
+        "admin_notification_email",
         // Template overrides (one row per key)
         `email_template_${body.template}_subject`,
         `email_template_${body.template}_html`,
       ]);
     const cfg: Record<string, string> = {};
     (settings || []).forEach((s: any) => (cfg[s.key] = s.value));
+
+    // ── Gating per event ───────────────────────────────────────────────
+    // The admin can disable each transactional event individually from
+    // /admin/eventos-email. Default is ENABLED (missing setting = "true").
+    // "custom" and "admin_notification" are never gated — they're internal.
+    const gatedEvents = new Set([
+      "order_created",
+      "order_paid",
+      "shipping_update",
+      "payment_failure",
+      "cart_abandonment",
+    ]);
+    if (gatedEvents.has(body.template)) {
+      const flag = (cfg[`email_event_${body.template}_enabled`] ?? "true").toLowerCase();
+      if (flag === "false" || flag === "0" || flag === "off") {
+        console.log(JSON.stringify({
+          scope: "send-email",
+          template: body.template,
+          skipped: true,
+          reason: "event_disabled_by_admin",
+        }));
+        return json(200, { success: true, skipped: true, reason: "event_disabled_by_admin" });
+      }
+    }
+
+    // ── Admin copy ─────────────────────────────────────────────────────
+    // When enabled, every customer-facing email gets an extra recipient:
+    // the configured admin notification email. Skipped for admin-only
+    // templates and "custom" sends.
+    const adminCopyEnabled =
+      (cfg["email_admin_copy_enabled"] ?? "false").toLowerCase() === "true";
+    const adminCopyEmail = (cfg["admin_notification_email"] || "").trim();
+    if (
+      adminCopyEnabled &&
+      adminCopyEmail &&
+      /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(adminCopyEmail) &&
+      body.template !== "admin_notification" &&
+      body.template !== "custom" &&
+      !recipients.includes(adminCopyEmail)
+    ) {
+      recipients.push(adminCopyEmail);
+    }
 
     // ── SMTP config (Hostinger por padrão) ─────────────────────────────────
     const smtpHost = (cfg["smtp_host"] || Deno.env.get("SMTP_HOST") || "").trim();

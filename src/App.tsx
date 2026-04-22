@@ -50,6 +50,7 @@ import CouponsPage from "./pages/CouponsPage";
 import ReportsPage from "./pages/ReportsPage";
 import EmailTemplatesPage from "./pages/EmailTemplatesPage";
 import EmailLogsPage from "./pages/EmailLogsPage";
+import EmailEventsPage from "./pages/EmailEventsPage";
 import PaymentLinkCheckout from "./pages/PaymentLinkCheckout";
 import PromoPopup from "./components/PromoPopup";
 import NotFound from "./pages/NotFound";
@@ -118,6 +119,7 @@ const App = () => (
             <Route path="relatorios" element={<ReportsPage />} />
             <Route path="templates-email" element={<EmailTemplatesPage />} />
             <Route path="logs-email" element={<EmailLogsPage />} />
+            <Route path="eventos-email" element={<EmailEventsPage />} />
             <Route path="configuracoes" element={<SettingsIndex />} />
             <Route path="configuracoes/design" element={<SettingsDesign />} />
             <Route path="configuracoes/cores" element={<SettingsColors />} />
