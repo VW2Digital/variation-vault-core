@@ -138,31 +138,63 @@ const SettingsCommunication = () => {
       </Card>
 
       <Card className="border-border/50">
-        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Mail className="w-5 h-5" /> Resend - Email de Notificação</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Mail className="w-5 h-5" /> SMTP Hostinger - Envio de E-mails</CardTitle></CardHeader>
         <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>SMTP Host</Label>
+              <Input value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} placeholder="smtp.hostinger.com" />
+            </div>
+            <div className="space-y-2">
+              <Label>Porta</Label>
+              <Input value={smtpPort} onChange={(e) => setSmtpPort(e.target.value.replace(/\D/g, ''))} placeholder="465" inputMode="numeric" />
+              <p className="text-xs text-muted-foreground">465 (SSL) ou 587 (TLS)</p>
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label>API Key do Resend</Label>
+            <Label>Usuário SMTP (e-mail completo)</Label>
+            <Input value={smtpUser} onChange={(e) => setSmtpUser(e.target.value)} placeholder="no-reply@seudominio.com" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Senha SMTP</Label>
             <div className="relative">
-              <Input type={showResendKey ? 'text' : 'password'} value={resendApiKey} onChange={(e) => setResendApiKey(e.target.value)} placeholder="re_..." className="pr-10" />
-              <button type="button" onClick={() => setShowResendKey(!showResendKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                {showResendKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              <Input type={showSmtpPass ? 'text' : 'password'} value={smtpPass} onChange={(e) => setSmtpPass(e.target.value)} placeholder="Senha da caixa de e-mail Hostinger" className="pr-10" />
+              <button type="button" onClick={() => setShowSmtpPass(!showSmtpPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                {showSmtpPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Email de envio (From)</Label>
-            <Input value={resendFromEmail} onChange={(e) => setResendFromEmail(e.target.value)} placeholder="onboarding@resend.dev" />
-            {isPublicEmailDomain && (
-              <div className="flex items-start gap-2 p-3 rounded-md border border-destructive/40 bg-destructive/10 text-destructive">
-                <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <div className="text-xs space-y-1">
-                  <p className="font-semibold">Domínio público não é aceito pelo Resend</p>
-                  <p>O Resend bloqueia envios usando endereços @{fromDomain}. Os emails serão enviados automaticamente via <code className="font-mono">onboarding@resend.dev</code> e o seu email será adicionado como <strong>Reply-To</strong>.</p>
-                  <p>Para usar seu próprio domínio (ex.: <code className="font-mono">noreply@seudominio.com.br</code>), verifique-o em <a href="https://resend.com/domains" target="_blank" rel="noreferrer" className="underline">resend.com/domains</a>.</p>
-                </div>
-              </div>
-            )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>E-mail remetente (From)</Label>
+              <Input value={smtpFromEmail} onChange={(e) => setSmtpFromEmail(e.target.value)} placeholder="no-reply@seudominio.com" />
+            </div>
+            <div className="space-y-2">
+              <Label>Nome do remetente</Label>
+              <Input value={smtpFromName} onChange={(e) => setSmtpFromName(e.target.value)} placeholder="Liberty Pharma" />
+            </div>
           </div>
+
+          <div className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/30">
+            <div className="space-y-0.5">
+              <Label className="text-sm">Conexão SSL/TLS</Label>
+              <p className="text-xs text-muted-foreground">Ative para porta 465 (SSL). Desative para 587 (STARTTLS).</p>
+            </div>
+            <Switch checked={smtpSecure} onCheckedChange={setSmtpSecure} />
+          </div>
+
+          {isPublicEmailDomain && (
+            <div className="flex items-start gap-2 p-3 rounded-md border border-destructive/40 bg-destructive/10 text-destructive">
+              <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <div className="text-xs space-y-1">
+                <p className="font-semibold">Use um e-mail de domínio próprio</p>
+                <p>Endereços @{fromDomain} (Gmail, Outlook etc.) caem em spam ou são rejeitados. Use um e-mail do seu domínio configurado na Hostinger.</p>
+              </div>
+            </div>
+          )}
 
           <div className="pt-4 border-t border-border/50">
             <p className="text-sm font-medium text-foreground mb-3">Enviar email de teste</p>
@@ -197,7 +229,7 @@ const SettingsCommunication = () => {
               type="button"
               variant="outline"
               className="mt-3 flex items-center gap-2"
-              disabled={sendingTestEmail || !testEmailTo || !resendApiKey}
+              disabled={sendingTestEmail || !testEmailTo || !smtpHost || !smtpUser || !smtpPass}
               onClick={async () => {
                 setSendingTestEmail(true);
                 try {
@@ -212,9 +244,7 @@ const SettingsCommunication = () => {
                   if (data?.error) throw new Error(data.error);
                   toast({
                     title: 'Email enviado com sucesso!',
-                    description: data?.usedFallback
-                      ? `Enviado via onboarding@resend.dev (Reply-To: ${data?.replyTo || 'n/a'}). Verifique a caixa de entrada de ${testEmailTo}.`
-                      : `Enviado de ${data?.from} para ${testEmailTo}. Verifique a caixa de entrada (e o spam).`,
+                    description: `Enviado via SMTP (${smtpHost}) para ${testEmailTo}. Verifique a caixa de entrada (e o spam).`,
                   });
                 } catch (err: any) {
                   toast({ title: 'Erro ao enviar email', description: err.message, variant: 'destructive' });
@@ -224,9 +254,9 @@ const SettingsCommunication = () => {
               {sendingTestEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               {sendingTestEmail ? 'Enviando...' : 'Enviar Email de Teste'}
             </Button>
-            {!resendApiKey && (
+            {(!smtpHost || !smtpUser || !smtpPass) && (
               <p className="text-xs text-muted-foreground mt-2">
-                Salve uma API Key do Resend antes de enviar testes.
+                Preencha host, usuário e senha SMTP e salve antes de enviar testes.
               </p>
             )}
           </div>
