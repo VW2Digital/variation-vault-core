@@ -238,6 +238,33 @@ export type Database = {
           },
         ]
       }
+      contact_preferences: {
+        Row: {
+          allow_email_marketing: boolean
+          allow_whatsapp_marketing: boolean
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allow_email_marketing?: boolean
+          allow_whatsapp_marketing?: boolean
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allow_email_marketing?: boolean
+          allow_whatsapp_marketing?: boolean
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       coupon_products: {
         Row: {
           coupon_id: string
