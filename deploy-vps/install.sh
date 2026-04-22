@@ -1060,7 +1060,32 @@ if [[ "${DEPLOY_EDGE_FUNCTIONS:-0}" -eq 1 ]]; then
                     err "  Proxy /api/${FIRST_FN} retornou 404 — verifique vhost Nginx."
                     ;;
                 502|504)
-                    err "  Proxy /api/${FIRST_FN} retornou $PROXY_CODE — Nginx não consegue alcançar Supabase. Verifique DNS/firewall outbound."
+                    err "  Proxy /api/${FIRST_FN} retornou $PROXY_CODE — Nginx NÃO alcança Supabase em runtime."
+                    err "  Diagnóstico automático:"
+                    # Testa se a função responde direto no Supabase (bypass Nginx)
+                    DIRECT_CODE="$(curl -sS -o /dev/null -w '%{http_code}' \
+                        -H "apikey: ${SUPABASE_ANON_KEY}" \
+                        -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+                        --max-time 10 "${SUPABASE_URL_INPUT}/functions/v1/${FIRST_FN}" || echo "000")"
+                    case "$DIRECT_CODE" in
+                        2*|401|403|405)
+                            err "    ✓ Função responde direto no Supabase (HTTP $DIRECT_CODE)"
+                            err "    ✗ Mas Nginx falha — provável causa: outbound HTTPS bloqueado APENAS pela rede da VPS"
+                            err "    Teste: curl -v ${SUPABASE_URL_INPUT}/functions/v1/${FIRST_FN}"
+                            err "    Verifique firewall do provedor (Oracle/AWS Security Group) — TCP 443 outbound"
+                            ;;
+                        404)
+                            err "    ✗ Função '${FIRST_FN}' NÃO existe no Supabase (HTTP 404)"
+                            err "    Rode: cd $APP_DIR && supabase functions deploy ${FIRST_FN} --project-ref ${SUPABASE_PROJECT_REF}"
+                            ;;
+                        000)
+                            err "    ✗ Supabase inalcançável tanto via Nginx quanto direto"
+                            err "    Outbound TCP 443 da VPS está bloqueado. Veja firewall do provedor."
+                            ;;
+                        *)
+                            err "    Função direto retornou HTTP $DIRECT_CODE"
+                            ;;
+                    esac
                     ;;
                 *)
                     info "  Proxy /api/${FIRST_FN} retornou $PROXY_CODE."
