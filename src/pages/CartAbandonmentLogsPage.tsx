@@ -167,6 +167,36 @@ export default function CartAbandonmentLogsPage() {
     }
   };
 
+  const handleSendEmail = async (user: ActiveCartUser) => {
+    if (!user.email) {
+      toast.error('Este cliente não possui email cadastrado.');
+      return;
+    }
+    setSendingEmail(user.user_id);
+    try {
+      const { data, error } = await supabase.functions.invoke('cart-abandonment-send', {
+        body: {
+          user_id: user.user_id,
+          email: user.email,
+          full_name: user.full_name,
+          items: user.items,
+          total_value: user.total_value,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(
+        data?.fallback
+          ? `Email enviado para ${user.email} (via domínio público de teste).`
+          : `Email enviado para ${user.email}!`
+      );
+    } catch (err: any) {
+      toast.error(`Erro ao enviar email: ${err.message || 'Tente novamente.'}`);
+    } finally {
+      setSendingEmail(null);
+    }
+  };
+
   const totalEmails = logs.length;
   const uniqueUsers = new Set(logs.map((l) => l.user_id)).size;
   const totalItems = logs.reduce((sum, l) => sum + l.cart_item_count, 0);
