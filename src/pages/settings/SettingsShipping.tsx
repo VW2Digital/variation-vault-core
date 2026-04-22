@@ -10,9 +10,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SettingsBackButton from './SettingsBackButton';
 import WebhookUrlCard from '@/components/admin/WebhookUrlCard';
+import PublicSiteUrlCard from '@/components/admin/PublicSiteUrlCard';
+import { usePublicBaseUrl } from '@/hooks/usePublicBaseUrl';
 
 const SettingsShipping = () => {
   const { toast } = useToast();
+  const { publicUrl, browserIsInternal } = usePublicBaseUrl();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
