@@ -351,6 +351,45 @@ export type Database = {
           },
         ]
       }
+      email_send_log: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          message_id: string | null
+          metadata: Json | null
+          provider_response: Json | null
+          recipient_email: string
+          status: string
+          subject: string | null
+          template_name: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          metadata?: Json | null
+          provider_response?: Json | null
+          recipient_email: string
+          status?: string
+          subject?: string | null
+          template_name: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          metadata?: Json | null
+          provider_response?: Json | null
+          recipient_email?: string
+          status?: string
+          subject?: string | null
+          template_name?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           asaas_customer_id: string | null
