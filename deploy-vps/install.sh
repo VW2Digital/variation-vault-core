@@ -75,6 +75,84 @@ if ! command -v jq >/dev/null 2>&1;   then apt-get update -y && apt-get install 
 if ! command -v openssl >/dev/null 2>&1; then apt-get update -y && apt-get install -y openssl; fi
 if ! command -v dig >/dev/null 2>&1; then apt-get update -y && apt-get install -y dnsutils; fi
 
+# ----------------------------- DNS fix (systemd-resolved) -------------------
+# Em muitas VPS (Oracle, AWS minimal, etc.) o /etc/resolv.conf aponta apenas
+# para 127.0.0.53 (stub do systemd-resolved) sem upstream configurado, fazendo
+# com que apt-get falhe em domínios novos como apt.supabase.com / objects.githubusercontent.com.
+# Configuramos o resolver com Google + Cloudflare como upstream — sem editar
+# /etc/resolv.conf diretamente (que é gerenciado pelo systemd-resolved).
+ensure_dns() {
+    step "Verificando resolução DNS da VPS"
+
+    local TEST_DOMAINS=(google.com api.supabase.com github.com deb.nodesource.com)
+    local DNS_OK=1
+    for d in "${TEST_DOMAINS[@]}"; do
+        if ! getent hosts "$d" >/dev/null 2>&1; then
+            DNS_OK=0
+            info "DNS não resolve: $d"
+        fi
+    done
+
+    if [[ "$DNS_OK" -eq 1 ]]; then
+        ok "DNS resolvendo corretamente — nenhuma correção necessária."
+        return 0
+    fi
+
+    info "DNS quebrado detectado — aplicando configuração via systemd-resolved..."
+
+    if [[ -d /etc/systemd/resolved.conf.d ]] || mkdir -p /etc/systemd/resolved.conf.d; then
+        cat > /etc/systemd/resolved.conf.d/99-vps-fallback.conf <<'RESOLVED'
+# Adicionado por install.sh — garante upstream DNS público para a VPS.
+# Editar/remover este arquivo se você usar DNS interno (VPC, Consul, etc.).
+[Resolve]
+DNS=8.8.8.8 1.1.1.1
+FallbackDNS=8.8.4.4 1.0.0.1
+DNSStubListener=yes
+RESOLVED
+        ok "Escrito /etc/systemd/resolved.conf.d/99-vps-fallback.conf"
+    fi
+
+    if systemctl list-unit-files | grep -q '^systemd-resolved'; then
+        systemctl restart systemd-resolved 2>/dev/null || true
+        ok "systemd-resolved reiniciado"
+    else
+        # Fallback: sem systemd-resolved, escreve resolv.conf direto
+        info "systemd-resolved não disponível — configurando /etc/resolv.conf diretamente."
+        # Remove imutabilidade caso esteja setada
+        chattr -i /etc/resolv.conf 2>/dev/null || true
+        cat > /etc/resolv.conf <<'RESOLV'
+# Gerado por install.sh — fallback sem systemd-resolved
+nameserver 8.8.8.8
+nameserver 1.1.1.1
+nameserver 8.8.4.4
+RESOLV
+    fi
+
+    # Re-testa
+    sleep 2
+    local STILL_BROKEN=()
+    for d in "${TEST_DOMAINS[@]}"; do
+        if ! getent hosts "$d" >/dev/null 2>&1; then
+            STILL_BROKEN+=("$d")
+        fi
+    done
+
+    if [[ ${#STILL_BROKEN[@]} -gt 0 ]]; then
+        err "DNS continua quebrado após correção. Domínios irresolúveis:"
+        printf '    - %s\n' "${STILL_BROKEN[@]}"
+        err "Sem DNS funcional, não é possível instalar pacotes (apt) nem deployar Edge Functions."
+        err "Diagnóstico:"
+        err "  cat /etc/resolv.conf"
+        err "  resolvectl status   (ou: systemd-resolve --status)"
+        err "  ping -c1 8.8.8.8     (testa rede; se falhar, é firewall/rota da VPS)"
+        err "  ping -c1 google.com  (testa DNS)"
+        err "Verifique também o firewall do provedor (Oracle/AWS) liberando UDP 53 outbound."
+        exit 1
+    fi
+    ok "DNS funcional após correção: ${TEST_DOMAINS[*]}"
+}
+ensure_dns
+
 echo
 info "Todas as perguntas serão feitas agora, antes de qualquer instalação."
 echo
