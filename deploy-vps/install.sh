@@ -34,6 +34,8 @@ ok()   { echo -e "${GREEN}✅ $*${NC}"; }
 step() { echo -e "\n${YELLOW}▶ $*${NC}"; }
 info() { echo -e "${BLUE}ℹ  $*${NC}"; }
 err()  { echo -e "${RED}❌ $*${NC}" >&2; }
+warn() { echo -e "${YELLOW}⚠️  $*${NC}"; }
+die()  { err "$*"; exit 1; }
 
 # Mascara credenciais para exibição segura no terminal/logs.
 # Mostra os primeiros 6 e últimos 4 chars; o miolo vira ****.
