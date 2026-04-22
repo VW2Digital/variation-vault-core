@@ -1548,30 +1548,71 @@ if [[ "${DEPLOY_EDGE_FUNCTIONS:-0}" -eq 1 ]]; then
     echo -e "${BLUE}Edge Function secrets (Supabase — backend independente do Lovable)${NC}"
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
-    # 6.a) RESEND_API_KEY — configurado automaticamente se foi informado no início.
-    if [[ -n "${RESEND_API_KEY:-}" ]]; then
-        info "Configurando secret RESEND_API_KEY no projeto Supabase…"
-        # Usa env var para nunca expor a chave no histórico do shell.
-        if RESEND_API_KEY="$RESEND_API_KEY" supabase secrets set \
-            "RESEND_API_KEY=$RESEND_API_KEY" \
+    # 6.a) SMTP secrets (Hostinger ou outro) — provider primário das Edge Functions.
+    if [[ -n "${SMTP_HOST:-}" && -n "${SMTP_USER:-}" && -n "${SMTP_PASS:-}" ]]; then
+        info "Configurando secrets SMTP_* no projeto Supabase…"
+        if supabase secrets set \
+            "SMTP_HOST=$SMTP_HOST" \
+            "SMTP_PORT=$SMTP_PORT" \
+            "SMTP_USER=$SMTP_USER" \
+            "SMTP_PASS=$SMTP_PASS" \
+            "SMTP_FROM_EMAIL=$SMTP_FROM_EMAIL" \
+            "SMTP_FROM_NAME=$SMTP_FROM_NAME" \
+            "SMTP_SECURE=$SMTP_SECURE" \
             --project-ref "$SUPABASE_PROJECT_REF" >/dev/null 2>&1; then
-            ok "RESEND_API_KEY configurada no Supabase ($(mask "$RESEND_API_KEY"))."
+            ok "SMTP secrets gravadas (host=$SMTP_HOST porta=$SMTP_PORT user=$SMTP_USER senha=$(mask "$SMTP_PASS"))."
         else
-            err "Falha ao configurar RESEND_API_KEY via CLI. Configure manualmente:"
-            err "  supabase secrets set RESEND_API_KEY=re_xxx --project-ref $SUPABASE_PROJECT_REF"
+            err "Falha ao gravar SMTP secrets via CLI. Configure manualmente:"
+            err "  supabase secrets set SMTP_HOST=… SMTP_PORT=… SMTP_USER=… SMTP_PASS=… --project-ref $SUPABASE_PROJECT_REF"
+        fi
+
+        # Também grava em site_settings (a Edge Function lê SMTP de lá com prioridade
+        # sobre os secrets, permitindo trocar credenciais pelo painel /admin sem redeploy).
+        if [[ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]]; then
+            for KV in \
+                "smtp_host=$SMTP_HOST" \
+                "smtp_port=$SMTP_PORT" \
+                "smtp_user=$SMTP_USER" \
+                "smtp_pass=$SMTP_PASS" \
+                "smtp_from_email=$SMTP_FROM_EMAIL" \
+                "smtp_from_name=$SMTP_FROM_NAME" \
+                "smtp_secure=$SMTP_SECURE"; do
+                K="${KV%%=*}"; V="${KV#*=}"
+                curl -sS -o /dev/null \
+                    -X POST "${SUPABASE_URL_INPUT}/rest/v1/site_settings" \
+                    -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+                    -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+                    -H "Content-Type: application/json" \
+                    -H "Prefer: resolution=merge-duplicates" \
+                    -d "$(printf '{"key":"%s","value":%s,"user_id":"00000000-0000-0000-0000-000000000000"}' \
+                          "$K" "$(printf '%s' "$V" | jq -Rs . 2>/dev/null || printf '"%s"' "${V//\"/\\\"}")")" \
+                    || true
+            done
+            ok "SMTP gravado em site_settings (UI: /admin/configuracoes/comunicacao)."
         fi
     else
-        info "RESEND_API_KEY não informada — pulando setup automático."
-        info "Para configurar depois: supabase secrets set RESEND_API_KEY=re_xxx --project-ref $SUPABASE_PROJECT_REF"
+        info "SMTP não configurado — pulando setup automático."
+        info "Para configurar depois: supabase secrets set SMTP_HOST=… SMTP_USER=… SMTP_PASS=… --project-ref $SUPABASE_PROJECT_REF"
     fi
 
-    # 6.b) EMAIL_FROM — gravado em site_settings (a Edge Function lê de lá).
+    # 6.b) RESEND_API_KEY — fallback opcional.
+    if [[ -n "${RESEND_API_KEY:-}" ]]; then
+        info "Configurando secret RESEND_API_KEY no projeto Supabase…"
+        if supabase secrets set \
+            "RESEND_API_KEY=$RESEND_API_KEY" \
+            --project-ref "$SUPABASE_PROJECT_REF" >/dev/null 2>&1; then
+            ok "RESEND_API_KEY configurada (fallback ativo) $(mask "$RESEND_API_KEY")."
+        else
+            err "Falha ao configurar RESEND_API_KEY. Configure manualmente:"
+            err "  supabase secrets set RESEND_API_KEY=re_xxx --project-ref $SUPABASE_PROJECT_REF"
+        fi
+    fi
+
+    # 6.c) EMAIL_FROM/Resend remetente — gravado em site_settings p/ fallback.
     if [[ -n "${EMAIL_FROM:-}" && -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]]; then
-        info "Salvando remetente padrão (resend_from_email) em site_settings…"
-        # Extrai apenas o endereço se vier no formato "Nome <email@domínio>"
         EMAIL_ADDR="$(echo "$EMAIL_FROM" | grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' | head -n1)"
         if [[ -n "$EMAIL_ADDR" ]]; then
-            curl -sS -o /dev/null -w "  resend_from_email upsert: HTTP %{http_code}\n" \
+            curl -sS -o /dev/null \
                 -X POST "${SUPABASE_URL_INPUT}/rest/v1/site_settings" \
                 -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
                 -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
@@ -1579,13 +1620,8 @@ if [[ "${DEPLOY_EDGE_FUNCTIONS:-0}" -eq 1 ]]; then
                 -H "Prefer: resolution=merge-duplicates" \
                 -d "{\"key\":\"resend_from_email\",\"value\":\"$EMAIL_ADDR\",\"user_id\":\"00000000-0000-0000-0000-000000000000\"}" \
                 || warn "Falha de rede ao salvar resend_from_email — configure depois em /admin/configuracoes/comunicacao."
-            ok "Remetente registrado: $EMAIL_ADDR"
-        else
-            warn "EMAIL_FROM não contém endereço válido — pulado."
+            ok "Remetente Resend registrado: $EMAIL_ADDR"
         fi
-    elif [[ -n "${EMAIL_FROM:-}" ]]; then
-        info "EMAIL_FROM informado mas sem service_role key — defina manualmente em:"
-        info "  /admin/configuracoes/comunicacao → 'Remetente Resend'"
     fi
 
     echo
