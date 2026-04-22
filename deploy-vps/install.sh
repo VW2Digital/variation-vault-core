@@ -885,10 +885,38 @@ fi
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${BLUE}Troubleshooting rápido:${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo "  • SSL falhou        → sudo certbot certificates  /  /var/log/letsencrypt/letsencrypt.log"
-echo "  • DNS não aponta    → dig +short ${DOMAIN}   (deve retornar IP desta VPS)"
-echo "  • Porta bloqueada   → sudo ss -tlnp | grep -E ':80|:443'  /  sudo ufw status"
-echo "  • Webhook 404/502   → sudo tail -f /var/log/nginx/error.log  /  /var/log/nginx/access.log"
-echo "  • Edge Function     → curl -i ${SUPABASE_URL_INPUT}/functions/v1/<nome>"
-echo "  • Rebuild da SPA    → cd $APP_DIR && git pull && npm install && npm run build && systemctl reload nginx"
+echo "  Webhooks externos (n8n, Stripe, Meta, gateways):"
+echo "    • 404 'Function not found'  → supabase functions deploy <nome> --project-ref ${SUPABASE_PROJECT_REF}"
+echo "                                  supabase functions list --project-ref ${SUPABASE_PROJECT_REF}"
+echo "    • 401 Unauthorized          → header 'Authorization: Bearer \$WEBHOOK_SECRET' ou 'apikey: <ANON_KEY>'"
+echo "                                  conferir secrets: supabase secrets list --project-ref ${SUPABASE_PROJECT_REF}"
+echo "    • 403 Forbidden             → função com verify_jwt=true sem JWT válido; revisar supabase/config.toml"
+echo "    • 500 Internal              → supabase functions logs <nome> --project-ref ${SUPABASE_PROJECT_REF}"
+echo "    • 502/504 Bad Gateway       → Nginx não alcança Supabase. Teste outbound:"
+echo "                                  curl -v ${SUPABASE_URL_INPUT}/functions/v1/healthz"
+echo "    • timeout                   → firewall outbound bloqueia HTTPS para *.supabase.co"
+echo
+echo "  Infra (Nginx, SSL, DNS, firewall):"
+echo "    • SSL falhou        → sudo certbot certificates  /  tail -n 100 /var/log/letsencrypt/letsencrypt.log"
+echo "    • DNS não aponta    → dig +short ${DOMAIN}   (deve retornar o IP público desta VPS)"
+if [[ -n "$API_SUBDOMAIN" ]]; then
+    echo "                          dig +short ${API_SUBDOMAIN}   (idem)"
+fi
+echo "    • Porta bloqueada   → sudo ss -tlnp | grep -E ':80|:443'   /   sudo ufw status verbose"
+echo "                          Cloud firewall (Oracle/AWS/etc.) também precisa liberar 80 e 443."
+echo "    • Nginx erro/access → sudo tail -f /var/log/nginx/error.log /var/log/nginx/access.log"
+echo "    • Reload Nginx      → sudo nginx -t && sudo systemctl reload nginx"
+echo
+echo "  Healthchecks:"
+echo "    • App SPA           → curl -i https://${DOMAIN}/healthz   (deve responder 'ok')"
+if [[ -n "$API_SUBDOMAIN" ]]; then
+    echo "    • API Gateway       → curl -i https://${API_SUBDOMAIN}/api/healthz   (deve responder 'ok')"
+    echo "    • Edge Function     → curl -i https://${API_SUBDOMAIN}/api/<nome>"
+fi
+echo "    • Edge direto       → curl -i ${SUPABASE_URL_INPUT}/functions/v1/<nome>"
+echo
+echo "  Manutenção:"
+echo "    • Rebuild SPA       → cd $APP_DIR && git pull && npm install && npm run build && systemctl reload nginx"
+echo "    • Redeploy função   → cd $APP_DIR && supabase functions deploy <nome> --project-ref ${SUPABASE_PROJECT_REF}"
+echo "    • Ver WEBHOOK_SECRET → sudo grep '^WEBHOOK_SECRET=' $ENV_FILE"
 echo
