@@ -169,7 +169,16 @@ async function sendTrackingEmail(supabase: any, order: any, trackingCode: string
     console.log('[Email] Resend API Key não configurada, pulando envio de email');
     return;
   }
-  const fromEmail = (await getSetting(supabase, 'resend_from_email')) || 'onboarding@resend.dev';
+  const configuredFrom = (await getSetting(supabase, 'resend_from_email')) || '';
+  const PUBLIC_DOMAINS = ['gmail.com','googlemail.com','hotmail.com','outlook.com','live.com','yahoo.com','yahoo.com.br','icloud.com','msn.com','bol.com.br','uol.com.br','terra.com.br'];
+  const fromDomain = configuredFrom.split('@')[1]?.toLowerCase() || '';
+  const isPublicDomain = PUBLIC_DOMAINS.includes(fromDomain);
+  // Resend rejeita envios usando domínios públicos. Fallback automático.
+  const fromEmail = isPublicDomain || !configuredFrom ? 'onboarding@resend.dev' : configuredFrom;
+  const replyToEmail = configuredFrom && configuredFrom.includes('@') ? configuredFrom : undefined;
+  if (isPublicDomain) {
+    console.warn(`[Email] resend_from_email (${configuredFrom}) é domínio público — usando fallback onboarding@resend.dev. Verifique um domínio próprio no Resend.`);
+  }
 
   const emailHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -223,6 +232,7 @@ async function sendTrackingEmail(supabase: any, order: any, trackingCode: string
       body: JSON.stringify({
         from: `Liberty Pharma <${fromEmail}>`,
         to: [order.customer_email],
+        ...(replyToEmail ? { reply_to: replyToEmail } : {}),
         subject: `Seu pedido foi enviado! Rastreio: ${trackingCode}`,
         html: emailHtml,
       }),

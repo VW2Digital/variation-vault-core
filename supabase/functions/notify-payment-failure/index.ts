@@ -73,7 +73,15 @@ serve(async (req) => {
 
     // ── Email notification ──
     const resendKey = cfg['resend_api_key'];
-    const fromEmail = cfg['resend_from_email'];
+    const configuredFrom = cfg['resend_from_email'] || '';
+    const PUBLIC_DOMAINS = ['gmail.com','googlemail.com','hotmail.com','outlook.com','live.com','yahoo.com','yahoo.com.br','icloud.com','msn.com','bol.com.br','uol.com.br','terra.com.br'];
+    const fromDomain = configuredFrom.split('@')[1]?.toLowerCase() || '';
+    const isPublicDomain = PUBLIC_DOMAINS.includes(fromDomain);
+    const fromEmail = isPublicDomain || !configuredFrom ? 'onboarding@resend.dev' : configuredFrom;
+    const replyToEmail = configuredFrom && configuredFrom.includes('@') ? configuredFrom : undefined;
+    if (isPublicDomain) {
+      console.warn(`[Notify Failure] resend_from_email (${configuredFrom}) é domínio público — usando fallback onboarding@resend.dev.`);
+    }
 
     if (resendKey && fromEmail) {
       try {
@@ -98,7 +106,8 @@ serve(async (req) => {
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendKey}` },
           body: JSON.stringify({
             from: `Liberty Pharma <${fromEmail}>`,
-            to: [fromEmail],
+            to: [replyToEmail || fromEmail],
+            ...(replyToEmail ? { reply_to: replyToEmail } : {}),
             subject: `⚠️ Falha Pagamento - ${customerName || 'Cliente'} - ${valueFormatted}`,
             html: htmlBody,
           }),
