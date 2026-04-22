@@ -1,7 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Search, RefreshCw, Trash2, Mail, CheckCircle2, XCircle, Clock } from "lucide-react";
+import {
+  Search,
+  RefreshCw,
+  Trash2,
+  Mail,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  AlertTriangle,
+  ShieldOff,
+  MailWarning,
+  Send,
+  TrendingUp,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,6 +68,10 @@ const statusBadge = (status: string) => {
     sent: { label: "Enviado", className: "bg-emerald-500/15 text-emerald-700 border-emerald-200", Icon: CheckCircle2 },
     failed: { label: "Falhou", className: "bg-destructive/15 text-destructive border-destructive/30", Icon: XCircle },
     pending: { label: "Pendente", className: "bg-amber-500/15 text-amber-700 border-amber-200", Icon: Clock },
+    dlq: { label: "DLQ (falhou)", className: "bg-destructive/15 text-destructive border-destructive/30", Icon: AlertTriangle },
+    suppressed: { label: "Suprimido", className: "bg-amber-500/15 text-amber-700 border-amber-200", Icon: ShieldOff },
+    bounced: { label: "Devolvido", className: "bg-orange-500/15 text-orange-700 border-orange-200", Icon: MailWarning },
+    complained: { label: "Reclamação", className: "bg-purple-500/15 text-purple-700 border-purple-200", Icon: MailWarning },
   };
   const cfg = map[status] ?? { label: status, className: "bg-muted text-muted-foreground", Icon: Mail };
   const Icon = cfg.Icon;
@@ -131,8 +148,19 @@ const EmailLogsPage = () => {
   const stats = useMemo(() => {
     const total = dedupedRows.length;
     const sent = dedupedRows.filter((r) => r.status === "sent").length;
-    const failed = dedupedRows.filter((r) => r.status === "failed").length;
-    return { total, sent, failed, rate: total > 0 ? Math.round((sent / total) * 100) : 0 };
+    const failed = dedupedRows.filter((r) => r.status === "failed" || r.status === "dlq").length;
+    const suppressed = dedupedRows.filter(
+      (r) => r.status === "suppressed" || r.status === "bounced" || r.status === "complained",
+    ).length;
+    const pending = dedupedRows.filter((r) => r.status === "pending").length;
+    return {
+      total,
+      sent,
+      failed,
+      suppressed,
+      pending,
+      rate: total > 0 ? Math.round((sent / total) * 100) : 0,
+    };
   }, [dedupedRows]);
 
   const templateOptions = useMemo(() => {
@@ -180,37 +208,60 @@ const EmailLogsPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Mail className="h-4 w-4" /> Total
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{stats.total}</div>
+            <p className="text-xs text-muted-foreground mt-1">emails únicos</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Enviados</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Send className="h-4 w-4" /> Enviados
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-emerald-600">{stats.sent}</div>
+            <p className="text-xs text-muted-foreground mt-1">entregues ao SMTP</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Falhas</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <XCircle className="h-4 w-4" /> Falhas
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-destructive">{stats.failed}</div>
+            <p className="text-xs text-muted-foreground mt-1">failed + dlq</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Taxa de Sucesso</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <ShieldOff className="h-4 w-4" /> Suprimidos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-amber-600">{stats.suppressed}</div>
+            <p className="text-xs text-muted-foreground mt-1">bounce/spam/opt-out</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" /> Taxa de Sucesso
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{stats.rate}%</div>
+            <p className="text-xs text-muted-foreground mt-1">enviados / total</p>
           </CardContent>
         </Card>
       </div>
@@ -252,6 +303,10 @@ const EmailLogsPage = () => {
               <SelectItem value="all">Todos os status</SelectItem>
               <SelectItem value="sent">Enviado</SelectItem>
               <SelectItem value="failed">Falhou</SelectItem>
+              <SelectItem value="dlq">DLQ (falhou após retry)</SelectItem>
+              <SelectItem value="suppressed">Suprimido</SelectItem>
+              <SelectItem value="bounced">Devolvido (bounce)</SelectItem>
+              <SelectItem value="complained">Reclamação (spam)</SelectItem>
               <SelectItem value="pending">Pendente</SelectItem>
             </SelectContent>
           </Select>
