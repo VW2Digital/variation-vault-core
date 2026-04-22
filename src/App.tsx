@@ -48,6 +48,7 @@ import CartAbandonmentLogsPage from "./pages/CartAbandonmentLogsPage";
 import PaymentLinksPage from "./pages/PaymentLinksPage";
 import CouponsPage from "./pages/CouponsPage";
 import ReportsPage from "./pages/ReportsPage";
+import EmailTemplatesPage from "./pages/EmailTemplatesPage";
 import PaymentLinkCheckout from "./pages/PaymentLinkCheckout";
 import PromoPopup from "./components/PromoPopup";
 import NotFound from "./pages/NotFound";
@@ -114,6 +115,7 @@ const App = () => (
             <Route path="links-pagamento" element={<PaymentLinksPage />} />
             <Route path="cupons" element={<CouponsPage />} />
             <Route path="relatorios" element={<ReportsPage />} />
+            <Route path="templates-email" element={<EmailTemplatesPage />} />
             <Route path="configuracoes" element={<SettingsIndex />} />
             <Route path="configuracoes/design" element={<SettingsDesign />} />
             <Route path="configuracoes/cores" element={<SettingsColors />} />
