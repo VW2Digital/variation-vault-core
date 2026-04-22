@@ -638,6 +638,46 @@ server {
     }
 
     # ─────────────────────────────────────────────────────────────────────────
+    # /api/*  →  Supabase Edge Functions  (replica arquitetura do Lovable)
+    #
+    # Garante que chamadas do frontend como:
+    #   fetch('/api/admin-users')
+    #   fetch('/api/orders-api')
+    #   fetch('/api/payment-checkout')
+    # funcionem direto pelo domínio próprio, SEM depender da URL pública do
+    # Supabase. Evita os 502 vistos em /api/admin-users quando o app embute
+    # rotas relativas /api/* esperando um reverse proxy.
+    #
+    # Headers críticos preservados (Authorization Bearer, apikey, etc.):
+    #   • proxy_pass_request_headers on   → repassa Authorization do client
+    #   • Host fixado no host real do Supabase (SNI correto)
+    # ─────────────────────────────────────────────────────────────────────────
+    location ~ ^/api/(.+)\$ {
+        if (\$request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin "*";
+            add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS";
+            add_header Access-Control-Allow-Headers "authorization, x-client-info, apikey, content-type, x-webhook-secret, x-signature, x-api-key, stripe-signature";
+            add_header Access-Control-Max-Age 86400;
+            add_header Content-Length 0;
+            return 204;
+        }
+        proxy_pass ${SUPABASE_URL_INPUT}/functions/v1/\$1\$is_args\$args;
+        proxy_http_version 1.1;
+        proxy_set_header Host ${SUPABASE_PROJECT_REF}.supabase.co;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-Forwarded-Host \$host;
+        proxy_pass_request_headers on;
+        proxy_ssl_server_name on;
+        proxy_ssl_name ${SUPABASE_PROJECT_REF}.supabase.co;
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+        proxy_buffering off;
+        client_max_body_size 10m;
+    }
+
+    # ─────────────────────────────────────────────────────────────────────────
     # SPA FALLBACK (React Router / Vite)
     # CRÍTICO para OAuth2 (Melhor Envio, etc.): o callback retorna para
     #   https://${DOMAIN}/admin/configuracoes/logistica?code=...
