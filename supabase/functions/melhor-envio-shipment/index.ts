@@ -163,88 +163,45 @@ async function logShipping(supabase: any, orderId: string, eventType: string, pa
 }
 
 async function sendTrackingEmail(supabase: any, order: any, trackingCode: string, trackingUrl: string) {
-  let resendApiKey = await getSetting(supabase, 'resend_api_key');
-  if (!resendApiKey) resendApiKey = Deno.env.get('RESEND_API_KEY') || '';
-  if (!resendApiKey) {
-    console.log('[Email] Resend API Key não configurada, pulando envio de email');
+  // Encaminha para a Edge Function send-email (SMTP Hostinger).
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.log('[Email] SUPABASE_URL/SERVICE_ROLE não disponíveis, pulando.');
     return;
   }
-  const configuredFrom = (await getSetting(supabase, 'resend_from_email')) || '';
-  const PUBLIC_DOMAINS = ['gmail.com','googlemail.com','hotmail.com','outlook.com','live.com','yahoo.com','yahoo.com.br','icloud.com','msn.com','bol.com.br','uol.com.br','terra.com.br'];
-  const fromDomain = configuredFrom.split('@')[1]?.toLowerCase() || '';
-  const isPublicDomain = PUBLIC_DOMAINS.includes(fromDomain);
-  // Resend rejeita envios usando domínios públicos. Fallback automático.
-  const fromEmail = isPublicDomain || !configuredFrom ? 'onboarding@resend.dev' : configuredFrom;
-  const replyToEmail = configuredFrom && configuredFrom.includes('@') ? configuredFrom : undefined;
-  if (isPublicDomain) {
-    console.warn(`[Email] resend_from_email (${configuredFrom}) é domínio público — usando fallback onboarding@resend.dev. Verifique um domínio próprio no Resend.`);
+  if (!order?.customer_email) {
+    console.log('[Email] Pedido sem customer_email, pulando.');
+    return;
   }
-
-  const emailHtml = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="text-align: center; padding: 20px 0; border-bottom: 2px solid #10b981;">
-        <h1 style="color: #111827; margin: 0; font-size: 24px;">Liberty Pharma</h1>
-        <p style="color: #6b7280; margin: 5px 0 0;">Seu pedido foi enviado! 🎉</p>
-      </div>
-
-      <div style="padding: 24px 0;">
-        <p style="color: #374151; font-size: 16px;">Olá, <strong>${order.customer_name}</strong>!</p>
-        <p style="color: #6b7280; font-size: 14px;">
-          Seu pedido de <strong>${order.product_name}${order.dosage ? ' - ' + order.dosage : ''}</strong> foi despachado e já está a caminho.
-        </p>
-
-        <div style="background: #f3f4f6; border-radius: 12px; padding: 20px; margin: 20px 0;">
-          <p style="margin: 0 0 8px; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Código de Rastreio</p>
-          <p style="margin: 0; color: #111827; font-size: 22px; font-weight: bold; letter-spacing: 2px;">${trackingCode}</p>
-        </div>
-
-        ${trackingUrl ? `
-        <div style="text-align: center; margin: 24px 0;">
-          <a href="${trackingUrl}" style="display: inline-block; background: #10b981; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px;">
-            Rastrear meu pedido →
-          </a>
-        </div>
-        ` : ''}
-
-        <div style="border-top: 1px solid #e5e7eb; padding-top: 16px; margin-top: 24px;">
-          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-            Pedido: ${order.product_name} x${order.quantity}<br>
-            Valor: R$ ${Number(order.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-          </p>
-        </div>
-      </div>
-
-      <div style="text-align: center; padding: 16px 0; border-top: 1px solid #e5e7eb;">
-        <p style="color: #9ca3af; font-size: 11px; margin: 0;">
-          Liberty Pharma — Este é um email automático, não responda.
-        </p>
-      </div>
-    </div>
-  `;
-
   try {
-    const res = await fetch('https://api.resend.com/emails', {
+    const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${resendApiKey}`,
+        'Authorization': `Bearer ${serviceRoleKey}`,
       },
       body: JSON.stringify({
-        from: `Liberty Pharma <${fromEmail}>`,
-        to: [order.customer_email],
-        ...(replyToEmail ? { reply_to: replyToEmail } : {}),
-        subject: `Seu pedido foi enviado! Rastreio: ${trackingCode}`,
-        html: emailHtml,
+        template: 'shipping_update',
+        to: order.customer_email,
+        data: {
+          customer_name: order.customer_name,
+          status: 'Despachado',
+          tracking_code: trackingCode,
+          tracking_url: trackingUrl,
+          product_name: order.product_name,
+          dosage: order.dosage,
+          quantity: order.quantity,
+          total_value: order.total_value,
+        },
       }),
     });
-
-    const result = await res.text();
-    console.log(`[Email] Resend response [${res.status}]: ${result}`);
+    const text = await res.text();
+    console.log(`[Email] send-email response [${res.status}]: ${text.slice(0, 200)}`);
   } catch (err: any) {
-    console.error('[Email] Error sending:', err.message);
+    console.error('[Email] Error sending via send-email:', err.message);
   }
 }
-
 // Fetch shipment details to extract tracking and carrier info
 async function fetchShipmentDetails(baseUrl: string, token: string, shipmentId: string) {
   try {
