@@ -75,6 +75,84 @@ if ! command -v jq >/dev/null 2>&1;   then apt-get update -y && apt-get install 
 if ! command -v openssl >/dev/null 2>&1; then apt-get update -y && apt-get install -y openssl; fi
 if ! command -v dig >/dev/null 2>&1; then apt-get update -y && apt-get install -y dnsutils; fi
 
+# ----------------------------- DNS fix (systemd-resolved) -------------------
+# Em muitas VPS (Oracle, AWS minimal, etc.) o /etc/resolv.conf aponta apenas
+# para 127.0.0.53 (stub do systemd-resolved) sem upstream configurado, fazendo
+# com que apt-get falhe em domínios novos como apt.supabase.com / objects.githubusercontent.com.
+# Configuramos o resolver com Google + Cloudflare como upstream — sem editar
+# /etc/resolv.conf diretamente (que é gerenciado pelo systemd-resolved).
+ensure_dns() {
+    step "Verificando resolução DNS da VPS"
+
+    local TEST_DOMAINS=(google.com api.supabase.com github.com deb.nodesource.com)
+    local DNS_OK=1
+    for d in "${TEST_DOMAINS[@]}"; do
+        if ! getent hosts "$d" >/dev/null 2>&1; then
+            DNS_OK=0
+            info "DNS não resolve: $d"
+        fi
+    done
+
+    if [[ "$DNS_OK" -eq 1 ]]; then
+        ok "DNS resolvendo corretamente — nenhuma correção necessária."
+        return 0
+    fi
+
+    info "DNS quebrado detectado — aplicando configuração via systemd-resolved..."
+
+    if [[ -d /etc/systemd/resolved.conf.d ]] || mkdir -p /etc/systemd/resolved.conf.d; then
+        cat > /etc/systemd/resolved.conf.d/99-vps-fallback.conf <<'RESOLVED'
+# Adicionado por install.sh — garante upstream DNS público para a VPS.
+# Editar/remover este arquivo se você usar DNS interno (VPC, Consul, etc.).
+[Resolve]
+DNS=8.8.8.8 1.1.1.1
+FallbackDNS=8.8.4.4 1.0.0.1
+DNSStubListener=yes
+RESOLVED
+        ok "Escrito /etc/systemd/resolved.conf.d/99-vps-fallback.conf"
+    fi
+
+    if systemctl list-unit-files | grep -q '^systemd-resolved'; then
+        systemctl restart systemd-resolved 2>/dev/null || true
+        ok "systemd-resolved reiniciado"
+    else
+        # Fallback: sem systemd-resolved, escreve resolv.conf direto
+        info "systemd-resolved não disponível — configurando /etc/resolv.conf diretamente."
+        # Remove imutabilidade caso esteja setada
+        chattr -i /etc/resolv.conf 2>/dev/null || true
+        cat > /etc/resolv.conf <<'RESOLV'
+# Gerado por install.sh — fallback sem systemd-resolved
+nameserver 8.8.8.8
+nameserver 1.1.1.1
+nameserver 8.8.4.4
+RESOLV
+    fi
+
+    # Re-testa
+    sleep 2
+    local STILL_BROKEN=()
+    for d in "${TEST_DOMAINS[@]}"; do
+        if ! getent hosts "$d" >/dev/null 2>&1; then
+            STILL_BROKEN+=("$d")
+        fi
+    done
+
+    if [[ ${#STILL_BROKEN[@]} -gt 0 ]]; then
+        err "DNS continua quebrado após correção. Domínios irresolúveis:"
+        printf '    - %s\n' "${STILL_BROKEN[@]}"
+        err "Sem DNS funcional, não é possível instalar pacotes (apt) nem deployar Edge Functions."
+        err "Diagnóstico:"
+        err "  cat /etc/resolv.conf"
+        err "  resolvectl status   (ou: systemd-resolve --status)"
+        err "  ping -c1 8.8.8.8     (testa rede; se falhar, é firewall/rota da VPS)"
+        err "  ping -c1 google.com  (testa DNS)"
+        err "Verifique também o firewall do provedor (Oracle/AWS) liberando UDP 53 outbound."
+        exit 1
+    fi
+    ok "DNS funcional após correção: ${TEST_DOMAINS[*]}"
+}
+ensure_dns
+
 echo
 info "Todas as perguntas serão feitas agora, antes de qualquer instalação."
 echo
@@ -621,21 +699,67 @@ FAILED_FUNCTIONS=()
 if [[ "${DEPLOY_EDGE_FUNCTIONS:-0}" -eq 1 ]]; then
     step "STEP 1.5 — Deploy das Supabase Edge Functions"
 
-    # 1) Garante a Supabase CLI instalada (npm global)
-    if ! command -v supabase >/dev/null 2>&1; then
-        info "Instalando Supabase CLI (npm i -g supabase)..."
-        npm install -g supabase >/dev/null 2>&1 || {
-            err "Falha ao instalar Supabase CLI via npm. Tentando binário oficial..."
-            curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz \
-                -o /tmp/supabase-cli.tgz
-            tar -xzf /tmp/supabase-cli.tgz -C /usr/local/bin/ supabase
-            chmod +x /usr/local/bin/supabase
-        }
-    fi
+    # 1) Garante a Supabase CLI instalada — método oficial (binário do GitHub).
+    # IMPORTANTE: 'npm install -g supabase' NÃO é mais suportado oficialmente
+    # (https://github.com/supabase/cli/issues/1528). Usamos o tarball release
+    # do GitHub, que funciona em qualquer VPS Linux x86_64 sem dependências.
+    install_supabase_cli() {
+        local ARCH
+        case "$(uname -m)" in
+            x86_64|amd64) ARCH="amd64" ;;
+            aarch64|arm64) ARCH="arm64" ;;
+            *)
+                err "Arquitetura $(uname -m) não suportada pela Supabase CLI."
+                return 1
+                ;;
+        esac
+
+        info "Buscando última release da Supabase CLI no GitHub..."
+        local LATEST_TAG
+        LATEST_TAG="$(curl -fsSL https://api.github.com/repos/supabase/cli/releases/latest \
+            | jq -r '.tag_name' 2>/dev/null || echo "")"
+        if [[ -z "$LATEST_TAG" || "$LATEST_TAG" == "null" ]]; then
+            err "Não foi possível obter a última release (api.github.com inacessível?)."
+            return 1
+        fi
+        local VERSION="${LATEST_TAG#v}"
+        local URL="https://github.com/supabase/cli/releases/download/${LATEST_TAG}/supabase_linux_${ARCH}.tar.gz"
+        info "Baixando $URL..."
+        if ! curl -fsSL "$URL" -o /tmp/supabase-cli.tgz; then
+            err "Falha ao baixar $URL — verifique DNS e acesso a github.com."
+            return 1
+        fi
+        tar -xzf /tmp/supabase-cli.tgz -C /usr/local/bin/ supabase
+        chmod +x /usr/local/bin/supabase
+        rm -f /tmp/supabase-cli.tgz
+        return 0
+    }
+
+    NEED_INSTALL=1
     if command -v supabase >/dev/null 2>&1; then
-        ok "Supabase CLI: $(supabase --version 2>/dev/null || echo 'instalada')"
-    else
-        err "Supabase CLI não pôde ser instalada — pulando deploy de Edge Functions."
+        # Detecta CLI npm-quebrada (algumas versões via npm crasham com "command not found" interno)
+        if supabase --version >/dev/null 2>&1; then
+            NEED_INSTALL=0
+        else
+            info "Supabase CLI presente mas quebrada — reinstalando via binário oficial."
+            rm -f "$(command -v supabase)" 2>/dev/null || true
+        fi
+    fi
+
+    if [[ "$NEED_INSTALL" -eq 1 ]]; then
+        info "Instalando Supabase CLI (binário oficial GitHub)..."
+        if ! install_supabase_cli; then
+            err "Supabase CLI não pôde ser instalada — pulando deploy de Edge Functions."
+            err "Instale manualmente depois:"
+            err "  curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz -C /usr/local/bin/"
+            DEPLOY_EDGE_FUNCTIONS=0
+        fi
+    fi
+
+    if command -v supabase >/dev/null 2>&1 && supabase --version >/dev/null 2>&1; then
+        ok "Supabase CLI: $(supabase --version)"
+    elif [[ "${DEPLOY_EDGE_FUNCTIONS:-0}" -eq 1 ]]; then
+        err "Supabase CLI ainda não funcional — desativando deploy."
         DEPLOY_EDGE_FUNCTIONS=0
     fi
 fi
@@ -681,6 +805,32 @@ if [[ "${DEPLOY_EDGE_FUNCTIONS:-0}" -eq 1 ]]; then
         info "Validando publicação via 'supabase functions list'..."
         FN_LIST_OUT="$(supabase functions list --project-ref "$SUPABASE_PROJECT_REF" 2>&1 || true)"
         echo "$FN_LIST_OUT" | head -n 50
+
+        # Backup: lista funções via Management API (mais confiável que a CLI).
+        info "Confirmando via Management API (api.supabase.com)..."
+        PUBLISHED_JSON="$(curl -fsSL \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/functions" 2>/dev/null || echo '[]')"
+        PUBLISHED_NAMES="$(echo "$PUBLISHED_JSON" | jq -r '.[].slug // .[].name // empty' 2>/dev/null | sort -u)"
+        PUBLISHED_COUNT="$(echo "$PUBLISHED_NAMES" | grep -c . || echo 0)"
+        info "Functions publicadas no projeto ($PUBLISHED_COUNT):"
+        echo "$PUBLISHED_NAMES" | sed 's/^/    - /'
+
+        # Detecta cenário "apenas healthz publicada" — sinal de deploy incompleto.
+        if [[ "$PUBLISHED_COUNT" -le 1 ]] && echo "$PUBLISHED_NAMES" | grep -qx 'healthz'; then
+            err "ATENÇÃO: apenas a função 'healthz' está publicada — deploy real falhou."
+            err "Webhooks externos (Stripe, n8n, gateways) NÃO funcionarão."
+            err "Tente manualmente: cd $APP_DIR && supabase functions deploy <nome> --project-ref ${SUPABASE_PROJECT_REF}"
+        fi
+
+        # Confirma que cada função do repo está realmente publicada
+        for FN in "${ALL_FNS[@]}"; do
+            if echo "$PUBLISHED_NAMES" | grep -qx "$FN"; then
+                ok "  ✓ publicada: $FN"
+            else
+                err "  ✗ NÃO publicada: $FN  (rode: supabase functions deploy $FN --project-ref $SUPABASE_PROJECT_REF)"
+            fi
+        done
 
         echo
         info "Healthcheck HTTP de cada função (espera 2xx, 401 ou 405 — indica que está LIVE)..."
