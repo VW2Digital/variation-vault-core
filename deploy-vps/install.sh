@@ -356,6 +356,96 @@ nginx -t
 systemctl reload nginx
 ok "Nginx servindo $APP_DIR/dist na porta 80 (server_name=$DOMAIN)"
 
+# ---------- Vhost dedicado para subdomínio de API/Webhooks ----------
+if [[ -n "$API_SUBDOMAIN" ]]; then
+    info "Configurando vhost dedicado para webhooks/API em $API_SUBDOMAIN..."
+    cat > /etc/nginx/sites-available/api <<NGINX_API
+# Reverse proxy público para webhooks externos (Supabase, n8n, Stripe, Meta, etc.)
+# Endpoint canônico: https://${API_SUBDOMAIN}/api/<destino>
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${API_SUBDOMAIN};
+
+    # Healthcheck do gateway de webhooks
+    location = /api/healthz {
+        access_log off;
+        add_header Content-Type text/plain;
+        add_header Cache-Control "no-store";
+        return 200 "ok\n";
+    }
+
+    # /api/<algo>  →  Edge Function homônima no Supabase
+    # Ex.: /api/mercadopago-webhook → ${SUPABASE_URL_INPUT}/functions/v1/mercadopago-webhook
+    location ~ ^/api/(.+)\$ {
+        proxy_pass ${SUPABASE_URL_INPUT}/functions/v1/\$1\$is_args\$args;
+        proxy_http_version 1.1;
+        proxy_set_header Host ${SUPABASE_PROJECT_REF}.supabase.co;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-Forwarded-Host \$host;
+        proxy_set_header X-Webhook-Source external;
+        # Repassa qualquer Authorization / x-signature dos serviços externos
+        proxy_pass_request_headers on;
+        proxy_ssl_server_name on;
+        proxy_ssl_name ${SUPABASE_PROJECT_REF}.supabase.co;
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+        proxy_buffering off;
+        client_max_body_size 10m;
+    }
+
+    # Atalhos para webhooks dos gateways (mesmo padrão do vhost principal)
+    location ~ ^/(melhor-envio-webhook|asaas-webhook|mercadopago-webhook|pagarme-webhook|pagbank-webhook)(/.*)?\$ {
+        proxy_pass ${SUPABASE_URL_INPUT}/functions/v1/\$1\$2\$is_args\$args;
+        proxy_http_version 1.1;
+        proxy_set_header Host ${SUPABASE_PROJECT_REF}.supabase.co;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_ssl_server_name on;
+        proxy_ssl_name ${SUPABASE_PROJECT_REF}.supabase.co;
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+        proxy_buffering off;
+        client_max_body_size 10m;
+    }
+
+    # Bloqueia tudo o que não for /api/* nem webhook conhecido
+    location / {
+        return 404 "API endpoint não encontrado. Use /api/<rota>.\n";
+        add_header Content-Type text/plain;
+    }
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+}
+NGINX_API
+    ln -sf /etc/nginx/sites-available/api /etc/nginx/sites-enabled/api
+    nginx -t
+    systemctl reload nginx
+    ok "Vhost de API ativo: http://${API_SUBDOMAIN}/api/<rota>  (HTTPS após Certbot)"
+fi
+
+# ---------- Firewall (UFW) — libera 80/443 para webhooks externos ----------
+if command -v ufw >/dev/null 2>&1; then
+    info "Configurando firewall (UFW) — liberando 22, 80 e 443..."
+    ufw allow OpenSSH >/dev/null 2>&1 || ufw allow 22/tcp >/dev/null 2>&1 || true
+    ufw allow 80/tcp  >/dev/null 2>&1 || true
+    ufw allow 443/tcp >/dev/null 2>&1 || true
+    UFW_STATUS="$(ufw status | head -n1 || true)"
+    if [[ "$UFW_STATUS" != *"active"* ]]; then
+        info "UFW está inativo — não vamos forçar enable para evitar derrubar a sessão SSH."
+        info "Para ativar manualmente depois: sudo ufw enable"
+    else
+        ok "Firewall UFW: 80/443 liberados"
+    fi
+else
+    info "UFW não instalado — pulando configuração de firewall."
+    info "Se sua VPS usar outro firewall (cloud provider, iptables), libere TCP 80 e 443."
+fi
+
 # ----------------------------- Verificação pós-build (local) ----------------
 info "Executando verificação local..."
 VERIFY_FAIL=0
