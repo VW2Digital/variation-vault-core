@@ -209,6 +209,24 @@ else
     info "Modo PRODUÇÃO selecionado — certificado real do Let's Encrypt."
 fi
 
+# 6) Deploy automático das Supabase Edge Functions
+echo
+echo "Deploy automático das Supabase Edge Functions deste repositório?"
+echo "  • Instala a Supabase CLI (npm i -g supabase) se necessário."
+echo "  • Linka o projeto $SUPABASE_PROJECT_REF usando o seu access token."
+echo "  • Roda 'supabase functions deploy <nome>' para cada função em supabase/functions/."
+echo "  • Valida com 'supabase functions list' e faz healthcheck HTTP em cada uma."
+echo "  Recomendado para webhooks externos (n8n, Stripe, Meta, gateways) funcionarem."
+read -rp "Deployar Edge Functions automaticamente? [S/n]: " WANT_FN_DEPLOY
+WANT_FN_DEPLOY="${WANT_FN_DEPLOY:-s}"
+if [[ "${WANT_FN_DEPLOY,,}" == "s" || "${WANT_FN_DEPLOY,,}" == "y" ]]; then
+    DEPLOY_EDGE_FUNCTIONS=1
+    info "Edge Functions serão deployadas automaticamente após o build."
+else
+    DEPLOY_EDGE_FUNCTIONS=0
+    info "Deploy de Edge Functions PULADO — webhooks via /api/* podem retornar 404 até você rodar 'supabase functions deploy' manualmente."
+fi
+
 ###############################################################################
 # STEP 1 — Instalar app (Node + Git + Nginx + build + config SPA)
 ###############################################################################
