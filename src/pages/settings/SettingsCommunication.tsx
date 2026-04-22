@@ -20,6 +20,12 @@ const SettingsCommunication = () => {
   const [resendFromEmail, setResendFromEmail] = useState('');
   const [showResendKey, setShowResendKey] = useState(false);
 
+  // Teste de envio de email
+  const [testEmailTo, setTestEmailTo] = useState('');
+  const [testEmailSubject, setTestEmailSubject] = useState('');
+  const [testEmailMessage, setTestEmailMessage] = useState('');
+  const [sendingTestEmail, setSendingTestEmail] = useState(false);
+
   const PUBLIC_EMAIL_DOMAINS = ['gmail.com','googlemail.com','hotmail.com','outlook.com','live.com','yahoo.com','yahoo.com.br','icloud.com','msn.com','bol.com.br','uol.com.br','terra.com.br'];
   const fromDomain = resendFromEmail.split('@')[1]?.toLowerCase() || '';
   const isPublicEmailDomain = PUBLIC_EMAIL_DOMAINS.includes(fromDomain);
