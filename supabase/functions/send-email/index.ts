@@ -303,22 +303,45 @@ serve(async (req) => {
     }
 
     const sendStart = Date.now();
-    const res = await fetch("https://api.resend.com/emails", {
+    const sendVia = async (fromAddress: string) =>
+      fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${resendApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: `${storeName} <${fromEmail}>`,
+        from: `${storeName} <${fromAddress}>`,
         to: recipients,
         ...(replyTo ? { reply_to: replyTo } : {}),
         subject: rendered.subject,
         html: rendered.html,
       }),
     });
+
+    let res = await sendVia(fromEmail);
+    let resBody: any = await res.json().catch(() => ({}));
+    let usedFrom = fromEmail;
+    let autoFallback = false;
+
+    // Auto-fallback when configured domain is not verified on Resend.
+    if (
+      !res.ok &&
+      res.status === 403 &&
+      fromEmail !== "onboarding@resend.dev" &&
+      typeof resBody?.message === "string" &&
+      /domain is not verified/i.test(resBody.message)
+    ) {
+      console.warn(
+        `send-email: ${fromEmail} not verified on Resend, retrying with onboarding@resend.dev`,
+      );
+      res = await sendVia("onboarding@resend.dev");
+      resBody = await res.json().catch(() => ({}));
+      usedFrom = "onboarding@resend.dev";
+      autoFallback = true;
+    }
+
     const latency = Date.now() - sendStart;
-    const resBody = await res.json().catch(() => ({}));
 
     // Persist a row per recipient in email_send_log (best-effort).
     const logRows = recipients.map((r) => ({
