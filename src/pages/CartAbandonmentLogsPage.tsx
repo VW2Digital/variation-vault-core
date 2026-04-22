@@ -29,6 +29,8 @@ interface ActiveCartUser {
   total_items: number;
   total_value: number;
   oldest_item_date: string;
+  allow_email_marketing: boolean;
+  allow_whatsapp_marketing: boolean;
 }
 
 export default function CartAbandonmentLogsPage() {
@@ -72,6 +74,18 @@ export default function CartAbandonmentLogsPage() {
         .from('profiles')
         .select('user_id, full_name, phone, cpf');
 
+      const { data: preferences } = await supabase
+        .from('contact_preferences')
+        .select('user_id, allow_email_marketing, allow_whatsapp_marketing')
+        .in('user_id', userIds);
+      const prefMap = new Map<string, { email: boolean; whatsapp: boolean }>();
+      for (const p of preferences || []) {
+        prefMap.set(p.user_id, {
+          email: p.allow_email_marketing !== false,
+          whatsapp: p.allow_whatsapp_marketing !== false,
+        });
+      }
+
       let userEmails: Record<string, string> = {};
       try {
         const { data: usersData } = await supabase.functions.invoke('admin-users', {
@@ -96,6 +110,7 @@ export default function CartAbandonmentLogsPage() {
 
         if (!userMap.has(item.user_id)) {
           const profile = (profiles || []).find(p => p.user_id === item.user_id);
+          const pref = prefMap.get(item.user_id);
           userMap.set(item.user_id, {
             user_id: item.user_id,
             email: userEmails[item.user_id] || '',
@@ -105,6 +120,8 @@ export default function CartAbandonmentLogsPage() {
             total_items: 0,
             total_value: 0,
             oldest_item_date: item.created_at,
+            allow_email_marketing: pref ? pref.email : true,
+            allow_whatsapp_marketing: pref ? pref.whatsapp : true,
           });
         }
 
@@ -142,6 +159,10 @@ export default function CartAbandonmentLogsPage() {
       toast.error('Este usuário não possui telefone cadastrado.');
       return;
     }
+    if (!user.allow_whatsapp_marketing) {
+      toast.error('Cliente optou por não receber WhatsApp de marketing.');
+      return;
+    }
 
     setSendingWhatsApp(user.user_id);
 
@@ -153,7 +174,12 @@ export default function CartAbandonmentLogsPage() {
 
     try {
       const { data, error } = await supabase.functions.invoke('evolution-send-message', {
-        body: { number: user.phone, text: message },
+        body: {
+          number: user.phone,
+          text: message,
+          user_id: user.user_id,
+          purpose: 'marketing',
+        },
       });
 
       if (error) throw error;
@@ -170,6 +196,10 @@ export default function CartAbandonmentLogsPage() {
   const handleSendEmail = async (user: ActiveCartUser) => {
     if (!user.email) {
       toast.error('Este cliente não possui email cadastrado.');
+      return;
+    }
+    if (!user.allow_email_marketing) {
+      toast.error('Cliente optou por não receber emails de marketing.');
       return;
     }
     setSendingEmail(user.user_id);
