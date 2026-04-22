@@ -412,6 +412,50 @@ if [[ "${WANT_SMTP,,}" == "s" || "${WANT_SMTP,,}" == "y" ]]; then
             ok "SMTP coletado: ${SMTP_USER}@${SMTP_HOST}:${SMTP_PORT} (${SMTP_SECURE}) — senha mascarada $(mask "$SMTP_PASS")"
             # Reaproveita EMAIL_FROM como remetente p/ exibição/logs.
             EMAIL_FROM="${SMTP_FROM_NAME:+$SMTP_FROM_NAME }<${SMTP_FROM_EMAIL}>"
+
+            # ---------------------------------------------------------------
+            # Teste de conectividade SMTP (não-bloqueante)
+            # ---------------------------------------------------------------
+            # Valida ANTES de gravar secrets que a VPS realmente alcança o
+            # provedor SMTP. Falhas aqui geralmente indicam:
+            #   • Firewall outbound do provedor (Oracle/AWS/GCP) bloqueando 465/587
+            #   • Host SMTP digitado errado
+            #   • DNS sem upstream (já tratado em ensure_dns acima)
+            # Não abortamos: o usuário pode estar configurando offline / com VPN.
+            step "Testando conectividade SMTP (${SMTP_HOST}:${SMTP_PORT})"
+
+            # Garante netcat e openssl para o teste.
+            if ! command -v nc >/dev/null 2>&1; then
+                apt-get install -y netcat-openbsd >/dev/null 2>&1 || \
+                    apt-get install -y ncat       >/dev/null 2>&1 || true
+            fi
+
+            # 1) TCP reachability via netcat
+            if command -v nc >/dev/null 2>&1; then
+                if nc -vz -w 5 "$SMTP_HOST" "$SMTP_PORT" >/dev/null 2>&1; then
+                    ok "  [1/2] TCP OK — ${SMTP_HOST}:${SMTP_PORT} acessível"
+                else
+                    warn "  [1/2] TCP FALHOU — ${SMTP_HOST}:${SMTP_PORT} inalcançável"
+                    warn "        Causa provável: firewall outbound do provedor de cloud"
+                    warn "        • Oracle Cloud → Security List → Egress → TCP ${SMTP_PORT}"
+                    warn "        • AWS EC2     → Security Group → Outbound → TCP ${SMTP_PORT}"
+                    warn "        • UFW         → sudo ufw allow out ${SMTP_PORT}/tcp"
+                fi
+            else
+                info "  [1/2] netcat indisponível — pulando teste TCP."
+            fi
+
+            # 2) Banner SMTP/TLS via openssl (apenas porta 465 SSL direto)
+            if [[ "$SMTP_PORT" == "465" ]] && command -v openssl >/dev/null 2>&1; then
+                if timeout 8 bash -c "echo QUIT | openssl s_client -connect ${SMTP_HOST}:465 -servername ${SMTP_HOST} -quiet 2>/dev/null | head -n 1" \
+                   | grep -qE "^220 "; then
+                    ok "  [2/2] TLS handshake OK — banner SMTP recebido de ${SMTP_HOST}"
+                else
+                    warn "  [2/2] TLS handshake não recebeu banner 220 (pode ser host inválido ou bloqueio SNI)"
+                fi
+            elif [[ "$SMTP_PORT" == "587" ]]; then
+                info "  [2/2] Porta 587 usa STARTTLS — pulando handshake direto (validação acontece no envio real)."
+            fi
         fi
     fi
 else
