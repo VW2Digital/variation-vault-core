@@ -208,37 +208,60 @@ const EmailLogsPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Mail className="h-4 w-4" /> Total
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{stats.total}</div>
+            <p className="text-xs text-muted-foreground mt-1">emails únicos</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Enviados</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Send className="h-4 w-4" /> Enviados
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-emerald-600">{stats.sent}</div>
+            <p className="text-xs text-muted-foreground mt-1">entregues ao SMTP</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Falhas</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <XCircle className="h-4 w-4" /> Falhas
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-destructive">{stats.failed}</div>
+            <p className="text-xs text-muted-foreground mt-1">failed + dlq</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Taxa de Sucesso</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <ShieldOff className="h-4 w-4" /> Suprimidos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-amber-600">{stats.suppressed}</div>
+            <p className="text-xs text-muted-foreground mt-1">bounce/spam/opt-out</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" /> Taxa de Sucesso
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{stats.rate}%</div>
+            <p className="text-xs text-muted-foreground mt-1">enviados / total</p>
           </CardContent>
         </Card>
       </div>
