@@ -237,6 +237,9 @@ serve(async (req) => {
         "resend_from_email",
         "store_public_url",
         "store_name",
+        // Template overrides (one row per key)
+        `email_template_${body.template}_subject`,
+        `email_template_${body.template}_html`,
       ]);
     const cfg: Record<string, string> = {};
     (settings || []).forEach((s: any) => (cfg[s.key] = s.value));
@@ -269,6 +272,33 @@ serve(async (req) => {
       };
     } else {
       rendered = renderTemplate(body.template, body.data || {}, storeName, storePublicUrl);
+      if (body.subject) rendered.subject = body.subject;
+    }
+
+    // Apply admin overrides from site_settings (if defined).
+    // Supports {{var}} placeholders that map to keys in body.data, plus
+    // {{store_name}}, {{store_url}}, {{customer_name}}.
+    const overrideSubject = cfg[`email_template_${body.template}_subject`];
+    const overrideHtml = cfg[`email_template_${body.template}_html`];
+    if (overrideSubject || overrideHtml) {
+      const vars: Record<string, string> = {
+        store_name: storeName,
+        store_url: storePublicUrl,
+        customer_name:
+          (body.data?.customer_name as string) ||
+          (body.data?.full_name as string) ||
+          "Cliente",
+      };
+      for (const [k, v] of Object.entries(body.data || {})) {
+        if (v == null) continue;
+        vars[k] = typeof v === "object" ? JSON.stringify(v) : String(v);
+      }
+      const interpolate = (s: string) =>
+        s.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_m, key) =>
+          vars[key] !== undefined ? vars[key] : "",
+        );
+      if (overrideSubject) rendered.subject = interpolate(overrideSubject);
+      if (overrideHtml) rendered.html = interpolate(overrideHtml);
       if (body.subject) rendered.subject = body.subject;
     }
 

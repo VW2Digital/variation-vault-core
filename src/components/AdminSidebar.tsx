@@ -54,6 +54,7 @@ const menuCategories = [
       { title: 'Usuários', url: '/admin/usuarios', icon: Users },
       { title: 'Avaliações', url: '/admin/avaliacoes', icon: Star },
       { title: 'Suporte', url: '/admin/suporte', icon: MessageCircle },
+      { title: 'Templates Email', url: '/admin/templates-email', icon: Mail },
     ],
   },
   {
