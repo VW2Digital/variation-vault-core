@@ -1508,6 +1508,94 @@ else
 fi
 
 ###############################################################################
+# Pós-Certbot: limpar vhosts placeholder e validar API real via HTTPS
+#
+# O plugin nginx do Certbot pode injetar um bloco `server { ... return 404; }`
+# duplicado ao processar o subdomínio de API. Esse bloco intercepta tudo e
+# faz /api/admin-users / webhook do Melhor Envio falharem com 404 falso.
+# Removemos QUALQUER placeholder e revalidamos o endpoint real.
+###############################################################################
+if [[ -n "$API_SUBDOMAIN" ]]; then
+    info "[pós-certbot] Validando integridade do vhost de API ($API_SUBDOMAIN)..."
+
+    # 1) Remove placeholders 'return 404; # managed by Certbot'
+    purge_certbot_fake_vhosts "$API_SUBDOMAIN"
+    purge_certbot_fake_vhosts "$DOMAIN"
+
+    # 2) Garante que o link sites-enabled/api ainda existe
+    if [[ ! -e /etc/nginx/sites-enabled/api ]]; then
+        warn "[pós-certbot] sites-enabled/api ausente — recriando link simbólico"
+        ln -sf /etc/nginx/sites-available/api /etc/nginx/sites-enabled/api
+        nginx -t && systemctl reload nginx
+    fi
+
+    # 3) Reconfirma que não há 'return 404' direto no server_name de API
+    if nginx -T 2>/dev/null | awk -v host="$API_SUBDOMAIN" '
+        BEGIN { in_block=0; depth=0; has_host=0; has_404=0; has_real=0 }
+        /^[[:space:]]*server[[:space:]]*\{/ {
+            in_block=1; depth=1; has_host=0; has_404=0; has_real=0; next
+        }
+        in_block {
+            n=gsub(/\{/,"{"); depth+=n
+            n=gsub(/\}/,"}"); depth-=n
+            if ($0 ~ "server_name[[:space:]]+[^;]*"host) has_host=1
+            if ($0 ~ /return[[:space:]]+404/) has_404=1
+            if ($0 ~ /(proxy_pass|try_files|\/api\/|functions\/v1)/) has_real=1
+            if (depth<=0) {
+                if (has_host && has_404 && !has_real) { print "FAKE"; exit 0 }
+                in_block=0
+            }
+        }
+    ' | grep -q FAKE; then
+        err "[pós-certbot] AINDA existe vhost placeholder do Certbot para $API_SUBDOMAIN"
+        err "             Inspecione manualmente:"
+        err "               sudo nginx -T | grep -B2 -A8 'server_name.*$API_SUBDOMAIN'"
+    else
+        ok "[pós-certbot] Nenhum vhost placeholder ativo para $API_SUBDOMAIN"
+    fi
+
+    # 4) Smoke test HTTPS REAL (não apenas loopback)
+    info "[pós-certbot] Testando https://$API_SUBDOMAIN/api/healthz..."
+    HZ_HTTPS="$(curl -s -o /tmp/hz.out -w '%{http_code}' --max-time 10 \
+        "https://${API_SUBDOMAIN}/api/healthz" 2>/dev/null || echo 000)"
+    if [[ "$HZ_HTTPS" == "200" ]] && grep -q "ok" /tmp/hz.out 2>/dev/null; then
+        ok "[pós-certbot] /api/healthz HTTPS = 200 OK ✓"
+    else
+        warn "[pós-certbot] /api/healthz HTTPS retornou HTTP $HZ_HTTPS"
+        warn "              → DNS de $API_SUBDOMAIN propagou? Cert válido?"
+        warn "              → Teste: curl -i https://${API_SUBDOMAIN}/api/healthz"
+    fi
+
+    # 5) Smoke test de função real (admin-users) — confirma que o proxy
+    #    REALMENTE alcança o Supabase. Esperamos 401 (auth required) ou 200,
+    #    NUNCA 404 (que indicaria o placeholder do Certbot ainda ativo).
+    info "[pós-certbot] Testando https://$API_SUBDOMAIN/api/admin-users (proxy real → Supabase)..."
+    AU_HTTPS="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+        "https://${API_SUBDOMAIN}/api/admin-users" 2>/dev/null || echo 000)"
+    case "$AU_HTTPS" in
+        200|401|403|405)
+            ok "[pós-certbot] /api/admin-users = HTTP $AU_HTTPS (proxy alcança Supabase ✓)"
+            ;;
+        404)
+            err "[pós-certbot] /api/admin-users = HTTP 404 — VHOST PLACEHOLDER DO CERTBOT AINDA ATIVO!"
+            err "              Causa: bloco 'server { server_name $API_SUBDOMAIN; return 404; # managed by Certbot }'"
+            err "              Localize:  sudo grep -RIn 'return 404' /etc/nginx/sites-enabled /etc/nginx/conf.d"
+            err "              E remova o bloco antes de prosseguir."
+            ;;
+        502|504)
+            warn "[pós-certbot] /api/admin-users = HTTP $AU_HTTPS — Nginx não alcança Supabase"
+            warn "              Verifique: outbound 443/tcp liberado? DNS resolve ${SUPABASE_PROJECT_REF}.supabase.co?"
+            ;;
+        000)
+            warn "[pós-certbot] /api/admin-users sem resposta — DNS/SSL pode ainda estar propagando"
+            ;;
+        *)
+            warn "[pós-certbot] /api/admin-users retornou HTTP $AU_HTTPS (inesperado, mas proxy ativo)"
+            ;;
+    esac
+fi
+
+###############################################################################
 # Resumo final
 ###############################################################################
 echo
