@@ -72,6 +72,7 @@ echo -e "${BLUE}╚════════════════════�
 # Garante curl + jq cedo (usados na validação leve da anon key)
 if ! command -v curl >/dev/null 2>&1; then apt-get update -y && apt-get install -y curl; fi
 if ! command -v jq >/dev/null 2>&1;   then apt-get update -y && apt-get install -y jq;   fi
+if ! command -v openssl >/dev/null 2>&1; then apt-get update -y && apt-get install -y openssl; fi
 
 echo
 info "Todas as perguntas serão feitas agora, antes de qualquer instalação."
@@ -128,7 +129,32 @@ if [[ -z "$SUPABASE_ANON_KEY" || "$SUPABASE_ANON_KEY" == "null" ]]; then
     err "Resposta: $API_BODY"
     exit 1
 fi
-ok "Anon key obtida automaticamente para o projeto $SUPABASE_PROJECT_REF"
+ok "Anon key obtida automaticamente para o projeto $SUPABASE_PROJECT_REF  ($(mask "$SUPABASE_ANON_KEY"))"
+
+# Service role key — opt-in. Apenas com confirmação explícita do usuário, pois
+# concede acesso administrativo total ao banco (bypass de RLS).
+SUPABASE_SERVICE_ROLE_KEY=""
+echo
+echo "⚠️  SERVICE ROLE KEY concede acesso ADMIN total (bypass de RLS)."
+echo "    Use apenas se a app/integrações dependerem dela (ex.: cron jobs, scripts server-side)."
+echo "    Será gravada em $APP_DIR/.env (chmod 600) e nunca impressa em logs."
+read -rp "Buscar SUPABASE_SERVICE_ROLE_KEY automaticamente? [s/N]: " WANT_SR
+if [[ "${WANT_SR,,}" == "s" || "${WANT_SR,,}" == "y" ]]; then
+    SR_KEY="$(echo "$API_BODY" | jq -r '.[] | select(.name=="service_role") | .api_key')"
+    if [[ -z "$SR_KEY" || "$SR_KEY" == "null" ]]; then
+        err "service_role key não retornada pela API. Token tem permissão suficiente?"
+        err "Pulando — você pode adicionar manualmente em $APP_DIR/.env depois."
+    else
+        SUPABASE_SERVICE_ROLE_KEY="$SR_KEY"
+        ok "Service role key obtida  ($(mask "$SUPABASE_SERVICE_ROLE_KEY"))  — NUNCA será exibida na íntegra."
+    fi
+else
+    info "Service role key NÃO será buscada (recomendado para produção pública)."
+fi
+
+# Limpa o body da Management API da memória — contém keys sensíveis em texto puro
+API_BODY=""
+API_RESP=""
 
 # 4) Domínio + e-mail (perguntados aqui pra ficar tudo no início)
 echo
@@ -155,8 +181,13 @@ fi
 echo
 read -rp "WEBHOOK_SECRET (deixe vazio para gerar automaticamente): " WEBHOOK_SECRET
 if [[ -z "${WEBHOOK_SECRET:-}" ]]; then
-    WEBHOOK_SECRET="$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 40)"
-    info "WEBHOOK_SECRET gerado automaticamente (40 chars). Será gravado no .env."
+    # Alta entropia: 32 bytes random → 64 chars hex
+    if command -v openssl >/dev/null 2>&1; then
+        WEBHOOK_SECRET="$(openssl rand -hex 32)"
+    else
+        WEBHOOK_SECRET="$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 64)"
+    fi
+    info "WEBHOOK_SECRET gerado automaticamente (64 chars hex)  ($(mask "$WEBHOOK_SECRET"))"
 fi
 
 # 5) Modo SSL — staging (teste) ou produção (real)
