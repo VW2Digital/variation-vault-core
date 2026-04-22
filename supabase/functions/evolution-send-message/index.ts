@@ -16,13 +16,32 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { number, text } = await req.json();
+    const { number, text, user_id, purpose } = await req.json();
 
     if (!number || !text) {
       return new Response(JSON.stringify({ error: 'number e text são obrigatórios' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Respect WhatsApp marketing opt-out when caller provides a user_id
+    // and identifies the message as marketing (e.g. cart abandonment).
+    if (user_id && purpose === 'marketing') {
+      const { data: pref } = await supabase
+        .from('contact_preferences')
+        .select('allow_whatsapp_marketing')
+        .eq('user_id', user_id)
+        .maybeSingle();
+      if (pref && pref.allow_whatsapp_marketing === false) {
+        return new Response(JSON.stringify({
+          error: 'Cliente optou por não receber WhatsApp de marketing.',
+          opted_out: true,
+        }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     // Fetch Evolution API settings from site_settings
