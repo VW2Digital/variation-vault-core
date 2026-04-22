@@ -125,7 +125,7 @@ const SettingsCommunication = () => {
             <Label>Email de envio (From)</Label>
             <Input value={resendFromEmail} onChange={(e) => setResendFromEmail(e.target.value)} placeholder="onboarding@resend.dev" />
             {isPublicEmailDomain && (
-              <div className="flex items-start gap-2 p-3 rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400">
+              <div className="flex items-start gap-2 p-3 rounded-md border border-destructive/40 bg-destructive/10 text-destructive">
                 <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <div className="text-xs space-y-1">
                   <p className="font-semibold">Domínio público não é aceito pelo Resend</p>
