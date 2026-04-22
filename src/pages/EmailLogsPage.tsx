@@ -148,8 +148,19 @@ const EmailLogsPage = () => {
   const stats = useMemo(() => {
     const total = dedupedRows.length;
     const sent = dedupedRows.filter((r) => r.status === "sent").length;
-    const failed = dedupedRows.filter((r) => r.status === "failed").length;
-    return { total, sent, failed, rate: total > 0 ? Math.round((sent / total) * 100) : 0 };
+    const failed = dedupedRows.filter((r) => r.status === "failed" || r.status === "dlq").length;
+    const suppressed = dedupedRows.filter(
+      (r) => r.status === "suppressed" || r.status === "bounced" || r.status === "complained",
+    ).length;
+    const pending = dedupedRows.filter((r) => r.status === "pending").length;
+    return {
+      total,
+      sent,
+      failed,
+      suppressed,
+      pending,
+      rate: total > 0 ? Math.round((sent / total) * 100) : 0,
+    };
   }, [dedupedRows]);
 
   const templateOptions = useMemo(() => {
