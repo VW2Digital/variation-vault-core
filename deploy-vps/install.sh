@@ -347,6 +347,57 @@ DOMAIN="${DOMAIN:-$DOMAIN_DEFAULT}"
 read -rp "E-mail para alertas do Let's Encrypt [${EMAIL_DEFAULT}]: " EMAIL
 EMAIL="${EMAIL:-$EMAIL_DEFAULT}"
 
+# 4.0) Provedor de e-mail transacional (Resend) — opcional, mas recomendado
+# A aplicação envia TODOS os e-mails customizados (pedido, frete, recuperação
+# de carrinho, alertas admin) via Edge Function 'send-email', que fala
+# DIRETAMENTE com a API do Resend. Nenhuma dependência do Lovable é usada
+# em runtime — a stack de e-mails é 100% Supabase + Resend.
+#
+# Se você fornecer a chave aqui, o script:
+#   1) Valida a chave via GET https://api.resend.com/domains (sem expor)
+#   2) Configura a secret RESEND_API_KEY no Supabase via 'supabase secrets set'
+#   3) Não imprime o valor em nenhum log
+echo
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}E-mail transacional (Resend) — opcional, recomendado${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+info "A aplicação usa Supabase Edge Functions + Resend para envio."
+info "Sem chave: a Edge Function 'send-email' faz fallback para 'onboarding@resend.dev'"
+info "(útil em dev, NÃO em produção pois o domínio não é seu)."
+echo
+RESEND_API_KEY=""
+EMAIL_FROM=""
+read -rsp "RESEND_API_KEY (re_...; ENTER para pular): " RESEND_API_KEY
+echo
+if [[ -n "$RESEND_API_KEY" ]]; then
+    if [[ ! "$RESEND_API_KEY" =~ ^re_[A-Za-z0-9_]+$ ]]; then
+        warn "Formato inesperado (esperado 're_...'). Validando mesmo assim…"
+    fi
+    # Valida sem expor a chave em logs.
+    RS_CODE="$(curl -sS -o /dev/null -w '%{http_code}' \
+        --max-time 10 \
+        -H "Authorization: Bearer ${RESEND_API_KEY}" \
+        https://api.resend.com/domains 2>/dev/null || echo "000")"
+    case "$RS_CODE" in
+        200) ok "RESEND_API_KEY válida ($(mask "$RESEND_API_KEY"))." ;;
+        401|403)
+            err "RESEND_API_KEY rejeitada (HTTP $RS_CODE). Confira em https://resend.com/api-keys."
+            read -rp "Continuar mesmo assim? [s/N]: " RS_CONT
+            if [[ "${RS_CONT,,}" != "s" && "${RS_CONT,,}" != "y" ]]; then exit 1; fi
+            ;;
+        000) warn "Não foi possível alcançar api.resend.com em 10s — pulando validação." ;;
+        *)   warn "Resend respondeu HTTP $RS_CODE — seguindo." ;;
+    esac
+
+    read -rp "EMAIL_FROM (ex.: 'Loja <no-reply@seu-dominio.com>'; ENTER = onboarding@resend.dev): " EMAIL_FROM
+    if [[ -n "$EMAIL_FROM" && ! "$EMAIL_FROM" =~ @ ]]; then
+        warn "EMAIL_FROM sem '@' — será ignorado pela função."
+    fi
+else
+    info "Pulado. Você pode adicionar depois com:"
+    info "  supabase secrets set RESEND_API_KEY=re_xxx --project-ref $SUPABASE_PROJECT_REF"
+fi
+
 # 4.1) Subdomínio público para API/Webhooks (proxy reverso → Supabase / app)
 echo
 echo "Subdomínio público para webhooks/API (Supabase, n8n, Stripe, Meta, etc.)."
