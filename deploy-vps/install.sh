@@ -1491,37 +1491,91 @@ if [[ "${DEPLOY_EDGE_FUNCTIONS:-0}" -eq 1 ]]; then
 
     # 6) Lembrete sobre secrets das Edge Functions
     echo
-    info "Edge Functions precisam de SECRETS configurados no Supabase para autenticar webhooks e enviar e-mails."
-    info "  Liste:    supabase secrets list --project-ref $SUPABASE_PROJECT_REF"
-    info "  Configure (NUNCA cole a chave neste terminal — use o painel ou \$VAR):"
-    info "    supabase secrets set RESEND_API_KEY=\"\$RESEND_API_KEY\" --project-ref $SUPABASE_PROJECT_REF"
-    info "  Secrets usadas pela aplicação:"
-    info "    • RESEND_API_KEY      — provedor de envio (e-mails transacionais via send-email)"
-    info "    • WEBHOOK_SECRET      — autenticação dos webhooks externos (gerada acima)"
-    info "    • MP_WEBHOOK_SECRET   — assinatura HMAC do Mercado Pago"
-    info "    • LOVABLE_API_KEY     — Lovable AI Gateway (opcional)"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}Edge Function secrets (Supabase — backend independente do Lovable)${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+    # 6.a) RESEND_API_KEY — configurado automaticamente se foi informado no início.
+    if [[ -n "${RESEND_API_KEY:-}" ]]; then
+        info "Configurando secret RESEND_API_KEY no projeto Supabase…"
+        # Usa env var para nunca expor a chave no histórico do shell.
+        if RESEND_API_KEY="$RESEND_API_KEY" supabase secrets set \
+            "RESEND_API_KEY=$RESEND_API_KEY" \
+            --project-ref "$SUPABASE_PROJECT_REF" >/dev/null 2>&1; then
+            ok "RESEND_API_KEY configurada no Supabase ($(mask "$RESEND_API_KEY"))."
+        else
+            err "Falha ao configurar RESEND_API_KEY via CLI. Configure manualmente:"
+            err "  supabase secrets set RESEND_API_KEY=re_xxx --project-ref $SUPABASE_PROJECT_REF"
+        fi
+    else
+        info "RESEND_API_KEY não informada — pulando setup automático."
+        info "Para configurar depois: supabase secrets set RESEND_API_KEY=re_xxx --project-ref $SUPABASE_PROJECT_REF"
+    fi
+
+    # 6.b) EMAIL_FROM — gravado em site_settings (a Edge Function lê de lá).
+    if [[ -n "${EMAIL_FROM:-}" && -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]]; then
+        info "Salvando remetente padrão (resend_from_email) em site_settings…"
+        # Extrai apenas o endereço se vier no formato "Nome <email@domínio>"
+        EMAIL_ADDR="$(echo "$EMAIL_FROM" | grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' | head -n1)"
+        if [[ -n "$EMAIL_ADDR" ]]; then
+            curl -sS -o /dev/null -w "  resend_from_email upsert: HTTP %{http_code}\n" \
+                -X POST "${SUPABASE_URL_INPUT}/rest/v1/site_settings" \
+                -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+                -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+                -H "Content-Type: application/json" \
+                -H "Prefer: resolution=merge-duplicates" \
+                -d "{\"key\":\"resend_from_email\",\"value\":\"$EMAIL_ADDR\",\"user_id\":\"00000000-0000-0000-0000-000000000000\"}" \
+                || warn "Falha de rede ao salvar resend_from_email — configure depois em /admin/configuracoes/comunicacao."
+            ok "Remetente registrado: $EMAIL_ADDR"
+        else
+            warn "EMAIL_FROM não contém endereço válido — pulado."
+        fi
+    elif [[ -n "${EMAIL_FROM:-}" ]]; then
+        info "EMAIL_FROM informado mas sem service_role key — defina manualmente em:"
+        info "  /admin/configuracoes/comunicacao → 'Remetente Resend'"
+    fi
+
+    echo
+    info "Outras secrets usadas pelas Edge Functions (configure se aplicável):"
+    info "  • WEBHOOK_SECRET      — autenticação genérica de webhooks externos"
+    info "  • MP_WEBHOOK_SECRET   — assinatura HMAC Mercado Pago (já presente se gerada acima)"
+    info "  • ASAAS_WEBHOOK_TOKEN — token URL/header do webhook Asaas"
+    info "  • PAGARME_WEBHOOK_KEY — assinatura HMAC-SHA1 Pagar.me"
+    info "  • EVOLUTION_API_URL / EVOLUTION_API_KEY — WhatsApp transacional (opcional)"
+    info "  Listar:   supabase secrets list --project-ref $SUPABASE_PROJECT_REF"
+    info "  Gravar:   supabase secrets set CHAVE=valor --project-ref $SUPABASE_PROJECT_REF"
     echo
 
-    # 7) SMTP do Supabase Auth (signup, recuperação de senha, magic links)
+    # 7) Guia de envio de e-mail — 100% Supabase + Resend, sem Lovable
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}E-mails do Supabase Auth (cadastro / reset de senha / magic link)${NC}"
+    echo -e "${BLUE}Stack de e-mail (independente do Lovable)${NC}"
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    info "Por padrão o Supabase envia esses e-mails pelo SMTP interno (limite ~4/h)."
-    info "Para produção, configure SMTP customizado no painel do Supabase:"
+    info "Arquitetura usada por esta aplicação em produção:"
+    info "  Auth (signup / reset / magic link) → Supabase Auth (SMTP customizado)"
+    info "  Transacional (pedido, frete, etc.) → Edge Function 'send-email' → Resend API"
+    info "  Eventos de domínio                  → Edge Function 'email-events' → 'send-email'"
+    info "  Auditoria                           → tabela 'email_send_log' (UI: /admin/logs-email)"
+    info ""
+    info "Nenhum runtime do Lovable é usado para enviar e-mails — tudo passa pelo"
+    info "Supabase + Resend. O frontend pode rodar em Vercel/Netlify/Cloudflare/VPS."
+    info ""
+    info "Para Auth Emails em produção (acima de 4 e-mails/hora), habilite SMTP"
+    info "customizado no painel do Supabase:"
     info "  Dashboard → Authentication → Emails → SMTP Settings → Enable Custom SMTP"
+    info "  Host:     smtp.resend.com   Port: 465 (SSL) ou 587 (STARTTLS)"
+    info "  User:     resend            Password: sua RESEND_API_KEY"
+    info "  Sender:   no-reply@<seu-dominio-verificado-no-resend>"
     info ""
-    info "Sugestão de provedor: Resend (a chave já está em RESEND_API_KEY)."
-    info "  Host:     smtp.resend.com"
-    info "  Port:     465 (SSL) ou 587 (STARTTLS)"
-    info "  User:     resend"
-    info "  Password: <sua RESEND_API_KEY>   ← NÃO digite aqui, copie do painel Resend"
-    info "  Sender:   no-reply@<seu-dominio-verificado>"
-    info ""
-    info "Os e-mails transacionais customizados (pedido, frete, falha, recuperação"
-    info "de carrinho, notificação admin) já são enviados via Edge Function 'send-email'."
-    info "Chame de qualquer função/UI:"
+    info "Disparo de transacional a partir de qualquer Edge Function ou do front:"
     info "  POST ${SUPABASE_URL_INPUT}/functions/v1/send-email"
-    info "  body: { template: 'order_paid', to: 'cliente@x.com', data: { order_id, total_value } }"
+    info "  body: { template: 'order_paid', to: 'x@y.com', data: { order_id, total_value } }"
+    info ""
+    info "Disparo via evento de domínio (rota recomendada):"
+    info "  POST ${SUPABASE_URL_INPUT}/functions/v1/email-events"
+    info "  body: { event: 'order_paid', order_id: '<uuid>' }"
+    info ""
+    info "Diagnóstico end-to-end (depois do install):"
+    info "  bash ${APP_DIR}/deploy-vps/check-email.sh"
     echo
 fi
 
