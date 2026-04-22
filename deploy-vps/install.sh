@@ -257,6 +257,13 @@ fi
 ENV_FILE="$APP_DIR/.env"
 ENV_PROD_FILE="$APP_DIR/.env.production"
 info "Gravando credenciais Supabase em $ENV_FILE (usadas no build do Vite)..."
+# Apenas variáveis com prefixo VITE_* entram no bundle do frontend.
+# As demais (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, WEBHOOK_SECRET) ficam
+# disponíveis para edge functions / scripts server-side que rodem nesta VPS.
+API_PUBLIC_URL=""
+if [[ -n "$API_SUBDOMAIN" ]]; then
+    API_PUBLIC_URL="https://${API_SUBDOMAIN}"
+fi
 cat > "$ENV_FILE" <<ENV
 VITE_SUPABASE_URL=${SUPABASE_URL_INPUT}
 VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_ANON_KEY}
@@ -271,8 +278,8 @@ SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
 NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL_INPUT}
 NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
 WEBHOOK_SECRET=${WEBHOOK_SECRET}
-NEXT_PUBLIC_API_URL=${API_SUBDOMAIN:+https://${API_SUBDOMAIN}}
-PUBLIC_API_BASE_URL=${API_SUBDOMAIN:+https://${API_SUBDOMAIN}/api}
+NEXT_PUBLIC_API_URL=${API_PUBLIC_URL}
+PUBLIC_API_BASE_URL=${API_PUBLIC_URL:+${API_PUBLIC_URL}/api}
 ENV
 chmod 600 "$ENV_FILE"
 chown root:root "$ENV_FILE"
@@ -326,8 +333,8 @@ ok "Build concluído em $APP_DIR/dist"
 info "Configurando Nginx para servir SPA estática..."
 cat > /etc/nginx/sites-available/app <<NGINX
 server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
+    listen 80;
+    listen [::]:80;
     server_name ${DOMAIN};
 
     root /var/www/app/dist;
@@ -409,6 +416,23 @@ chown -R www-data:www-data "$APP_DIR/dist"
 nginx -t
 systemctl reload nginx
 ok "Nginx servindo $APP_DIR/dist na porta 80 (server_name=$DOMAIN)"
+
+# ---------- Catch-all default_server (rejeita Host headers desconhecidos) ----
+# Sem isso, qualquer requisição com Host arbitrário (ex.: scanner) cai no
+# primeiro vhost e pode acabar em endpoint errado. 444 = close sem resposta.
+info "Configurando default_server catch-all (rejeita Hosts desconhecidos)..."
+cat > /etc/nginx/sites-available/00-default-deny <<'NGINX_DEFAULT'
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    # Healthcheck público para load balancers / uptime checks
+    location = /healthz { return 200 "ok\n"; add_header Content-Type text/plain; }
+    # Tudo o mais: drop silencioso
+    location / { return 444; }
+}
+NGINX_DEFAULT
+ln -sf /etc/nginx/sites-available/00-default-deny /etc/nginx/sites-enabled/00-default-deny
 
 # ---------- Vhost dedicado para subdomínio de API/Webhooks ----------
 if [[ -n "$API_SUBDOMAIN" ]]; then
