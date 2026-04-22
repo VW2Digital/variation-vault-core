@@ -620,17 +620,6 @@ server {
         return 200 "ok\n";
     }
 
-    # Fallback SPA (React Router)
-    location / {
-        # POST na raiz → webhook do Melhor Envio (resolve E-WBH-0002 / 405
-        # quando a URL cadastrada no painel do ME é apenas https://${DOMAIN}/).
-        if (\$request_method = POST) {
-            rewrite ^ /melhor-envio-webhook last;
-        }
-        try_files \$uri \$uri/ /index.html;
-        add_header Cache-Control "no-cache, no-store, must-revalidate";
-    }
-
     # Proxy de webhooks → Edge Functions do Supabase configurado.
     # Permite que gateways (Melhor Envio, Asaas, MP, PagBank, Pagar.me)
     # postem em https://${DOMAIN}/<webhook> sem precisar saber a URL do Supabase.
@@ -648,15 +637,42 @@ server {
         proxy_buffering off;
     }
 
-    # Webhook do Melhor Envio cadastrado como /admin/configuracoes/logistica:
-    # GET serve a SPA normalmente; POST é roteado para a edge function
-    # melhor-envio-webhook no Supabase. Resolve E-WBH-0002 (405) ao usar a URL
-    # da página de configuração como callback.
+    # ─────────────────────────────────────────────────────────────────────────
+    # SPA FALLBACK (React Router / Vite)
+    # CRÍTICO para OAuth2 (Melhor Envio, etc.): o callback retorna para
+    #   https://${DOMAIN}/admin/configuracoes/logistica?code=...
+    # Sem fallback, o Nginx procura o arquivo físico
+    #   /var/www/app/dist/admin/configuracoes/logistica
+    # e retorna 404 — quebrando OAuth2, refresh de página e deep links.
+    #
+    # try_files preserva automaticamente a query string (?code=...&state=...).
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # Match exato: webhook do Melhor Envio cadastrado como a URL da página de
+    # configuração. GET serve a SPA (OAuth callback); POST → edge function.
+    # Resolve E-WBH-0002 (405) ao usar a URL da página como callback.
     location = /admin/configuracoes/logistica {
         if (\$request_method = POST) {
             rewrite ^ /melhor-envio-webhook last;
         }
         try_files \$uri /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    # Fallback explícito para TODAS as rotas /admin/* (deep links, OAuth, refresh)
+    location ^~ /admin/ {
+        try_files \$uri \$uri/ /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    # Fallback SPA genérico — última linha de defesa para qualquer rota React
+    location / {
+        # POST na raiz → webhook do Melhor Envio (resolve E-WBH-0002 / 405
+        # quando a URL cadastrada no painel do ME é apenas https://${DOMAIN}/).
+        if (\$request_method = POST) {
+            rewrite ^ /melhor-envio-webhook last;
+        }
+        try_files \$uri \$uri/ /index.html;
         add_header Cache-Control "no-cache, no-store, must-revalidate";
     }
 
