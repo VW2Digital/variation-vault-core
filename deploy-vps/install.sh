@@ -472,9 +472,24 @@ server {
         return 200 "ok\n";
     }
 
+    # CORS preflight global para integrações externas (n8n, navegadores, etc.)
+    # Necessário para evitar 405/CORS em chamadas OPTIONS antes do POST real.
+    location = /api/_cors_preflight {
+        return 204;
+    }
+
     # /api/<algo>  →  Edge Function homônima no Supabase
     # Ex.: /api/mercadopago-webhook → ${SUPABASE_URL_INPUT}/functions/v1/mercadopago-webhook
     location ~ ^/api/(.+)\$ {
+        # Responde preflight CORS imediatamente (algumas Edge Functions não tratam OPTIONS)
+        if (\$request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin "*";
+            add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS";
+            add_header Access-Control-Allow-Headers "authorization, x-client-info, apikey, content-type, x-webhook-secret, x-signature, stripe-signature";
+            add_header Access-Control-Max-Age 86400;
+            add_header Content-Length 0;
+            return 204;
+        }
         proxy_pass ${SUPABASE_URL_INPUT}/functions/v1/\$1\$is_args\$args;
         proxy_http_version 1.1;
         proxy_set_header Host ${SUPABASE_PROJECT_REF}.supabase.co;
