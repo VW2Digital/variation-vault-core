@@ -72,6 +72,8 @@ WEBHOOKS=(
   "melhor-envio-webhook"
   "payment-checkout"
   "orders-api"
+  "send-email"
+  "email-events"
 )
 
 for fn in "${WEBHOOKS[@]}"; do
