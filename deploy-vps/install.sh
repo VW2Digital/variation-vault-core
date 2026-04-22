@@ -35,6 +35,19 @@ step() { echo -e "\n${YELLOW}▶ $*${NC}"; }
 info() { echo -e "${BLUE}ℹ  $*${NC}"; }
 err()  { echo -e "${RED}❌ $*${NC}" >&2; }
 
+# Mascara credenciais para exibição segura no terminal/logs.
+# Mostra os primeiros 6 e últimos 4 chars; o miolo vira ****.
+# Uso: mask "$SUPABASE_ANON_KEY"
+mask() {
+    local s="${1:-}"
+    local n=${#s}
+    if [[ $n -le 12 ]]; then
+        printf '****'
+    else
+        printf '%s****%s' "${s:0:6}" "${s: -4}"
+    fi
+}
+
 # ----------------------------- Pré-checagens --------------------------------
 if [[ $EUID -ne 0 ]]; then
     err "Este script precisa ser executado como root (use: sudo bash install.sh)"
