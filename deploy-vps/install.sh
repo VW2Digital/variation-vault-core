@@ -518,19 +518,29 @@ else
     info "Emitindo certificado de PRODUÇÃO para $DOMAIN..."
 fi
 
+# Domínios a incluir no certificado (-d). Sempre o principal; opcionalmente o de API.
+CERT_DOMAINS=(-d "$DOMAIN")
+if [[ -n "$API_SUBDOMAIN" ]]; then
+    info "Incluindo $API_SUBDOMAIN no mesmo certificado SAN."
+    info "⚠️  O DNS de $API_SUBDOMAIN precisa estar apontado para esta VPS antes do Certbot rodar."
+    CERT_DOMAINS+=(-d "$API_SUBDOMAIN")
+fi
+
 if ! certbot --nginx \
     --non-interactive \
     --agree-tos \
     --redirect \
     --email "$EMAIL" \
-    -d "$DOMAIN" \
+    "${CERT_DOMAINS[@]}" \
     "${CERTBOT_EXTRA[@]}"; then
     err "Falha ao emitir certificado SSL."
     if [[ "$SSL_STAGING" -eq 0 ]]; then
         err "Possíveis causas:"
         err "  • Rate limit do Let's Encrypt (5 certs/semana por domínio)."
-        err "  • DNS do domínio ainda não aponta para esta VPS."
+        err "  • DNS de $DOMAIN ou $API_SUBDOMAIN ainda não aponta para esta VPS."
+        err "    Teste: dig +short $DOMAIN  /  dig +short ${API_SUBDOMAIN:-$DOMAIN}"
         err "  • Porta 80/443 bloqueada por firewall."
+        err "    Teste: nc -zv $DOMAIN 80   /   nc -zv $DOMAIN 443"
         err ""
         err "Para validar a config sem queimar quotas, rode novamente escolhendo a opção 2 (staging)."
     fi
