@@ -10,9 +10,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SettingsBackButton from './SettingsBackButton';
 import WebhookUrlCard from '@/components/admin/WebhookUrlCard';
+import PublicSiteUrlCard from '@/components/admin/PublicSiteUrlCard';
+import { usePublicBaseUrl } from '@/hooks/usePublicBaseUrl';
 
 const SettingsShipping = () => {
   const { toast } = useToast();
+  const { publicUrl, browserIsInternal } = usePublicBaseUrl();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -167,6 +170,8 @@ const SettingsShipping = () => {
     <div className="space-y-6 w-full">
       <SettingsBackButton title="Melhor Envio & Frete" description="Integração, remetente e dimensões de embalagem" />
 
+      <PublicSiteUrlCard />
+
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2"><Truck className="w-5 h-5" /> Melhor Envio</CardTitle>
@@ -214,7 +219,18 @@ const SettingsShipping = () => {
                   upsertSetting('melhor_envio_environment', melhorEnvioEnv),
                 ]);
                 const { data: userData } = await supabase.auth.getUser();
-                const redirectUri = `${window.location.origin}/admin/configuracoes/logistica`;
+                // IMPORTANTE: usa SEMPRE a URL pública canônica (configurada pelo admin)
+                // — o Melhor Envio rejeita redirect_uri com o host interno do Lovable.
+                const baseForOAuth = publicUrl || window.location.origin;
+                if (browserIsInternal && !publicUrl) {
+                  toast({
+                    title: 'Configure a URL pública primeiro',
+                    description: 'Defina a URL pública da loja no card acima antes de conectar — o Melhor Envio rejeita o domínio do preview.',
+                    variant: 'destructive',
+                  });
+                  return;
+                }
+                const redirectUri = `${baseForOAuth}/admin/configuracoes/logistica`;
                 const { data, error } = await supabase.functions.invoke('melhor-envio-oauth', {
                   body: { action: 'get_auth_url', user_id: userData.user?.id, redirect_uri: redirectUri },
                 });
@@ -239,11 +255,35 @@ const SettingsShipping = () => {
           </div>
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">URL de Redirecionamento OAuth</Label>
-            <Input readOnly value={`${window.location.origin}/admin/configuracoes/logistica`} className="bg-muted text-xs" onClick={(e) => {
-              (e.target as HTMLInputElement).select();
-              navigator.clipboard.writeText(`${window.location.origin}/admin/configuracoes/logistica`);
-              toast({ title: 'URL copiada!' });
-            }} />
+            <Input
+              readOnly
+              value={
+                publicUrl
+                  ? `${publicUrl}/admin/configuracoes/logistica`
+                  : browserIsInternal
+                    ? '⚠️ Configure a URL pública da loja acima'
+                    : `${window.location.origin}/admin/configuracoes/logistica`
+              }
+              className="bg-muted text-xs font-mono"
+              onClick={(e) => {
+                if (!publicUrl && browserIsInternal) {
+                  toast({
+                    title: 'URL pública não configurada',
+                    description: 'Defina a URL pública da loja no card no topo desta página.',
+                    variant: 'destructive',
+                  });
+                  return;
+                }
+                const base = publicUrl || window.location.origin;
+                const url = `${base}/admin/configuracoes/logistica`;
+                (e.target as HTMLInputElement).select();
+                navigator.clipboard.writeText(url);
+                toast({ title: 'URL copiada!' });
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              Cole exatamente esta URL no Melhor Envio em <strong>Aplicativos → Sua app → Redirect URIs</strong>.
+            </p>
           </div>
 
           <WebhookUrlCard
