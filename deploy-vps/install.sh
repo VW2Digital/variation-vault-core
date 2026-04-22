@@ -124,6 +124,28 @@ DOMAIN="${DOMAIN:-$DOMAIN_DEFAULT}"
 read -rp "E-mail para alertas do Let's Encrypt [${EMAIL_DEFAULT}]: " EMAIL
 EMAIL="${EMAIL:-$EMAIL_DEFAULT}"
 
+# 4.1) Subdomínio público para API/Webhooks (proxy reverso → Supabase / app)
+echo
+echo "Subdomínio público para webhooks/API (Supabase, n8n, Stripe, Meta, etc.)."
+echo "Cria um vhost Nginx separado escutando em https://api.<seu_dominio>/api/*"
+echo "que faz proxy para as Edge Functions do Supabase + webhooks dos gateways."
+API_SUBDOMAIN_DEFAULT="api.${DOMAIN}"
+read -rp "Subdomínio de API/Webhooks [${API_SUBDOMAIN_DEFAULT}] (vazio para pular): " API_SUBDOMAIN
+API_SUBDOMAIN="${API_SUBDOMAIN-$API_SUBDOMAIN_DEFAULT}"
+if [[ -n "$API_SUBDOMAIN" ]]; then
+    info "Subdomínio de API: $API_SUBDOMAIN — DNS deve ter um A apontando para este IP."
+else
+    info "Subdomínio de API pulado — webhooks ficarão acessíveis em https://${DOMAIN}/<webhook>."
+fi
+
+# 4.2) Webhook secret (compartilhado com integrações n8n/Meta/Stripe/etc.)
+echo
+read -rp "WEBHOOK_SECRET (deixe vazio para gerar automaticamente): " WEBHOOK_SECRET
+if [[ -z "${WEBHOOK_SECRET:-}" ]]; then
+    WEBHOOK_SECRET="$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 40)"
+    info "WEBHOOK_SECRET gerado automaticamente (40 chars). Será gravado no .env."
+fi
+
 # 5) Modo SSL — staging (teste) ou produção (real)
 echo
 echo "Modo de emissão do certificado SSL:"
@@ -196,10 +218,37 @@ VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_ANON_KEY}
 VITE_SUPABASE_PROJECT_ID=${SUPABASE_PROJECT_REF}
 SUPABASE_PROXY_HOST=${SUPABASE_PROJECT_REF}.supabase.co
 SUPABASE_FUNCTIONS_BASE_URL=${SUPABASE_URL_INPUT}/functions/v1
+# Compatibilidade com integrações externas (n8n, Stripe, Meta, etc.)
+SUPABASE_URL=${SUPABASE_URL_INPUT}
+SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+WEBHOOK_SECRET=${WEBHOOK_SECRET}
+NEXT_PUBLIC_API_URL=${API_SUBDOMAIN:+https://${API_SUBDOMAIN}}
+PUBLIC_API_BASE_URL=${API_SUBDOMAIN:+https://${API_SUBDOMAIN}/api}
 ENV
 chmod 600 "$ENV_FILE"
 chown root:root "$ENV_FILE"
 ok "Credenciais gravadas em $ENV_FILE (apontando para $SUPABASE_URL_INPUT)"
+
+# ---------- Validação das variáveis de ambiente exigidas ----------
+info "Validando variáveis de ambiente em $ENV_FILE..."
+REQUIRED_ENV=(VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY SUPABASE_URL SUPABASE_ANON_KEY WEBHOOK_SECRET)
+ENV_MISSING=0
+for v in "${REQUIRED_ENV[@]}"; do
+    val="$(grep -E "^${v}=" "$ENV_FILE" | cut -d= -f2- || true)"
+    if [[ -z "${val// /}" ]]; then
+        err "[env] Variável obrigatória ausente ou vazia: $v"
+        ENV_MISSING=1
+    else
+        ok "[env] $v presente"
+    fi
+done
+if [[ -z "${API_SUBDOMAIN}" ]]; then
+    info "[env] NEXT_PUBLIC_API_URL não setado (subdomínio de API foi pulado)."
+fi
+if [[ "$ENV_MISSING" -eq 1 ]]; then
+    err "Corrija $ENV_FILE antes de prosseguir — webhooks podem falhar."
+    exit 1
+fi
 
 # Build
 cd "$APP_DIR"
@@ -307,6 +356,96 @@ nginx -t
 systemctl reload nginx
 ok "Nginx servindo $APP_DIR/dist na porta 80 (server_name=$DOMAIN)"
 
+# ---------- Vhost dedicado para subdomínio de API/Webhooks ----------
+if [[ -n "$API_SUBDOMAIN" ]]; then
+    info "Configurando vhost dedicado para webhooks/API em $API_SUBDOMAIN..."
+    cat > /etc/nginx/sites-available/api <<NGINX_API
+# Reverse proxy público para webhooks externos (Supabase, n8n, Stripe, Meta, etc.)
+# Endpoint canônico: https://${API_SUBDOMAIN}/api/<destino>
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${API_SUBDOMAIN};
+
+    # Healthcheck do gateway de webhooks
+    location = /api/healthz {
+        access_log off;
+        add_header Content-Type text/plain;
+        add_header Cache-Control "no-store";
+        return 200 "ok\n";
+    }
+
+    # /api/<algo>  →  Edge Function homônima no Supabase
+    # Ex.: /api/mercadopago-webhook → ${SUPABASE_URL_INPUT}/functions/v1/mercadopago-webhook
+    location ~ ^/api/(.+)\$ {
+        proxy_pass ${SUPABASE_URL_INPUT}/functions/v1/\$1\$is_args\$args;
+        proxy_http_version 1.1;
+        proxy_set_header Host ${SUPABASE_PROJECT_REF}.supabase.co;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-Forwarded-Host \$host;
+        proxy_set_header X-Webhook-Source external;
+        # Repassa qualquer Authorization / x-signature dos serviços externos
+        proxy_pass_request_headers on;
+        proxy_ssl_server_name on;
+        proxy_ssl_name ${SUPABASE_PROJECT_REF}.supabase.co;
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+        proxy_buffering off;
+        client_max_body_size 10m;
+    }
+
+    # Atalhos para webhooks dos gateways (mesmo padrão do vhost principal)
+    location ~ ^/(melhor-envio-webhook|asaas-webhook|mercadopago-webhook|pagarme-webhook|pagbank-webhook)(/.*)?\$ {
+        proxy_pass ${SUPABASE_URL_INPUT}/functions/v1/\$1\$2\$is_args\$args;
+        proxy_http_version 1.1;
+        proxy_set_header Host ${SUPABASE_PROJECT_REF}.supabase.co;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_ssl_server_name on;
+        proxy_ssl_name ${SUPABASE_PROJECT_REF}.supabase.co;
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+        proxy_buffering off;
+        client_max_body_size 10m;
+    }
+
+    # Bloqueia tudo o que não for /api/* nem webhook conhecido
+    location / {
+        return 404 "API endpoint não encontrado. Use /api/<rota>.\n";
+        add_header Content-Type text/plain;
+    }
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+}
+NGINX_API
+    ln -sf /etc/nginx/sites-available/api /etc/nginx/sites-enabled/api
+    nginx -t
+    systemctl reload nginx
+    ok "Vhost de API ativo: http://${API_SUBDOMAIN}/api/<rota>  (HTTPS após Certbot)"
+fi
+
+# ---------- Firewall (UFW) — libera 80/443 para webhooks externos ----------
+if command -v ufw >/dev/null 2>&1; then
+    info "Configurando firewall (UFW) — liberando 22, 80 e 443..."
+    ufw allow OpenSSH >/dev/null 2>&1 || ufw allow 22/tcp >/dev/null 2>&1 || true
+    ufw allow 80/tcp  >/dev/null 2>&1 || true
+    ufw allow 443/tcp >/dev/null 2>&1 || true
+    UFW_STATUS="$(ufw status | head -n1 || true)"
+    if [[ "$UFW_STATUS" != *"active"* ]]; then
+        info "UFW está inativo — não vamos forçar enable para evitar derrubar a sessão SSH."
+        info "Para ativar manualmente depois: sudo ufw enable"
+    else
+        ok "Firewall UFW: 80/443 liberados"
+    fi
+else
+    info "UFW não instalado — pulando configuração de firewall."
+    info "Se sua VPS usar outro firewall (cloud provider, iptables), libere TCP 80 e 443."
+fi
+
 # ----------------------------- Verificação pós-build (local) ----------------
 info "Executando verificação local..."
 VERIFY_FAIL=0
@@ -379,19 +518,29 @@ else
     info "Emitindo certificado de PRODUÇÃO para $DOMAIN..."
 fi
 
+# Domínios a incluir no certificado (-d). Sempre o principal; opcionalmente o de API.
+CERT_DOMAINS=(-d "$DOMAIN")
+if [[ -n "$API_SUBDOMAIN" ]]; then
+    info "Incluindo $API_SUBDOMAIN no mesmo certificado SAN."
+    info "⚠️  O DNS de $API_SUBDOMAIN precisa estar apontado para esta VPS antes do Certbot rodar."
+    CERT_DOMAINS+=(-d "$API_SUBDOMAIN")
+fi
+
 if ! certbot --nginx \
     --non-interactive \
     --agree-tos \
     --redirect \
     --email "$EMAIL" \
-    -d "$DOMAIN" \
+    "${CERT_DOMAINS[@]}" \
     "${CERTBOT_EXTRA[@]}"; then
     err "Falha ao emitir certificado SSL."
     if [[ "$SSL_STAGING" -eq 0 ]]; then
         err "Possíveis causas:"
         err "  • Rate limit do Let's Encrypt (5 certs/semana por domínio)."
-        err "  • DNS do domínio ainda não aponta para esta VPS."
+        err "  • DNS de $DOMAIN ou $API_SUBDOMAIN ainda não aponta para esta VPS."
+        err "    Teste: dig +short $DOMAIN  /  dig +short ${API_SUBDOMAIN:-$DOMAIN}"
         err "  • Porta 80/443 bloqueada por firewall."
+        err "    Teste: nc -zv $DOMAIN 80   /   nc -zv $DOMAIN 443"
         err ""
         err "Para validar a config sem queimar quotas, rode novamente escolhendo a opção 2 (staging)."
     fi
@@ -454,9 +603,33 @@ echo
 for FN in melhor-envio-webhook asaas-webhook mercadopago-webhook pagarme-webhook pagbank-webhook; do
     echo "  $FN:"
     echo "    https://${DOMAIN}/${FN}              (recomendado)"
+    if [[ -n "$API_SUBDOMAIN" ]]; then
+        echo "    https://${API_SUBDOMAIN}/api/${FN}    (subdomínio dedicado)"
+    fi
     echo "    ${SUPABASE_URL_INPUT}/functions/v1/${FN}   (direto Supabase)"
 done
 echo
 echo "  Melhor Envio (URL alternativa, aceita POST na página de configuração):"
 echo "    https://${DOMAIN}/admin/configuracoes/logistica"
+echo
+
+if [[ -n "$API_SUBDOMAIN" ]]; then
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}Endpoint genérico para integrações externas (n8n, Stripe, Meta):${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo "  https://${API_SUBDOMAIN}/api/<nome-da-edge-function>"
+    echo "  Healthcheck: https://${API_SUBDOMAIN}/api/healthz   (deve responder 'ok')"
+    echo "  WEBHOOK_SECRET salvo em $ENV_FILE — use no header das integrações."
+    echo
+fi
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}Troubleshooting rápido:${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo "  • SSL falhou        → sudo certbot certificates  /  /var/log/letsencrypt/letsencrypt.log"
+echo "  • DNS não aponta    → dig +short ${DOMAIN}   (deve retornar IP desta VPS)"
+echo "  • Porta bloqueada   → sudo ss -tlnp | grep -E ':80|:443'  /  sudo ufw status"
+echo "  • Webhook 404/502   → sudo tail -f /var/log/nginx/error.log  /  /var/log/nginx/access.log"
+echo "  • Edge Function     → curl -i ${SUPABASE_URL_INPUT}/functions/v1/<nome>"
+echo "  • Rebuild da SPA    → cd $APP_DIR && git pull && npm install && npm run build && systemctl reload nginx"
 echo
