@@ -347,33 +347,89 @@ DOMAIN="${DOMAIN:-$DOMAIN_DEFAULT}"
 read -rp "E-mail para alertas do Let's Encrypt [${EMAIL_DEFAULT}]: " EMAIL
 EMAIL="${EMAIL:-$EMAIL_DEFAULT}"
 
-# 4.0) Provedor de e-mail transacional (Resend) — opcional, mas recomendado
-# A aplicação envia TODOS os e-mails customizados (pedido, frete, recuperação
-# de carrinho, alertas admin) via Edge Function 'send-email', que fala
-# DIRETAMENTE com a API do Resend. Nenhuma dependência do Lovable é usada
-# em runtime — a stack de e-mails é 100% Supabase + Resend.
+# 4.0) Provedor de e-mail — SMTP próprio (Hostinger) + Resend opcional
+# Arquitetura:
+#   • Auth (signup, reset, magic link, invite, change email, OTP)
+#       → Supabase Auth com SMTP customizado configurado no Dashboard.
+#         Em produção, OBRIGATÓRIO substituir o SMTP padrão do Supabase
+#         (limite de 4 emails/hora) pelo seu SMTP (Hostinger / SES / etc).
+#   • Transacional (pedido, frete, alertas, eventos webhook)
+#       → Edge Function 'send-email' tenta SMTP primeiro e cai em Resend
+#         como fallback se o SMTP falhar.
+#   • Tudo é independente do Lovable em runtime.
 #
-# Se você fornecer a chave aqui, o script:
-#   1) Valida a chave via GET https://api.resend.com/domains (sem expor)
-#   2) Configura a secret RESEND_API_KEY no Supabase via 'supabase secrets set'
-#   3) Não imprime o valor em nenhum log
+# Este bloco coleta as credenciais SMTP e (opcionalmente) uma chave Resend
+# de fallback. Nenhum valor é gravado em log.
 echo
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}E-mail transacional (Resend) — opcional, recomendado${NC}"
+echo -e "${BLUE}SMTP próprio (Hostinger por padrão) — provider primário${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-info "A aplicação usa Supabase Edge Functions + Resend para envio."
-info "Sem chave: a Edge Function 'send-email' faz fallback para 'onboarding@resend.dev'"
-info "(útil em dev, NÃO em produção pois o domínio não é seu)."
+info "Hostinger SMTP padrão: smtp.hostinger.com  •  porta 465 (SSL) ou 587 (TLS)"
+info "Use uma conta de e-mail real do seu domínio (ex.: no-reply@seu-dominio.com)."
+info "Antes de enviar em produção, configure SPF + DKIM + DMARC no DNS — veja:"
+info "  ${APP_DIR}/deploy-vps/SMTP-HOSTINGER.md"
 echo
+SMTP_HOST=""
+SMTP_PORT=""
+SMTP_USER=""
+SMTP_PASS=""
+SMTP_FROM_EMAIL=""
+SMTP_FROM_NAME=""
+SMTP_SECURE=""
 RESEND_API_KEY=""
 EMAIL_FROM=""
+
+read -rp "Configurar SMTP agora? [S/n]: " WANT_SMTP
+WANT_SMTP="${WANT_SMTP:-S}"
+if [[ "${WANT_SMTP,,}" == "s" || "${WANT_SMTP,,}" == "y" ]]; then
+    read -rp "SMTP_HOST [smtp.hostinger.com]: " SMTP_HOST
+    SMTP_HOST="${SMTP_HOST:-smtp.hostinger.com}"
+    read -rp "SMTP_PORT [465]: " SMTP_PORT
+    SMTP_PORT="${SMTP_PORT:-465}"
+    if [[ "$SMTP_PORT" == "465" ]]; then
+        SMTP_SECURE="ssl"
+    elif [[ "$SMTP_PORT" == "587" ]]; then
+        SMTP_SECURE="tls"
+    else
+        read -rp "SMTP_SECURE (ssl/tls) [ssl]: " SMTP_SECURE
+        SMTP_SECURE="${SMTP_SECURE:-ssl}"
+    fi
+    read -rp "SMTP_USER (e-mail completo, ex.: no-reply@seu-dominio.com): " SMTP_USER
+    if [[ -z "$SMTP_USER" || ! "$SMTP_USER" =~ @ ]]; then
+        warn "SMTP_USER vazio ou inválido — pulando configuração SMTP."
+        SMTP_HOST=""; SMTP_USER=""
+    else
+        # -s para não ecoar a senha; nunca logada nem ecoada.
+        read -rsp "SMTP_PASS (senha da conta de e-mail Hostinger): " SMTP_PASS
+        echo
+        if [[ -z "$SMTP_PASS" ]]; then
+            warn "SMTP_PASS vazio — pulando configuração SMTP."
+            SMTP_HOST=""
+        else
+            read -rp "SMTP_FROM_EMAIL [${SMTP_USER}]: " SMTP_FROM_EMAIL
+            SMTP_FROM_EMAIL="${SMTP_FROM_EMAIL:-$SMTP_USER}"
+            read -rp "SMTP_FROM_NAME (nome amigável, ex.: 'Liberty Pharma'): " SMTP_FROM_NAME
+            ok "SMTP coletado: ${SMTP_USER}@${SMTP_HOST}:${SMTP_PORT} (${SMTP_SECURE}) — senha mascarada $(mask "$SMTP_PASS")"
+            # Reaproveita EMAIL_FROM como remetente p/ exibição/logs.
+            EMAIL_FROM="${SMTP_FROM_NAME:+$SMTP_FROM_NAME }<${SMTP_FROM_EMAIL}>"
+        fi
+    fi
+else
+    info "SMTP pulado — você pode configurar depois em /admin/configuracoes/comunicacao."
+fi
+
+echo
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}Resend (HTTP API) — fallback opcional${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+info "Se o SMTP falhar (timeout, credencial revogada), 'send-email' tenta Resend."
+info "Recomendado em produção. ENTER para pular se não usar Resend."
 read -rsp "RESEND_API_KEY (re_...; ENTER para pular): " RESEND_API_KEY
 echo
 if [[ -n "$RESEND_API_KEY" ]]; then
     if [[ ! "$RESEND_API_KEY" =~ ^re_[A-Za-z0-9_]+$ ]]; then
         warn "Formato inesperado (esperado 're_...'). Validando mesmo assim…"
     fi
-    # Valida sem expor a chave em logs.
     RS_CODE="$(curl -sS -o /dev/null -w '%{http_code}' \
         --max-time 10 \
         -H "Authorization: Bearer ${RESEND_API_KEY}" \
@@ -381,21 +437,18 @@ if [[ -n "$RESEND_API_KEY" ]]; then
     case "$RS_CODE" in
         200) ok "RESEND_API_KEY válida ($(mask "$RESEND_API_KEY"))." ;;
         401|403)
-            err "RESEND_API_KEY rejeitada (HTTP $RS_CODE). Confira em https://resend.com/api-keys."
+            err "RESEND_API_KEY rejeitada (HTTP $RS_CODE)."
             read -rp "Continuar mesmo assim? [s/N]: " RS_CONT
             if [[ "${RS_CONT,,}" != "s" && "${RS_CONT,,}" != "y" ]]; then exit 1; fi
             ;;
         000) warn "Não foi possível alcançar api.resend.com em 10s — pulando validação." ;;
         *)   warn "Resend respondeu HTTP $RS_CODE — seguindo." ;;
     esac
-
-    read -rp "EMAIL_FROM (ex.: 'Loja <no-reply@seu-dominio.com>'; ENTER = onboarding@resend.dev): " EMAIL_FROM
-    if [[ -n "$EMAIL_FROM" && ! "$EMAIL_FROM" =~ @ ]]; then
-        warn "EMAIL_FROM sem '@' — será ignorado pela função."
+    if [[ -z "$EMAIL_FROM" ]]; then
+        read -rp "EMAIL_FROM Resend (ex.: 'Loja <no-reply@seu-dominio.com>'; ENTER = sandbox): " EMAIL_FROM
     fi
 else
-    info "Pulado. Você pode adicionar depois com:"
-    info "  supabase secrets set RESEND_API_KEY=re_xxx --project-ref $SUPABASE_PROJECT_REF"
+    info "Resend pulado. Adicione depois em /admin/configuracoes/comunicacao."
 fi
 
 # 4.1) Subdomínio público para API/Webhooks (proxy reverso → Supabase / app)
