@@ -699,21 +699,67 @@ FAILED_FUNCTIONS=()
 if [[ "${DEPLOY_EDGE_FUNCTIONS:-0}" -eq 1 ]]; then
     step "STEP 1.5 — Deploy das Supabase Edge Functions"
 
-    # 1) Garante a Supabase CLI instalada (npm global)
-    if ! command -v supabase >/dev/null 2>&1; then
-        info "Instalando Supabase CLI (npm i -g supabase)..."
-        npm install -g supabase >/dev/null 2>&1 || {
-            err "Falha ao instalar Supabase CLI via npm. Tentando binário oficial..."
-            curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz \
-                -o /tmp/supabase-cli.tgz
-            tar -xzf /tmp/supabase-cli.tgz -C /usr/local/bin/ supabase
-            chmod +x /usr/local/bin/supabase
-        }
-    fi
+    # 1) Garante a Supabase CLI instalada — método oficial (binário do GitHub).
+    # IMPORTANTE: 'npm install -g supabase' NÃO é mais suportado oficialmente
+    # (https://github.com/supabase/cli/issues/1528). Usamos o tarball release
+    # do GitHub, que funciona em qualquer VPS Linux x86_64 sem dependências.
+    install_supabase_cli() {
+        local ARCH
+        case "$(uname -m)" in
+            x86_64|amd64) ARCH="amd64" ;;
+            aarch64|arm64) ARCH="arm64" ;;
+            *)
+                err "Arquitetura $(uname -m) não suportada pela Supabase CLI."
+                return 1
+                ;;
+        esac
+
+        info "Buscando última release da Supabase CLI no GitHub..."
+        local LATEST_TAG
+        LATEST_TAG="$(curl -fsSL https://api.github.com/repos/supabase/cli/releases/latest \
+            | jq -r '.tag_name' 2>/dev/null || echo "")"
+        if [[ -z "$LATEST_TAG" || "$LATEST_TAG" == "null" ]]; then
+            err "Não foi possível obter a última release (api.github.com inacessível?)."
+            return 1
+        fi
+        local VERSION="${LATEST_TAG#v}"
+        local URL="https://github.com/supabase/cli/releases/download/${LATEST_TAG}/supabase_linux_${ARCH}.tar.gz"
+        info "Baixando $URL..."
+        if ! curl -fsSL "$URL" -o /tmp/supabase-cli.tgz; then
+            err "Falha ao baixar $URL — verifique DNS e acesso a github.com."
+            return 1
+        fi
+        tar -xzf /tmp/supabase-cli.tgz -C /usr/local/bin/ supabase
+        chmod +x /usr/local/bin/supabase
+        rm -f /tmp/supabase-cli.tgz
+        return 0
+    }
+
+    NEED_INSTALL=1
     if command -v supabase >/dev/null 2>&1; then
-        ok "Supabase CLI: $(supabase --version 2>/dev/null || echo 'instalada')"
-    else
-        err "Supabase CLI não pôde ser instalada — pulando deploy de Edge Functions."
+        # Detecta CLI npm-quebrada (algumas versões via npm crasham com "command not found" interno)
+        if supabase --version >/dev/null 2>&1; then
+            NEED_INSTALL=0
+        else
+            info "Supabase CLI presente mas quebrada — reinstalando via binário oficial."
+            rm -f "$(command -v supabase)" 2>/dev/null || true
+        fi
+    fi
+
+    if [[ "$NEED_INSTALL" -eq 1 ]]; then
+        info "Instalando Supabase CLI (binário oficial GitHub)..."
+        if ! install_supabase_cli; then
+            err "Supabase CLI não pôde ser instalada — pulando deploy de Edge Functions."
+            err "Instale manualmente depois:"
+            err "  curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz -C /usr/local/bin/"
+            DEPLOY_EDGE_FUNCTIONS=0
+        fi
+    fi
+
+    if command -v supabase >/dev/null 2>&1 && supabase --version >/dev/null 2>&1; then
+        ok "Supabase CLI: $(supabase --version)"
+    elif [[ "${DEPLOY_EDGE_FUNCTIONS:-0}" -eq 1 ]]; then
+        err "Supabase CLI ainda não funcional — desativando deploy."
         DEPLOY_EDGE_FUNCTIONS=0
     fi
 fi
