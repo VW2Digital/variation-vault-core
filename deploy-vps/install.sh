@@ -428,6 +428,67 @@ ok "Build concluído em $APP_DIR/dist"
 
 # Configurar Nginx (SPA + cache de assets) — server_name ajustado abaixo
 info "Configurando Nginx para servir SPA estática..."
+
+# ---------- Limpeza de vhosts conflitantes ANTES de gravar a nova config ----
+# Causa raiz comum de webhooks/healthz instáveis em VPS com várias instalações:
+# múltiplos arquivos em /etc/nginx/sites-enabled/ declaram o mesmo server_name
+# (DOMAIN ou API_SUBDOMAIN), o Nginx loga "conflicting server name ... ignored"
+# e mantém apenas o primeiro encontrado — que pode ser um vhost antigo sem as
+# rotas /api/*. Resultado: /api/healthz responde 404 às vezes, webhook falha,
+# root retorna 404. Aqui detectamos e desativamos qualquer vhost duplicado.
+cleanup_conflicting_vhosts() {
+    local target="$1"
+    [[ -z "$target" ]] && return 0
+    local sites_enabled=/etc/nginx/sites-enabled
+    local sites_available=/etc/nginx/sites-available
+    local conf_d=/etc/nginx/conf.d
+    local keep_basenames=("app" "api" "00-default-deny")
+    local removed=0
+
+    info "[nginx] Procurando vhosts duplicados para server_name '$target'..."
+    # 1) sites-enabled/*  (inclui o default que vem do pacote nginx)
+    if [[ -d "$sites_enabled" ]]; then
+        while IFS= read -r f; do
+            [[ -z "$f" ]] && continue
+            local base
+            base="$(basename "$f")"
+            local skip=0
+            for keep in "${keep_basenames[@]}"; do
+                [[ "$base" == "$keep" ]] && skip=1 && break
+            done
+            [[ $skip -eq 1 ]] && continue
+            warn "  Removendo vhost conflitante: $f"
+            rm -f "$f"
+            removed=$((removed+1))
+        done < <(grep -lE "server_name[[:space:]]+[^;]*\\b${target//./\\.}\\b" "$sites_enabled"/* 2>/dev/null || true)
+    fi
+    # 2) conf.d/*.conf  (vhosts soltos de instalações antigas / Lovable / certbot)
+    if [[ -d "$conf_d" ]]; then
+        while IFS= read -r f; do
+            [[ -z "$f" ]] && continue
+            warn "  Desativando vhost em conf.d: $f → $f.disabled"
+            mv -f "$f" "$f.disabled"
+            removed=$((removed+1))
+        done < <(grep -lE "server_name[[:space:]]+[^;]*\\b${target//./\\.}\\b" "$conf_d"/*.conf 2>/dev/null || true)
+    fi
+    # 3) Remove o symlink "default" do pacote nginx (sempre)
+    if [[ -L "$sites_enabled/default" ]]; then
+        warn "  Removendo $sites_enabled/default (vhost padrão do pacote)"
+        rm -f "$sites_enabled/default"
+        removed=$((removed+1))
+    fi
+    if [[ $removed -gt 0 ]]; then
+        ok "[nginx] $removed vhost(s) conflitante(s) removido(s) para '$target'"
+    else
+        info "[nginx] Nenhum vhost conflitante encontrado para '$target'"
+    fi
+}
+
+cleanup_conflicting_vhosts "$DOMAIN"
+if [[ -n "${API_SUBDOMAIN:-}" ]]; then
+    cleanup_conflicting_vhosts "$API_SUBDOMAIN"
+fi
+
 cat > /etc/nginx/sites-available/app <<NGINX
 server {
     listen 80;
