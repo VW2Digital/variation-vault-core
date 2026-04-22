@@ -677,6 +677,31 @@ NGINX_API
     nginx -t
     systemctl reload nginx
     ok "Vhost de API ativo: http://${API_SUBDOMAIN}/api/<rota>  (HTTPS após Certbot)"
+
+    # ---------- Verificação anti-conflito ----------
+    # Mesmo após cleanup, revalida que `nginx -T` não emite "conflicting server
+    # name" para o subdomínio de API. Se emitir, é sinal de que algum include
+    # exótico (snippets, /etc/nginx/nginx.conf custom) ainda referencia o host.
+    NGINX_DUMP="$(nginx -T 2>&1 || true)"
+    if echo "$NGINX_DUMP" | grep -qiE "conflicting server name.*${API_SUBDOMAIN//./\\.}"; then
+        warn "[nginx] AVISO: Nginx ainda reporta 'conflicting server name' para $API_SUBDOMAIN"
+        warn "        Isso causa /api/healthz e /api/webhook intermitentes."
+        warn "        Arquivos suspeitos:"
+        grep -RIlE "server_name[[:space:]]+[^;]*\\b${API_SUBDOMAIN//./\\.}\\b" /etc/nginx 2>/dev/null \
+            | sed 's/^/          • /' || true
+        warn "        Remova/edite manualmente os arquivos acima e rode: sudo nginx -t && sudo systemctl reload nginx"
+    else
+        ok "[nginx] Sem conflitos de server_name para $API_SUBDOMAIN"
+    fi
+
+    # Smoke test local (loopback + Host header) — não depende de DNS/SSL prontos
+    HZ_LOCAL="$(curl -s -o /dev/null -w '%{http_code}' -H "Host: ${API_SUBDOMAIN}" http://127.0.0.1/api/healthz || echo 000)"
+    if [[ "$HZ_LOCAL" == "200" ]]; then
+        ok "[nginx] /api/healthz responde 200 localmente (Host: ${API_SUBDOMAIN})"
+    else
+        warn "[nginx] /api/healthz retornou HTTP $HZ_LOCAL via loopback — vhost de API pode estar sendo ofuscado"
+        warn "        Liste vhosts ativos para o host:  sudo nginx -T | grep -nE 'server_name|listen' | less"
+    fi
 fi
 
 # ---------- Firewall (UFW) — libera 80/443 para webhooks externos ----------
