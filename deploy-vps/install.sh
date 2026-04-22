@@ -155,10 +155,23 @@ configure_nginx() {
     systemctl enable nginx
     systemctl start nginx
 
-    # Remove o default do Nginx para evitar "duplicate default server".
-    if [[ -L /etc/nginx/sites-enabled/default || -f /etc/nginx/sites-enabled/default ]]; then
-        rm -f /etc/nginx/sites-enabled/default
-        log_info "Site 'default' do Nginx desativado (evita duplicate default_server)."
+    # ─────────────────────────────────────────────────────────────────────────
+    # Limpeza agressiva de configs antigas para evitar "duplicate default server".
+    # Causas conhecidas do erro:
+    #   1) /etc/nginx/sites-enabled/default (config padrão Ubuntu/Debian)
+    #   2) /etc/nginx/sites-enabled/app.conf de execuções anteriores
+    #   3) Qualquer outro vhost legado herdado de instalações anteriores
+    # Estratégia: remover TUDO de sites-enabled/ e recriar apenas o nosso vhost.
+    # ─────────────────────────────────────────────────────────────────────────
+    log_info "Limpando vhosts antigos em /etc/nginx/sites-enabled/ ..."
+    find /etc/nginx/sites-enabled/ -mindepth 1 -maxdepth 1 \( -type l -o -type f \) -print -delete || true
+
+    # Também desativa qualquer "default_server" remanescente em conf.d/
+    if grep -rlE 'default_server' /etc/nginx/conf.d/ 2>/dev/null | grep -v '^/etc/nginx/conf.d/$' >/dev/null; then
+        log_warn "Encontrado 'default_server' em /etc/nginx/conf.d/. Renomeando para .disabled."
+        grep -rlE 'default_server' /etc/nginx/conf.d/ 2>/dev/null | while read -r f; do
+            mv "$f" "${f}.disabled" || true
+        done
     fi
 
     local server_name_directive="_"
@@ -170,7 +183,8 @@ configure_nginx() {
     cat >"$site_path" <<NGINX_CONF
 ###############################################################################
 # Reverse proxy gerenciado pelo install-production.sh
-# Único server block padrão do host. NUNCA marque outros como default_server.
+# Este é o ÚNICO server block ativo no host (sites-enabled é limpo no deploy).
+# Marcamos como default_server para capturar qualquer Host desconhecido.
 ###############################################################################
 server {
     listen 80 default_server;
@@ -208,11 +222,17 @@ NGINX_CONF
 
     ln -sf "$site_path" /etc/nginx/sites-enabled/app.conf
 
+    # Diagnóstico: lista o que ficou ativo (ajuda em troubleshooting remoto)
+    log_info "Vhosts ativos após limpeza:"
+    ls -la /etc/nginx/sites-enabled/ | sed 's/^/    /'
+
     if nginx -t; then
         systemctl reload nginx
         log_ok "Nginx configurado e recarregado (server_name: ${server_name_directive})."
     else
-        log_error "nginx -t falhou. Revise /etc/nginx/sites-available/app.conf."
+        log_error "nginx -t falhou. Saída de diagnóstico:"
+        nginx -T 2>&1 | grep -E 'default_server|listen|server_name' | head -40 || true
+        log_error "Revise /etc/nginx/sites-available/app.conf e /etc/nginx/conf.d/*.conf."
         exit 1
     fi
 
