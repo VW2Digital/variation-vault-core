@@ -336,6 +336,7 @@ LOCAL_BACKEND_UPSTREAM="${LOCAL_BACKEND_UPSTREAM:-}"
 APP_MODE="spa_static"
 APP_MODE_REASON="Projeto Vite/React + Supabase detectado; frontend será servido como arquivos estáticos pelo Nginx do host."
 LOCAL_BACKEND_PROXY_URL=""
+LOCAL_BACKEND_DISCOVERY=()
 mkdir -p "$STATIC_ROOT"
 
 normalize_url() {
@@ -352,6 +353,17 @@ probe_http() {
   [[ -n "$url" ]] || return 1
   code="$(curl -k -s -o /dev/null -w "%{http_code}" --max-time 5 "$url" 2>/dev/null || echo 000)"
   [[ "$code" != "000" && "$code" != "502" && "$code" != "503" && "$code" != "504" ]]
+}
+
+discover_local_backend_listeners() {
+  command -v ss >/dev/null 2>&1 || return 0
+  local port line proc
+  for port in 3000 3001 4000 5000 5173 8000 8080; do
+    line="$(ss -H -ltnp "sport = :$port" 2>/dev/null | head -n1 || true)"
+    [[ -n "$line" ]] || continue
+    proc="$(sed -n 's/.*users:(("\([^"]\+\)".*/\1/p' <<< "$line" | head -n1)"
+    printf '%s:%s\n' "$port" "${proc:-processo-desconhecido}"
+  done
 }
 
 if [[ -n "$LOCAL_BACKEND_UPSTREAM" ]]; then
@@ -371,13 +383,33 @@ else
   warn "Heurística de SPA inconclusiva; mantendo modo ${APP_MODE} para evitar proxy incorreto."
 fi
 
-rm -f "$PROJECT_DIR/docker-compose.override.yml"
+while IFS= read -r candidate; do
+  [[ -n "$candidate" ]] && LOCAL_BACKEND_DISCOVERY+=("$candidate")
+done < <(discover_local_backend_listeners)
+
+if (( ${#LOCAL_BACKEND_DISCOVERY[@]} > 0 )); then
+  warn "Listeners locais detectados (não serão usados sem validação explícita): ${LOCAL_BACKEND_DISCOVERY[*]}"
+else
+  log "Nenhum backend local obrigatório detectado nas portas típicas (3000/3001/4000/5000/5173/8000/8080)."
+fi
+
+if [[ "$APP_MODE" == "local_backend_proxy" ]]; then
+  if [[ ! -f "$PROJECT_DIR/docker-compose.yml" && -f "$PROJECT_DIR/docker-compose.yml.disabled" ]]; then
+    mv -f "$PROJECT_DIR/docker-compose.yml.disabled" "$PROJECT_DIR/docker-compose.yml"
+    ok "docker-compose.yml restaurado porque um backend local real foi validado"
+  fi
+else
+  rm -f "$PROJECT_DIR/docker-compose.override.yml"
+fi
+
 ok "Modo de frontend: ${APP_MODE}"
 log "$APP_MODE_REASON"
 if [[ "$APP_MODE" == "spa_static" ]]; then
   ok "Nginx servirá arquivos estáticos de ${STATIC_ROOT}"
+  log "proxy_pass para o frontend principal: DESATIVADO"
 else
   ok "Nginx aplicará proxy_pass apenas para backend real: ${LOCAL_BACKEND_PROXY_URL}"
+  log "proxy_pass para o frontend principal: ATIVADO (${LOCAL_BACKEND_PROXY_URL})"
 fi
 
 # =============================================================================
@@ -641,15 +673,33 @@ EOF
 ln -sf "$SITES_AVAILABLE/${MAIN_DOMAIN}.conf" "$SITES_ENABLED/${MAIN_DOMAIN}.conf"
 ln -sf "$SITES_AVAILABLE/${API_DOMAIN}.conf"  "$SITES_ENABLED/${API_DOMAIN}.conf"
 
+restart_nginx_or_fail() {
+  local action="${1:-restart}"
+  if ! nginx -t > /tmp/nginx-test.log 2>&1; then
+    err "nginx -t falhou. Saída:"
+    cat /tmp/nginx-test.log
+    warn "Vhosts antigos foram preservados em $NGINX_BACKUP_DIR (você pode restaurar se precisar)."
+    exit 1
+  fi
+
+  systemctl enable nginx >/dev/null 2>&1 || true
+  if ! systemctl "$action" nginx; then
+    err "systemctl ${action} nginx falhou"
+    systemctl status nginx --no-pager || true
+    journalctl -u nginx -n 50 --no-pager || true
+    exit 1
+  fi
+
+  if ! systemctl is-active --quiet nginx; then
+    err "Nginx não permaneceu ativo após ${action}"
+    systemctl status nginx --no-pager || true
+    journalctl -u nginx -n 50 --no-pager || true
+    exit 1
+  fi
+}
+
 step "Validando configuração do Nginx"
-if ! nginx -t 2>/tmp/nginx-test.log; then
-  err "nginx -t falhou. Saída:"
-  cat /tmp/nginx-test.log
-  warn "Vhosts antigos foram preservados em $NGINX_BACKUP_DIR (você pode restaurar se precisar)."
-  exit 1
-fi
-systemctl enable --now nginx
-systemctl reload nginx
+restart_nginx_or_fail restart
 ok "Nginx ativo · ${MAIN_DOMAIN} (${MAIN_DOMAIN_MODE_LABEL}) · ${API_DOMAIN} (Edge Functions)"
 
 # =============================================================================
@@ -685,8 +735,7 @@ else
 fi
 
 step "Recarregando Nginx com a arquitetura detectada"
-nginx -t >/dev/null
-systemctl reload nginx
+restart_nginx_or_fail reload
 ok "Frontend publicado sem dependência falsa de localhost:3000"
 
 # =============================================================================
@@ -704,18 +753,58 @@ fi
 # =============================================================================
 # 9) SUPABASE — Secrets, Auth SMTP e Edge Functions
 # =============================================================================
-title "Configurando Supabase (Secrets + Auth SMTP + Edge Functions)"
+title "Configurando backend gerenciado (Secrets + Auth SMTP + Edge Functions)"
+
+run_supabase() {
+  ( cd "$PROJECT_DIR" && supabase "$@" )
+}
+
+detect_function_entrypoint() {
+  local fn_dir="$1" entry
+  for entry in index.ts index.js; do
+    [[ -f "$fn_dir/$entry" ]] && { printf '%s\n' "$entry"; return 0; }
+  done
+  return 1
+}
+
+function_exists() {
+  [[ -d "$PROJECT_DIR/supabase/functions/$1" ]]
+}
+
+CONFIGURED_FUNCTIONS=()
+if [[ -f "$PROJECT_DIR/supabase/config.toml" ]]; then
+  while IFS= read -r fn_name; do
+    [[ -n "$fn_name" ]] && CONFIGURED_FUNCTIONS+=("$fn_name")
+  done < <(awk -F'[][]' '/^\[functions\.[^]]+\]/{sub(/^functions\./,"",$2); print $2}' "$PROJECT_DIR/supabase/config.toml" | sort -u)
+fi
 
 export SUPABASE_ACCESS_TOKEN
-supabase link --project-ref "$SUPABASE_PROJECT_REF"
+run_supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
 # Convenções automáticas para SMTP (Hostinger por padrão)
 SMTP_HOST="${SMTP_HOST:-smtp.hostinger.com}"
 SMTP_PORT="${SMTP_PORT:-465}"
 SMTP_FROM_NAME="${SMTP_FROM_NAME:-${MAIN_DOMAIN%%.*}}"
 
+if (( ${#CONFIGURED_FUNCTIONS[@]} > 0 )); then
+  step "Auditando funções declaradas em supabase/config.toml"
+  CONFIG_ONLY_FUNCTIONS=()
+  for fn_name in "${CONFIGURED_FUNCTIONS[@]}"; do
+    if [[ ! -d "$PROJECT_DIR/supabase/functions/$fn_name" ]]; then
+      CONFIG_ONLY_FUNCTIONS+=("$fn_name")
+    fi
+  done
+
+  if (( ${#CONFIG_ONLY_FUNCTIONS[@]} > 0 )); then
+    warn "Funções declaradas no config, mas ausentes no repositório: ${CONFIG_ONLY_FUNCTIONS[*]}"
+    warn "Isso não aborta a instalação; apenas impede deploy falso."
+  else
+    ok "Configuração de funções consistente com o repositório"
+  fi
+fi
+
 step "Enviando secrets para Edge Functions"
-supabase secrets set --project-ref "$SUPABASE_PROJECT_REF" \
+run_supabase secrets set --project-ref "$SUPABASE_PROJECT_REF" \
   APP_URL="https://${MAIN_DOMAIN}" \
   API_URL="https://${API_DOMAIN}" \
   SITE_URL="https://${MAIN_DOMAIN}" \
@@ -760,7 +849,7 @@ HTTP_CODE=$(curl -sS -o /tmp/auth.json -w "%{http_code}" \
   -d "$AUTH_PAYLOAD" || true)
 
 if [[ "$HTTP_CODE" =~ ^2 ]]; then
-  ok "Supabase Auth configurado (SMTP, Site URL, Redirects)"
+  ok "Autenticação do backend configurada (SMTP, Site URL, Redirects)"
 else
   warn "Falha ao atualizar Auth (HTTP $HTTP_CODE):"
   cat /tmp/auth.json; echo
@@ -768,6 +857,7 @@ fi
 
 step "Deploy automático apenas das Edge Functions reais"
 if [[ -d "$PROJECT_DIR/supabase/functions" ]]; then
+  FOUND_FUNCTIONS=()
   DEPLOYED_FUNCTIONS=()
   SKIPPED_FUNCTIONS=()
   FAILED_FUNCTIONS=()
@@ -777,28 +867,32 @@ if [[ -d "$PROJECT_DIR/supabase/functions" ]]; then
     fn="$(basename "$d")"
 
     if [[ "$fn" == "_shared" ]]; then
-      echo "  [SKIP] $fn → diretório compartilhado"
+      echo "  [SKIP] $fn -> diretório compartilhado"
       SKIPPED_FUNCTIONS+=("$fn:shared")
       continue
     fi
 
-    if [[ ! -f "$d/index.ts" ]]; then
-      echo "  [SKIP] $fn → entrypoint index.ts não encontrado"
+    entrypoint="$(detect_function_entrypoint "$d" || true)"
+    if [[ -z "$entrypoint" ]]; then
+      echo "  [SKIP] $fn -> entrypoint válido não encontrado"
       SKIPPED_FUNCTIONS+=("$fn:missing_entrypoint")
       continue
     fi
 
-    echo "  [DEPLOY] $fn"
-    if supabase functions deploy "$fn" --project-ref "$SUPABASE_PROJECT_REF"; then
+    FOUND_FUNCTIONS+=("$fn")
+    echo "  [FOUND] $fn -> ${entrypoint}"
+    if run_supabase functions deploy "$fn" --project-ref "$SUPABASE_PROJECT_REF"; then
       DEPLOYED_FUNCTIONS+=("$fn")
+      echo "  [OK]    $fn -> deploy concluído"
     else
-      warn "Falhou: $fn (instalação continuará)"
+      warn "  [WARN]  $fn -> falha no deploy (instalação seguirá para diagnóstico final)"
       FAILED_FUNCTIONS+=("$fn")
     fi
   done
   shopt -u nullglob
 
-  ok "Edge Functions auditadas: ${#DEPLOYED_FUNCTIONS[@]} deployadas, ${#SKIPPED_FUNCTIONS[@]} ignoradas, ${#FAILED_FUNCTIONS[@]} com alerta"
+  ok "Edge Functions auditadas: ${#FOUND_FUNCTIONS[@]} encontradas, ${#DEPLOYED_FUNCTIONS[@]} deployadas, ${#SKIPPED_FUNCTIONS[@]} ignoradas, ${#FAILED_FUNCTIONS[@]} com alerta"
+  [[ ${#FOUND_FUNCTIONS[@]} -gt 0 ]] && log "Encontradas: ${FOUND_FUNCTIONS[*]}"
   [[ ${#DEPLOYED_FUNCTIONS[@]} -gt 0 ]] && log "Deployadas: ${DEPLOYED_FUNCTIONS[*]}"
   [[ ${#SKIPPED_FUNCTIONS[@]} -gt 0 ]] && warn "Ignoradas: ${SKIPPED_FUNCTIONS[*]}"
   [[ ${#FAILED_FUNCTIONS[@]} -gt 0 ]] && warn "Falharam: ${FAILED_FUNCTIONS[*]}"
@@ -812,25 +906,28 @@ unset ADMIN_PASS SUPABASE_ACCESS_TOKEN SERVICE_ROLE_KEY WEBHOOK_SECRET AUTH_PAYL
 # =============================================================================
 # 9.5) CHECKLIST DE VALIDAÇÃO FINAL
 # =============================================================================
-title "Checklist de validação — testando serviços"
+title "Checklist de validação — testando serviços reais"
 
 CHECK_PASS=0; CHECK_FAIL=0; CHECK_WARN=0
 pass() { ok    "✓ $*"; CHECK_PASS=$((CHECK_PASS+1)); }
 fail() { err   "✗ $*"; CHECK_FAIL=$((CHECK_FAIL+1)); }
 skip() { warn  "↷ $*"; CHECK_WARN=$((CHECK_WARN+1)); }
 
-# helper: imprime status HTTP de uma URL (segue redirects)
 http_code() {
-  curl -k -s -o /dev/null -w "%{http_code}" \
-       --max-time 10 -L "$1" 2>/dev/null || echo "000"
+  curl -k -s -o /dev/null -w "%{http_code}"        --max-time 10 -L "$1" 2>/dev/null || echo "000"
 }
 
-step "1/8 · Modo de frontend"
+host_code() {
+  local host="$1" path="$2"
+  curl -k -s -o /dev/null -w "%{http_code}"        --max-time 10 -H "Host: ${host}" "http://127.0.0.1${path}" 2>/dev/null || echo "000"
+}
+
+step "1/9 · Modo de frontend"
 if [[ "$APP_MODE" == "spa_static" ]]; then
-  if [[ -f "$STATIC_ROOT/index.html" ]]; then
+  if [[ -s "$STATIC_ROOT/index.html" ]]; then
     pass "Modo SPA estática ativo (${STATIC_ROOT})"
   else
-    fail "Modo SPA estática configurado, mas ${STATIC_ROOT}/index.html não existe"
+    fail "Modo SPA estática configurado, mas ${STATIC_ROOT}/index.html não existe ou está vazio"
   fi
 else
   if probe_http "$LOCAL_BACKEND_PROXY_URL"; then
@@ -840,11 +937,13 @@ else
   fi
 fi
 
-step "2/8 · Status rápido de container e Nginx"
+step "2/9 · Status rápido de container e Nginx"
 if systemctl is-active --quiet nginx && nginx -t >/dev/null 2>&1; then
   pass "Nginx ativo e configuração válida"
 else
   fail "Nginx inativo ou com erro de sintaxe (nginx -t para detalhes)"
+  systemctl status nginx --no-pager || true
+  journalctl -u nginx -n 50 --no-pager || true
 fi
 
 if docker ps --format '{{.Names}}	{{.Status}}	{{.Ports}}' | grep -q '.'; then
@@ -854,77 +953,81 @@ else
   skip "Nenhum container ativo — esperado em modo SPA estática"
 fi
 
-step "3/8 · Frontend HTTP (porta 80 → redirect 80→443)"
-# Primeiro testa loopback (isola problema DNS/firewall do problema Nginx/build)
-LOOPBACK_CODE="$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 \
-                  -H "Host: ${MAIN_DOMAIN}" "http://127.0.0.1/" 2>/dev/null || echo "000")"
-if [[ "$LOOPBACK_CODE" =~ ^(200|301|302|308)$ ]]; then
-  pass "Nginx local respondeu para Host=${MAIN_DOMAIN} (HTTP $LOOPBACK_CODE)"
+step "3/9 · Frontend local via Nginx (loopback + fallback SPA)"
+LOOPBACK_CODE="$(host_code "$MAIN_DOMAIN" "/")"
+LOOPBACK_SPA_CODE="$(host_code "$MAIN_DOMAIN" "/checkout/install-health")"
+if [[ "$LOOPBACK_CODE" =~ ^(200|301|302|308)$ && "$LOOPBACK_SPA_CODE" =~ ^(200|301|302|308)$ ]]; then
+  pass "Nginx local respondeu para raiz e rota interna SPA (root=$LOOPBACK_CODE, fallback=$LOOPBACK_SPA_CODE)"
 else
-  fail "Nginx local NÃO respondeu (HTTP $LOOPBACK_CODE) — porta 80 vazia ou vhost quebrado"
+  fail "Nginx local não serviu corretamente a SPA (root=$LOOPBACK_CODE, fallback=$LOOPBACK_SPA_CODE)"
   warn "Diagnóstico rápido:"
-  warn "  • Verifique se há container Docker tomando a 80: docker ps | grep ':80->'"
-  warn "  • Verifique status do Nginx do host: systemctl status nginx"
-  warn "  • Verifique vhosts ativos: ls -l /etc/nginx/sites-enabled/"
-  warn "  • Build presente?: test -f ${STATIC_ROOT}/index.html && echo OK || echo FALTA"
+  warn "  • systemctl status nginx --no-pager"
+  warn "  • ls -lah ${STATIC_ROOT}"
+  warn "  • nginx -T | grep -n '${MAIN_DOMAIN}'"
 fi
 
-# Depois testa o domínio público (dependente de DNS)
-HTTP_CODE_MAIN="$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
-                   "http://${MAIN_DOMAIN}" 2>/dev/null || echo "000")"
+step "4/9 · Frontend público HTTP"
+HTTP_CODE_MAIN="$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "http://${MAIN_DOMAIN}" 2>/dev/null || echo "000")"
 if [[ "$HTTP_CODE_MAIN" =~ ^(200|301|302|308)$ ]]; then
   pass "http://${MAIN_DOMAIN} respondeu (HTTP $HTTP_CODE_MAIN)"
-elif [[ "$LOOPBACK_CODE" =~ ^(200|301|302|308)$ ]]; then
-  skip "http://${MAIN_DOMAIN} (HTTP $HTTP_CODE_MAIN) — Nginx local OK; provável problema de DNS"
-  warn "Verifique se ${MAIN_DOMAIN} aponta (A record) para o IP desta VPS:"
-  warn "  dig +short ${MAIN_DOMAIN}  vs.  curl -s ifconfig.me"
 else
-  fail "http://${MAIN_DOMAIN} sem resposta (HTTP $HTTP_CODE_MAIN) — verifique DNS/Nginx"
+  fail "http://${MAIN_DOMAIN} não está acessível (HTTP $HTTP_CODE_MAIN)"
+  warn "DNS atual para ${MAIN_DOMAIN}: $(dig +short ${MAIN_DOMAIN} | paste -sd ',' - || echo 'sem resposta')"
 fi
 
-step "4/8 · Frontend HTTPS"
+step "5/9 · Frontend público HTTPS"
 HTTPS_CODE_MAIN="$(http_code "https://${MAIN_DOMAIN}")"
 if [[ "$HTTPS_CODE_MAIN" =~ ^(200|301|302|304)$ ]]; then
-  pass "https://${MAIN_DOMAIN} OK (HTTP $HTTPS_CODE_MAIN)"
+  pass "https://${MAIN_DOMAIN} está acessível (HTTP $HTTPS_CODE_MAIN)"
 else
-  skip "https://${MAIN_DOMAIN} retornou HTTP $HTTPS_CODE_MAIN — SSL pode estar pendente"
+  fail "https://${MAIN_DOMAIN} não está acessível (HTTP $HTTPS_CODE_MAIN)"
+  warn "Certifique-se de que DNS, certificado e redirect do Nginx estejam corretos."
 fi
 
-step "5/8 · API HTTPS (${MAIN_DOMAIN}/api/* e ${API_DOMAIN})"
-API_CODE_MAIN="$(http_code "https://${MAIN_DOMAIN}/api/")"
-API_CODE_SUBDOMAIN="$(http_code "https://${API_DOMAIN}/")"
-if [[ "$API_CODE_MAIN" =~ ^(200|401|404|405)$ || "$API_CODE_SUBDOMAIN" =~ ^(200|401|404|405)$ ]]; then
-  pass "Rotas de API alcançaram Edge Functions (main=$API_CODE_MAIN, api=$API_CODE_SUBDOMAIN)"
+step "6/9 · API HTTPS (${MAIN_DOMAIN}/api/* e ${API_DOMAIN})"
+if function_exists "production-router"; then
+  API_CODE_MAIN="$(http_code "https://${MAIN_DOMAIN}/api/")"
+  API_CODE_SUBDOMAIN="$(http_code "https://${API_DOMAIN}/")"
+  if [[ "$API_CODE_MAIN" =~ ^(200|401|404|405)$ || "$API_CODE_SUBDOMAIN" =~ ^(200|401|404|405)$ ]]; then
+    pass "Rotas de API alcançaram Edge Functions (main=$API_CODE_MAIN, api=$API_CODE_SUBDOMAIN)"
+  else
+    fail "Rotas de API não responderam como esperado (main=$API_CODE_MAIN, api=$API_CODE_SUBDOMAIN)"
+  fi
 else
-  skip "Rotas de API retornaram main=$API_CODE_MAIN api=$API_CODE_SUBDOMAIN — verifique DNS/SSL/proxy"
+  skip "production-router ausente; validação de /api/* pulada"
 fi
 
-step "6/8 · Endpoint de webhook (exemplo: pagarme-webhook)"
-WH_CODE="$(curl -k -s -o /dev/null -w "%{http_code}" --max-time 10            -X POST "https://${API_DOMAIN}/pagarme-webhook"            -H 'Content-Type: application/json' -d '{}' 2>/dev/null || echo "000")"
-if [[ "$WH_CODE" =~ ^(200|400|401|403|404|405|422)$ ]]; then
-  pass "Webhook acessível via HTTPS (HTTP $WH_CODE — função respondeu)"
-else
-  skip "Webhook retornou HTTP $WH_CODE — confira deploy da função"
+step "7/9 · Webhooks de pagamento e logística"
+WEBHOOK_FAILURES=()
+if function_exists "pagarme-webhook"; then
+  WH_PAGARME_CODE="$(curl -k -s -o /dev/null -w "%{http_code}" --max-time 10 -X POST "https://${API_DOMAIN}/pagarme-webhook" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || echo "000")"
+  [[ "$WH_PAGARME_CODE" =~ ^(200|400|401|403|404|405|422)$ ]] || WEBHOOK_FAILURES+=("pagarme-webhook:$WH_PAGARME_CODE")
+fi
+if function_exists "melhor-envio-webhook"; then
+  WH_MELHOR_ENVIO_CODE="$(curl -k -s -o /dev/null -w "%{http_code}" --max-time 10 -X POST "https://${API_DOMAIN}/melhor-envio-webhook" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || echo "000")"
+  [[ "$WH_MELHOR_ENVIO_CODE" =~ ^(200|400|401|403|404|405|422)$ ]] || WEBHOOK_FAILURES+=("melhor-envio-webhook:$WH_MELHOR_ENVIO_CODE")
 fi
 
-step "7/8 · Endpoint OAuth (melhor-envio-oauth)"
-OAUTH_CODE="$(http_code "https://${API_DOMAIN}/melhor-envio-oauth")"
-if [[ "$OAUTH_CODE" =~ ^(200|302|400|401|403|404|405)$ ]]; then
-  pass "Endpoint OAuth alcançável (HTTP $OAUTH_CODE)"
+if (( ${#WEBHOOK_FAILURES[@]} == 0 )); then
+  pass "Webhooks acessíveis pelos endpoints publicados"
 else
-  skip "Endpoint OAuth retornou HTTP $OAUTH_CODE — confira configuração do fluxo"
+  fail "Falha em webhook(s): ${WEBHOOK_FAILURES[*]}"
 fi
 
-step "8/8 · Auditoria de portas (host + Docker)"
-# Arquitetura correta: APENAS 80/443 expostos publicamente.
-# Portas internas (3000 do app no loopback, 22 SSH) são toleradas.
-# Qualquer listener público em portas como 3000/4000/5000/8080 indica
-# vazamento ou config errada ("uma porta por função") e deve falhar.
+step "8/9 · Endpoint OAuth (melhor-envio-oauth)"
+if function_exists "melhor-envio-oauth"; then
+  OAUTH_CODE="$(http_code "https://${API_DOMAIN}/melhor-envio-oauth")"
+  if [[ "$OAUTH_CODE" =~ ^(200|302|400|401|403|404|405)$ ]]; then
+    pass "Endpoint OAuth alcançável (HTTP $OAUTH_CODE)"
+  else
+    fail "Endpoint OAuth retornou HTTP $OAUTH_CODE"
+  fi
+else
+  skip "melhor-envio-oauth ausente; validação OAuth pulada"
+fi
 
+step "9/9 · Auditoria de portas (host + Docker)"
 ALLOWED_PUBLIC_PORTS=("80" "443" "22")
-# Tolerados apenas em loopback (127.0.0.1 / ::1)
-ALLOWED_LOOPBACK_PORTS=("3000" "5432" "6379")
-# Portas suspeitas que NÃO podem estar publicamente expostas
 SUSPICIOUS_PORTS=("3000" "3001" "4000" "4001" "5000" "5001" "5173" "8000" "8080" "8443" "9000")
 
 is_in_list() { local n="$1"; shift; local x; for x in "$@"; do [[ "$x" == "$n" ]] && return 0; done; return 1; }
@@ -932,45 +1035,38 @@ is_in_list() { local n="$1"; shift; local x; for x in "$@"; do [[ "$x" == "$n" ]
 UNEXPECTED_PUBLIC=()
 UNEXPECTED_DOCKER=()
 
-# --- Host: listeners TCP públicos (não-loopback) ---
 if command -v ss >/dev/null 2>&1; then
-  # Formato: "ADDR:PORT" para cada listener LISTEN
   while IFS= read -r line; do
     [[ -z "$line" ]] && continue
     addr="${line%:*}"
     port="${line##*:}"
     [[ "$port" =~ ^[0-9]+$ ]] || continue
-    # Pula loopback
     [[ "$addr" == "127.0.0.1" || "$addr" == "[::1]" || "$addr" == "::1" ]] && continue
     if ! is_in_list "$port" "${ALLOWED_PUBLIC_PORTS[@]}"; then
       UNEXPECTED_PUBLIC+=("$addr:$port")
     fi
   done < <(ss -H -ltn 2>/dev/null | awk '{print $4}')
 else
-  skip "ss não disponível — pulei auditoria de portas do host"
+  fail "ss não disponível — não foi possível auditar portas do host"
 fi
 
-# --- Docker: portas publicadas no host ---
 if command -v docker >/dev/null 2>&1 && docker ps -q >/dev/null 2>&1; then
   while IFS= read -r mapping; do
     [[ -z "$mapping" ]] && continue
-    # Ex.: "0.0.0.0:80->80/tcp" ou ":::443->443/tcp"
     host_part="${mapping%%->*}"
     host_port="${host_part##*:}"
     [[ "$host_port" =~ ^[0-9]+$ ]] || continue
     host_addr="${host_part%:*}"
-    # Loopback é tolerado
     [[ "$host_addr" == "127.0.0.1" || "$host_addr" == "[::1]" ]] && continue
     if ! is_in_list "$host_port" "${ALLOWED_PUBLIC_PORTS[@]}"; then
       UNEXPECTED_DOCKER+=("$mapping")
     fi
-  done < <(docker ps --format '{{.Ports}}' | tr ',' '\n' | sed 's/^ *//;s/ *$//')
+  done < <(docker ps --format '{{.Ports}}' | tr ',' '
+' | sed 's/^ *//;s/ *$//')
 fi
 
-# --- Verificação cruzada: portas suspeitas publicamente expostas ---
 SUSPECT_HITS=()
 for p in "${SUSPICIOUS_PORTS[@]}"; do
-  # Listener em 0.0.0.0:<p> ou *:<p>
   if ss -H -ltn 2>/dev/null | awk '{print $4}' | grep -E "^(0\.0\.0\.0|\*|\[::\]):${p}$" -q; then
     SUSPECT_HITS+=("$p")
   fi
@@ -986,24 +1082,18 @@ if (( ${#UNEXPECTED_DOCKER[@]} > 0 )); then
   AUDIT_FAIL=1
 fi
 if (( ${#SUSPECT_HITS[@]} > 0 )); then
-  fail "Portas suspeitas (uma-porta-por-função) expostas: ${SUSPECT_HITS[*]}"
-  warn "Arquitetura correta usa APENAS 80/443 com roteamento por path no Nginx."
-  warn "Mate processos: sudo lsof -i :<porta>  →  sudo kill <pid>"
-  warn "Ou remova mapeamentos extras em docker-compose.yml (ports:) e rode:"
-  warn "  cd $PROJECT_DIR && docker compose up -d --force-recreate"
+  fail "Portas suspeitas expostas: ${SUSPECT_HITS[*]}"
+  warn "Arquitetura correta usa apenas 80/443 com roteamento por path no Nginx."
   AUDIT_FAIL=1
 fi
-
 if (( AUDIT_FAIL == 0 )); then
   pass "Apenas portas esperadas (80/443) abertas publicamente"
-else
-  CHECK_FAIL=$((CHECK_FAIL+0))  # fail() já incrementou
 fi
 
 echo
 log "Resultado: ${G}${CHECK_PASS} OK${N} · ${Y}${CHECK_WARN} alertas${N} · ${R}${CHECK_FAIL} falhas${N}"
 if (( CHECK_FAIL > 0 )); then
-  warn "Alguma checagem falhou. Veja a seção 'Comandos de diagnóstico' abaixo."
+  err "Instalação não foi validada em produção. Corrija as falhas acima e reexecute o instalador."
 fi
 
 # =============================================================================
@@ -1017,14 +1107,18 @@ else
   FRONTEND_ARCH_TARGET="${LOCAL_BACKEND_PROXY_URL} (proxy local validado)"
 fi
 
-title "✅ Instalação concluída"
+if (( CHECK_FAIL == 0 )); then
+  title "✅ Instalação validada e online"
+else
+  title "❌ Instalação com falhas — domínio principal não validado"
+fi
 
 DOM_ROOT="${MAIN_DOMAIN#*.}"
 cat <<EOF
-${W}URLs ativas${N}
+${W}URLs esperadas${N}
   Site .............. https://${MAIN_DOMAIN}
   API/Webhook ....... https://${API_DOMAIN}
-  Supabase Dashboard  https://supabase.com/dashboard/project/${SUPABASE_PROJECT_REF}
+  Backend ........... ${SUPABASE_URL}
 
 ${W}DNS recomendado (entregabilidade SMTP)${N}
   SPF   TXT  ${DOM_ROOT}                           v=spf1 include:_spf.mail.hostinger.com ~all
@@ -1037,13 +1131,13 @@ ${W}DNS recomendado (entregabilidade SMTP)${N}
 
 ${W}Manutenção${N}
   Logs Nginx ....... tail -f /var/log/nginx/error.log
-  Logs Function .... supabase functions logs <nome> --project-ref ${SUPABASE_PROJECT_REF}
+  Logs Function .... (cd ${PROJECT_DIR} && supabase functions logs <nome> --project-ref ${SUPABASE_PROJECT_REF})
   Renovar SSL ...... certbot renew --quiet
   Log instalação ... tail -f ${LOG_FILE:-/var/log/install-vvc.log}
                      ls -lah ${LOG_DIR:-/var/log}/install-vvc.log*    # rotacionados
 
 ${W}Comandos de diagnóstico (status rápido)${N}
-  Status container + Nginx . docker ps --format 'table {{.Names}}	{{.Status}}	{{.Ports}}' && systemctl status nginx --no-pager && nginx -t
+  Status Nginx ............ systemctl status nginx --no-pager && nginx -t
   Frontend local ......... ${FRONTEND_STATUS_COMMAND}
   Teste HTTP/HTTPS ....... curl -I http://${MAIN_DOMAIN} && curl -I https://${MAIN_DOMAIN}
   Teste API .............. curl -I https://${MAIN_DOMAIN}/api/ && curl -I https://${API_DOMAIN}/
@@ -1052,19 +1146,23 @@ ${W}Comandos de diagnóstico (status rápido)${N}
   Re-rodar checklist ..... bash ${PROJECT_DIR}/deploy-vps/check-vps.sh   # se existir
   Auditar portas ......... ss -tlnp | grep -vE ':(80|443|22)\s' && docker ps --format '{{.Ports}}'
 
-${W}Troubleshooting Nginx (conflitos comuns)${N}
+${W}Troubleshooting Nginx${N}
   duplicate listen ........ grep -RnE 'listen\s+(80|443)' /etc/nginx/sites-enabled
   conflicting server_name . nginx -T 2>&1 | grep -E 'server_name|conflict'
   vhosts ativos ........... ls -la /etc/nginx/sites-enabled/
-  remover backup acidental  mv /etc/nginx/sites-enabled/*.bak /var/backups/  || true
-  recarregar config ....... nginx -t && systemctl reload nginx
-  arquitetura por rota .... /api/* e /<webhook> → Edge Functions    (NUNCA porta dedicada)
+  logs do serviço ......... journalctl -u nginx -n 50 --no-pager
+  recarregar config ....... nginx -t && systemctl restart nginx
+  arquitetura por rota .... /api/* e /<webhook> → Edge Functions (NUNCA porta dedicada)
 
 ${W}Arquitetura${N}
   Browser ─┬─ https://${MAIN_DOMAIN}/        → Nginx :443 → ${FRONTEND_ARCH_TARGET}
-           ├─ https://${MAIN_DOMAIN}/api/*   → Nginx :443 → Supabase Edge Fn
-           └─ https://${API_DOMAIN}/<fn>     → Nginx :443 → Supabase Edge Fn
+           ├─ https://${MAIN_DOMAIN}/api/*   → Nginx :443 → Edge Functions
+           └─ https://${API_DOMAIN}/<fn>     → Nginx :443 → Edge Functions
 
   Apenas 2 portas públicas: 80 (redirect) e 443 (HTTPS).
-  Cada integração (webhook, OAuth, e-mail, payment) é uma ROTA, não uma PORTA.
+  Cada integração (webhook, OAuth, e-mail, payment) é uma rota, não uma porta.
 EOF
+
+if (( CHECK_FAIL > 0 )); then
+  exit 1
+fi
