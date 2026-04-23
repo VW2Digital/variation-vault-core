@@ -754,18 +754,58 @@ fi
 # =============================================================================
 # 9) SUPABASE — Secrets, Auth SMTP e Edge Functions
 # =============================================================================
-title "Configurando Supabase (Secrets + Auth SMTP + Edge Functions)"
+title "Configurando backend gerenciado (Secrets + Auth SMTP + Edge Functions)"
+
+run_supabase() {
+  ( cd "$PROJECT_DIR" && supabase "$@" )
+}
+
+detect_function_entrypoint() {
+  local fn_dir="$1" entry
+  for entry in index.ts index.js; do
+    [[ -f "$fn_dir/$entry" ]] && { printf '%s\n' "$entry"; return 0; }
+  done
+  return 1
+}
+
+function_exists() {
+  [[ -d "$PROJECT_DIR/supabase/functions/$1" ]]
+}
+
+CONFIGURED_FUNCTIONS=()
+if [[ -f "$PROJECT_DIR/supabase/config.toml" ]]; then
+  while IFS= read -r fn_name; do
+    [[ -n "$fn_name" ]] && CONFIGURED_FUNCTIONS+=("$fn_name")
+  done < <(awk -F'[][]' '/^\[functions\.[^]]+\]/{sub(/^functions\./,"",$2); print $2}' "$PROJECT_DIR/supabase/config.toml" | sort -u)
+fi
 
 export SUPABASE_ACCESS_TOKEN
-supabase link --project-ref "$SUPABASE_PROJECT_REF"
+run_supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
 # Convenções automáticas para SMTP (Hostinger por padrão)
 SMTP_HOST="${SMTP_HOST:-smtp.hostinger.com}"
 SMTP_PORT="${SMTP_PORT:-465}"
 SMTP_FROM_NAME="${SMTP_FROM_NAME:-${MAIN_DOMAIN%%.*}}"
 
+if (( ${#CONFIGURED_FUNCTIONS[@]} > 0 )); then
+  step "Auditando funções declaradas em supabase/config.toml"
+  CONFIG_ONLY_FUNCTIONS=()
+  for fn_name in "${CONFIGURED_FUNCTIONS[@]}"; do
+    if [[ ! -d "$PROJECT_DIR/supabase/functions/$fn_name" ]]; then
+      CONFIG_ONLY_FUNCTIONS+=("$fn_name")
+    fi
+  done
+
+  if (( ${#CONFIG_ONLY_FUNCTIONS[@]} > 0 )); then
+    warn "Funções declaradas no config, mas ausentes no repositório: ${CONFIG_ONLY_FUNCTIONS[*]}"
+    warn "Isso não aborta a instalação; apenas impede deploy falso."
+  else
+    ok "Configuração de funções consistente com o repositório"
+  fi
+fi
+
 step "Enviando secrets para Edge Functions"
-supabase secrets set --project-ref "$SUPABASE_PROJECT_REF" \
+run_supabase secrets set --project-ref "$SUPABASE_PROJECT_REF" \
   APP_URL="https://${MAIN_DOMAIN}" \
   API_URL="https://${API_DOMAIN}" \
   SITE_URL="https://${MAIN_DOMAIN}" \
@@ -810,7 +850,7 @@ HTTP_CODE=$(curl -sS -o /tmp/auth.json -w "%{http_code}" \
   -d "$AUTH_PAYLOAD" || true)
 
 if [[ "$HTTP_CODE" =~ ^2 ]]; then
-  ok "Supabase Auth configurado (SMTP, Site URL, Redirects)"
+  ok "Autenticação do backend configurada (SMTP, Site URL, Redirects)"
 else
   warn "Falha ao atualizar Auth (HTTP $HTTP_CODE):"
   cat /tmp/auth.json; echo
@@ -818,6 +858,7 @@ fi
 
 step "Deploy automático apenas das Edge Functions reais"
 if [[ -d "$PROJECT_DIR/supabase/functions" ]]; then
+  FOUND_FUNCTIONS=()
   DEPLOYED_FUNCTIONS=()
   SKIPPED_FUNCTIONS=()
   FAILED_FUNCTIONS=()
@@ -827,28 +868,32 @@ if [[ -d "$PROJECT_DIR/supabase/functions" ]]; then
     fn="$(basename "$d")"
 
     if [[ "$fn" == "_shared" ]]; then
-      echo "  [SKIP] $fn → diretório compartilhado"
+      echo "  [SKIP] $fn -> diretório compartilhado"
       SKIPPED_FUNCTIONS+=("$fn:shared")
       continue
     fi
 
-    if [[ ! -f "$d/index.ts" ]]; then
-      echo "  [SKIP] $fn → entrypoint index.ts não encontrado"
+    entrypoint="$(detect_function_entrypoint "$d" || true)"
+    if [[ -z "$entrypoint" ]]; then
+      echo "  [SKIP] $fn -> entrypoint válido não encontrado"
       SKIPPED_FUNCTIONS+=("$fn:missing_entrypoint")
       continue
     fi
 
-    echo "  [DEPLOY] $fn"
-    if supabase functions deploy "$fn" --project-ref "$SUPABASE_PROJECT_REF"; then
+    FOUND_FUNCTIONS+=("$fn")
+    echo "  [FOUND] $fn -> ${entrypoint}"
+    if run_supabase functions deploy "$fn" --project-ref "$SUPABASE_PROJECT_REF"; then
       DEPLOYED_FUNCTIONS+=("$fn")
+      echo "  [OK]    $fn -> deploy concluído"
     else
-      warn "Falhou: $fn (instalação continuará)"
+      warn "  [WARN]  $fn -> falha no deploy (instalação seguirá para diagnóstico final)"
       FAILED_FUNCTIONS+=("$fn")
     fi
   done
   shopt -u nullglob
 
-  ok "Edge Functions auditadas: ${#DEPLOYED_FUNCTIONS[@]} deployadas, ${#SKIPPED_FUNCTIONS[@]} ignoradas, ${#FAILED_FUNCTIONS[@]} com alerta"
+  ok "Edge Functions auditadas: ${#FOUND_FUNCTIONS[@]} encontradas, ${#DEPLOYED_FUNCTIONS[@]} deployadas, ${#SKIPPED_FUNCTIONS[@]} ignoradas, ${#FAILED_FUNCTIONS[@]} com alerta"
+  [[ ${#FOUND_FUNCTIONS[@]} -gt 0 ]] && log "Encontradas: ${FOUND_FUNCTIONS[*]}"
   [[ ${#DEPLOYED_FUNCTIONS[@]} -gt 0 ]] && log "Deployadas: ${DEPLOYED_FUNCTIONS[*]}"
   [[ ${#SKIPPED_FUNCTIONS[@]} -gt 0 ]] && warn "Ignoradas: ${SKIPPED_FUNCTIONS[*]}"
   [[ ${#FAILED_FUNCTIONS[@]} -gt 0 ]] && warn "Falharam: ${FAILED_FUNCTIONS[*]}"
