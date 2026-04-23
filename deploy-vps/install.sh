@@ -144,11 +144,11 @@ ask() {
 ask GIT_REPO_URL          "URL do repositório Git (ex: https://github.com/user/repo.git)"
 ask SUPABASE_ACCESS_TOKEN "Supabase Access Token (sbp_...)"            ""    yes
 ask SUPABASE_PROJECT_REF  "Supabase Project Ref (ex: ntlfjekvisepsusbcjsv)"
-ask SUPABASE_PUBLISHABLE_KEY "Supabase Anon/Publishable Key (eyJ... do SEU projeto Supabase)" "" yes
 ask DOMAIN                "Domínio principal (ex: luminaeliberty.com)"
 ask API_DOMAIN            "Subdomínio da API (ex: api.luminaeliberty.com)"
 ask SMTP_USER             "E-mail SMTP Hostinger (ex: contato@dominio.com)"
 ask SMTP_PASS             "Senha SMTP Hostinger"                        ""    yes
+ask SUPABASE_PUBLISHABLE_KEY "Supabase Anon Key do SEU projeto (eyJ...)" "" yes
 
 PROJECT_DIR="/opt/app"
 WEB_ROOT="/var/www/app/dist"
