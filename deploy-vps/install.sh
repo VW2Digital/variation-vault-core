@@ -568,7 +568,7 @@ else
   skip "https://${API_DOMAIN} retornou HTTP $API_CODE — verifique DNS/SSL"
 fi
 
-step "7/7 · Endpoint de webhook (exemplo: pagarme-webhook)"
+step "7/8 · Endpoint de webhook (exemplo: pagarme-webhook)"
 WH_CODE="$(curl -k -s -o /dev/null -w "%{http_code}" --max-time 10 \
            -X POST "https://${API_DOMAIN}/pagarme-webhook" \
            -H 'Content-Type: application/json' -d '{}' 2>/dev/null || echo "000")"
@@ -577,6 +577,91 @@ if [[ "$WH_CODE" =~ ^(200|400|401|403|422)$ ]]; then
   pass "Webhook acessível via HTTPS (HTTP $WH_CODE — função respondeu)"
 else
   skip "Webhook retornou HTTP $WH_CODE — confira deploy da função"
+fi
+
+step "8/8 · Auditoria de portas (host + Docker)"
+# Arquitetura correta: APENAS 80/443 expostos publicamente.
+# Portas internas (3000 do app no loopback, 22 SSH) são toleradas.
+# Qualquer listener público em portas como 3000/4000/5000/8080 indica
+# vazamento ou config errada ("uma porta por função") e deve falhar.
+
+ALLOWED_PUBLIC_PORTS=("80" "443" "22")
+# Tolerados apenas em loopback (127.0.0.1 / ::1)
+ALLOWED_LOOPBACK_PORTS=("3000" "5432" "6379")
+# Portas suspeitas que NÃO podem estar publicamente expostas
+SUSPICIOUS_PORTS=("3000" "3001" "4000" "4001" "5000" "5001" "5173" "8000" "8080" "8443" "9000")
+
+is_in_list() { local n="$1"; shift; local x; for x in "$@"; do [[ "$x" == "$n" ]] && return 0; done; return 1; }
+
+UNEXPECTED_PUBLIC=()
+UNEXPECTED_DOCKER=()
+
+# --- Host: listeners TCP públicos (não-loopback) ---
+if command -v ss >/dev/null 2>&1; then
+  # Formato: "ADDR:PORT" para cada listener LISTEN
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    addr="${line%:*}"
+    port="${line##*:}"
+    [[ "$port" =~ ^[0-9]+$ ]] || continue
+    # Pula loopback
+    [[ "$addr" == "127.0.0.1" || "$addr" == "[::1]" || "$addr" == "::1" ]] && continue
+    if ! is_in_list "$port" "${ALLOWED_PUBLIC_PORTS[@]}"; then
+      UNEXPECTED_PUBLIC+=("$addr:$port")
+    fi
+  done < <(ss -H -ltn 2>/dev/null | awk '{print $4}')
+else
+  skip "ss não disponível — pulei auditoria de portas do host"
+fi
+
+# --- Docker: portas publicadas no host ---
+if command -v docker >/dev/null 2>&1 && docker ps -q >/dev/null 2>&1; then
+  while IFS= read -r mapping; do
+    [[ -z "$mapping" ]] && continue
+    # Ex.: "0.0.0.0:80->80/tcp" ou ":::443->443/tcp"
+    host_part="${mapping%%->*}"
+    host_port="${host_part##*:}"
+    [[ "$host_port" =~ ^[0-9]+$ ]] || continue
+    host_addr="${host_part%:*}"
+    # Loopback é tolerado
+    [[ "$host_addr" == "127.0.0.1" || "$host_addr" == "[::1]" ]] && continue
+    if ! is_in_list "$host_port" "${ALLOWED_PUBLIC_PORTS[@]}"; then
+      UNEXPECTED_DOCKER+=("$mapping")
+    fi
+  done < <(docker ps --format '{{.Ports}}' | tr ',' '\n' | sed 's/^ *//;s/ *$//')
+fi
+
+# --- Verificação cruzada: portas suspeitas publicamente expostas ---
+SUSPECT_HITS=()
+for p in "${SUSPICIOUS_PORTS[@]}"; do
+  # Listener em 0.0.0.0:<p> ou *:<p>
+  if ss -H -ltn 2>/dev/null | awk '{print $4}' | grep -E "^(0\.0\.0\.0|\*|\[::\]):${p}$" -q; then
+    SUSPECT_HITS+=("$p")
+  fi
+done
+
+AUDIT_FAIL=0
+if (( ${#UNEXPECTED_PUBLIC[@]} > 0 )); then
+  fail "Listeners públicos inesperados no host: ${UNEXPECTED_PUBLIC[*]}"
+  AUDIT_FAIL=1
+fi
+if (( ${#UNEXPECTED_DOCKER[@]} > 0 )); then
+  fail "Portas Docker publicadas inesperadas: ${UNEXPECTED_DOCKER[*]}"
+  AUDIT_FAIL=1
+fi
+if (( ${#SUSPECT_HITS[@]} > 0 )); then
+  fail "Portas suspeitas (uma-porta-por-função) expostas: ${SUSPECT_HITS[*]}"
+  warn "Arquitetura correta usa APENAS 80/443 com roteamento por path no Nginx."
+  warn "Mate processos: sudo lsof -i :<porta>  →  sudo kill <pid>"
+  warn "Ou remova mapeamentos extras em docker-compose.yml (ports:) e rode:"
+  warn "  cd $PROJECT_DIR && docker compose up -d --force-recreate"
+  AUDIT_FAIL=1
+fi
+
+if (( AUDIT_FAIL == 0 )); then
+  pass "Apenas portas esperadas (80/443) abertas publicamente"
+else
+  CHECK_FAIL=$((CHECK_FAIL+0))  # fail() já incrementou
 fi
 
 echo
