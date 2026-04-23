@@ -144,6 +144,7 @@ ask() {
 ask GIT_REPO_URL          "URL do repositório Git (ex: https://github.com/user/repo.git)"
 ask SUPABASE_ACCESS_TOKEN "Supabase Access Token (sbp_...)"            ""    yes
 ask SUPABASE_PROJECT_REF  "Supabase Project Ref (ex: ntlfjekvisepsusbcjsv)"
+ask SUPABASE_PUBLISHABLE_KEY "Supabase Anon/Publishable Key (eyJ... do SEU projeto Supabase)" "" yes
 ask DOMAIN                "Domínio principal (ex: luminaeliberty.com)"
 ask API_DOMAIN            "Subdomínio da API (ex: api.luminaeliberty.com)"
 ask SMTP_USER             "E-mail SMTP Hostinger (ex: contato@dominio.com)"
@@ -152,6 +153,26 @@ ask SMTP_PASS             "Senha SMTP Hostinger"                        ""    ye
 PROJECT_DIR="/opt/app"
 WEB_ROOT="/var/www/app/dist"
 SUPABASE_FUNCTIONS_BASE="https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Validação rigorosa: a anon key DEVE pertencer ao Project Ref informado.
+# Isto impede que o instalador use, por engano, chaves de outro projeto
+# (ex.: chaves do projeto Lovable que vieram no .env do repositório).
+# ─────────────────────────────────────────────────────────────────────────────
+if [[ ! "$SUPABASE_PUBLISHABLE_KEY" =~ ^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$ ]]; then
+    err "SUPABASE_PUBLISHABLE_KEY não parece um JWT válido (esperado: eyJ...)"
+    exit 1
+fi
+__jwt_payload=$(echo "$SUPABASE_PUBLISHABLE_KEY" | cut -d. -f2)
+# Padding base64url
+__pad=$(( 4 - ${#__jwt_payload} % 4 )); [[ $__pad -lt 4 ]] && __jwt_payload="${__jwt_payload}$(printf '=%.0s' $(seq 1 $__pad))"
+__jwt_ref=$(echo "$__jwt_payload" | tr '_-' '/+' | base64 -d 2>/dev/null | jq -r '.ref // empty' 2>/dev/null || true)
+if [[ -n "$__jwt_ref" && "$__jwt_ref" != "$SUPABASE_PROJECT_REF" ]]; then
+    err "A anon key pertence ao projeto Supabase '$__jwt_ref', mas o Project Ref informado é '$SUPABASE_PROJECT_REF'."
+    err "Use a anon key do SEU projeto Supabase (Settings → API → anon public)."
+    exit 1
+fi
+ok "Anon key validada e pertence ao projeto $SUPABASE_PROJECT_REF"
 
 echo
 ok "Inputs coletados:"
