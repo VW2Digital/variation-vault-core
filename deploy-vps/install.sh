@@ -233,6 +233,17 @@ hdr "Build do frontend (React + Vite)"
 
 cd "$PROJECT_DIR"
 
+# Sanidade: package.json deve existir e ter script "build"
+if [[ ! -f "$PROJECT_DIR/package.json" ]]; then
+    err "package.json não encontrado em $PROJECT_DIR — repositório clonado incorretamente?"
+    exit 1
+fi
+if ! grep -q '"build"' "$PROJECT_DIR/package.json"; then
+    err "Script 'build' ausente em package.json — projeto incompatível"
+    exit 1
+fi
+ok "package.json validado ($(node -p "require('./package.json').name" 2>/dev/null || echo projeto))"
+
 # .env de build (Supabase publishable + URL)
 SUPABASE_URL="https://${SUPABASE_PROJECT_REF}.supabase.co"
 if [[ ! -f .env ]] || ! grep -q VITE_SUPABASE_URL .env; then
@@ -244,36 +255,108 @@ VITE_SUPABASE_PUBLISHABLE_KEY="${VITE_SUPABASE_PUBLISHABLE_KEY:-CHANGE_ME}"
 EOF
 fi
 
-info "npm install (silencioso)"
-npm install --no-audit --no-fund --loglevel=error
+# Limpeza de builds anteriores (evita herdar dist quebrada)
+rm -rf "$PROJECT_DIR/dist" "$PROJECT_DIR/build" 2>/dev/null || true
 
-info "npm run build"
-npm run build
+# Memória disponível: Vite pode estourar em VPS pequena — aplicar limite explícito
+TOTAL_MEM_MB=$(free -m | awk '/^Mem:/{print $2}')
+if [[ "${TOTAL_MEM_MB:-0}" -lt 1500 ]]; then
+    warn "RAM total = ${TOTAL_MEM_MB}MB (baixa). Aplicando NODE_OPTIONS=--max-old-space-size=1024"
+    export NODE_OPTIONS="--max-old-space-size=1024"
+    # Cria swap temporário se não houver
+    if [[ $(swapon --show | wc -l) -eq 0 ]]; then
+        info "Criando swap temporário de 2G para suportar o build"
+        fallocate -l 2G /swapfile-build 2>/dev/null && chmod 600 /swapfile-build \
+            && mkswap /swapfile-build >/dev/null && swapon /swapfile-build \
+            && ok "Swap ativado" || warn "Não foi possível criar swap"
+    fi
+else
+    export NODE_OPTIONS="--max-old-space-size=2048"
+fi
 
-if [[ ! -f "$PROJECT_DIR/dist/index.html" ]]; then
-    err "Build falhou: $PROJECT_DIR/dist/index.html não foi gerado."
-    err "Verifique se o projeto é Vite e se 'npm run build' produz dist/"
+info "npm install (incluindo devDependencies — necessárias para Vite)"
+export NODE_ENV=development   # garante instalação de devDependencies
+if ! npm install --no-audit --no-fund --loglevel=error --include=dev; then
+    err "npm install falhou — tentando limpar cache e reinstalar"
+    rm -rf node_modules package-lock.json
+    npm cache clean --force >/dev/null 2>&1 || true
+    npm install --no-audit --no-fund --loglevel=error --include=dev
+fi
+
+# Confirma que o binário do Vite existe
+if [[ ! -x "$PROJECT_DIR/node_modules/.bin/vite" ]]; then
+    err "node_modules/.bin/vite não encontrado após npm install"
+    err "DevDependencies não foram instaladas corretamente"
     exit 1
 fi
-ok "Build OK — $(find "$PROJECT_DIR/dist" -type f | wc -l) arquivos gerados"
+ok "Vite instalado: $("$PROJECT_DIR/node_modules/.bin/vite" --version 2>/dev/null || echo '?')"
 
-# Publicação atômica em /var/www/app/dist
+info "Executando 'npm run build' (saída completa abaixo)"
+BUILD_LOG="$LOG_DIR/install-vvc-build.log"
+export NODE_ENV=production
+if ! npm run build 2>&1 | tee "$BUILD_LOG"; then
+    err "Build falhou. Últimas linhas do erro:"
+    tail -n 40 "$BUILD_LOG" | sed 's/^/    /'
+    err "Log completo do build: $BUILD_LOG"
+    exit 1
+fi
+
+# Validação rigorosa do dist gerado
+if [[ ! -d "$PROJECT_DIR/dist" ]]; then
+    err "Build terminou sem criar a pasta dist/"
+    err "Verifique vite.config.ts (build.outDir) ou rode manualmente: cd $PROJECT_DIR && npm run build"
+    exit 1
+fi
+
+if [[ ! -f "$PROJECT_DIR/dist/index.html" ]]; then
+    err "dist/ existe mas index.html não foi gerado"
+    info "Conteúdo de dist/:"
+    ls -la "$PROJECT_DIR/dist/" | sed 's/^/    /'
+    exit 1
+fi
+
+DIST_FILES=$(find "$PROJECT_DIR/dist" -type f | wc -l)
+DIST_SIZE=$(du -sh "$PROJECT_DIR/dist" | awk '{print $1}')
+if [[ "$DIST_FILES" -lt 3 ]]; then
+    err "dist/ contém apenas $DIST_FILES arquivos — build incompleto"
+    ls -la "$PROJECT_DIR/dist/" | sed 's/^/    /'
+    exit 1
+fi
+
+# index.html deve referenciar pelo menos um asset JS (build válido)
+if ! grep -qE '<script[^>]+src=' "$PROJECT_DIR/dist/index.html"; then
+    err "dist/index.html não referencia nenhum bundle JS — build corrompido"
+    exit 1
+fi
+ok "Build OK — $DIST_FILES arquivos, $DIST_SIZE total"
+
+# ── Publicação atômica em /var/www/app/dist ───────────────────────────────
+info "Publicando em $WEB_ROOT (cópia atômica)"
 mkdir -p /var/www/app
-rm -rf "$WEB_ROOT.new"
+rm -rf "$WEB_ROOT.new" "$WEB_ROOT.old"
 cp -a "$PROJECT_DIR/dist" "$WEB_ROOT.new"
-rm -rf "$WEB_ROOT.old" 2>/dev/null || true
+
+if [[ ! -f "$WEB_ROOT.new/index.html" ]]; then
+    err "Falha ao copiar dist para $WEB_ROOT.new"
+    exit 1
+fi
+
 [[ -d "$WEB_ROOT" ]] && mv "$WEB_ROOT" "$WEB_ROOT.old"
 mv "$WEB_ROOT.new" "$WEB_ROOT"
 rm -rf "$WEB_ROOT.old" 2>/dev/null || true
+
 chown -R www-data:www-data /var/www/app
 find "$WEB_ROOT" -type d -exec chmod 755 {} \;
 find "$WEB_ROOT" -type f -exec chmod 644 {} \;
 
-if [[ ! -f "$WEB_ROOT/index.html" ]]; then
-    err "Publicação falhou: $WEB_ROOT/index.html ausente"
+# Validação final pós-cópia
+PUB_FILES=$(find "$WEB_ROOT" -type f | wc -l)
+if [[ ! -f "$WEB_ROOT/index.html" ]] || [[ "$PUB_FILES" -lt 3 ]]; then
+    err "Publicação inconsistente: $PUB_FILES arquivos em $WEB_ROOT"
+    ls -la "$WEB_ROOT/" | sed 's/^/    /'
     exit 1
 fi
-ok "Frontend publicado em $WEB_ROOT"
+ok "Frontend publicado em $WEB_ROOT ($PUB_FILES arquivos servíveis pelo Nginx)"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 9. Deploy de Edge Functions (detecção dinâmica)
