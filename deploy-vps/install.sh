@@ -673,15 +673,33 @@ EOF
 ln -sf "$SITES_AVAILABLE/${MAIN_DOMAIN}.conf" "$SITES_ENABLED/${MAIN_DOMAIN}.conf"
 ln -sf "$SITES_AVAILABLE/${API_DOMAIN}.conf"  "$SITES_ENABLED/${API_DOMAIN}.conf"
 
+restart_nginx_or_fail() {
+  local action="${1:-restart}"
+  if ! nginx -t > /tmp/nginx-test.log 2>&1; then
+    err "nginx -t falhou. Saída:"
+    cat /tmp/nginx-test.log
+    warn "Vhosts antigos foram preservados em $NGINX_BACKUP_DIR (você pode restaurar se precisar)."
+    exit 1
+  fi
+
+  systemctl enable nginx >/dev/null 2>&1 || true
+  if ! systemctl "$action" nginx; then
+    err "systemctl ${action} nginx falhou"
+    systemctl status nginx --no-pager || true
+    journalctl -u nginx -n 50 --no-pager || true
+    exit 1
+  fi
+
+  if ! systemctl is-active --quiet nginx; then
+    err "Nginx não permaneceu ativo após ${action}"
+    systemctl status nginx --no-pager || true
+    journalctl -u nginx -n 50 --no-pager || true
+    exit 1
+  fi
+}
+
 step "Validando configuração do Nginx"
-if ! nginx -t 2>/tmp/nginx-test.log; then
-  err "nginx -t falhou. Saída:"
-  cat /tmp/nginx-test.log
-  warn "Vhosts antigos foram preservados em $NGINX_BACKUP_DIR (você pode restaurar se precisar)."
-  exit 1
-fi
-systemctl enable --now nginx
-systemctl reload nginx
+restart_nginx_or_fail restart
 ok "Nginx ativo · ${MAIN_DOMAIN} (${MAIN_DOMAIN_MODE_LABEL}) · ${API_DOMAIN} (Edge Functions)"
 
 # =============================================================================
