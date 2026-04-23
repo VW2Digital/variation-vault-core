@@ -25,6 +25,7 @@ type TemplateName =
   | "shipping_update"
   | "payment_failure"
   | "cart_abandonment"
+  | "plan_expiring"
   | "admin_notification"
   | "custom";
 
