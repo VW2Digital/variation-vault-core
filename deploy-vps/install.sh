@@ -323,6 +323,52 @@ SITES_ENABLED="/etc/nginx/sites-enabled"
 NGINX_BACKUP_DIR="/var/backups/nginx-vhosts-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$NGINX_BACKUP_DIR" /var/www/certbot "$STATIC_ROOT"
 
+# -----------------------------------------------------------------------------
+# CRÍTICO: liberar portas 80/443 antes de configurar o Nginx do host.
+# Sem isto, o Nginx do host não sobe e o usuário vê ERR_CONNECTION_REFUSED.
+# Causa comum: container Docker (de instalação anterior) ainda bindando 80/443.
+# -----------------------------------------------------------------------------
+step "Liberando portas 80/443 (parando containers Docker concorrentes)"
+# Para qualquer docker compose deste projeto e desabilita restart automático
+if [[ -f "$PROJECT_DIR/docker-compose.yml" ]]; then
+  ( cd "$PROJECT_DIR" && docker compose down --remove-orphans >/dev/null 2>&1 ) || true
+fi
+# Remove containers órfãos conhecidos (de versões antigas do projeto)
+for cname in liberty-pharma-app variation-vault-core variation-vault-app; do
+  docker rm -f "$cname" >/dev/null 2>&1 || true
+done
+# Última linha de defesa: mata QUALQUER container que ainda esteja segurando 80/443
+for port in 80 443; do
+  CONTAINERS_ON_PORT="$(docker ps --format '{{.ID}} {{.Ports}}' 2>/dev/null \
+      | awk -v p=":$port->" '$0 ~ p {print $1}')"
+  if [[ -n "$CONTAINERS_ON_PORT" ]]; then
+    warn "Container(s) ainda segurando porta $port — derrubando: $CONTAINERS_ON_PORT"
+    echo "$CONTAINERS_ON_PORT" | xargs -r docker rm -f >/dev/null 2>&1 || true
+  fi
+done
+# Em modo SPA estática, renomeia docker-compose.yml para .disabled para
+# evitar que `docker compose up` acidental ressuscite o conflito.
+if [[ "$APP_MODE" == "spa_static" && -f "$PROJECT_DIR/docker-compose.yml" ]]; then
+  mv -f "$PROJECT_DIR/docker-compose.yml" "$PROJECT_DIR/docker-compose.yml.disabled"
+  ok "docker-compose.yml renomeado para .disabled (SPA é servida pelo Nginx do host)"
+fi
+# Verifica se as portas estão de fato livres (qualquer processo, não só Docker)
+for port in 80 443; do
+  if ss -H -ltn "sport = :$port" 2>/dev/null | grep -q .; then
+    PROCESS_INFO="$(ss -ltnp "sport = :$port" 2>/dev/null | tail -n +2 | head -1 || true)"
+    # Tolera nginx do host (será reconfigurado/recarregado em seguida)
+    if echo "$PROCESS_INFO" | grep -q '"nginx"'; then
+      log "Porta $port em uso pelo Nginx do host (será recarregado)"
+    else
+      err "Porta $port ainda ocupada por processo não-Nginx:"
+      err "  $PROCESS_INFO"
+      err "Pare manualmente com: sudo fuser -k ${port}/tcp"
+      exit 1
+    fi
+  fi
+done
+ok "Portas 80/443 prontas para o Nginx do host"
+
 step "Limpando vhosts antigos / conflitantes (sem perder histórico)"
 if [[ -d "$SITES_ENABLED" ]]; then
   shopt -s nullglob
@@ -732,9 +778,29 @@ else
 fi
 
 step "3/8 · Frontend HTTP (porta 80 → redirect 80→443)"
-HTTP_CODE_MAIN="$(curl -s -o /dev/null -w "%{http_code}" --max-time 10                   "http://${MAIN_DOMAIN}" 2>/dev/null || echo "000")"
+# Primeiro testa loopback (isola problema DNS/firewall do problema Nginx/build)
+LOOPBACK_CODE="$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 \
+                  -H "Host: ${MAIN_DOMAIN}" "http://127.0.0.1/" 2>/dev/null || echo "000")"
+if [[ "$LOOPBACK_CODE" =~ ^(200|301|302|308)$ ]]; then
+  pass "Nginx local respondeu para Host=${MAIN_DOMAIN} (HTTP $LOOPBACK_CODE)"
+else
+  fail "Nginx local NÃO respondeu (HTTP $LOOPBACK_CODE) — porta 80 vazia ou vhost quebrado"
+  warn "Diagnóstico rápido:"
+  warn "  • Verifique se há container Docker tomando a 80: docker ps | grep ':80->'"
+  warn "  • Verifique status do Nginx do host: systemctl status nginx"
+  warn "  • Verifique vhosts ativos: ls -l /etc/nginx/sites-enabled/"
+  warn "  • Build presente?: test -f ${STATIC_ROOT}/index.html && echo OK || echo FALTA"
+fi
+
+# Depois testa o domínio público (dependente de DNS)
+HTTP_CODE_MAIN="$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+                   "http://${MAIN_DOMAIN}" 2>/dev/null || echo "000")"
 if [[ "$HTTP_CODE_MAIN" =~ ^(200|301|302|308)$ ]]; then
   pass "http://${MAIN_DOMAIN} respondeu (HTTP $HTTP_CODE_MAIN)"
+elif [[ "$LOOPBACK_CODE" =~ ^(200|301|302|308)$ ]]; then
+  skip "http://${MAIN_DOMAIN} (HTTP $HTTP_CODE_MAIN) — Nginx local OK; provável problema de DNS"
+  warn "Verifique se ${MAIN_DOMAIN} aponta (A record) para o IP desta VPS:"
+  warn "  dig +short ${MAIN_DOMAIN}  vs.  curl -s ifconfig.me"
 else
   fail "http://${MAIN_DOMAIN} sem resposta (HTTP $HTTP_CODE_MAIN) — verifique DNS/Nginx"
 fi
