@@ -336,6 +336,7 @@ LOCAL_BACKEND_UPSTREAM="${LOCAL_BACKEND_UPSTREAM:-}"
 APP_MODE="spa_static"
 APP_MODE_REASON="Projeto Vite/React + Supabase detectado; frontend será servido como arquivos estáticos pelo Nginx do host."
 LOCAL_BACKEND_PROXY_URL=""
+LOCAL_BACKEND_DISCOVERY=()
 mkdir -p "$STATIC_ROOT"
 
 normalize_url() {
@@ -352,6 +353,17 @@ probe_http() {
   [[ -n "$url" ]] || return 1
   code="$(curl -k -s -o /dev/null -w "%{http_code}" --max-time 5 "$url" 2>/dev/null || echo 000)"
   [[ "$code" != "000" && "$code" != "502" && "$code" != "503" && "$code" != "504" ]]
+}
+
+discover_local_backend_listeners() {
+  command -v ss >/dev/null 2>&1 || return 0
+  local port line proc
+  for port in 3000 3001 4000 5000 5173 8000 8080; do
+    line="$(ss -H -ltnp "sport = :$port" 2>/dev/null | head -n1 || true)"
+    [[ -n "$line" ]] || continue
+    proc="$(sed -n 's/.*users:(("\([^"]\+\)".*/\1/p' <<< "$line" | head -n1)"
+    printf '%s:%s\n' "$port" "${proc:-processo-desconhecido}"
+  done
 }
 
 if [[ -n "$LOCAL_BACKEND_UPSTREAM" ]]; then
@@ -371,13 +383,33 @@ else
   warn "Heurística de SPA inconclusiva; mantendo modo ${APP_MODE} para evitar proxy incorreto."
 fi
 
-rm -f "$PROJECT_DIR/docker-compose.override.yml"
+while IFS= read -r candidate; do
+  [[ -n "$candidate" ]] && LOCAL_BACKEND_DISCOVERY+=("$candidate")
+done < <(discover_local_backend_listeners)
+
+if (( ${#LOCAL_BACKEND_DISCOVERY[@]} > 0 )); then
+  warn "Listeners locais detectados (não serão usados sem validação explícita): ${LOCAL_BACKEND_DISCOVERY[*]}"
+else
+  log "Nenhum backend local obrigatório detectado nas portas típicas (3000/3001/4000/5000/5173/8000/8080)."
+fi
+
+if [[ "$APP_MODE" == "local_backend_proxy" ]]; then
+  if [[ ! -f "$PROJECT_DIR/docker-compose.yml" && -f "$PROJECT_DIR/docker-compose.yml.disabled" ]]; then
+    mv -f "$PROJECT_DIR/docker-compose.yml.disabled" "$PROJECT_DIR/docker-compose.yml"
+    ok "docker-compose.yml restaurado porque um backend local real foi validado"
+  fi
+else
+  rm -f "$PROJECT_DIR/docker-compose.override.yml"
+fi
+
 ok "Modo de frontend: ${APP_MODE}"
 log "$APP_MODE_REASON"
 if [[ "$APP_MODE" == "spa_static" ]]; then
   ok "Nginx servirá arquivos estáticos de ${STATIC_ROOT}"
+  log "proxy_pass para o frontend principal: DESATIVADO"
 else
   ok "Nginx aplicará proxy_pass apenas para backend real: ${LOCAL_BACKEND_PROXY_URL}"
+  log "proxy_pass para o frontend principal: ATIVADO (${LOCAL_BACKEND_PROXY_URL})"
 fi
 
 # =============================================================================
