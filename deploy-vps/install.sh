@@ -705,6 +705,7 @@ ${W}Comandos de diagnóstico (status rápido)${N}
   Teste HTTPS ...... curl -I https://${MAIN_DOMAIN} && curl -I https://${API_DOMAIN}
   Teste webhook .... curl -X POST https://${API_DOMAIN}/pagarme-webhook -d '{}'
   Re-rodar checklist bash ${PROJECT_DIR}/deploy-vps/check-vps.sh   # se existir
+  Auditar portas ... ss -tlnp | grep -vE ':(80|443|22)\s' && docker ps --format '{{.Ports}}'
 
 ${W}Troubleshooting Nginx (conflitos comuns)${N}
   duplicate listen ........ grep -RnE 'listen\s+(80|443)' /etc/nginx/sites-enabled
