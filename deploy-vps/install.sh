@@ -1039,6 +1039,8 @@ ${W}Manutenção${N}
   Logs Nginx ....... tail -f /var/log/nginx/error.log
   Logs Function .... supabase functions logs <nome> --project-ref ${SUPABASE_PROJECT_REF}
   Renovar SSL ...... certbot renew --quiet
+  Log instalação ... tail -f ${LOG_FILE:-/var/log/install-vvc.log}
+                     ls -lah ${LOG_DIR:-/var/log}/install-vvc.log*    # rotacionados
 
 ${W}Comandos de diagnóstico (status rápido)${N}
   Status container + Nginx . docker ps --format 'table {{.Names}}	{{.Status}}	{{.Ports}}' && systemctl status nginx --no-pager && nginx -t
