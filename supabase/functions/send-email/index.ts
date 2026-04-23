@@ -25,6 +25,7 @@ type TemplateName =
   | "shipping_update"
   | "payment_failure"
   | "cart_abandonment"
+  | "plan_expiring"
   | "admin_notification"
   | "custom";
 
@@ -135,6 +136,29 @@ function renderTemplate(
       `, "Notificação automática enviada pelo sistema.");
       return { subject, html };
     }
+    case "plan_expiring": {
+      const days = Number(data.days_remaining ?? 0);
+      const planName = data.plan_name ?? "seu plano";
+      const expiresAt = data.expires_at
+        ? new Date(String(data.expires_at)).toLocaleDateString("pt-BR")
+        : "—";
+      const renewUrl = data.renew_url || (storeUrl ? `${storeUrl}/minha-conta` : "");
+      const subject =
+        days <= 0
+          ? `Seu plano expirou — renove agora`
+          : `Seu plano expira em ${days} dia${days === 1 ? "" : "s"}`;
+      const html = wrap(storeName, `
+        <p>Olá <strong>${customer}</strong>,</p>
+        <p>Seu plano <strong>${planName}</strong> ${
+          days <= 0
+            ? `<strong style="color:#b91c1c;">expirou em ${expiresAt}</strong>.`
+            : `está prestes a expirar em <strong>${expiresAt}</strong> (${days} dia${days === 1 ? "" : "s"} restante${days === 1 ? "" : "s"}).`
+        }</p>
+        <p>Para evitar interrupção do serviço, renove agora mesmo.</p>
+        ${renewUrl ? `<p><a href="${renewUrl}" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Renovar plano</a></p>` : ""}
+      `);
+      return { subject, html };
+    }
     default:
       throw new Error(`Template desconhecido: ${template}`);
   }
@@ -221,6 +245,7 @@ serve(async (req) => {
       "shipping_update",
       "payment_failure",
       "cart_abandonment",
+      "plan_expiring",
     ]);
     if (gatedEvents.has(body.template)) {
       const flag = (cfg[`email_event_${body.template}_enabled`] ?? "true").toLowerCase();
