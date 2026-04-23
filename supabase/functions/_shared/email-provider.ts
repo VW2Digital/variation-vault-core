@@ -16,6 +16,7 @@ import {
   maskSecretInMessage,
 } from "./email-errors.ts";
 import type { Logger } from "./logger.ts";
+import { withRetry } from "./retry.ts";
 
 export interface SendEmailInput {
   from: string;          // "Name <addr@host>"
@@ -46,6 +47,8 @@ export interface SendEmailFailure {
   latency_ms: number;
   error: ClassifiedEmailError;
   raw_error: string;
+  /** Número total de tentativas executadas (inclui a primeira). */
+  attempts?: number;
 }
 
 export type SendEmailResult = SendEmailSuccess | SendEmailFailure;
@@ -72,73 +75,114 @@ export function createSmtpProvider(cfg: SmtpConfig): EmailProvider {
     async send(input, log) {
       const start = Date.now();
       const messageId = input.messageId ?? `smtp-${crypto.randomUUID()}`;
-      const client = new SMTPClient({
-        connection: {
-          hostname: cfg.host,
-          port: cfg.port,
-          tls: useSsl,
-          auth: { username: cfg.user, password: cfg.pass },
+
+      // Tentativa única — invocada a cada round pelo `withRetry`.
+      const attemptOnce = async (): Promise<SendEmailResult> => {
+        const client = new SMTPClient({
+          connection: {
+            hostname: cfg.host,
+            port: cfg.port,
+            tls: useSsl,
+            auth: { username: cfg.user, password: cfg.pass },
+          },
+          pool: false,
+        });
+        try {
+          const headers: Record<string, string> = {
+            "Message-ID": `<${messageId}@${cfg.host}>`,
+          };
+          if (input.correlationId) headers["X-Correlation-ID"] = input.correlationId;
+
+          await client.send({
+            from: input.from,
+            to: input.to,
+            replyTo: input.replyTo,
+            subject: input.subject,
+            content: input.text ?? "auto",
+            html: input.html,
+            headers,
+          });
+          try { await client.close(); } catch (_) { /* noop */ }
+
+          return {
+            ok: true,
+            message_id: messageId,
+            provider: "smtp",
+            provider_status: 250,
+            latency_ms: Date.now() - start,
+          } as SendEmailSuccess;
+        } catch (e) {
+          try { await client.close(); } catch (_) { /* noop */ }
+          const raw = maskSecretInMessage(
+            e instanceof Error ? e.message : String(e),
+            cfg.pass,
+          );
+          const classified = classifyEmailError(raw);
+          return {
+            ok: false,
+            message_id: messageId,
+            provider: "smtp",
+            provider_status: classified.smtp_code ?? 0,
+            latency_ms: Date.now() - start,
+            error: classified,
+            raw_error: raw,
+          } as SendEmailFailure;
+        }
+      };
+
+      // Retry com backoff exponencial + jitter — só para falhas classificadas
+      // como retryable (ex.: rate_limited, connection_failed, tls_failed).
+      const retried = await withRetry<SendEmailResult>(
+        () => attemptOnce(),
+        {
+          maxAttempts: 3,
+          baseDelayMs: 500,
+          maxDelayMs: 4000,
+          isRetryable: (r) => !r.ok && r.error.retryable === true,
+          isRetryableError: () => true, // exceções inesperadas → retry
+          log,
+          label: "smtp_send",
         },
-        pool: false,
-      });
+      );
 
-      try {
-        const headers: Record<string, string> = {
-          "Message-ID": `<${messageId}@${cfg.host}>`,
-        };
-        if (input.correlationId) headers["X-Correlation-ID"] = input.correlationId;
-
-        await client.send({
-          from: input.from,
-          to: input.to,
-          replyTo: input.replyTo,
-          subject: input.subject,
-          content: input.text ?? "auto",
-          html: input.html,
-          headers,
-        });
-        try { await client.close(); } catch (_) { /* noop */ }
-
-        const result: SendEmailSuccess = {
-          ok: true,
-          message_id: messageId,
-          provider: "smtp",
-          provider_status: 250,
-          latency_ms: Date.now() - start,
-        };
+      const final = retried.result as SendEmailResult | null;
+      if (final && final.ok) {
         log?.info("smtp_sent", {
-          message_id: result.message_id,
+          message_id: final.message_id,
           to_count: input.to.length,
-          latency_ms: result.latency_ms,
+          latency_ms: final.latency_ms,
+          attempts: retried.attempts,
         });
-        return result;
-      } catch (e) {
-        try { await client.close(); } catch (_) { /* noop */ }
-        const raw = maskSecretInMessage(
-          e instanceof Error ? e.message : String(e),
-          cfg.pass,
-        );
-        const classified = classifyEmailError(raw);
-        const result: SendEmailFailure = {
-          ok: false,
-          message_id: messageId,
-          provider: "smtp",
-          provider_status: classified.smtp_code ?? 0,
-          latency_ms: Date.now() - start,
-          error: classified,
-          raw_error: raw,
-        };
-        log?.error("smtp_failed", {
-          message_id: messageId,
-          to_count: input.to.length,
-          latency_ms: result.latency_ms,
-          category: classified.category,
-          retryable: classified.retryable,
-          smtp_code: classified.smtp_code,
-          provider_error: raw,
-        });
-        return result;
+        return final;
       }
+
+      // Falha definitiva — pega o último resultado (ou monta um genérico).
+      const failure: SendEmailFailure = (final && !final.ok)
+        ? { ...final, attempts: retried.attempts }
+        : {
+            ok: false,
+            message_id: messageId,
+            provider: "smtp",
+            provider_status: 0,
+            latency_ms: Date.now() - start,
+            error: classifyEmailError(retried.error ?? "unknown"),
+            raw_error: retried.error instanceof Error
+              ? retried.error.message
+              : String(retried.error ?? "unknown"),
+            attempts: retried.attempts,
+          };
+
+      log?.error("smtp_failed", {
+        message_id: failure.message_id,
+        to_count: input.to.length,
+        latency_ms: failure.latency_ms,
+        attempts: failure.attempts,
+        category: failure.error.category,
+        retryable: failure.error.retryable,
+        smtp_code: failure.error.smtp_code,
+        provider_error: failure.raw_error,
+      });
+      return failure;
     },
   };
 }

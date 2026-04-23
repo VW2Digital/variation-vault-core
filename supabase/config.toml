@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.webhook-healthcheck]
 verify_jwt = false
+
+[functions.webhook-retry]
+verify_jwt = false
