@@ -4,23 +4,19 @@
 // Auth: same model as send-email — accepts a Supabase admin JWT or the
 // service role key. Never logs secrets.
 //
+// Logs are structured JSON with a correlation id that is propagated to
+// `send-email` (via the X-Correlation-ID header). The same id ends up in
+// the email_send_log row metadata, so a single id traces the full path:
+// caller → email-events → send-email → SMTP provider → DB log.
+//
 // Usage:
 //   POST /functions/v1/email-events
 //   { "event": "order_paid", "to": "x@y.com", "data": { ... } }
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
-
-const json = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+import { getCorrelationId, json, preflight } from "../_shared/http.ts";
+import { createLogger } from "../_shared/logger.ts";
+import { authorizeAdminOrServiceRole } from "../_shared/auth.ts";
 
 type EventName =
   | "order_paid"
@@ -52,44 +48,33 @@ interface EventRequest {
 const isEmail = (s: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "POST") return json(405, { error: "Method not allowed" });
+  const correlationId = getCorrelationId(req);
+  const pre = preflight(req, correlationId);
+  if (pre) return pre;
+  if (req.method !== "POST") {
+    return json(405, { error: "Method not allowed", correlation_id: correlationId }, correlationId);
+  }
+
+  const log = createLogger({ scope: "email-events", correlationId });
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    const authHeader = req.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "").trim();
-
-    let isAuthorized = false;
-    if (token && token === serviceRoleKey) {
-      isAuthorized = true;
-    } else if (token) {
-      const userClient = createClient(supabaseUrl, anonKey, {
-        global: { headers: { Authorization: `Bearer ${token}` } },
-      });
-      const { data: claimsData } = await userClient.auth.getClaims(token);
-      const callerId = claimsData?.claims?.sub;
-      if (callerId) {
-        const admin = createClient(supabaseUrl, serviceRoleKey);
-        const { data: roleRow } = await admin
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", callerId)
-          .eq("role", "admin")
-          .maybeSingle();
-        if (roleRow) isAuthorized = true;
-      }
+    const authz = await authorizeAdminOrServiceRole(req);
+    if (!authz.authorized) {
+      log.warn("unauthorized", { caller: authz.caller });
+      return json(401, { error: "Unauthorized", correlation_id: correlationId }, correlationId);
     }
 
-    if (!isAuthorized) return json(401, { error: "Unauthorized" });
-
     const body = (await req.json().catch(() => null)) as EventRequest | null;
-    if (!body?.event) return json(400, { error: "event é obrigatório" });
+    if (!body?.event) {
+      return json(400, { error: "event é obrigatório", correlation_id: correlationId }, correlationId);
+    }
     const template = EVENT_TO_TEMPLATE[body.event];
-    if (!template) return json(400, { error: `Evento desconhecido: ${body.event}` });
+    if (!template) {
+      return json(400, { error: `Evento desconhecido: ${body.event}`, correlation_id: correlationId }, correlationId);
+    }
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
 
@@ -104,7 +89,8 @@ serve(async (req) => {
         .eq("id", body.order_id)
         .maybeSingle();
       if (error) {
-        return json(404, { error: `Pedido não encontrado: ${error.message}` });
+        log.warn("order_lookup_failed", { order_id: body.order_id, error: error.message });
+        return json(404, { error: `Pedido não encontrado: ${error.message}`, correlation_id: correlationId }, correlationId);
       }
       if (order) {
         templateData = {
@@ -141,7 +127,11 @@ serve(async (req) => {
     }
 
     if (recipients.length === 0) {
-      return json(400, { error: "Nenhum destinatário válido (informe `to` ou `order_id` com email válido)" });
+      log.warn("no_recipients", { event: body.event, order_id: body.order_id ?? null });
+      return json(400, {
+        error: "Nenhum destinatário válido (informe `to` ou `order_id` com email válido)",
+        correlation_id: correlationId,
+      }, correlationId);
     }
 
     // Forward to send-email using service role (server-to-server)
@@ -151,6 +141,7 @@ serve(async (req) => {
       headers: {
         Authorization: `Bearer ${serviceRoleKey}`,
         "Content-Type": "application/json",
+        "x-correlation-id": correlationId,
       },
       body: JSON.stringify({
         template,
@@ -163,29 +154,32 @@ serve(async (req) => {
     const respBody = await sendRes.json().catch(() => ({}));
 
     if (!sendRes.ok) {
-      console.error(JSON.stringify({
-        scope: "email-events",
+      log.error("forward_failed", {
         event: body.event,
         order_id: body.order_id ?? null,
         to_count: recipients.length,
         forward_status: sendRes.status,
         forward_error: (respBody as any)?.error ?? "unknown",
+        error_category: (respBody as any)?.error_category,
+        retryable: (respBody as any)?.retryable,
         latency_ms: latency,
-      }));
+      });
       return json(502, {
         error: (respBody as any)?.error || "Falha ao despachar email",
+        error_category: (respBody as any)?.error_category,
+        retryable: (respBody as any)?.retryable,
         forward_status: sendRes.status,
-      });
+        correlation_id: correlationId,
+      }, correlationId);
     }
 
-    console.log(JSON.stringify({
-      scope: "email-events",
+    log.info("dispatched", {
       event: body.event,
       order_id: body.order_id ?? null,
       to_count: recipients.length,
       message_id: (respBody as any)?.message_id,
       latency_ms: latency,
-    }));
+    });
 
     return json(200, {
       success: true,
@@ -193,10 +187,11 @@ serve(async (req) => {
       template,
       to: recipients,
       message_id: (respBody as any)?.message_id,
-    });
+      correlation_id: correlationId,
+    }, correlationId);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("email-events fatal:", msg);
-    return json(500, { error: msg });
+    log.error("fatal", { error: msg });
+    return json(500, { error: msg, correlation_id: correlationId }, correlationId);
   }
 });

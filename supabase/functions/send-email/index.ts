@@ -3,21 +3,18 @@
 // Não há fallback Resend — o projeto removeu qualquer dependência da
 // Resend API. Para alta entregabilidade, configure SPF/DKIM/DMARC do
 // domínio do remetente.
+//
+// Esta função delega:
+//   - autorização → _shared/auth.ts
+//   - logs estruturados c/ correlation id → _shared/logger.ts
+//   - envio SMTP + classificação de erros → _shared/email-provider.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
-
-const json = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+import { getCorrelationId, json, preflight } from "../_shared/http.ts";
+import { createLogger } from "../_shared/logger.ts";
+import { authorizeAdminOrServiceRole } from "../_shared/auth.ts";
+import { createSmtpProvider } from "../_shared/email-provider.ts";
+import { maskSecretInMessage } from "../_shared/email-errors.ts";
 
 type TemplateName =
   | "order_created"
@@ -165,49 +162,29 @@ function renderTemplate(
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const correlationId = getCorrelationId(req);
+  const pre = preflight(req, correlationId);
+  if (pre) return pre;
+
+  const log = createLogger({ scope: "send-email", correlationId });
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    const authHeader = req.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "").trim();
-
-    // Two valid auth modes:
-    // 1) Service role key (server-to-server, e.g. webhooks calling this fn)
-    // 2) Admin JWT (called from the admin panel)
-    let isAuthorized = false;
-    if (token && token === serviceRoleKey) {
-      isAuthorized = true;
-    } else if (token) {
-      const userClient = createClient(supabaseUrl, anonKey, {
-        global: { headers: { Authorization: `Bearer ${token}` } },
-      });
-      const { data: claimsData } = await userClient.auth.getClaims(token);
-      const callerId = claimsData?.claims?.sub;
-      if (callerId) {
-        const admin = createClient(supabaseUrl, serviceRoleKey);
-        const { data: roleRow } = await admin
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", callerId)
-          .eq("role", "admin")
-          .maybeSingle();
-        if (roleRow) isAuthorized = true;
-      }
+    const authz = await authorizeAdminOrServiceRole(req);
+    if (!authz.authorized) {
+      log.warn("unauthorized", { caller: authz.caller });
+      return json(401, { error: "Unauthorized", correlation_id: correlationId }, correlationId);
     }
-
-    if (!isAuthorized) return json(401, { error: "Unauthorized" });
 
     const body = (await req.json()) as SendEmailRequest;
     if (!body?.template || !body?.to) {
-      return json(400, { error: "Campos obrigatórios: template, to" });
+      return json(400, { error: "Campos obrigatórios: template, to", correlation_id: correlationId }, correlationId);
     }
     const recipients = Array.isArray(body.to) ? body.to : [body.to];
     if (recipients.some((r) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(r))) {
-      return json(400, { error: "Email destinatário inválido" });
+      return json(400, { error: "Email destinatário inválido", correlation_id: correlationId }, correlationId);
     }
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
@@ -250,13 +227,13 @@ serve(async (req) => {
     if (gatedEvents.has(body.template)) {
       const flag = (cfg[`email_event_${body.template}_enabled`] ?? "true").toLowerCase();
       if (flag === "false" || flag === "0" || flag === "off") {
-        console.log(JSON.stringify({
-          scope: "send-email",
-          template: body.template,
+        log.info("event_disabled_by_admin", { template: body.template });
+        return json(200, {
+          success: true,
           skipped: true,
           reason: "event_disabled_by_admin",
-        }));
-        return json(200, { success: true, skipped: true, reason: "event_disabled_by_admin" });
+          correlation_id: correlationId,
+        }, correlationId);
       }
     }
 
@@ -293,11 +270,17 @@ serve(async (req) => {
       (cfg["smtp_secure"] || Deno.env.get("SMTP_SECURE") || "").trim().toLowerCase();
 
     if (!smtpHost || !smtpUser || !smtpPass) {
+      log.error("smtp_not_configured", {
+        has_host: Boolean(smtpHost),
+        has_user: Boolean(smtpUser),
+        has_pass: Boolean(smtpPass),
+      });
       return json(500, {
         error:
           "SMTP não configurado. Defina smtp_host, smtp_user e smtp_pass em " +
           "Configurações → Comunicação (ou variáveis de ambiente SMTP_*).",
-      });
+        correlation_id: correlationId,
+      }, correlationId);
     }
 
     const storeName = cfg["store_name"] || "Liberty Pharma";
@@ -306,7 +289,7 @@ serve(async (req) => {
     let rendered: { subject: string; html: string };
     if (body.template === "custom") {
       if (!body.html && !body.text) {
-        return json(400, { error: "custom requer html ou text" });
+        return json(400, { error: "custom requer html ou text", correlation_id: correlationId }, correlationId);
       }
       rendered = {
         subject: body.subject || `Mensagem de ${storeName}`,
@@ -342,110 +325,81 @@ serve(async (req) => {
       if (body.subject) rendered.subject = body.subject;
     }
 
-    const sendStart = Date.now();
-    let messageId: string | null = null;
-    let providerErr: string | null = null;
-    let providerStatus = 0;
-    let ok = false;
+    const usedFrom = smtpFromEmail || smtpUser;
+    const fromHeader = smtpFromName
+      ? `${smtpFromName} <${usedFrom}>`
+      : `${storeName} <${usedFrom}>`;
 
-    // Decide TLS por porta + override explícito (smtp_secure="ssl"|"tls").
-    // Hostinger: 465 = SSL implícito; 587 = STARTTLS.
-    const useSsl = smtpSecure === "ssl" || smtpPort === 465;
-    const client = new SMTPClient({
-      connection: {
-        hostname: smtpHost,
-        port: smtpPort,
-        tls: useSsl,
-        auth: { username: smtpUser, password: smtpPass },
-      },
-      pool: false,
+    const provider = createSmtpProvider({
+      host: smtpHost,
+      port: smtpPort,
+      user: smtpUser,
+      pass: smtpPass,
+      secure: smtpSecure,
     });
 
-    try {
-      const fromHeader = smtpFromName
-        ? `${smtpFromName} <${smtpFromEmail || smtpUser}>`
-        : `${storeName} <${smtpFromEmail || smtpUser}>`;
-      await client.send({
-        from: fromHeader,
-        to: recipients,
-        replyTo: smtpFromEmail || smtpUser,
-        subject: rendered.subject,
-        content: "auto",
-        html: rendered.html,
-      });
-      await client.close();
-      providerStatus = 250;
-      messageId = `smtp-${crypto.randomUUID()}`;
-      ok = true;
-    } catch (e) {
-      providerErr = e instanceof Error ? e.message : String(e);
-      try { await client.close(); } catch (_) { /* noop */ }
-      // Mascara qualquer eco de senha em mensagem de erro.
-      if (smtpPass && providerErr) {
-        providerErr = providerErr.split(smtpPass).join("***");
-      }
-      console.warn(`send-email: SMTP falhou (${smtpHost}:${smtpPort}) — ${providerErr}`);
-    }
+    const childLog = log.child({
+      template: body.template,
+      to_count: recipients.length,
+      from_used: usedFrom,
+    });
 
-    const latency = Date.now() - sendStart;
-    const usedFrom = smtpFromEmail || smtpUser;
+    const result = await provider.send({
+      from: fromHeader,
+      to: recipients,
+      replyTo: usedFrom,
+      subject: rendered.subject,
+      html: rendered.html,
+      correlationId,
+    }, childLog);
 
-    // Persist a row per recipient in email_send_log (best-effort).
+    // Persist one row per recipient in email_send_log (best-effort, fire-and-forget).
     const logRows = recipients.map((r) => ({
-      message_id: messageId,
+      message_id: result.message_id,
       template_name: body.template,
       recipient_email: r,
       subject: rendered.subject,
-      status: ok ? "sent" : "failed",
-      error_message: ok ? null : providerErr,
+      status: result.ok ? "sent" : "failed",
+      error_message: result.ok ? null : maskSecretInMessage(result.raw_error, smtpPass),
       provider_response: null,
       metadata: {
-        provider: "smtp",
+        provider: result.provider,
         from_used: usedFrom,
-        latency_ms: latency,
-        provider_status: providerStatus,
+        latency_ms: result.latency_ms,
+        provider_status: result.provider_status,
+        correlation_id: correlationId,
+        ...(result.ok ? {} : {
+          error_category: result.error.category,
+          retryable: result.error.retryable,
+          smtp_code: result.error.smtp_code,
+        }),
       },
     }));
     admin.from("email_send_log").insert(logRows).then(({ error }) => {
-      if (error) console.error("email_send_log insert error:", error.message);
+      if (error) childLog.error("email_send_log_insert_failed", { error: error.message });
     });
 
-    if (!ok) {
-      console.error(JSON.stringify({
-        scope: "send-email",
-        template: body.template,
-        to_count: recipients.length,
-        provider: "smtp",
-        from_used: usedFrom,
-        provider_status: providerStatus,
-        provider_error: providerErr,
-        latency_ms: latency,
-      }));
+    if (!result.ok) {
       return json(502, {
-        error: providerErr || "SMTP falhou ao enviar",
-        provider: "smtp",
-        provider_status: providerStatus,
-      });
+        error: result.error.friendly,
+        error_category: result.error.category,
+        retryable: result.error.retryable,
+        provider: result.provider,
+        provider_status: result.provider_status,
+        message_id: result.message_id,
+        correlation_id: correlationId,
+      }, correlationId);
     }
-
-    console.log(JSON.stringify({
-      scope: "send-email",
-      template: body.template,
-      to_count: recipients.length,
-      provider: "smtp",
-      from_used: usedFrom,
-      latency_ms: latency,
-      message_id: messageId,
-    }));
 
     return json(200, {
       success: true,
-      provider: "smtp",
-      message_id: messageId,
-    });
+      provider: result.provider,
+      message_id: result.message_id,
+      correlation_id: correlationId,
+    }, correlationId);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("send-email fatal:", msg);
-    return json(500, { error: msg });
+    log.error("fatal", { error: msg });
+    return json(500, { error: msg, correlation_id: correlationId }, correlationId);
   }
 });
