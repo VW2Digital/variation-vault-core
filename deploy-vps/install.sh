@@ -148,36 +148,83 @@ ask DOMAIN                "Domínio principal (ex: luminaeliberty.com)"
 ask API_DOMAIN            "Subdomínio da API (ex: api.luminaeliberty.com)"
 ask SMTP_USER             "E-mail SMTP Hostinger (ex: contato@dominio.com)"
 ask SMTP_PASS             "Senha SMTP Hostinger"                        ""    yes
-ask SUPABASE_PUBLISHABLE_KEY "Supabase Anon Key do SEU projeto (eyJ...)" "" yes
 
 PROJECT_DIR="/opt/app"
 WEB_ROOT="/var/www/app/dist"
 SUPABASE_FUNCTIONS_BASE="https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Validação rigorosa: a anon key DEVE pertencer ao Project Ref informado.
-# Isto impede que o instalador use, por engano, chaves de outro projeto
-# (ex.: chaves do projeto Lovable que vieram no .env do repositório).
+# Buscar TODOS os dados sensíveis automaticamente via Supabase Management API
+# usando o Access Token informado. Nada de pedir anon key/service_role na mão.
+#   • GET /v1/projects/{ref}/api-keys     → anon + service_role
+#   • GET /v1/projects/{ref}              → metadados do projeto (region, db_host)
+# Docs: https://supabase.com/docs/reference/api
 # ─────────────────────────────────────────────────────────────────────────────
-if [[ ! "$SUPABASE_PUBLISHABLE_KEY" =~ ^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$ ]]; then
-    err "SUPABASE_PUBLISHABLE_KEY não parece um JWT válido (esperado: eyJ...)"
+hdr "Buscando credenciais do Supabase via Management API"
+
+# jq é obrigatório aqui — instalar antes do passo de pacotes se necessário
+if ! command -v jq >/dev/null 2>&1; then
+    info "Instalando jq (necessário para parse das respostas da API)"
+    apt-get update -y -qq >/dev/null
+    apt-get install -y -qq jq curl ca-certificates >/dev/null
+fi
+
+SB_API="https://api.supabase.com/v1"
+SB_AUTH_HEADER="Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}"
+
+__sb_call() {
+    # $1 = path
+    local path=$1
+    local out http
+    out=$(curl -sS -w '\n%{http_code}' -H "$SB_AUTH_HEADER" -H "Content-Type: application/json" "${SB_API}${path}")
+    http=$(echo "$out" | tail -n1)
+    body=$(echo "$out" | sed '$d')
+    if [[ "$http" != "200" ]]; then
+        err "Supabase API ${path} → HTTP ${http}"
+        echo "$body" | head -c 400 >&2; echo >&2
+        return 1
+    fi
+    echo "$body"
+}
+
+info "Validando access token e acesso ao projeto $SUPABASE_PROJECT_REF"
+PROJECT_META=$(__sb_call "/projects/${SUPABASE_PROJECT_REF}") || {
+    err "Falha ao acessar projeto. Confira: (1) o Access Token tem permissão neste projeto; (2) o Project Ref está correto."
+    exit 1
+}
+SB_REGION=$(echo "$PROJECT_META" | jq -r '.region // "unknown"')
+SB_NAME=$(echo "$PROJECT_META" | jq -r '.name   // "unknown"')
+ok "Projeto '${SB_NAME}' (region=${SB_REGION}) acessível"
+
+info "Recuperando API keys (anon + service_role)"
+API_KEYS_JSON=$(__sb_call "/projects/${SUPABASE_PROJECT_REF}/api-keys") || exit 1
+
+SUPABASE_ANON_KEY=$(echo "$API_KEYS_JSON" | jq -r '.[] | select(.name=="anon") | .api_key' | head -n1)
+SUPABASE_SERVICE_ROLE_KEY=$(echo "$API_KEYS_JSON" | jq -r '.[] | select(.name=="service_role") | .api_key' | head -n1)
+
+if [[ -z "$SUPABASE_ANON_KEY" || "$SUPABASE_ANON_KEY" == "null" ]]; then
+    err "Não foi possível obter a anon key via Management API."
+    err "Resposta: $(echo "$API_KEYS_JSON" | head -c 300)"
     exit 1
 fi
-__jwt_payload=$(echo "$SUPABASE_PUBLISHABLE_KEY" | cut -d. -f2)
-# Padding base64url
-__pad=$(( 4 - ${#__jwt_payload} % 4 )); [[ $__pad -lt 4 ]] && __jwt_payload="${__jwt_payload}$(printf '=%.0s' $(seq 1 $__pad))"
-__jwt_ref=$(echo "$__jwt_payload" | tr '_-' '/+' | base64 -d 2>/dev/null | jq -r '.ref // empty' 2>/dev/null || true)
-if [[ -n "$__jwt_ref" && "$__jwt_ref" != "$SUPABASE_PROJECT_REF" ]]; then
-    err "A anon key pertence ao projeto Supabase '$__jwt_ref', mas o Project Ref informado é '$SUPABASE_PROJECT_REF'."
-    err "Use a anon key do SEU projeto Supabase (Settings → API → anon public)."
-    exit 1
+if [[ -z "$SUPABASE_SERVICE_ROLE_KEY" || "$SUPABASE_SERVICE_ROLE_KEY" == "null" ]]; then
+    warn "service_role key não retornada — Edge Functions com privilégios elevados podem falhar."
 fi
-ok "Anon key validada e pertence ao projeto $SUPABASE_PROJECT_REF"
+
+# Re-export para o restante do script
+SUPABASE_PUBLISHABLE_KEY="$SUPABASE_ANON_KEY"
+export SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY SUPABASE_PUBLISHABLE_KEY
+
+ok "anon key obtida           (${#SUPABASE_ANON_KEY} bytes)"
+if [[ -n "$SUPABASE_SERVICE_ROLE_KEY" && "$SUPABASE_SERVICE_ROLE_KEY" != "null" ]]; then
+    ok "service_role key obtida   (${#SUPABASE_SERVICE_ROLE_KEY} bytes)"
+fi
 
 echo
 ok "Inputs coletados:"
 info "  Repo .................... $GIT_REPO_URL"
 info "  Project Ref ............. $SUPABASE_PROJECT_REF"
+info "  Project name ............ $SB_NAME ($SB_REGION)"
 info "  Domínio principal ....... $DOMAIN"
 info "  Subdomínio API .......... $API_DOMAIN"
 info "  SMTP user ............... $SMTP_USER"
@@ -452,19 +499,26 @@ ok "Edge Functions: ${#DEPLOYED[@]} deployadas, ${#SKIPPED[@]} ignoradas, ${#FAI
 # ─────────────────────────────────────────────────────────────────────────────
 hdr "Configurando SMTP Hostinger nos secrets do Supabase"
 
-# Tenta 465 (SSL) por padrão; fallback documentado é 587
-if supabase secrets set \
-    SMTP_HOST="smtp.hostinger.com" \
-    SMTP_PORT="465" \
-    SMTP_USER="$SMTP_USER" \
-    SMTP_PASS="$SMTP_PASS" \
-    SMTP_FROM="$SMTP_USER" \
-    SMTP_SECURE="true" \
-    --project-ref "$SUPABASE_PROJECT_REF" >/dev/null 2>&1; then
-    ok "Secrets SMTP gravados (host=smtp.hostinger.com, porta=465 SSL)"
-    info "Fallback: alterar SMTP_PORT=587 e SMTP_SECURE=false se 465 for bloqueado"
+# Tenta 465 (SSL) por padrão; fallback documentado é 587.
+# Inclui também SUPABASE_URL/ANON/SERVICE_ROLE para Edge Functions que
+# precisam de service-role (webhooks, send-email, admin-users, etc.).
+SECRET_ARGS=(
+    "SMTP_HOST=smtp.hostinger.com"
+    "SMTP_PORT=465"
+    "SMTP_USER=$SMTP_USER"
+    "SMTP_PASS=$SMTP_PASS"
+    "SMTP_FROM=$SMTP_USER"
+    "SMTP_SECURE=true"
+    "PUBLIC_SITE_URL=https://${DOMAIN}"
+    "PUBLIC_API_URL=https://${API_DOMAIN}"
+)
+# SUPABASE_URL/ANON/SERVICE_ROLE são reservados pela plataforma e injetados
+# automaticamente — NÃO tentar gravá-los como secrets (CLI rejeita).
+if supabase secrets set "${SECRET_ARGS[@]}" --project-ref "$SUPABASE_PROJECT_REF" >/dev/null 2>&1; then
+    ok "Secrets gravados (SMTP + URLs públicas)"
+    info "Fallback: SMTP_PORT=587 e SMTP_SECURE=false se 465 for bloqueado"
 else
-    warn "Não foi possível gravar secrets SMTP via CLI — configure manualmente"
+    warn "Não foi possível gravar todos os secrets via CLI — verifique manualmente"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
