@@ -499,19 +499,26 @@ ok "Edge Functions: ${#DEPLOYED[@]} deployadas, ${#SKIPPED[@]} ignoradas, ${#FAI
 # ─────────────────────────────────────────────────────────────────────────────
 hdr "Configurando SMTP Hostinger nos secrets do Supabase"
 
-# Tenta 465 (SSL) por padrão; fallback documentado é 587
-if supabase secrets set \
-    SMTP_HOST="smtp.hostinger.com" \
-    SMTP_PORT="465" \
-    SMTP_USER="$SMTP_USER" \
-    SMTP_PASS="$SMTP_PASS" \
-    SMTP_FROM="$SMTP_USER" \
-    SMTP_SECURE="true" \
-    --project-ref "$SUPABASE_PROJECT_REF" >/dev/null 2>&1; then
-    ok "Secrets SMTP gravados (host=smtp.hostinger.com, porta=465 SSL)"
-    info "Fallback: alterar SMTP_PORT=587 e SMTP_SECURE=false se 465 for bloqueado"
+# Tenta 465 (SSL) por padrão; fallback documentado é 587.
+# Inclui também SUPABASE_URL/ANON/SERVICE_ROLE para Edge Functions que
+# precisam de service-role (webhooks, send-email, admin-users, etc.).
+SECRET_ARGS=(
+    "SMTP_HOST=smtp.hostinger.com"
+    "SMTP_PORT=465"
+    "SMTP_USER=$SMTP_USER"
+    "SMTP_PASS=$SMTP_PASS"
+    "SMTP_FROM=$SMTP_USER"
+    "SMTP_SECURE=true"
+    "PUBLIC_SITE_URL=https://${DOMAIN}"
+    "PUBLIC_API_URL=https://${API_DOMAIN}"
+)
+# SUPABASE_URL/ANON/SERVICE_ROLE são reservados pela plataforma e injetados
+# automaticamente — NÃO tentar gravá-los como secrets (CLI rejeita).
+if supabase secrets set "${SECRET_ARGS[@]}" --project-ref "$SUPABASE_PROJECT_REF" >/dev/null 2>&1; then
+    ok "Secrets gravados (SMTP + URLs públicas)"
+    info "Fallback: SMTP_PORT=587 e SMTP_SECURE=false se 465 for bloqueado"
 else
-    warn "Não foi possível gravar secrets SMTP via CLI — configure manualmente"
+    warn "Não foi possível gravar todos os secrets via CLI — verifique manualmente"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
