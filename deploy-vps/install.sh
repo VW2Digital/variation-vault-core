@@ -265,16 +265,25 @@ if ! grep -q '"build"' "$PROJECT_DIR/package.json"; then
 fi
 ok "package.json validado ($(node -p "require('./package.json').name" 2>/dev/null || echo projeto))"
 
-# .env de build (Supabase publishable + URL)
+# .env de build — SEMPRE sobrescrever com os dados do Supabase do CLIENTE.
+# Nunca preservar .env do repositório, pois ele pode conter chaves de outro
+# projeto (ex.: ambiente de desenvolvimento do Lovable).
 SUPABASE_URL="https://${SUPABASE_PROJECT_REF}.supabase.co"
-if [[ ! -f .env ]] || ! grep -q VITE_SUPABASE_URL .env; then
-    info "Gerando .env do frontend"
-    cat > .env <<EOF
+if [[ -f .env ]]; then
+    __old_ref=$(grep -E '^VITE_SUPABASE_PROJECT_ID' .env | head -1 | sed -E 's/.*=//; s/"//g' || true)
+    if [[ -n "$__old_ref" && "$__old_ref" != "$SUPABASE_PROJECT_REF" ]]; then
+        warn ".env do repositório aponta para projeto '$__old_ref' — será SOBRESCRITO com '$SUPABASE_PROJECT_REF'"
+    fi
+    cp -f .env .env.repo.bak 2>/dev/null || true
+fi
+info "Gerando .env do frontend (Supabase do cliente: $SUPABASE_PROJECT_REF)"
+cat > .env <<EOF
 VITE_SUPABASE_PROJECT_ID="${SUPABASE_PROJECT_REF}"
 VITE_SUPABASE_URL="${SUPABASE_URL}"
-VITE_SUPABASE_PUBLISHABLE_KEY="${VITE_SUPABASE_PUBLISHABLE_KEY:-CHANGE_ME}"
+VITE_SUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}"
 EOF
-fi
+chmod 600 .env
+ok ".env gravado apontando para ${SUPABASE_URL}"
 
 # Limpeza de builds anteriores (evita herdar dist quebrada)
 rm -rf "$PROJECT_DIR/dist" "$PROJECT_DIR/build" 2>/dev/null || true
