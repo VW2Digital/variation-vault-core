@@ -18,13 +18,67 @@
 
 set -Eeuo pipefail
 
+# -----------------------------------------------------------------------------
+# LOG PERSISTENTE — toda a execução é gravada em /var/log/install-vvc.log
+# (com rotação simples: mantém os últimos 5 .log.N, comprimidos a partir do .2)
+# Saída original do terminal (com cores) é preservada via `tee`.
+# Senhas/tokens são MASCARADOS antes de gravar no arquivo.
+# -----------------------------------------------------------------------------
+LOG_DIR="${LOG_DIR:-/var/log}"
+LOG_FILE="${LOG_FILE:-$LOG_DIR/install-vvc.log}"
+LOG_KEEP="${LOG_KEEP:-5}"
+
+# Só configura o log se rodando como root (mkdir/chmod em /var/log exige isso)
+if [[ $EUID -eq 0 ]]; then
+  mkdir -p "$LOG_DIR"
+  # Rotação: install-vvc.log → .1 → .2.gz → .3.gz ... (descarta acima de LOG_KEEP)
+  if [[ -f "$LOG_FILE" ]]; then
+    for ((i=LOG_KEEP; i>=2; i--)); do
+      [[ -f "${LOG_FILE}.$((i-1)).gz" ]] && mv -f "${LOG_FILE}.$((i-1)).gz" "${LOG_FILE}.${i}.gz"
+    done
+    [[ -f "${LOG_FILE}.1" ]] && gzip -f "${LOG_FILE}.1" && mv -f "${LOG_FILE}.1.gz" "${LOG_FILE}.2.gz"
+    mv -f "$LOG_FILE" "${LOG_FILE}.1"
+  fi
+  : > "$LOG_FILE"
+  chmod 600 "$LOG_FILE"  # protege porque pode conter URLs/headers internos
+
+  # Filtro: remove sequências ANSI de cor e mascara segredos óbvios
+  # (ADMIN_PASS, SUPABASE_ACCESS_TOKEN, ANON KEY, SERVICE_ROLE, WEBHOOK_SECRET)
+  __log_filter() {
+    sed -u -E \
+      -e 's/\x1B\[[0-9;]*[mGKHF]//g' \
+      -e 's/(sbp_[A-Za-z0-9_-]{8})[A-Za-z0-9_-]+/\1***REDACTED***/g' \
+      -e 's/(eyJ[A-Za-z0-9_-]{12})[A-Za-z0-9_.-]{20,}/\1***REDACTED_JWT***/g' \
+      -e 's/(SMTP_PASS=)[^ ]+/\1***REDACTED***/g' \
+      -e 's/(ADMIN_PASS=)[^ ]+/\1***REDACTED***/g' \
+      -e 's/(WEBHOOK_SECRET=)[^ ]+/\1***REDACTED***/g' \
+      -e 's/(Authorization: Bearer )[A-Za-z0-9._-]+/\1***REDACTED***/g'
+  }
+
+  # Redireciona stdout+stderr para tee → terminal (com cores) E filtro → arquivo
+  # Usa exec + process substitution para capturar TODO o output do script
+  exec > >(tee >(__log_filter >> "$LOG_FILE")) 2>&1
+
+  # Cabeçalho do log com metadados úteis para diagnóstico
+  {
+    echo "================================================================"
+    echo "  install.sh — execução iniciada em $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+    echo "  host=$(hostname)  user=$(whoami)  pwd=$(pwd)"
+    echo "  args=$*"
+    echo "  kernel=$(uname -r)  os=$(. /etc/os-release 2>/dev/null && echo "$PRETTY_NAME" || echo unknown)"
+    echo "================================================================"
+  } >> "$LOG_FILE"
+fi
+
 # ---------- log ---------------------------------------------------------------
 R='\033[0;31m'; G='\033[0;32m'; Y='\033[1;33m'; B='\033[0;34m'; C='\033[0;36m'; W='\033[1m'; N='\033[0m'
-log()   { echo -e "${C}[INFO]${N} $*"; }
-ok()    { echo -e "${G}[ OK ]${N} $*"; }
-warn()  { echo -e "${Y}[WARN]${N} $*"; }
-err()   { echo -e "${R}[ERR ]${N} $*" >&2; }
-step()  { echo -e "\n${W}${B}▶ $*${N}"; }
+# Timestamp curto para cada linha de log (visível no terminal e no arquivo)
+__ts() { date +'%H:%M:%S'; }
+log()   { echo -e "${C}[$(__ts)] [INFO]${N} $*"; }
+ok()    { echo -e "${G}[$(__ts)] [ OK ]${N} $*"; }
+warn()  { echo -e "${Y}[$(__ts)] [WARN]${N} $*"; }
+err()   { echo -e "${R}[$(__ts)] [ERR ]${N} $*" >&2; }
+step()  { echo -e "\n${W}${B}[$(__ts)] ▶ $*${N}"; }
 title() { echo -e "\n${W}${C}══════════════════════════════════════════════════════════════════${N}"
           echo -e "${W}${C}  $*${N}"
           echo -e "${W}${C}══════════════════════════════════════════════════════════════════${N}\n"; }
@@ -32,7 +86,30 @@ mask()  { local s="${1:-}"; [[ -z "$s" ]] && { echo "(vazio)"; return; }
           local n=${#s}; (( n<=4 )) && { echo "****"; return; }
           echo "${s:0:2}***${s: -2}"; }
 
-trap 'err "Falha na linha $LINENO."; exit 1' ERR
+# Trap aprimorado: registra linha + comando que falhou (ótimo para postmortem)
+__on_err() {
+  local rc=$?
+  err "Falha na linha $1 (exit=$rc) ao executar: $BASH_COMMAND"
+  [[ -n "${LOG_FILE:-}" && -f "$LOG_FILE" ]] && err "Log completo: $LOG_FILE"
+  exit "$rc"
+}
+trap '__on_err $LINENO' ERR
+# Trap de saída: registra término (sucesso ou falha) com duração total
+__START_TS=$(date +%s)
+__on_exit() {
+  local rc=$?
+  local dur=$(( $(date +%s) - __START_TS ))
+  if [[ -n "${LOG_FILE:-}" && -f "$LOG_FILE" ]]; then
+    {
+      echo "----------------------------------------------------------------"
+      echo "  install.sh terminou em $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+      echo "  exit_code=$rc  duracao=${dur}s"
+      echo "================================================================"
+    } >> "$LOG_FILE"
+  fi
+}
+trap __on_exit EXIT
+
 [[ $EUID -eq 0 ]] || { err "Execute como root: sudo bash $0"; exit 1; }
 
 NON_INTERACTIVE="${NON_INTERACTIVE:-0}"
