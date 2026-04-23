@@ -227,13 +227,13 @@ serve(async (req) => {
     if (gatedEvents.has(body.template)) {
       const flag = (cfg[`email_event_${body.template}_enabled`] ?? "true").toLowerCase();
       if (flag === "false" || flag === "0" || flag === "off") {
-        console.log(JSON.stringify({
-          scope: "send-email",
-          template: body.template,
+        log.info("event_disabled_by_admin", { template: body.template });
+        return json(200, {
+          success: true,
           skipped: true,
           reason: "event_disabled_by_admin",
-        }));
-        return json(200, { success: true, skipped: true, reason: "event_disabled_by_admin" });
+          correlation_id: correlationId,
+        }, correlationId);
       }
     }
 
