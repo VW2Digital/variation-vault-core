@@ -3,21 +3,18 @@
 // Não há fallback Resend — o projeto removeu qualquer dependência da
 // Resend API. Para alta entregabilidade, configure SPF/DKIM/DMARC do
 // domínio do remetente.
+//
+// Esta função delega:
+//   - autorização → _shared/auth.ts
+//   - logs estruturados c/ correlation id → _shared/logger.ts
+//   - envio SMTP + classificação de erros → _shared/email-provider.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
-
-const json = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+import { getCorrelationId, json, preflight } from "../_shared/http.ts";
+import { createLogger } from "../_shared/logger.ts";
+import { authorizeAdminOrServiceRole } from "../_shared/auth.ts";
+import { createSmtpProvider } from "../_shared/email-provider.ts";
+import { maskSecretInMessage } from "../_shared/email-errors.ts";
 
 type TemplateName =
   | "order_created"
