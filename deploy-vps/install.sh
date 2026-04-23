@@ -416,6 +416,88 @@ fi
 unset ADMIN_PASS SUPABASE_ACCESS_TOKEN SERVICE_ROLE_KEY WEBHOOK_SECRET AUTH_PAYLOAD
 
 # =============================================================================
+# 9.5) CHECKLIST DE VALIDAÇÃO FINAL
+# =============================================================================
+title "Checklist de validação — testando serviços"
+
+CHECK_PASS=0; CHECK_FAIL=0; CHECK_WARN=0
+pass() { ok    "✓ $*"; CHECK_PASS=$((CHECK_PASS+1)); }
+fail() { err   "✗ $*"; CHECK_FAIL=$((CHECK_FAIL+1)); }
+skip() { warn  "↷ $*"; CHECK_WARN=$((CHECK_WARN+1)); }
+
+# helper: imprime status HTTP de uma URL (segue redirects)
+http_code() {
+  curl -k -s -o /dev/null -w "%{http_code}" \
+       --max-time 10 -L "$1" 2>/dev/null || echo "000"
+}
+
+step "1/7 · Container Docker"
+if docker ps --format '{{.Names}}\t{{.Status}}' | grep -qi 'up'; then
+  docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+  pass "Container do app em execução"
+else
+  fail "Nenhum container ativo (verifique: cd $PROJECT_DIR && docker compose ps)"
+fi
+
+step "2/7 · Nginx (host)"
+if systemctl is-active --quiet nginx && nginx -t >/dev/null 2>&1; then
+  pass "Nginx ativo e configuração válida"
+else
+  fail "Nginx inativo ou com erro de sintaxe (nginx -t para detalhes)"
+fi
+
+step "3/7 · Backend local (loopback 127.0.0.1:3000)"
+LOCAL_CODE="$(http_code http://127.0.0.1:3000)"
+if [[ "$LOCAL_CODE" =~ ^(200|301|302|304)$ ]]; then
+  pass "App responde em 127.0.0.1:3000 (HTTP $LOCAL_CODE)"
+else
+  fail "App não respondeu na loopback (HTTP $LOCAL_CODE)"
+fi
+
+step "4/7 · Frontend HTTP (porta 80 → redirect 80→443)"
+HTTP_CODE_MAIN="$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+                  "http://${MAIN_DOMAIN}" 2>/dev/null || echo "000")"
+if [[ "$HTTP_CODE_MAIN" =~ ^(200|301|302|308)$ ]]; then
+  pass "http://${MAIN_DOMAIN} respondeu (HTTP $HTTP_CODE_MAIN)"
+else
+  fail "http://${MAIN_DOMAIN} sem resposta (HTTP $HTTP_CODE_MAIN) — verifique DNS"
+fi
+
+step "5/7 · Frontend HTTPS"
+HTTPS_CODE_MAIN="$(http_code "https://${MAIN_DOMAIN}")"
+if [[ "$HTTPS_CODE_MAIN" =~ ^(200|301|302|304)$ ]]; then
+  pass "https://${MAIN_DOMAIN} OK (HTTP $HTTPS_CODE_MAIN)"
+else
+  skip "https://${MAIN_DOMAIN} retornou HTTP $HTTPS_CODE_MAIN — SSL pode estar pendente"
+fi
+
+step "6/7 · API/Webhook HTTPS (Edge Functions via ${API_DOMAIN})"
+API_CODE="$(http_code "https://${API_DOMAIN}/")"
+# 200/401/404 = proxy alcançou Supabase corretamente
+if [[ "$API_CODE" =~ ^(200|401|404)$ ]]; then
+  pass "https://${API_DOMAIN} reverso OK (HTTP $API_CODE — Supabase respondendo)"
+else
+  skip "https://${API_DOMAIN} retornou HTTP $API_CODE — verifique DNS/SSL"
+fi
+
+step "7/7 · Endpoint de webhook (exemplo: pagarme-webhook)"
+WH_CODE="$(curl -k -s -o /dev/null -w "%{http_code}" --max-time 10 \
+           -X POST "https://${API_DOMAIN}/pagarme-webhook" \
+           -H 'Content-Type: application/json' -d '{}' 2>/dev/null || echo "000")"
+# Esperado: 400/401/422 (função recebeu mas rejeitou payload vazio)
+if [[ "$WH_CODE" =~ ^(200|400|401|403|422)$ ]]; then
+  pass "Webhook acessível via HTTPS (HTTP $WH_CODE — função respondeu)"
+else
+  skip "Webhook retornou HTTP $WH_CODE — confira deploy da função"
+fi
+
+echo
+log "Resultado: ${G}${CHECK_PASS} OK${N} · ${Y}${CHECK_WARN} alertas${N} · ${R}${CHECK_FAIL} falhas${N}"
+if (( CHECK_FAIL > 0 )); then
+  warn "Alguma checagem falhou. Veja a seção 'Comandos de diagnóstico' abaixo."
+fi
+
+# =============================================================================
 # 10) RESUMO FINAL
 # =============================================================================
 title "✅ Instalação concluída"
@@ -442,6 +524,14 @@ ${W}Manutenção${N}
   Logs Nginx ....... tail -f /var/log/nginx/error.log
   Logs Function .... supabase functions logs <nome> --project-ref ${SUPABASE_PROJECT_REF}
   Renovar SSL ...... certbot renew --quiet
+
+${W}Comandos de diagnóstico (status rápido)${N}
+  Status container . docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+  Healthcheck app .. curl -I http://127.0.0.1:3000
+  Status Nginx ..... systemctl status nginx --no-pager && nginx -t
+  Teste HTTPS ...... curl -I https://${MAIN_DOMAIN} && curl -I https://${API_DOMAIN}
+  Teste webhook .... curl -X POST https://${API_DOMAIN}/pagarme-webhook -d '{}'
+  Re-rodar checklist bash ${PROJECT_DIR}/deploy-vps/check-vps.sh   # se existir
 
 ${W}Arquitetura${N}
   Browser → Nginx (80/443) → Docker app (127.0.0.1:3000)
