@@ -265,10 +265,8 @@ normalize_url() {
   local raw="${1:-}"
   [[ -z "$raw" ]] && return 1
   case "$raw" in
-    http://*|https://*) printf '%s
-' "$raw" ;;
-    *) printf 'http://%s
-' "$raw" ;;
+    http://*|https://*) printf '%s\n' "$raw" ;;
+    *) printf 'http://%s\n' "$raw" ;;
   esac
 }
 
