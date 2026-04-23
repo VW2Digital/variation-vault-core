@@ -778,9 +778,29 @@ else
 fi
 
 step "3/8 · Frontend HTTP (porta 80 → redirect 80→443)"
-HTTP_CODE_MAIN="$(curl -s -o /dev/null -w "%{http_code}" --max-time 10                   "http://${MAIN_DOMAIN}" 2>/dev/null || echo "000")"
+# Primeiro testa loopback (isola problema DNS/firewall do problema Nginx/build)
+LOOPBACK_CODE="$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 \
+                  -H "Host: ${MAIN_DOMAIN}" "http://127.0.0.1/" 2>/dev/null || echo "000")"
+if [[ "$LOOPBACK_CODE" =~ ^(200|301|302|308)$ ]]; then
+  pass "Nginx local respondeu para Host=${MAIN_DOMAIN} (HTTP $LOOPBACK_CODE)"
+else
+  fail "Nginx local NÃO respondeu (HTTP $LOOPBACK_CODE) — porta 80 vazia ou vhost quebrado"
+  warn "Diagnóstico rápido:"
+  warn "  • Verifique se há container Docker tomando a 80: docker ps | grep ':80->'"
+  warn "  • Verifique status do Nginx do host: systemctl status nginx"
+  warn "  • Verifique vhosts ativos: ls -l /etc/nginx/sites-enabled/"
+  warn "  • Build presente?: test -f ${STATIC_ROOT}/index.html && echo OK || echo FALTA"
+fi
+
+# Depois testa o domínio público (dependente de DNS)
+HTTP_CODE_MAIN="$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+                   "http://${MAIN_DOMAIN}" 2>/dev/null || echo "000")"
 if [[ "$HTTP_CODE_MAIN" =~ ^(200|301|302|308)$ ]]; then
   pass "http://${MAIN_DOMAIN} respondeu (HTTP $HTTP_CODE_MAIN)"
+elif [[ "$LOOPBACK_CODE" =~ ^(200|301|302|308)$ ]]; then
+  skip "http://${MAIN_DOMAIN} (HTTP $HTTP_CODE_MAIN) — Nginx local OK; provável problema de DNS"
+  warn "Verifique se ${MAIN_DOMAIN} aponta (A record) para o IP desta VPS:"
+  warn "  dig +short ${MAIN_DOMAIN}  vs.  curl -s ifconfig.me"
 else
   fail "http://${MAIN_DOMAIN} sem resposta (HTTP $HTTP_CODE_MAIN) — verifique DNS/Nginx"
 fi
