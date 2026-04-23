@@ -289,7 +289,7 @@ serve(async (req) => {
     let rendered: { subject: string; html: string };
     if (body.template === "custom") {
       if (!body.html && !body.text) {
-        return json(400, { error: "custom requer html ou text" });
+        return json(400, { error: "custom requer html ou text", correlation_id: correlationId }, correlationId);
       }
       rendered = {
         subject: body.subject || `Mensagem de ${storeName}`,
@@ -325,110 +325,81 @@ serve(async (req) => {
       if (body.subject) rendered.subject = body.subject;
     }
 
-    const sendStart = Date.now();
-    let messageId: string | null = null;
-    let providerErr: string | null = null;
-    let providerStatus = 0;
-    let ok = false;
+    const usedFrom = smtpFromEmail || smtpUser;
+    const fromHeader = smtpFromName
+      ? `${smtpFromName} <${usedFrom}>`
+      : `${storeName} <${usedFrom}>`;
 
-    // Decide TLS por porta + override explícito (smtp_secure="ssl"|"tls").
-    // Hostinger: 465 = SSL implícito; 587 = STARTTLS.
-    const useSsl = smtpSecure === "ssl" || smtpPort === 465;
-    const client = new SMTPClient({
-      connection: {
-        hostname: smtpHost,
-        port: smtpPort,
-        tls: useSsl,
-        auth: { username: smtpUser, password: smtpPass },
-      },
-      pool: false,
+    const provider = createSmtpProvider({
+      host: smtpHost,
+      port: smtpPort,
+      user: smtpUser,
+      pass: smtpPass,
+      secure: smtpSecure,
     });
 
-    try {
-      const fromHeader = smtpFromName
-        ? `${smtpFromName} <${smtpFromEmail || smtpUser}>`
-        : `${storeName} <${smtpFromEmail || smtpUser}>`;
-      await client.send({
-        from: fromHeader,
-        to: recipients,
-        replyTo: smtpFromEmail || smtpUser,
-        subject: rendered.subject,
-        content: "auto",
-        html: rendered.html,
-      });
-      await client.close();
-      providerStatus = 250;
-      messageId = `smtp-${crypto.randomUUID()}`;
-      ok = true;
-    } catch (e) {
-      providerErr = e instanceof Error ? e.message : String(e);
-      try { await client.close(); } catch (_) { /* noop */ }
-      // Mascara qualquer eco de senha em mensagem de erro.
-      if (smtpPass && providerErr) {
-        providerErr = providerErr.split(smtpPass).join("***");
-      }
-      console.warn(`send-email: SMTP falhou (${smtpHost}:${smtpPort}) — ${providerErr}`);
-    }
+    const childLog = log.child({
+      template: body.template,
+      to_count: recipients.length,
+      from_used: usedFrom,
+    });
 
-    const latency = Date.now() - sendStart;
-    const usedFrom = smtpFromEmail || smtpUser;
+    const result = await provider.send({
+      from: fromHeader,
+      to: recipients,
+      replyTo: usedFrom,
+      subject: rendered.subject,
+      html: rendered.html,
+      correlationId,
+    }, childLog);
 
-    // Persist a row per recipient in email_send_log (best-effort).
+    // Persist one row per recipient in email_send_log (best-effort, fire-and-forget).
     const logRows = recipients.map((r) => ({
-      message_id: messageId,
+      message_id: result.message_id,
       template_name: body.template,
       recipient_email: r,
       subject: rendered.subject,
-      status: ok ? "sent" : "failed",
-      error_message: ok ? null : providerErr,
+      status: result.ok ? "sent" : "failed",
+      error_message: result.ok ? null : maskSecretInMessage(result.raw_error, smtpPass),
       provider_response: null,
       metadata: {
-        provider: "smtp",
+        provider: result.provider,
         from_used: usedFrom,
-        latency_ms: latency,
-        provider_status: providerStatus,
+        latency_ms: result.latency_ms,
+        provider_status: result.provider_status,
+        correlation_id: correlationId,
+        ...(result.ok ? {} : {
+          error_category: result.error.category,
+          retryable: result.error.retryable,
+          smtp_code: result.error.smtp_code,
+        }),
       },
     }));
     admin.from("email_send_log").insert(logRows).then(({ error }) => {
-      if (error) console.error("email_send_log insert error:", error.message);
+      if (error) childLog.error("email_send_log_insert_failed", { error: error.message });
     });
 
-    if (!ok) {
-      console.error(JSON.stringify({
-        scope: "send-email",
-        template: body.template,
-        to_count: recipients.length,
-        provider: "smtp",
-        from_used: usedFrom,
-        provider_status: providerStatus,
-        provider_error: providerErr,
-        latency_ms: latency,
-      }));
+    if (!result.ok) {
       return json(502, {
-        error: providerErr || "SMTP falhou ao enviar",
-        provider: "smtp",
-        provider_status: providerStatus,
-      });
+        error: result.error.friendly,
+        error_category: result.error.category,
+        retryable: result.error.retryable,
+        provider: result.provider,
+        provider_status: result.provider_status,
+        message_id: result.message_id,
+        correlation_id: correlationId,
+      }, correlationId);
     }
-
-    console.log(JSON.stringify({
-      scope: "send-email",
-      template: body.template,
-      to_count: recipients.length,
-      provider: "smtp",
-      from_used: usedFrom,
-      latency_ms: latency,
-      message_id: messageId,
-    }));
 
     return json(200, {
       success: true,
-      provider: "smtp",
-      message_id: messageId,
-    });
+      provider: result.provider,
+      message_id: result.message_id,
+      correlation_id: correlationId,
+    }, correlationId);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("send-email fatal:", msg);
-    return json(500, { error: msg });
+    log.error("fatal", { error: msg });
+    return json(500, { error: msg, correlation_id: correlationId }, correlationId);
   }
 });
