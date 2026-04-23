@@ -28,6 +28,7 @@ type EventName =
   | "payment_failure"
   | "cart_abandonment"
   | "order_created"
+  | "plan_expiring"
   | "admin_notification";
 
 const EVENT_TO_TEMPLATE: Record<EventName, string> = {
@@ -36,6 +37,7 @@ const EVENT_TO_TEMPLATE: Record<EventName, string> = {
   payment_failure: "payment_failure",
   cart_abandonment: "cart_abandonment",
   order_created: "order_created",
+  plan_expiring: "plan_expiring",
   admin_notification: "admin_notification",
 };
 

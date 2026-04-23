@@ -245,6 +245,7 @@ serve(async (req) => {
       "shipping_update",
       "payment_failure",
       "cart_abandonment",
+      "plan_expiring",
     ]);
     if (gatedEvents.has(body.template)) {
       const flag = (cfg[`email_event_${body.template}_enabled`] ?? "true").toLowerCase();
