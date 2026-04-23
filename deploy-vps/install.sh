@@ -202,9 +202,20 @@ else
 fi
 ok "Projeto em $PROJECT_DIR"
 
-# .env — APENAS chaves públicas
-cat > "$PROJECT_DIR/.env" <<EOF
-# Gerado automaticamente — apenas variáveis PÚBLICAS.
+# -----------------------------------------------------------------------------
+# .env  →  preservado se já existir (NUNCA sobrescreve customizações)
+# .env.local → SEMPRE regenerado com valores oficiais desta instalação
+# Precedência Vite/Next: .env.local sobrescreve .env, então o instalador
+# atualiza apenas o .env.local e mantém o .env do usuário intacto.
+# -----------------------------------------------------------------------------
+ENV_FILE="$PROJECT_DIR/.env"
+ENV_LOCAL_FILE="$PROJECT_DIR/.env.local"
+ENV_EXAMPLE_FILE="$PROJECT_DIR/.env.example"
+
+# Conteúdo oficial gerenciado pelo instalador
+read -r -d '' MANAGED_ENV <<EOF || true
+# === Gerado automaticamente pelo install.sh — não editar manualmente ===
+# Para customizações, edite .env (será preservado entre instalações).
 SERVER_NAME=${MAIN_DOMAIN}
 VITE_SUPABASE_URL=${SUPABASE_URL}
 VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_ANON_KEY}
@@ -214,8 +225,32 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
 APP_URL=https://${MAIN_DOMAIN}
 API_URL=https://${API_DOMAIN}
 EOF
-chmod 600 "$PROJECT_DIR/.env"
-ok ".env configurado (apenas chaves públicas)"
+
+# 1) .env  →  cria apenas se não existir; senão preserva e faz backup informativo
+if [[ -f "$ENV_FILE" ]]; then
+  cp -a "$ENV_FILE" "${ENV_FILE}.bak.$(date +%Y%m%d-%H%M%S)"
+  ok ".env existente preservado (backup criado em .env.bak.*)"
+  warn "Customizações em .env mantidas; valores oficiais vão para .env.local"
+else
+  if [[ -f "$ENV_EXAMPLE_FILE" ]]; then
+    cp -a "$ENV_EXAMPLE_FILE" "$ENV_FILE"
+    ok ".env criado a partir de .env.example (edite para customizar)"
+  else
+    printf '# Customize aqui — este arquivo é PRESERVADO entre instalações.\n' \
+      > "$ENV_FILE"
+    ok ".env vazio criado (pronto para suas customizações)"
+  fi
+  chmod 600 "$ENV_FILE"
+fi
+
+# 2) .env.local  →  sempre regenerado com os valores oficiais (precedência alta)
+if [[ -f "$ENV_LOCAL_FILE" ]]; then
+  cp -a "$ENV_LOCAL_FILE" "${ENV_LOCAL_FILE}.bak.$(date +%Y%m%d-%H%M%S)"
+  log ".env.local anterior salvo como backup"
+fi
+printf '%s\n' "$MANAGED_ENV" > "$ENV_LOCAL_FILE"
+chmod 600 "$ENV_LOCAL_FILE"
+ok ".env.local regenerado com configuração oficial"
 
 # Override do compose: container só na loopback, Nginx do host faz o proxy
 cat > "$PROJECT_DIR/docker-compose.override.yml" <<'EOF'
