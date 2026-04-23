@@ -162,6 +162,13 @@ SUPABASE_FUNCTIONS_BASE="https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v
 # ─────────────────────────────────────────────────────────────────────────────
 hdr "Buscando credenciais do Supabase via Management API"
 
+# jq é obrigatório aqui — instalar antes do passo de pacotes se necessário
+if ! command -v jq >/dev/null 2>&1; then
+    info "Instalando jq (necessário para parse das respostas da API)"
+    apt-get update -y -qq >/dev/null
+    apt-get install -y -qq jq curl ca-certificates >/dev/null
+fi
+
 SB_API="https://api.supabase.com/v1"
 SB_AUTH_HEADER="Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}"
 
