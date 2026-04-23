@@ -4,23 +4,19 @@
 // Auth: same model as send-email — accepts a Supabase admin JWT or the
 // service role key. Never logs secrets.
 //
+// Logs are structured JSON with a correlation id that is propagated to
+// `send-email` (via the X-Correlation-ID header). The same id ends up in
+// the email_send_log row metadata, so a single id traces the full path:
+// caller → email-events → send-email → SMTP provider → DB log.
+//
 // Usage:
 //   POST /functions/v1/email-events
 //   { "event": "order_paid", "to": "x@y.com", "data": { ... } }
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
-
-const json = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+import { getCorrelationId, json, preflight } from "../_shared/http.ts";
+import { createLogger } from "../_shared/logger.ts";
+import { authorizeAdminOrServiceRole } from "../_shared/auth.ts";
 
 type EventName =
   | "order_paid"
