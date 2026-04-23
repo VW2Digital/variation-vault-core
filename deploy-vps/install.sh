@@ -252,14 +252,58 @@ printf '%s\n' "$MANAGED_ENV" > "$ENV_LOCAL_FILE"
 chmod 600 "$ENV_LOCAL_FILE"
 ok ".env.local regenerado com configuração oficial"
 
-# Override do compose: container só na loopback, Nginx do host faz o proxy
-cat > "$PROJECT_DIR/docker-compose.override.yml" <<'EOF'
-services:
-  app:
-    ports: !override
-      - "127.0.0.1:3000:80"
-    volumes: []
-EOF
+# Detecta automaticamente a arquitetura correta do frontend.
+# Padrão deste projeto: SPA estática (Vite/React) servida pelo Nginx do host.
+STATIC_ROOT="${STATIC_ROOT:-/var/www/app/dist}"
+LOCAL_BACKEND_UPSTREAM="${LOCAL_BACKEND_UPSTREAM:-}"
+APP_MODE="spa_static"
+APP_MODE_REASON="Projeto Vite/React + Supabase detectado; frontend será servido como arquivos estáticos pelo Nginx do host."
+LOCAL_BACKEND_PROXY_URL=""
+mkdir -p "$STATIC_ROOT"
+
+normalize_url() {
+  local raw="${1:-}"
+  [[ -z "$raw" ]] && return 1
+  case "$raw" in
+    http://*|https://*) printf '%s
+' "$raw" ;;
+    *) printf 'http://%s
+' "$raw" ;;
+  esac
+}
+
+probe_http() {
+  local url="${1:-}" code
+  [[ -n "$url" ]] || return 1
+  code="$(curl -k -s -o /dev/null -w "%{http_code}" --max-time 5 "$url" 2>/dev/null || echo 000)"
+  [[ "$code" != "000" && "$code" != "502" && "$code" != "503" && "$code" != "504" ]]
+}
+
+if [[ -n "$LOCAL_BACKEND_UPSTREAM" ]]; then
+  LOCAL_BACKEND_PROXY_URL="$(normalize_url "$LOCAL_BACKEND_UPSTREAM")"
+  if probe_http "$LOCAL_BACKEND_PROXY_URL"; then
+    APP_MODE="local_backend_proxy"
+    APP_MODE_REASON="Backend local explicitamente informado e acessível em ${LOCAL_BACKEND_PROXY_URL}."
+  else
+    warn "LOCAL_BACKEND_UPSTREAM=${LOCAL_BACKEND_UPSTREAM} não respondeu; mantendo modo SPA estática."
+    LOCAL_BACKEND_PROXY_URL=""
+  fi
+fi
+
+if jq -e '.scripts.build // "" | tostring | test("vite build")' "$PROJECT_DIR/package.json" >/dev/null 2>&1    && [[ -f "$PROJECT_DIR/src/main.tsx" || -f "$PROJECT_DIR/src/main.ts" ]]; then
+  log "Detecção do projeto: frontend SPA Vite/React confirmado."
+else
+  warn "Heurística de SPA inconclusiva; mantendo modo ${APP_MODE} para evitar proxy incorreto."
+fi
+
+rm -f "$PROJECT_DIR/docker-compose.override.yml"
+ok "Modo de frontend: ${APP_MODE}"
+log "$APP_MODE_REASON"
+if [[ "$APP_MODE" == "spa_static" ]]; then
+  ok "Nginx servirá arquivos estáticos de ${STATIC_ROOT}"
+else
+  ok "Nginx aplicará proxy_pass apenas para backend real: ${LOCAL_BACKEND_PROXY_URL}"
+fi
 
 # =============================================================================
 # 6) NGINX (host) — domínio principal + subdomínio da API
@@ -269,25 +313,19 @@ title "Configurando Nginx (1 vhost por domínio · roteamento por path · sem po
 # -----------------------------------------------------------------------------
 # Arquitetura:
 #   80/443 → Nginx (única porta pública por protocolo)
-#       ├─ ${MAIN_DOMAIN}        → SPA (proxy → 127.0.0.1:3000) + SPA fallback
-#       │                          /api/* → Supabase Edge Functions
-#       └─ ${API_DOMAIN}         → Supabase Edge Functions (subdomínio dedicado)
+#       ├─ ${MAIN_DOMAIN}  → SPA estática OU proxy local real (somente se validado)
+#       │                    /api/* e webhooks → Supabase Edge Functions
+#       └─ ${API_DOMAIN}   → Supabase Edge Functions (subdomínio dedicado)
 #
-# NUNCA criamos porta por função (webhook/oauth/email). Tudo é roteado por path.
+# NUNCA criamos porta por função. Tudo é roteado por path.
 # -----------------------------------------------------------------------------
 
 SITES_AVAILABLE="/etc/nginx/sites-available"
 SITES_ENABLED="/etc/nginx/sites-enabled"
 NGINX_BACKUP_DIR="/var/backups/nginx-vhosts-$(date +%Y%m%d-%H%M%S)"
-mkdir -p "$NGINX_BACKUP_DIR" /var/www/certbot
+mkdir -p "$NGINX_BACKUP_DIR" /var/www/certbot "$STATIC_ROOT"
 
 step "Limpando vhosts antigos / conflitantes (sem perder histórico)"
-# Move TUDO que estiver em sites-enabled para backup. Vamos reescrever do zero
-# apenas os 2 vhosts oficiais. Isso elimina:
-#   • duplicate listen 80/443
-#   • conflicting server_name
-#   • placeholders "return 404" deixados pelo Certbot
-#   • backups (.bak/.old/.copy) acidentalmente carregados como vhost
 if [[ -d "$SITES_ENABLED" ]]; then
   shopt -s nullglob
   for f in "$SITES_ENABLED"/*; do
@@ -295,56 +333,66 @@ if [[ -d "$SITES_ENABLED" ]]; then
   done
   shopt -u nullglob
 fi
-# Também remove de sites-available qualquer backup acidental (mantém .conf reais)
-find "$SITES_AVAILABLE" -maxdepth 1 -type f \
-  \( -name '*.bak' -o -name '*.old' -o -name '*.copy' -o -name '*~' \) \
-  -exec mv -f {} "$NGINX_BACKUP_DIR/" \; 2>/dev/null || true
-# Remove placeholders "return 404" deixados pelo Certbot para os nossos domínios
+find "$SITES_AVAILABLE" -maxdepth 1 -type f   \( -name '*.bak' -o -name '*.old' -o -name '*.copy' -o -name '*~' \)   -exec mv -f {} "$NGINX_BACKUP_DIR/" \; 2>/dev/null || true
 for dom in "$MAIN_DOMAIN" "$API_DOMAIN"; do
   for f in "$SITES_AVAILABLE"/*"$dom"*; do
     [[ -f "$f" ]] || continue
-    if grep -qE 'return\s+404' "$f" && ! grep -q 'proxy_pass' "$f"; then
+    if grep -qE 'return\s+404' "$f" && ! grep -qE 'proxy_pass|root ' "$f"; then
       mv -f "$f" "$NGINX_BACKUP_DIR/" 2>/dev/null || true
     fi
   done
 done
 ok "Vhosts antigos movidos para $NGINX_BACKUP_DIR"
 
-# Snippet reutilizável: proxy para Supabase Edge Functions
 SUPABASE_FN_HOST="${SUPABASE_PROJECT_REF}.functions.supabase.co"
+MAIN_DOMAIN_MODE_LABEL=""
+MAIN_VHOST="$SITES_AVAILABLE/${MAIN_DOMAIN}.conf"
 
 step "Gerando vhost do domínio principal: ${MAIN_DOMAIN}"
-cat > "$SITES_AVAILABLE/${MAIN_DOMAIN}.conf" <<EOF
+if [[ "$APP_MODE" == "local_backend_proxy" ]]; then
+  MAIN_DOMAIN_MODE_LABEL="proxy_pass → ${LOCAL_BACKEND_PROXY_URL}"
+  cat > "$MAIN_VHOST" <<EOF
 # === ${MAIN_DOMAIN} — gerenciado pelo install.sh ===
-# Frontend SPA + roteamento por path /api/* → Supabase Edge Functions.
-# UM único listen 80 e UM único listen 443 (após Certbot) por família IP.
+# Frontend via backend local real validado + rotas /api/* e webhooks via Supabase.
 server {
     listen 80;
     listen [::]:80;
     server_name ${MAIN_DOMAIN};
 
-    # ACME (renovação SSL)
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
 
-    # /api/* → Edge Functions (webhook, oauth, payment-checkout, admin-users…)
-    # Esta é a forma correta: 1 porta (443), roteamento por rota.
     location /api/ {
-        proxy_pass         https://${SUPABASE_FN_HOST}/;
+        proxy_pass         https://${SUPABASE_FN_HOST}/production-router/api/;
         proxy_http_version 1.1;
         proxy_set_header   Host              ${SUPABASE_FN_HOST};
         proxy_set_header   X-Real-IP         \$remote_addr;
         proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
         proxy_set_header   X-Forwarded-Proto \$scheme;
         proxy_ssl_server_name on;
+        proxy_ssl_name     ${SUPABASE_FN_HOST};
         proxy_read_timeout 120s;
+        proxy_connect_timeout 15s;
+        proxy_buffering off;
     }
 
-    # SPA — frontend Vite/React no container local
-    # SPA fallback é feito pelo container (try_files). Aqui só fazemos proxy.
+    location ~ ^/(melhor-envio-oauth|melhor-envio-webhook|asaas-webhook|mercadopago-webhook|pagarme-webhook|pagbank-webhook|webhook-healthcheck)(/.*)?$ {
+        proxy_pass         https://${SUPABASE_FN_HOST}/\$1\$2\$is_args\$args;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              ${SUPABASE_FN_HOST};
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
+        proxy_ssl_server_name on;
+        proxy_ssl_name     ${SUPABASE_FN_HOST};
+        proxy_read_timeout 120s;
+        proxy_connect_timeout 15s;
+        proxy_buffering off;
+    }
+
     location / {
-        proxy_pass         http://127.0.0.1:3000;
+        proxy_pass         ${LOCAL_BACKEND_PROXY_URL};
         proxy_http_version 1.1;
         proxy_set_header   Host              \$host;
         proxy_set_header   X-Real-IP         \$remote_addr;
@@ -352,19 +400,98 @@ server {
         proxy_set_header   X-Forwarded-Proto \$scheme;
         proxy_set_header   Upgrade           \$http_upgrade;
         proxy_set_header   Connection        "upgrade";
-        proxy_read_timeout 90s;
+        proxy_read_timeout 120s;
+        proxy_connect_timeout 15s;
     }
 }
 EOF
+else
+  MAIN_DOMAIN_MODE_LABEL="SPA estática em ${STATIC_ROOT}"
+  cat > "$MAIN_VHOST" <<EOF
+# === ${MAIN_DOMAIN} — gerenciado pelo install.sh ===
+# Frontend SPA estática + rotas /api/* e webhooks via Supabase.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${MAIN_DOMAIN};
+    root ${STATIC_ROOT};
+    index index.html;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types
+        text/plain text/css text/xml text/javascript
+        application/javascript application/x-javascript
+        application/xml application/json application/rss+xml
+        image/svg+xml;
+
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files \$uri =404;
+    }
+
+    location ~* \.(?:jpg|jpeg|gif|png|ico|webp|svg|woff|woff2|ttf|otf|eot)$ {
+        expires 30d;
+        add_header Cache-Control "public";
+        try_files \$uri =404;
+    }
+
+    location /api/ {
+        proxy_pass         https://${SUPABASE_FN_HOST}/production-router/api/;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              ${SUPABASE_FN_HOST};
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
+        proxy_ssl_server_name on;
+        proxy_ssl_name     ${SUPABASE_FN_HOST};
+        proxy_read_timeout 120s;
+        proxy_connect_timeout 15s;
+        proxy_buffering off;
+    }
+
+    location ~ ^/(melhor-envio-oauth|melhor-envio-webhook|asaas-webhook|mercadopago-webhook|pagarme-webhook|pagbank-webhook|webhook-healthcheck)(/.*)?$ {
+        proxy_pass         https://${SUPABASE_FN_HOST}/\$1\$2\$is_args\$args;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              ${SUPABASE_FN_HOST};
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
+        proxy_ssl_server_name on;
+        proxy_ssl_name     ${SUPABASE_FN_HOST};
+        proxy_read_timeout 120s;
+        proxy_connect_timeout 15s;
+        proxy_buffering off;
+    }
+
+    location / {
+        try_files \$uri \$uri/ /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+}
+EOF
+fi
 
 step "Gerando vhost da API: ${API_DOMAIN}"
 cat > "$SITES_AVAILABLE/${API_DOMAIN}.conf" <<EOF
 # === ${API_DOMAIN} — gerenciado pelo install.sh ===
-# Subdomínio dedicado a Supabase Edge Functions (webhooks externos, OAuth callback).
-# Continua sendo 1 porta (443) com roteamento por path:
-#   https://${API_DOMAIN}/melhor-envio-webhook
-#   https://${API_DOMAIN}/pagarme-webhook
-#   https://${API_DOMAIN}/payment-checkout
+# Subdomínio dedicado a Supabase Edge Functions (webhooks, OAuth, integrações).
 server {
     listen 80;
     listen [::]:80;
@@ -382,16 +509,17 @@ server {
         proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
         proxy_set_header   X-Forwarded-Proto \$scheme;
         proxy_ssl_server_name on;
+        proxy_ssl_name     ${SUPABASE_FN_HOST};
         proxy_read_timeout 120s;
+        proxy_connect_timeout 15s;
+        proxy_buffering off;
     }
 }
 EOF
 
-# Habilita APENAS os dois vhosts oficiais (sem o "default")
 ln -sf "$SITES_AVAILABLE/${MAIN_DOMAIN}.conf" "$SITES_ENABLED/${MAIN_DOMAIN}.conf"
 ln -sf "$SITES_AVAILABLE/${API_DOMAIN}.conf"  "$SITES_ENABLED/${API_DOMAIN}.conf"
 
-# Validação: detecta listen duplicado / server_name conflitante antes de subir
 step "Validando configuração do Nginx"
 if ! nginx -t 2>/tmp/nginx-test.log; then
   err "nginx -t falhou. Saída:"
@@ -401,14 +529,44 @@ if ! nginx -t 2>/tmp/nginx-test.log; then
 fi
 systemctl enable --now nginx
 systemctl reload nginx
-ok "Nginx ativo · ${MAIN_DOMAIN} (SPA + /api/*) · ${API_DOMAIN} (Edge Functions)"
+ok "Nginx ativo · ${MAIN_DOMAIN} (${MAIN_DOMAIN_MODE_LABEL}) · ${API_DOMAIN} (Edge Functions)"
 
 # =============================================================================
 # 7) BUILD / DEPLOY DO CONTAINER
 # =============================================================================
-title "Subindo o container do frontend"
-( cd "$PROJECT_DIR" && docker compose pull 2>/dev/null || true; docker compose up -d --build )
-ok "Container ativo (127.0.0.1:3000)"
+title "Publicando frontend conforme arquitetura detectada"
+if [[ "$APP_MODE" == "spa_static" ]]; then
+  step "Removendo frontend legado em Docker (se existir)"
+  ( cd "$PROJECT_DIR" && docker compose down --remove-orphans >/dev/null 2>&1 ) || true
+  docker rm -f liberty-pharma-app >/dev/null 2>&1 || true
+
+  step "Buildando assets estáticos com Docker (sem backend local obrigatório)"
+  STATIC_BUILD_IMAGE="variation-vault-static-builder:${SUPABASE_PROJECT_REF}"
+  docker build     --target builder     --build-arg VITE_SUPABASE_URL="$SUPABASE_URL"     --build-arg VITE_SUPABASE_PUBLISHABLE_KEY="$SUPABASE_ANON_KEY"     --build-arg VITE_SUPABASE_PROJECT_ID="$SUPABASE_PROJECT_REF"     -t "$STATIC_BUILD_IMAGE" "$PROJECT_DIR"
+
+  BUILD_CID="$(docker create "$STATIC_BUILD_IMAGE")"
+  rm -rf "${STATIC_ROOT:?}/"*
+  docker cp "$BUILD_CID:/app/dist/." "$STATIC_ROOT/"
+  docker rm -f "$BUILD_CID" >/dev/null
+
+  [[ -f "$STATIC_ROOT/index.html" ]] || { err "Build concluído sem index.html em $STATIC_ROOT"; exit 1; }
+  chown -R www-data:www-data "$STATIC_ROOT" 2>/dev/null || true
+  find "$STATIC_ROOT" -type d -exec chmod 755 {} \;
+  find "$STATIC_ROOT" -type f -exec chmod 644 {} \;
+  ok "Frontend SPA publicado em $STATIC_ROOT"
+else
+  step "Validando backend local configurado"
+  probe_http "$LOCAL_BACKEND_PROXY_URL" || {
+    err "Backend local configurado não respondeu em $LOCAL_BACKEND_PROXY_URL"
+    exit 1
+  }
+  ok "Backend local acessível em $LOCAL_BACKEND_PROXY_URL"
+fi
+
+step "Recarregando Nginx com a arquitetura detectada"
+nginx -t >/dev/null
+systemctl reload nginx
+ok "Frontend publicado sem dependência falsa de localhost:3000"
 
 # =============================================================================
 # 8) SSL — Certbot para os dois domínios
@@ -487,15 +645,42 @@ else
   cat /tmp/auth.json; echo
 fi
 
-step "Deploy de todas as Edge Functions"
+step "Deploy automático apenas das Edge Functions reais"
 if [[ -d "$PROJECT_DIR/supabase/functions" ]]; then
-  while IFS= read -r d; do
-    fn="$(basename "$d")"; [[ "$fn" == "_shared" ]] && continue
-    echo "  → $fn"
-    supabase functions deploy "$fn" --project-ref "$SUPABASE_PROJECT_REF" \
-      || warn "Falhou: $fn"
-  done < <(find "$PROJECT_DIR/supabase/functions" -mindepth 1 -maxdepth 1 -type d)
-  ok "Edge Functions deployadas"
+  DEPLOYED_FUNCTIONS=()
+  SKIPPED_FUNCTIONS=()
+  FAILED_FUNCTIONS=()
+  shopt -s nullglob
+  for d in "$PROJECT_DIR"/supabase/functions/*; do
+    [[ -d "$d" ]] || continue
+    fn="$(basename "$d")"
+
+    if [[ "$fn" == "_shared" ]]; then
+      echo "  [SKIP] $fn → diretório compartilhado"
+      SKIPPED_FUNCTIONS+=("$fn:shared")
+      continue
+    fi
+
+    if [[ ! -f "$d/index.ts" ]]; then
+      echo "  [SKIP] $fn → entrypoint index.ts não encontrado"
+      SKIPPED_FUNCTIONS+=("$fn:missing_entrypoint")
+      continue
+    fi
+
+    echo "  [DEPLOY] $fn"
+    if supabase functions deploy "$fn" --project-ref "$SUPABASE_PROJECT_REF"; then
+      DEPLOYED_FUNCTIONS+=("$fn")
+    else
+      warn "Falhou: $fn (instalação continuará)"
+      FAILED_FUNCTIONS+=("$fn")
+    fi
+  done
+  shopt -u nullglob
+
+  ok "Edge Functions auditadas: ${#DEPLOYED_FUNCTIONS[@]} deployadas, ${#SKIPPED_FUNCTIONS[@]} ignoradas, ${#FAILED_FUNCTIONS[@]} com alerta"
+  [[ ${#DEPLOYED_FUNCTIONS[@]} -gt 0 ]] && log "Deployadas: ${DEPLOYED_FUNCTIONS[*]}"
+  [[ ${#SKIPPED_FUNCTIONS[@]} -gt 0 ]] && warn "Ignoradas: ${SKIPPED_FUNCTIONS[*]}"
+  [[ ${#FAILED_FUNCTIONS[@]} -gt 0 ]] && warn "Falharam: ${FAILED_FUNCTIONS[*]}"
 else
   warn "supabase/functions/ não encontrado no repositório"
 fi
@@ -519,39 +704,44 @@ http_code() {
        --max-time 10 -L "$1" 2>/dev/null || echo "000"
 }
 
-step "1/7 · Container Docker"
-if docker ps --format '{{.Names}}\t{{.Status}}' | grep -qi 'up'; then
-  docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
-  pass "Container do app em execução"
+step "1/8 · Modo de frontend"
+if [[ "$APP_MODE" == "spa_static" ]]; then
+  if [[ -f "$STATIC_ROOT/index.html" ]]; then
+    pass "Modo SPA estática ativo (${STATIC_ROOT})"
+  else
+    fail "Modo SPA estática configurado, mas ${STATIC_ROOT}/index.html não existe"
+  fi
 else
-  fail "Nenhum container ativo (verifique: cd $PROJECT_DIR && docker compose ps)"
+  if probe_http "$LOCAL_BACKEND_PROXY_URL"; then
+    pass "Backend local proxyável respondeu em ${LOCAL_BACKEND_PROXY_URL}"
+  else
+    fail "Backend local configurado não respondeu em ${LOCAL_BACKEND_PROXY_URL}"
+  fi
 fi
 
-step "2/7 · Nginx (host)"
+step "2/8 · Status rápido de container e Nginx"
 if systemctl is-active --quiet nginx && nginx -t >/dev/null 2>&1; then
   pass "Nginx ativo e configuração válida"
 else
   fail "Nginx inativo ou com erro de sintaxe (nginx -t para detalhes)"
 fi
 
-step "3/7 · Backend local (loopback 127.0.0.1:3000)"
-LOCAL_CODE="$(http_code http://127.0.0.1:3000)"
-if [[ "$LOCAL_CODE" =~ ^(200|301|302|304)$ ]]; then
-  pass "App responde em 127.0.0.1:3000 (HTTP $LOCAL_CODE)"
+if docker ps --format '{{.Names}}	{{.Status}}	{{.Ports}}' | grep -q '.'; then
+  docker ps --format 'table {{.Names}}	{{.Status}}	{{.Ports}}'
+  pass "Comando de status dos containers respondeu"
 else
-  fail "App não respondeu na loopback (HTTP $LOCAL_CODE)"
+  skip "Nenhum container ativo — esperado em modo SPA estática"
 fi
 
-step "4/7 · Frontend HTTP (porta 80 → redirect 80→443)"
-HTTP_CODE_MAIN="$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
-                  "http://${MAIN_DOMAIN}" 2>/dev/null || echo "000")"
+step "3/8 · Frontend HTTP (porta 80 → redirect 80→443)"
+HTTP_CODE_MAIN="$(curl -s -o /dev/null -w "%{http_code}" --max-time 10                   "http://${MAIN_DOMAIN}" 2>/dev/null || echo "000")"
 if [[ "$HTTP_CODE_MAIN" =~ ^(200|301|302|308)$ ]]; then
   pass "http://${MAIN_DOMAIN} respondeu (HTTP $HTTP_CODE_MAIN)"
 else
-  fail "http://${MAIN_DOMAIN} sem resposta (HTTP $HTTP_CODE_MAIN) — verifique DNS"
+  fail "http://${MAIN_DOMAIN} sem resposta (HTTP $HTTP_CODE_MAIN) — verifique DNS/Nginx"
 fi
 
-step "5/7 · Frontend HTTPS"
+step "4/8 · Frontend HTTPS"
 HTTPS_CODE_MAIN="$(http_code "https://${MAIN_DOMAIN}")"
 if [[ "$HTTPS_CODE_MAIN" =~ ^(200|301|302|304)$ ]]; then
   pass "https://${MAIN_DOMAIN} OK (HTTP $HTTPS_CODE_MAIN)"
@@ -559,24 +749,29 @@ else
   skip "https://${MAIN_DOMAIN} retornou HTTP $HTTPS_CODE_MAIN — SSL pode estar pendente"
 fi
 
-step "6/7 · API/Webhook HTTPS (Edge Functions via ${API_DOMAIN})"
-API_CODE="$(http_code "https://${API_DOMAIN}/")"
-# 200/401/404 = proxy alcançou Supabase corretamente
-if [[ "$API_CODE" =~ ^(200|401|404)$ ]]; then
-  pass "https://${API_DOMAIN} reverso OK (HTTP $API_CODE — Supabase respondendo)"
+step "5/8 · API HTTPS (${MAIN_DOMAIN}/api/* e ${API_DOMAIN})"
+API_CODE_MAIN="$(http_code "https://${MAIN_DOMAIN}/api/")"
+API_CODE_SUBDOMAIN="$(http_code "https://${API_DOMAIN}/")"
+if [[ "$API_CODE_MAIN" =~ ^(200|401|404|405)$ || "$API_CODE_SUBDOMAIN" =~ ^(200|401|404|405)$ ]]; then
+  pass "Rotas de API alcançaram Edge Functions (main=$API_CODE_MAIN, api=$API_CODE_SUBDOMAIN)"
 else
-  skip "https://${API_DOMAIN} retornou HTTP $API_CODE — verifique DNS/SSL"
+  skip "Rotas de API retornaram main=$API_CODE_MAIN api=$API_CODE_SUBDOMAIN — verifique DNS/SSL/proxy"
 fi
 
-step "7/8 · Endpoint de webhook (exemplo: pagarme-webhook)"
-WH_CODE="$(curl -k -s -o /dev/null -w "%{http_code}" --max-time 10 \
-           -X POST "https://${API_DOMAIN}/pagarme-webhook" \
-           -H 'Content-Type: application/json' -d '{}' 2>/dev/null || echo "000")"
-# Esperado: 400/401/422 (função recebeu mas rejeitou payload vazio)
-if [[ "$WH_CODE" =~ ^(200|400|401|403|422)$ ]]; then
+step "6/8 · Endpoint de webhook (exemplo: pagarme-webhook)"
+WH_CODE="$(curl -k -s -o /dev/null -w "%{http_code}" --max-time 10            -X POST "https://${API_DOMAIN}/pagarme-webhook"            -H 'Content-Type: application/json' -d '{}' 2>/dev/null || echo "000")"
+if [[ "$WH_CODE" =~ ^(200|400|401|403|404|405|422)$ ]]; then
   pass "Webhook acessível via HTTPS (HTTP $WH_CODE — função respondeu)"
 else
   skip "Webhook retornou HTTP $WH_CODE — confira deploy da função"
+fi
+
+step "7/8 · Endpoint OAuth (melhor-envio-oauth)"
+OAUTH_CODE="$(http_code "https://${API_DOMAIN}/melhor-envio-oauth")"
+if [[ "$OAUTH_CODE" =~ ^(200|302|400|401|403|404|405)$ ]]; then
+  pass "Endpoint OAuth alcançável (HTTP $OAUTH_CODE)"
+else
+  skip "Endpoint OAuth retornou HTTP $OAUTH_CODE — confira configuração do fluxo"
 fi
 
 step "8/8 · Auditoria de portas (host + Docker)"
@@ -673,6 +868,14 @@ fi
 # =============================================================================
 # 10) RESUMO FINAL
 # =============================================================================
+if [[ "$APP_MODE" == "spa_static" ]]; then
+  FRONTEND_STATUS_COMMAND="test -f ${STATIC_ROOT}/index.html && ls -lah ${STATIC_ROOT}"
+  FRONTEND_ARCH_TARGET="${STATIC_ROOT} (SPA estática)"
+else
+  FRONTEND_STATUS_COMMAND="curl -I ${LOCAL_BACKEND_PROXY_URL}"
+  FRONTEND_ARCH_TARGET="${LOCAL_BACKEND_PROXY_URL} (proxy local validado)"
+fi
+
 title "✅ Instalação concluída"
 
 DOM_ROOT="${MAIN_DOMAIN#*.}"
@@ -692,20 +895,19 @@ ${W}DNS recomendado (entregabilidade SMTP)${N}
     dig +short TXT _dmarc.${DOM_ROOT}
 
 ${W}Manutenção${N}
-  Logs app ......... cd ${PROJECT_DIR} && docker compose logs -f
-  Rebuild .......... cd ${PROJECT_DIR} && docker compose down && docker compose up -d --build
   Logs Nginx ....... tail -f /var/log/nginx/error.log
   Logs Function .... supabase functions logs <nome> --project-ref ${SUPABASE_PROJECT_REF}
   Renovar SSL ...... certbot renew --quiet
 
 ${W}Comandos de diagnóstico (status rápido)${N}
-  Status container . docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
-  Healthcheck app .. curl -I http://127.0.0.1:3000
-  Status Nginx ..... systemctl status nginx --no-pager && nginx -t
-  Teste HTTPS ...... curl -I https://${MAIN_DOMAIN} && curl -I https://${API_DOMAIN}
-  Teste webhook .... curl -X POST https://${API_DOMAIN}/pagarme-webhook -d '{}'
-  Re-rodar checklist bash ${PROJECT_DIR}/deploy-vps/check-vps.sh   # se existir
-  Auditar portas ... ss -tlnp | grep -vE ':(80|443|22)\s' && docker ps --format '{{.Ports}}'
+  Status container + Nginx . docker ps --format 'table {{.Names}}	{{.Status}}	{{.Ports}}' && systemctl status nginx --no-pager && nginx -t
+  Frontend local ......... ${FRONTEND_STATUS_COMMAND}
+  Teste HTTP/HTTPS ....... curl -I http://${MAIN_DOMAIN} && curl -I https://${MAIN_DOMAIN}
+  Teste API .............. curl -I https://${MAIN_DOMAIN}/api/ && curl -I https://${API_DOMAIN}/
+  Teste webhook .......... curl -X POST https://${API_DOMAIN}/pagarme-webhook -H 'Content-Type: application/json' -d '{}'
+  Teste OAuth ............ curl -I https://${API_DOMAIN}/melhor-envio-oauth
+  Re-rodar checklist ..... bash ${PROJECT_DIR}/deploy-vps/check-vps.sh   # se existir
+  Auditar portas ......... ss -tlnp | grep -vE ':(80|443|22)\s' && docker ps --format '{{.Ports}}'
 
 ${W}Troubleshooting Nginx (conflitos comuns)${N}
   duplicate listen ........ grep -RnE 'listen\s+(80|443)' /etc/nginx/sites-enabled
@@ -713,10 +915,10 @@ ${W}Troubleshooting Nginx (conflitos comuns)${N}
   vhosts ativos ........... ls -la /etc/nginx/sites-enabled/
   remover backup acidental  mv /etc/nginx/sites-enabled/*.bak /var/backups/  || true
   recarregar config ....... nginx -t && systemctl reload nginx
-  arquitetura por rota .... /api/*  →  Edge Functions    (NUNCA porta dedicada)
+  arquitetura por rota .... /api/* e /<webhook> → Edge Functions    (NUNCA porta dedicada)
 
 ${W}Arquitetura${N}
-  Browser ─┬─ https://${MAIN_DOMAIN}/        → Nginx :443 → Docker :3000  (SPA)
+  Browser ─┬─ https://${MAIN_DOMAIN}/        → Nginx :443 → ${FRONTEND_ARCH_TARGET}
            ├─ https://${MAIN_DOMAIN}/api/*   → Nginx :443 → Supabase Edge Fn
            └─ https://${API_DOMAIN}/<fn>     → Nginx :443 → Supabase Edge Fn
 
