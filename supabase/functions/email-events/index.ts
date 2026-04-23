@@ -48,44 +48,33 @@ interface EventRequest {
 const isEmail = (s: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "POST") return json(405, { error: "Method not allowed" });
+  const correlationId = getCorrelationId(req);
+  const pre = preflight(req, correlationId);
+  if (pre) return pre;
+  if (req.method !== "POST") {
+    return json(405, { error: "Method not allowed", correlation_id: correlationId }, correlationId);
+  }
+
+  const log = createLogger({ scope: "email-events", correlationId });
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    const authHeader = req.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "").trim();
-
-    let isAuthorized = false;
-    if (token && token === serviceRoleKey) {
-      isAuthorized = true;
-    } else if (token) {
-      const userClient = createClient(supabaseUrl, anonKey, {
-        global: { headers: { Authorization: `Bearer ${token}` } },
-      });
-      const { data: claimsData } = await userClient.auth.getClaims(token);
-      const callerId = claimsData?.claims?.sub;
-      if (callerId) {
-        const admin = createClient(supabaseUrl, serviceRoleKey);
-        const { data: roleRow } = await admin
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", callerId)
-          .eq("role", "admin")
-          .maybeSingle();
-        if (roleRow) isAuthorized = true;
-      }
+    const authz = await authorizeAdminOrServiceRole(req);
+    if (!authz.authorized) {
+      log.warn("unauthorized", { caller: authz.caller });
+      return json(401, { error: "Unauthorized", correlation_id: correlationId }, correlationId);
     }
 
-    if (!isAuthorized) return json(401, { error: "Unauthorized" });
-
     const body = (await req.json().catch(() => null)) as EventRequest | null;
-    if (!body?.event) return json(400, { error: "event é obrigatório" });
+    if (!body?.event) {
+      return json(400, { error: "event é obrigatório", correlation_id: correlationId }, correlationId);
+    }
     const template = EVENT_TO_TEMPLATE[body.event];
-    if (!template) return json(400, { error: `Evento desconhecido: ${body.event}` });
+    if (!template) {
+      return json(400, { error: `Evento desconhecido: ${body.event}`, correlation_id: correlationId }, correlationId);
+    }
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
 
