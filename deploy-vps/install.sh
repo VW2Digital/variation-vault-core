@@ -264,56 +264,144 @@ EOF
 # =============================================================================
 # 6) NGINX (host) — domínio principal + subdomínio da API
 # =============================================================================
-title "Configurando Nginx (reverse proxy)"
-rm -f /etc/nginx/sites-enabled/default
+title "Configurando Nginx (1 vhost por domínio · roteamento por path · sem porta-por-função)"
 
-# Site principal → frontend
-cat > /etc/nginx/sites-available/${MAIN_DOMAIN}.conf <<EOF
+# -----------------------------------------------------------------------------
+# Arquitetura:
+#   80/443 → Nginx (única porta pública por protocolo)
+#       ├─ ${MAIN_DOMAIN}        → SPA (proxy → 127.0.0.1:3000) + SPA fallback
+#       │                          /api/* → Supabase Edge Functions
+#       └─ ${API_DOMAIN}         → Supabase Edge Functions (subdomínio dedicado)
+#
+# NUNCA criamos porta por função (webhook/oauth/email). Tudo é roteado por path.
+# -----------------------------------------------------------------------------
+
+SITES_AVAILABLE="/etc/nginx/sites-available"
+SITES_ENABLED="/etc/nginx/sites-enabled"
+NGINX_BACKUP_DIR="/var/backups/nginx-vhosts-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$NGINX_BACKUP_DIR" /var/www/certbot
+
+step "Limpando vhosts antigos / conflitantes (sem perder histórico)"
+# Move TUDO que estiver em sites-enabled para backup. Vamos reescrever do zero
+# apenas os 2 vhosts oficiais. Isso elimina:
+#   • duplicate listen 80/443
+#   • conflicting server_name
+#   • placeholders "return 404" deixados pelo Certbot
+#   • backups (.bak/.old/.copy) acidentalmente carregados como vhost
+if [[ -d "$SITES_ENABLED" ]]; then
+  shopt -s nullglob
+  for f in "$SITES_ENABLED"/*; do
+    mv -f "$f" "$NGINX_BACKUP_DIR/" 2>/dev/null || true
+  done
+  shopt -u nullglob
+fi
+# Também remove de sites-available qualquer backup acidental (mantém .conf reais)
+find "$SITES_AVAILABLE" -maxdepth 1 -type f \
+  \( -name '*.bak' -o -name '*.old' -o -name '*.copy' -o -name '*~' \) \
+  -exec mv -f {} "$NGINX_BACKUP_DIR/" \; 2>/dev/null || true
+# Remove placeholders "return 404" deixados pelo Certbot para os nossos domínios
+for dom in "$MAIN_DOMAIN" "$API_DOMAIN"; do
+  for f in "$SITES_AVAILABLE"/*"$dom"*; do
+    [[ -f "$f" ]] || continue
+    if grep -qE 'return\s+404' "$f" && ! grep -q 'proxy_pass' "$f"; then
+      mv -f "$f" "$NGINX_BACKUP_DIR/" 2>/dev/null || true
+    fi
+  done
+done
+ok "Vhosts antigos movidos para $NGINX_BACKUP_DIR"
+
+# Snippet reutilizável: proxy para Supabase Edge Functions
+SUPABASE_FN_HOST="${SUPABASE_PROJECT_REF}.functions.supabase.co"
+
+step "Gerando vhost do domínio principal: ${MAIN_DOMAIN}"
+cat > "$SITES_AVAILABLE/${MAIN_DOMAIN}.conf" <<EOF
+# === ${MAIN_DOMAIN} — gerenciado pelo install.sh ===
+# Frontend SPA + roteamento por path /api/* → Supabase Edge Functions.
+# UM único listen 80 e UM único listen 443 (após Certbot) por família IP.
 server {
-  listen 80;
-  listen [::]:80;
-  server_name ${MAIN_DOMAIN};
-  location /.well-known/acme-challenge/ { root /var/www/certbot; }
-  location / {
-    proxy_pass         http://127.0.0.1:3000;
-    proxy_http_version 1.1;
-    proxy_set_header   Host              \$host;
-    proxy_set_header   X-Real-IP         \$remote_addr;
-    proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
-    proxy_set_header   X-Forwarded-Proto \$scheme;
-    proxy_set_header   Upgrade           \$http_upgrade;
-    proxy_set_header   Connection        "upgrade";
-    proxy_read_timeout 90s;
-  }
+    listen 80;
+    listen [::]:80;
+    server_name ${MAIN_DOMAIN};
+
+    # ACME (renovação SSL)
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # /api/* → Edge Functions (webhook, oauth, payment-checkout, admin-users…)
+    # Esta é a forma correta: 1 porta (443), roteamento por rota.
+    location /api/ {
+        proxy_pass         https://${SUPABASE_FN_HOST}/;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              ${SUPABASE_FN_HOST};
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
+        proxy_ssl_server_name on;
+        proxy_read_timeout 120s;
+    }
+
+    # SPA — frontend Vite/React no container local
+    # SPA fallback é feito pelo container (try_files). Aqui só fazemos proxy.
+    location / {
+        proxy_pass         http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              \$host;
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
+        proxy_set_header   Upgrade           \$http_upgrade;
+        proxy_set_header   Connection        "upgrade";
+        proxy_read_timeout 90s;
+    }
 }
 EOF
 
-# Subdomínio API → encaminha webhooks/OAuth para Supabase Edge Functions
-cat > /etc/nginx/sites-available/${API_DOMAIN}.conf <<EOF
+step "Gerando vhost da API: ${API_DOMAIN}"
+cat > "$SITES_AVAILABLE/${API_DOMAIN}.conf" <<EOF
+# === ${API_DOMAIN} — gerenciado pelo install.sh ===
+# Subdomínio dedicado a Supabase Edge Functions (webhooks externos, OAuth callback).
+# Continua sendo 1 porta (443) com roteamento por path:
+#   https://${API_DOMAIN}/melhor-envio-webhook
+#   https://${API_DOMAIN}/pagarme-webhook
+#   https://${API_DOMAIN}/payment-checkout
 server {
-  listen 80;
-  listen [::]:80;
-  server_name ${API_DOMAIN};
-  location /.well-known/acme-challenge/ { root /var/www/certbot; }
-  location / {
-    proxy_pass         ${FUNCTIONS_URL}/;
-    proxy_http_version 1.1;
-    proxy_set_header   Host              ${SUPABASE_PROJECT_REF}.functions.supabase.co;
-    proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
-    proxy_set_header   X-Forwarded-Proto \$scheme;
-    proxy_ssl_server_name on;
-    proxy_read_timeout 90s;
-  }
+    listen 80;
+    listen [::]:80;
+    server_name ${API_DOMAIN};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        proxy_pass         https://${SUPABASE_FN_HOST}/;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              ${SUPABASE_FN_HOST};
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
+        proxy_ssl_server_name on;
+        proxy_read_timeout 120s;
+    }
 }
 EOF
 
-ln -sf /etc/nginx/sites-available/${MAIN_DOMAIN}.conf /etc/nginx/sites-enabled/
-ln -sf /etc/nginx/sites-available/${API_DOMAIN}.conf  /etc/nginx/sites-enabled/
-mkdir -p /var/www/certbot
-nginx -t
+# Habilita APENAS os dois vhosts oficiais (sem o "default")
+ln -sf "$SITES_AVAILABLE/${MAIN_DOMAIN}.conf" "$SITES_ENABLED/${MAIN_DOMAIN}.conf"
+ln -sf "$SITES_AVAILABLE/${API_DOMAIN}.conf"  "$SITES_ENABLED/${API_DOMAIN}.conf"
+
+# Validação: detecta listen duplicado / server_name conflitante antes de subir
+step "Validando configuração do Nginx"
+if ! nginx -t 2>/tmp/nginx-test.log; then
+  err "nginx -t falhou. Saída:"
+  cat /tmp/nginx-test.log
+  warn "Vhosts antigos foram preservados em $NGINX_BACKUP_DIR (você pode restaurar se precisar)."
+  exit 1
+fi
 systemctl enable --now nginx
 systemctl reload nginx
-ok "Nginx servindo $MAIN_DOMAIN e $API_DOMAIN"
+ok "Nginx ativo · ${MAIN_DOMAIN} (SPA + /api/*) · ${API_DOMAIN} (Edge Functions)"
 
 # =============================================================================
 # 7) BUILD / DEPLOY DO CONTAINER
@@ -533,7 +621,19 @@ ${W}Comandos de diagnóstico (status rápido)${N}
   Teste webhook .... curl -X POST https://${API_DOMAIN}/pagarme-webhook -d '{}'
   Re-rodar checklist bash ${PROJECT_DIR}/deploy-vps/check-vps.sh   # se existir
 
+${W}Troubleshooting Nginx (conflitos comuns)${N}
+  duplicate listen ........ grep -RnE 'listen\s+(80|443)' /etc/nginx/sites-enabled
+  conflicting server_name . nginx -T 2>&1 | grep -E 'server_name|conflict'
+  vhosts ativos ........... ls -la /etc/nginx/sites-enabled/
+  remover backup acidental  mv /etc/nginx/sites-enabled/*.bak /var/backups/  || true
+  recarregar config ....... nginx -t && systemctl reload nginx
+  arquitetura por rota .... /api/*  →  Edge Functions    (NUNCA porta dedicada)
+
 ${W}Arquitetura${N}
-  Browser → Nginx (80/443) → Docker app (127.0.0.1:3000)
-                                  └→ Supabase (Auth + DB + Functions + SMTP)
+  Browser ─┬─ https://${MAIN_DOMAIN}/        → Nginx :443 → Docker :3000  (SPA)
+           ├─ https://${MAIN_DOMAIN}/api/*   → Nginx :443 → Supabase Edge Fn
+           └─ https://${API_DOMAIN}/<fn>     → Nginx :443 → Supabase Edge Fn
+
+  Apenas 2 portas públicas: 80 (redirect) e 443 (HTTPS).
+  Cada integração (webhook, OAuth, e-mail, payment) é uma ROTA, não uma PORTA.
 EOF
