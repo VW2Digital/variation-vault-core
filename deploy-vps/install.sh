@@ -621,7 +621,19 @@ ${W}Comandos de diagnóstico (status rápido)${N}
   Teste webhook .... curl -X POST https://${API_DOMAIN}/pagarme-webhook -d '{}'
   Re-rodar checklist bash ${PROJECT_DIR}/deploy-vps/check-vps.sh   # se existir
 
+${W}Troubleshooting Nginx (conflitos comuns)${N}
+  duplicate listen ........ grep -RnE 'listen\s+(80|443)' /etc/nginx/sites-enabled
+  conflicting server_name . nginx -T 2>&1 | grep -E 'server_name|conflict'
+  vhosts ativos ........... ls -la /etc/nginx/sites-enabled/
+  remover backup acidental  mv /etc/nginx/sites-enabled/*.bak /var/backups/  || true
+  recarregar config ....... nginx -t && systemctl reload nginx
+  arquitetura por rota .... /api/*  →  Edge Functions    (NUNCA porta dedicada)
+
 ${W}Arquitetura${N}
-  Browser → Nginx (80/443) → Docker app (127.0.0.1:3000)
-                                  └→ Supabase (Auth + DB + Functions + SMTP)
+  Browser ─┬─ https://${MAIN_DOMAIN}/        → Nginx :443 → Docker :3000  (SPA)
+           ├─ https://${MAIN_DOMAIN}/api/*   → Nginx :443 → Supabase Edge Fn
+           └─ https://${API_DOMAIN}/<fn>     → Nginx :443 → Supabase Edge Fn
+
+  Apenas 2 portas públicas: 80 (redirect) e 443 (HTTPS).
+  Cada integração (webhook, OAuth, e-mail, payment) é uma ROTA, não uma PORTA.
 EOF
