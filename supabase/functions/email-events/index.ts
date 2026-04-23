@@ -89,7 +89,8 @@ serve(async (req) => {
         .eq("id", body.order_id)
         .maybeSingle();
       if (error) {
-        return json(404, { error: `Pedido não encontrado: ${error.message}` });
+        log.warn("order_lookup_failed", { order_id: body.order_id, error: error.message });
+        return json(404, { error: `Pedido não encontrado: ${error.message}`, correlation_id: correlationId }, correlationId);
       }
       if (order) {
         templateData = {
@@ -126,7 +127,11 @@ serve(async (req) => {
     }
 
     if (recipients.length === 0) {
-      return json(400, { error: "Nenhum destinatário válido (informe `to` ou `order_id` com email válido)" });
+      log.warn("no_recipients", { event: body.event, order_id: body.order_id ?? null });
+      return json(400, {
+        error: "Nenhum destinatário válido (informe `to` ou `order_id` com email válido)",
+        correlation_id: correlationId,
+      }, correlationId);
     }
 
     // Forward to send-email using service role (server-to-server)
@@ -136,6 +141,7 @@ serve(async (req) => {
       headers: {
         Authorization: `Bearer ${serviceRoleKey}`,
         "Content-Type": "application/json",
+        "x-correlation-id": correlationId,
       },
       body: JSON.stringify({
         template,
@@ -148,29 +154,32 @@ serve(async (req) => {
     const respBody = await sendRes.json().catch(() => ({}));
 
     if (!sendRes.ok) {
-      console.error(JSON.stringify({
-        scope: "email-events",
+      log.error("forward_failed", {
         event: body.event,
         order_id: body.order_id ?? null,
         to_count: recipients.length,
         forward_status: sendRes.status,
         forward_error: (respBody as any)?.error ?? "unknown",
+        error_category: (respBody as any)?.error_category,
+        retryable: (respBody as any)?.retryable,
         latency_ms: latency,
-      }));
+      });
       return json(502, {
         error: (respBody as any)?.error || "Falha ao despachar email",
+        error_category: (respBody as any)?.error_category,
+        retryable: (respBody as any)?.retryable,
         forward_status: sendRes.status,
-      });
+        correlation_id: correlationId,
+      }, correlationId);
     }
 
-    console.log(JSON.stringify({
-      scope: "email-events",
+    log.info("dispatched", {
       event: body.event,
       order_id: body.order_id ?? null,
       to_count: recipients.length,
       message_id: (respBody as any)?.message_id,
       latency_ms: latency,
-    }));
+    });
 
     return json(200, {
       success: true,
@@ -178,10 +187,11 @@ serve(async (req) => {
       template,
       to: recipients,
       message_id: (respBody as any)?.message_id,
-    });
+      correlation_id: correlationId,
+    }, correlationId);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("email-events fatal:", msg);
-    return json(500, { error: msg });
+    log.error("fatal", { error: msg });
+    return json(500, { error: msg, correlation_id: correlationId }, correlationId);
   }
 });
