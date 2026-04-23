@@ -162,49 +162,29 @@ function renderTemplate(
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const correlationId = getCorrelationId(req);
+  const pre = preflight(req, correlationId);
+  if (pre) return pre;
+
+  const log = createLogger({ scope: "send-email", correlationId });
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    const authHeader = req.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "").trim();
-
-    // Two valid auth modes:
-    // 1) Service role key (server-to-server, e.g. webhooks calling this fn)
-    // 2) Admin JWT (called from the admin panel)
-    let isAuthorized = false;
-    if (token && token === serviceRoleKey) {
-      isAuthorized = true;
-    } else if (token) {
-      const userClient = createClient(supabaseUrl, anonKey, {
-        global: { headers: { Authorization: `Bearer ${token}` } },
-      });
-      const { data: claimsData } = await userClient.auth.getClaims(token);
-      const callerId = claimsData?.claims?.sub;
-      if (callerId) {
-        const admin = createClient(supabaseUrl, serviceRoleKey);
-        const { data: roleRow } = await admin
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", callerId)
-          .eq("role", "admin")
-          .maybeSingle();
-        if (roleRow) isAuthorized = true;
-      }
+    const authz = await authorizeAdminOrServiceRole(req);
+    if (!authz.authorized) {
+      log.warn("unauthorized", { caller: authz.caller });
+      return json(401, { error: "Unauthorized", correlation_id: correlationId }, correlationId);
     }
-
-    if (!isAuthorized) return json(401, { error: "Unauthorized" });
 
     const body = (await req.json()) as SendEmailRequest;
     if (!body?.template || !body?.to) {
-      return json(400, { error: "Campos obrigatórios: template, to" });
+      return json(400, { error: "Campos obrigatórios: template, to", correlation_id: correlationId }, correlationId);
     }
     const recipients = Array.isArray(body.to) ? body.to : [body.to];
     if (recipients.some((r) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(r))) {
-      return json(400, { error: "Email destinatário inválido" });
+      return json(400, { error: "Email destinatário inválido", correlation_id: correlationId }, correlationId);
     }
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
