@@ -270,11 +270,17 @@ serve(async (req) => {
       (cfg["smtp_secure"] || Deno.env.get("SMTP_SECURE") || "").trim().toLowerCase();
 
     if (!smtpHost || !smtpUser || !smtpPass) {
+      log.error("smtp_not_configured", {
+        has_host: Boolean(smtpHost),
+        has_user: Boolean(smtpUser),
+        has_pass: Boolean(smtpPass),
+      });
       return json(500, {
         error:
           "SMTP não configurado. Defina smtp_host, smtp_user e smtp_pass em " +
           "Configurações → Comunicação (ou variáveis de ambiente SMTP_*).",
-      });
+        correlation_id: correlationId,
+      }, correlationId);
     }
 
     const storeName = cfg["store_name"] || "Liberty Pharma";
