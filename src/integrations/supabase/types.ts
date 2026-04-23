@@ -1107,6 +1107,60 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_retry_queue: {
+        Row: {
+          attempts: number
+          correlation_id: string | null
+          created_at: string
+          external_id: string | null
+          function_name: string
+          gateway: string
+          id: string
+          last_error: string | null
+          last_status: number | null
+          max_attempts: number
+          next_attempt_at: string
+          request_headers: Json | null
+          request_payload: Json
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          correlation_id?: string | null
+          created_at?: string
+          external_id?: string | null
+          function_name: string
+          gateway: string
+          id?: string
+          last_error?: string | null
+          last_status?: number | null
+          max_attempts?: number
+          next_attempt_at?: string
+          request_headers?: Json | null
+          request_payload: Json
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          correlation_id?: string | null
+          created_at?: string
+          external_id?: string | null
+          function_name?: string
+          gateway?: string
+          id?: string
+          last_error?: string | null
+          last_status?: number | null
+          max_attempts?: number
+          next_attempt_at?: string
+          request_headers?: Json | null
+          request_payload?: Json
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       wholesale_prices: {
         Row: {
           created_at: string
