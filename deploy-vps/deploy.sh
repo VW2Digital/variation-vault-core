@@ -15,13 +15,31 @@ err() { echo -e "${RED}[ERR ]${NC} $*" >&2; }
 
 APP_DIR="${APP_DIR:-/opt/liberty-pharma}"
 BRANCH="${BRANCH:-main}"
+ENV_FILE="$APP_DIR/.env"
+
+[ -f "$ENV_FILE" ] || { err "Arquivo $ENV_FILE não encontrado. Atualização bloqueada para não usar credenciais do repositório."; exit 1; }
+
+ENV_BACKUP="$(mktemp)"
+cp "$ENV_FILE" "$ENV_BACKUP"
+cleanup() { rm -f "$ENV_BACKUP"; }
+trap cleanup EXIT
 
 cd "$APP_DIR"
+
+log "Protegendo .env local antes de atualizar o código..."
+if git ls-files --error-unmatch .env >/dev/null 2>&1; then
+  git update-index --skip-worktree .env >/dev/null 2>&1 || true
+fi
+ok ".env local preservado"
 
 log "Puxando últimas alterações de origin/$BRANCH..."
 git fetch origin "$BRANCH" --quiet
 git reset --hard "origin/$BRANCH" --quiet
 ok "Código atualizado"
+
+cp "$ENV_BACKUP" "$ENV_FILE"
+chmod 600 "$ENV_FILE"
+ok ".env do cliente restaurado após o git reset"
 
 log "Rebuilding imagem Docker..."
 docker compose build app
