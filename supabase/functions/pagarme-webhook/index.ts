@@ -306,22 +306,46 @@ serve(async (req) => {
       } else {
         console.log(`[Pagar.me Webhook] Order ${orderCode}: ${previousStatus} -> ${newStatus}`);
 
-        // Send notifications on terminal status transitions only
-        const statusChanged = previousStatus !== newStatus;
-        if (statusChanged && (newStatus === 'PAID' || newStatus === 'REFUSED')) {
+        // Send notifications on terminal status (PAID/REFUSED).
+        // Uses email_send_log as idempotency guard to avoid duplicates when
+        // multiple webhooks (charge.paid, antifraud_approved) arrive for the
+        // same order or when the order was already marked PAID synchronously
+        // by the checkout flow before the webhook landed.
+        if (newStatus === 'PAID' || newStatus === 'REFUSED') {
+          const templateName = newStatus === 'PAID' ? 'order_paid' : 'payment_failure';
+          let alreadySent = false;
           try {
-            await sendPaymentNotification(supabase, {
-              orderId: orderCode,
-              customerName: existing.customer_name || '',
-              customerEmail: existing.customer_email || '',
-              customerPhone: existing.customer_phone,
-              productName: existing.product_name || '',
-              totalValue: Number(existing.total_value) || 0,
-              paymentMethod: existing.payment_method || 'credit_card',
-              newStatus,
-            });
-          } catch (notifErr: any) {
-            console.error('[Pagar.me Webhook] Notification error:', notifErr.message);
+            const { data: prevSends } = await supabase
+              .from('email_send_log')
+              .select('id')
+              .eq('recipient_email', existing.customer_email || '')
+              .eq('template_name', templateName)
+              .eq('status', 'sent')
+              .contains('metadata', { order_id: orderCode })
+              .limit(1);
+            alreadySent = Array.isArray(prevSends) && prevSends.length > 0;
+          } catch (idemErr: any) {
+            // Idempotency check is best-effort; on failure we still send.
+            console.warn('[Pagar.me Webhook] Idempotency check failed:', idemErr?.message);
+          }
+
+          if (!alreadySent) {
+            try {
+              await sendPaymentNotification(supabase, {
+                orderId: orderCode,
+                customerName: existing.customer_name || '',
+                customerEmail: existing.customer_email || '',
+                customerPhone: existing.customer_phone,
+                productName: existing.product_name || '',
+                totalValue: Number(existing.total_value) || 0,
+                paymentMethod: existing.payment_method || 'credit_card',
+                newStatus,
+              });
+            } catch (notifErr: any) {
+              console.error('[Pagar.me Webhook] Notification error:', notifErr.message);
+            }
+          } else {
+            console.log(`[Pagar.me Webhook] Notification already sent for order ${orderCode} (${templateName}), skipping.`);
           }
         }
       }
