@@ -284,7 +284,20 @@ serve(async (req) => {
     }
 
     const storeName = cfg["store_name"] || "Liberty Pharma";
-    const storePublicUrl = (cfg["store_public_url"] || "").replace(/\/+$/, "");
+    // Fallback chain para garantir que botões nos emails sempre tenham link
+    // absoluto. Sem isso, href="/carrinho" não abre quando clicado de dentro
+    // do cliente de email (Gmail, Outlook, etc.).
+    const storePublicUrl = (
+      cfg["store_public_url"] ||
+      Deno.env.get("PUBLIC_SITE_URL") ||
+      Deno.env.get("SITE_URL") ||
+      ""
+    ).replace(/\/+$/, "");
+    if (!storePublicUrl) {
+      log.warn("store_public_url_not_configured", {
+        hint: "Defina 'URL pública do site' em Configurações → Avançado para que os links nos emails funcionem.",
+      });
+    }
 
     let rendered: { subject: string; html: string };
     if (body.template === "custom") {
