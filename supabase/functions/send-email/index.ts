@@ -349,7 +349,7 @@ serve(async (req) => {
           vars[key] !== undefined ? vars[key] : "",
         );
       if (overrideSubject) rendered.subject = interpolate(overrideSubject);
-      if (overrideHtml) rendered.html = normalizeTemplateHtml(interpolate(overrideHtml));
+      if (overrideHtml) rendered.html = addVerticalSpacing(normalizeTemplateHtml(interpolate(overrideHtml)));
       if (body.subject) rendered.subject = body.subject;
     }
 
