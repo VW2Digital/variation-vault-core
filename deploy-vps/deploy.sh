@@ -30,6 +30,8 @@ log "Protegendo .env local antes de atualizar o código..."
 if git ls-files --error-unmatch .env >/dev/null 2>&1; then
   git update-index --skip-worktree .env >/dev/null 2>&1 || true
 fi
+git config --local core.excludesfile .git/info/exclude
+grep -qxF '.env' .git/info/exclude 2>/dev/null || echo '.env' >> .git/info/exclude
 ok ".env local preservado"
 
 log "Puxando últimas alterações de origin/$BRANCH..."
