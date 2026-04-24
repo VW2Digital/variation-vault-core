@@ -146,9 +146,28 @@ const OrderDetailPage = () => {
             <h4 className="text-sm font-semibold text-foreground mb-1">Pagamento</h4>
             <InfoRow label="Forma" value={billingTypeMap[order.payment_method] || order.payment_method} />
             <InfoRow label="Status" value={(statusMap[order.status] || { label: order.status }).label} />
-            <InfoRow label="Gateway" value={order.payment_gateway === 'mercadopago' ? 'Mercado Pago' : 'Asaas'} />
-            <InfoRow label="Ambiente" value={order.gateway_environment === 'production' ? 'Producao' : 'Sandbox (Teste)'} />
-            {order.asaas_payment_id && <InfoRow label="ID Asaas" value={order.asaas_payment_id} />}
+            <InfoRow label="Gateway" value={
+              ({
+                mercadopago: 'Mercado Pago',
+                pagarme: 'Pagar.me',
+                pagbank: 'PagBank',
+                asaas: 'Asaas',
+              } as Record<string, string>)[order.payment_gateway || 'asaas'] || (order.payment_gateway || 'Asaas')
+            } />
+            <InfoRow label="Ambiente" value={order.gateway_environment === 'production' ? 'Produção' : 'Sandbox (Teste)'} />
+            {order.asaas_payment_id && (
+              <InfoRow
+                label={
+                  ({
+                    mercadopago: 'ID Mercado Pago',
+                    pagarme: 'ID Pagar.me',
+                    pagbank: 'ID PagBank',
+                    asaas: 'ID Asaas',
+                  } as Record<string, string>)[order.payment_gateway || 'asaas'] || 'ID Pagamento'
+                }
+                value={order.asaas_payment_id}
+              />
+            )}
             {order.coupon_code && (
               <>
                 <InfoRow label="Cupom" value={order.coupon_code} />
