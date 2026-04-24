@@ -18,19 +18,6 @@ import {
 import type { Logger } from "./logger.ts";
 import { withRetry } from "./retry.ts";
 
-// ─── Helpers de encoding ──────────────────────────────────────────────────
-/**
- * Converte string UTF-8 para base64 puro (sem quebras de linha).
- * O denomailer/SMTP cuida da quebra a cada 76 chars conforme RFC.
- */
-function base64EncodeUtf8(s: string): string {
-  const bytes = new TextEncoder().encode(s);
-  let bin = "";
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  // btoa só aceita binário ASCII — daí o pré-processamento acima.
-  return btoa(bin);
-}
-
 /**
  * Strip HTML tags + entidades comuns para gerar fallback text/plain.
  * Usado quando o caller não envia `text` explícito.
