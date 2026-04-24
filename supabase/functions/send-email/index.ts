@@ -71,7 +71,7 @@ function renderTemplate(
         <p><strong>Produto:</strong> ${data.product_name ?? "—"}<br/>
            <strong>Valor:</strong> ${brl(data.total_value)}<br/>
            <strong>Pagamento:</strong> ${data.payment_method ?? "—"}</p>
-        ${storeUrl ? `<p><a href="${storeUrl}/minha-conta" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Ver meu pedido</a></p>` : ""}
+        ${storeUrl ? `<p><a href="${storeUrl}/minha-conta" target="_blank" rel="noopener" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Ver meu pedido</a></p>` : ""}
       `);
       return { subject, html };
     }
@@ -88,7 +88,7 @@ function renderTemplate(
     case "shipping_update": {
       const subject = `Atualização do envio — ${data.tracking_code ?? "pedido em trânsito"}`;
       const trackBlock = data.tracking_url
-        ? `<p><a href="${data.tracking_url}" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Rastrear envio</a></p>`
+        ? `<p><a href="${data.tracking_url}" target="_blank" rel="noopener" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Rastrear envio</a></p>`
         : "";
       const html = wrap(storeName, `
         <p>Olá <strong>${customer}</strong>,</p>
@@ -104,7 +104,7 @@ function renderTemplate(
         <p>Olá <strong>${customer}</strong>,</p>
         <p>Tivemos um problema processando seu pagamento.</p>
         <p><strong>Motivo:</strong> ${data.error_message ?? "não informado"}</p>
-        ${storeUrl ? `<p><a href="${storeUrl}/minha-conta" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Tentar novamente</a></p>` : ""}
+        ${storeUrl ? `<p><a href="${storeUrl}/minha-conta" target="_blank" rel="noopener" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Tentar novamente</a></p>` : ""}
       `);
       return { subject, html };
     }
@@ -120,7 +120,7 @@ function renderTemplate(
         <p>Você deixou alguns itens no carrinho. Garanta antes que esgote!</p>
         <table style="width:100%;border-collapse:collapse;">${itemsHtml}</table>
         <p style="text-align:right;font-weight:bold;">Total: ${brl(data.total_value)}</p>
-        <p><a href="${cartUrl}" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Finalizar minha compra</a></p>
+        <p><a href="${cartUrl}" target="_blank" rel="noopener" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Finalizar minha compra</a></p>
       `);
       return { subject, html };
     }
@@ -152,7 +152,7 @@ function renderTemplate(
             : `está prestes a expirar em <strong>${expiresAt}</strong> (${days} dia${days === 1 ? "" : "s"} restante${days === 1 ? "" : "s"}).`
         }</p>
         <p>Para evitar interrupção do serviço, renove agora mesmo.</p>
-        ${renewUrl ? `<p><a href="${renewUrl}" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Renovar plano</a></p>` : ""}
+        ${renewUrl ? `<p><a href="${renewUrl}" target="_blank" rel="noopener" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Renovar plano</a></p>` : ""}
       `);
       return { subject, html };
     }
@@ -284,7 +284,20 @@ serve(async (req) => {
     }
 
     const storeName = cfg["store_name"] || "Liberty Pharma";
-    const storePublicUrl = (cfg["store_public_url"] || "").replace(/\/+$/, "");
+    // Fallback chain para garantir que botões nos emails sempre tenham link
+    // absoluto. Sem isso, href="/carrinho" não abre quando clicado de dentro
+    // do cliente de email (Gmail, Outlook, etc.).
+    const storePublicUrl = (
+      cfg["store_public_url"] ||
+      Deno.env.get("PUBLIC_SITE_URL") ||
+      Deno.env.get("SITE_URL") ||
+      ""
+    ).replace(/\/+$/, "");
+    if (!storePublicUrl) {
+      log.warn("store_public_url_not_configured", {
+        hint: "Defina 'URL pública do site' em Configurações → Avançado para que os links nos emails funcionem.",
+      });
+    }
 
     let rendered: { subject: string; html: string };
     if (body.template === "custom") {
