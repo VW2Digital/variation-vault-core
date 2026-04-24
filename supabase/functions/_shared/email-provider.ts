@@ -131,40 +131,13 @@ export function createSmtpProvider(cfg: SmtpConfig): EmailProvider {
             ? input.text
             : htmlToPlainText(input.html);
 
-          // PROBLEMA: o denomailer codifica TUDO (text e html) em
-          // quoted-printable por padrão e produz artefatos visíveis
-          // (=20, =3D, =E2=9C…) no corpo do email — tanto no preview
-          // text/plain quanto no HTML quando o cliente faz fallback.
-          //
-          // SOLUÇÃO: enviamos AMBAS as partes (text e html) como
-          // `mimeContent` em base64, e usamos um placeholder ASCII puro
-          // em `content` apenas para satisfazer a API do denomailer.
-          // Como base64 não tem caracteres especiais, o encoder não
-          // injeta artefatos.
-          const htmlBase64 = base64EncodeUtf8(input.html);
-          const textBase64 = base64EncodeUtf8(plainText);
-
           await client.send({
             from: input.from,
             to: input.to,
             replyTo: input.replyTo,
             subject: input.subject,
-            // `content` é obrigatório no denomailer; usamos ASCII puro
-            // para evitar qualquer codificação automática. O cliente real
-            // só lê os mimeContent abaixo.
-            content: "This email requires an HTML-capable client.",
-            mimeContent: [
-              {
-                mimeType: 'text/plain; charset="utf-8"',
-                content: textBase64,
-                transferEncoding: "base64",
-              },
-              {
-                mimeType: 'text/html; charset="utf-8"',
-                content: htmlBase64,
-                transferEncoding: "base64",
-              },
-            ],
+            content: plainText,
+            html: input.html,
             headers,
           });
           try { await client.close(); } catch (_) { /* noop */ }
