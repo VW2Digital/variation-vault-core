@@ -38,6 +38,15 @@ function htmlToPlainText(html: string): string {
     .trim();
 }
 
+function cleanEmailMarkup(input: string): string {
+  return input
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+$/gm, "")
+    .replace(/^\s+$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export interface SendEmailInput {
   from: string;          // "Name <addr@host>"
   replyTo?: string;
@@ -98,6 +107,11 @@ export function createSmtpProvider(cfg: SmtpConfig): EmailProvider {
 
       // Tentativa única — invocada a cada round pelo `withRetry`.
       const attemptOnce = async (): Promise<SendEmailResult> => {
+        const cleanedHtml = cleanEmailMarkup(input.html);
+        const cleanedText = input.text && input.text.trim().length > 0
+          ? cleanEmailMarkup(input.text)
+          : htmlToPlainText(cleanedHtml);
+
         const client = new SMTPClient({
           connection: {
             hostname: cfg.host,
@@ -106,6 +120,12 @@ export function createSmtpProvider(cfg: SmtpConfig): EmailProvider {
             auth: { username: cfg.user, password: cfg.pass },
           },
           pool: false,
+          debug: {
+            log: false,
+            allowUnsecure: false,
+            encodeLB: true,
+            noStartTLS: false,
+          },
         });
         try {
           const headers: Record<string, string> = {
@@ -114,17 +134,13 @@ export function createSmtpProvider(cfg: SmtpConfig): EmailProvider {
           if (input.correlationId) headers["X-Correlation-ID"] = input.correlationId;
 
           // Gera versão texto a partir do HTML.
-          const plainText = (input.text && input.text.trim().length > 0)
-            ? input.text
-            : htmlToPlainText(input.html);
-
           await client.send({
             from: input.from,
             to: input.to,
             replyTo: input.replyTo,
             subject: input.subject,
-            content: plainText,
-            html: input.html,
+            content: cleanedText,
+            html: cleanedHtml,
             headers,
           });
           try { await client.close(); } catch (_) { /* noop */ }
