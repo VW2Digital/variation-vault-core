@@ -146,28 +146,32 @@ const OrderDetailPage = () => {
             <h4 className="text-sm font-semibold text-foreground mb-1">Pagamento</h4>
             <InfoRow label="Forma" value={billingTypeMap[order.payment_method] || order.payment_method} />
             <InfoRow label="Status" value={(statusMap[order.status] || { label: order.status }).label} />
-            <InfoRow label="Gateway" value={
-              ({
+            {(() => {
+              const gatewayKey = (order.payment_gateway || '').toLowerCase().trim();
+              const gatewayLabels: Record<string, string> = {
                 mercadopago: 'Mercado Pago',
                 pagarme: 'Pagar.me',
                 pagbank: 'PagBank',
                 asaas: 'Asaas',
-              } as Record<string, string>)[order.payment_gateway || 'asaas'] || (order.payment_gateway || 'Asaas')
-            } />
-            <InfoRow label="Ambiente" value={order.gateway_environment === 'production' ? 'Produção' : 'Sandbox (Teste)'} />
-            {order.asaas_payment_id && (
-              <InfoRow
-                label={
-                  ({
-                    mercadopago: 'ID Mercado Pago',
-                    pagarme: 'ID Pagar.me',
-                    pagbank: 'ID PagBank',
-                    asaas: 'ID Asaas',
-                  } as Record<string, string>)[order.payment_gateway || 'asaas'] || 'ID Pagamento'
-                }
-                value={order.asaas_payment_id}
-              />
-            )}
+              };
+              const idLabels: Record<string, string> = {
+                mercadopago: 'ID Mercado Pago',
+                pagarme: 'ID Pagar.me',
+                pagbank: 'ID PagBank',
+                asaas: 'ID Asaas',
+              };
+              const gatewayDisplay =
+                gatewayLabels[gatewayKey] ||
+                (gatewayKey ? gatewayKey.charAt(0).toUpperCase() + gatewayKey.slice(1) : 'Não informado');
+              const idLabel = idLabels[gatewayKey] || 'ID do pagamento';
+              return (
+                <>
+                  <InfoRow label="Gateway" value={gatewayDisplay} />
+                  <InfoRow label="Ambiente" value={order.gateway_environment === 'production' ? 'Produção' : 'Sandbox (Teste)'} />
+                  {order.asaas_payment_id && <InfoRow label={idLabel} value={order.asaas_payment_id} />}
+                </>
+              );
+            })()}
             {order.coupon_code && (
               <>
                 <InfoRow label="Cupom" value={order.coupon_code} />
