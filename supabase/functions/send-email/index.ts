@@ -63,6 +63,12 @@ function normalizeTemplateHtml(html: string) {
     .trim();
 }
 
+// Adiciona margem superior e inferior em torno do template enviado,
+// garantindo respiro visual no cliente de email (Gmail, Outlook, etc.).
+function addVerticalSpacing(html: string) {
+  return `<div style="padding:32px 0;background:#f3f3f3;">${html}</div>`;
+}
+
 function renderTemplate(
   template: TemplateName,
   data: Record<string, any>,
@@ -343,7 +349,7 @@ serve(async (req) => {
           vars[key] !== undefined ? vars[key] : "",
         );
       if (overrideSubject) rendered.subject = interpolate(overrideSubject);
-      if (overrideHtml) rendered.html = normalizeTemplateHtml(interpolate(overrideHtml));
+      if (overrideHtml) rendered.html = addVerticalSpacing(normalizeTemplateHtml(interpolate(overrideHtml)));
       if (body.subject) rendered.subject = body.subject;
     }
 
