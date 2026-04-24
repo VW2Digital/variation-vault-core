@@ -83,9 +83,9 @@ function getRemoteIp(req: Request) {
   return candidates.find((ip) => typeof ip === 'string' && ip.length > 0 && ip.toLowerCase() !== 'unknown') ?? '127.0.0.1';
 }
 
-async function getSiteSetting(supabase: ReturnType<typeof createClient>, key: string) {
+async function getSiteSetting(supabase: any, key: string) {
   const { data } = await supabase.from('site_settings').select('value').eq('key', key).maybeSingle();
-  return data?.value || '';
+  return (data as { value?: string } | null)?.value || '';
 }
 
 function normalizePublicBaseUrl(url?: string | null) {

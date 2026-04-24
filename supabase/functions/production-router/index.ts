@@ -89,17 +89,17 @@ function getRoutePath(req: Request) {
   return pathname;
 }
 
-async function getOrdersApiKey(supabase: ReturnType<typeof createClient>) {
+async function getOrdersApiKey(supabase: any) {
   const { data } = await supabase
     .from("site_settings")
     .select("value")
     .eq("key", "orders_api_key")
     .maybeSingle();
 
-  return data?.value?.trim() || "";
+  return (data as { value?: string } | null)?.value?.trim() || "";
 }
 
-async function requireApiKey(req: Request, supabase: ReturnType<typeof createClient>) {
+async function requireApiKey(req: Request, supabase: any) {
   const provided = req.headers.get("x-api-key")?.trim();
   const expected = await getOrdersApiKey(supabase);
 
