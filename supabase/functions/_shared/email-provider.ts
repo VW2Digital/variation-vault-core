@@ -18,6 +18,39 @@ import {
 import type { Logger } from "./logger.ts";
 import { withRetry } from "./retry.ts";
 
+// ─── Helpers de encoding ──────────────────────────────────────────────────
+/**
+ * Converte string UTF-8 para base64 puro (sem quebras de linha).
+ * O denomailer/SMTP cuida da quebra a cada 76 chars conforme RFC.
+ */
+function base64EncodeUtf8(s: string): string {
+  const bytes = new TextEncoder().encode(s);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  // btoa só aceita binário ASCII — daí o pré-processamento acima.
+  return btoa(bin);
+}
+
+/**
+ * Strip HTML tags + entidades comuns para gerar fallback text/plain.
+ * Usado quando o caller não envia `text` explícito.
+ */
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<\/(p|div|tr|h[1-6]|li)>/gi, "\n")
+    .replace(/<br\s*\/?>(\s*)/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export interface SendEmailInput {
   from: string;          // "Name <addr@host>"
   replyTo?: string;
