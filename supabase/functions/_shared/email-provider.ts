@@ -18,6 +18,39 @@ import {
 import type { Logger } from "./logger.ts";
 import { withRetry } from "./retry.ts";
 
+// ─── Helpers de encoding ──────────────────────────────────────────────────
+/**
+ * Converte string UTF-8 para base64 puro (sem quebras de linha).
+ * O denomailer/SMTP cuida da quebra a cada 76 chars conforme RFC.
+ */
+function base64EncodeUtf8(s: string): string {
+  const bytes = new TextEncoder().encode(s);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  // btoa só aceita binário ASCII — daí o pré-processamento acima.
+  return btoa(bin);
+}
+
+/**
+ * Strip HTML tags + entidades comuns para gerar fallback text/plain.
+ * Usado quando o caller não envia `text` explícito.
+ */
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<\/(p|div|tr|h[1-6]|li)>/gi, "\n")
+    .replace(/<br\s*\/?>(\s*)/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export interface SendEmailInput {
   from: string;          // "Name <addr@host>"
   replyTo?: string;
@@ -93,25 +126,25 @@ export function createSmtpProvider(cfg: SmtpConfig): EmailProvider {
           };
           if (input.correlationId) headers["X-Correlation-ID"] = input.correlationId;
 
-          // Gera versão texto a partir do HTML para multipart/alternative
-          // correto. Sem isso, o denomailer envia o HTML em quoted-printable
-          // e alguns clientes (ex.: webmails) renderizam o source bruto,
-          // mostrando "=20" no lugar de espaços/quebras.
+          // Gera versão texto a partir do HTML.
           const plainText = (input.text && input.text.trim().length > 0)
             ? input.text
-            : input.html
-                .replace(/<style[\s\S]*?<\/style>/gi, "")
-                .replace(/<script[\s\S]*?<\/script>/gi, "")
-                .replace(/<\/(p|div|tr|h[1-6]|li|br)>/gi, "\n")
-                .replace(/<br\s*\/?>(\s*)/gi, "\n")
-                .replace(/<[^>]+>/g, "")
-                .replace(/&nbsp;/g, " ")
-                .replace(/&amp;/g, "&")
-                .replace(/&lt;/g, "<")
-                .replace(/&gt;/g, ">")
-                .replace(/&quot;/g, '"')
-                .replace(/\n{3,}/g, "\n\n")
-                .trim();
+            : htmlToPlainText(input.html);
+
+          // PROBLEMA: o denomailer codifica HTML em quoted-printable e
+          // alguns servidores SMTP/clientes acabam mostrando os artefatos
+          // (=20, =3D, =E2=9C…) no corpo do email — especialmente quando
+          // o HTML contém linhas longas, tags <table> aninhadas ou caracteres
+          // não-ASCII (acentos PT-BR).
+          //
+          // SOLUÇÃO: enviamos o HTML como `mimeContent` em base64. Isso
+          // bypass completamente o quoted-printable encoder do denomailer
+          // e garante que o cliente reconstrua exatamente o HTML original.
+          //
+          // Estrutura final: multipart/alternative com 2 partes:
+          //   1. text/plain (quoted-printable, gerado pelo denomailer)
+          //   2. text/html  (base64, gerado por nós) ← preservado intacto
+          const htmlBase64 = base64EncodeUtf8(input.html);
 
           await client.send({
             from: input.from,
@@ -119,7 +152,13 @@ export function createSmtpProvider(cfg: SmtpConfig): EmailProvider {
             replyTo: input.replyTo,
             subject: input.subject,
             content: plainText,
-            html: input.html,
+            mimeContent: [
+              {
+                mimeType: 'text/html; charset="utf-8"',
+                content: htmlBase64,
+                transferEncoding: "base64",
+              },
+            ],
             headers,
           });
           try { await client.close(); } catch (_) { /* noop */ }
