@@ -54,6 +54,15 @@ function escapeHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+function normalizeTemplateHtml(html: string) {
+  return html
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+$/gm, "")
+    .replace(/^\s+$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function renderTemplate(
   template: TemplateName,
   data: Record<string, any>,
@@ -334,7 +343,7 @@ serve(async (req) => {
           vars[key] !== undefined ? vars[key] : "",
         );
       if (overrideSubject) rendered.subject = interpolate(overrideSubject);
-      if (overrideHtml) rendered.html = interpolate(overrideHtml);
+      if (overrideHtml) rendered.html = normalizeTemplateHtml(interpolate(overrideHtml));
       if (body.subject) rendered.subject = body.subject;
     }
 
