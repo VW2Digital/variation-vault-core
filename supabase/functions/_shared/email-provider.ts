@@ -93,12 +93,32 @@ export function createSmtpProvider(cfg: SmtpConfig): EmailProvider {
           };
           if (input.correlationId) headers["X-Correlation-ID"] = input.correlationId;
 
+          // Gera versão texto a partir do HTML para multipart/alternative
+          // correto. Sem isso, o denomailer envia o HTML em quoted-printable
+          // e alguns clientes (ex.: webmails) renderizam o source bruto,
+          // mostrando "=20" no lugar de espaços/quebras.
+          const plainText = (input.text && input.text.trim().length > 0)
+            ? input.text
+            : input.html
+                .replace(/<style[\s\S]*?<\/style>/gi, "")
+                .replace(/<script[\s\S]*?<\/script>/gi, "")
+                .replace(/<\/(p|div|tr|h[1-6]|li|br)>/gi, "\n")
+                .replace(/<br\s*\/?>(\s*)/gi, "\n")
+                .replace(/<[^>]+>/g, "")
+                .replace(/&nbsp;/g, " ")
+                .replace(/&amp;/g, "&")
+                .replace(/&lt;/g, "<")
+                .replace(/&gt;/g, ">")
+                .replace(/&quot;/g, '"')
+                .replace(/\n{3,}/g, "\n\n")
+                .trim();
+
           await client.send({
             from: input.from,
             to: input.to,
             replyTo: input.replyTo,
             subject: input.subject,
-            content: input.text ?? "auto",
+            content: plainText,
             html: input.html,
             headers,
           });
