@@ -131,28 +131,34 @@ export function createSmtpProvider(cfg: SmtpConfig): EmailProvider {
             ? input.text
             : htmlToPlainText(input.html);
 
-          // PROBLEMA: o denomailer codifica HTML em quoted-printable e
-          // alguns servidores SMTP/clientes acabam mostrando os artefatos
-          // (=20, =3D, =E2=9C…) no corpo do email — especialmente quando
-          // o HTML contém linhas longas, tags <table> aninhadas ou caracteres
-          // não-ASCII (acentos PT-BR).
+          // PROBLEMA: o denomailer codifica TUDO (text e html) em
+          // quoted-printable por padrão e produz artefatos visíveis
+          // (=20, =3D, =E2=9C…) no corpo do email — tanto no preview
+          // text/plain quanto no HTML quando o cliente faz fallback.
           //
-          // SOLUÇÃO: enviamos o HTML como `mimeContent` em base64. Isso
-          // bypass completamente o quoted-printable encoder do denomailer
-          // e garante que o cliente reconstrua exatamente o HTML original.
-          //
-          // Estrutura final: multipart/alternative com 2 partes:
-          //   1. text/plain (quoted-printable, gerado pelo denomailer)
-          //   2. text/html  (base64, gerado por nós) ← preservado intacto
+          // SOLUÇÃO: enviamos AMBAS as partes (text e html) como
+          // `mimeContent` em base64, e usamos um placeholder ASCII puro
+          // em `content` apenas para satisfazer a API do denomailer.
+          // Como base64 não tem caracteres especiais, o encoder não
+          // injeta artefatos.
           const htmlBase64 = base64EncodeUtf8(input.html);
+          const textBase64 = base64EncodeUtf8(plainText);
 
           await client.send({
             from: input.from,
             to: input.to,
             replyTo: input.replyTo,
             subject: input.subject,
-            content: plainText,
+            // `content` é obrigatório no denomailer; usamos ASCII puro
+            // para evitar qualquer codificação automática. O cliente real
+            // só lê os mimeContent abaixo.
+            content: "This email requires an HTML-capable client.",
             mimeContent: [
+              {
+                mimeType: 'text/plain; charset="utf-8"',
+                content: textBase64,
+                transferEncoding: "base64",
+              },
               {
                 mimeType: 'text/html; charset="utf-8"',
                 content: htmlBase64,
