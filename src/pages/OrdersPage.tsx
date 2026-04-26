@@ -954,6 +954,11 @@ const OrdersPage = () => {
                                   <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
                                 </DropdownMenuItem>
                               )}
+                              {order.customer_email && (
+                                <DropdownMenuItem onClick={() => openEmailDialog(order)}>
+                                  <Mail className="mr-2 h-4 w-4" /> Email
+                                </DropdownMenuItem>
+                              )}
                               {order.status === 'PAID' && !order.tracking_code && (
                                 <DropdownMenuItem onClick={() => {
                                   const addr = `${order.customer_name}\n${order.customer_address}, ${order.customer_number}${order.customer_complement ? ` - ${order.customer_complement}` : ''}\n${order.customer_district}\n${order.customer_city} - ${order.customer_state}\nCEP: ${order.customer_postal_code}`;
