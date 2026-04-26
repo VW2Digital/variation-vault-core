@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import SettingsBackButton from './SettingsBackButton';
 import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const SettingsCommunication = () => {
   const { toast } = useToast();
