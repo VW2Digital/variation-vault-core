@@ -50,7 +50,7 @@ const SettingsPayment = () => {
     }
   };
 
-  if (loading) return <p className="text-muted-foreground">Carregando...</p>;
+  if (loading) return <SettingsSkeleton />;
 
   const selectedMeta = selected ? GATEWAYS.find((g) => g.key === selected)! : null;
 

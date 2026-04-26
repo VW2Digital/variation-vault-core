@@ -33,7 +33,7 @@ const SettingsCSS = () => {
     }
   };
 
-  if (loading) return <p className="text-muted-foreground">Carregando...</p>;
+  if (loading) return <SettingsSkeleton />;
 
   return (
     <div className="space-y-6 w-full">
