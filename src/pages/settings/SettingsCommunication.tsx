@@ -67,7 +67,8 @@ const SettingsCommunication = () => {
       fetchSetting('evolution_api_key'),
       fetchSetting('evolution_instance_name'),
       fetchSetting('notify_customer_on_payment'),
-    ]).then(([wp, sHost, sPort, sUser, sPass, sFrom, sFromName, sSecure, evoUrl, evoKey, evoInstance, notifyFlag]) => {
+      fetchSetting('service_role_key_for_triggers'),
+    ]).then(([wp, sHost, sPort, sUser, sPass, sFrom, sFromName, sSecure, evoUrl, evoKey, evoInstance, notifyFlag, triggerKey]) => {
       setWhatsapp(wp || '');
       setSmtpHost(sHost || 'smtp.hostinger.com');
       setSmtpPort(sPort || '465');
@@ -80,6 +81,7 @@ const SettingsCommunication = () => {
       setEvolutionApiKey(evoKey || '');
       setEvolutionInstanceName(evoInstance || '');
       setNotifyCustomerOnPayment(notifyFlag !== 'false'); // default: ativado
+      setTriggerKeyInstalled(Boolean(triggerKey));
     }).finally(() => setLoading(false));
   }, []);
 
