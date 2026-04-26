@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Type } from 'lucide-react';
 import SettingsBackButton from './SettingsBackButton';
+import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 
 const SettingsFonts = () => {
   const { toast } = useToast();
@@ -42,7 +43,7 @@ const SettingsFonts = () => {
     }
   };
 
-  if (loading) return <p className="text-muted-foreground">Carregando...</p>;
+  if (loading) return <SettingsSkeleton />;
 
   return (
     <div className="space-y-6 w-full">

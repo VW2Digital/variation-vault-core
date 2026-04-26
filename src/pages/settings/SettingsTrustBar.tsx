@@ -14,6 +14,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, Plus, ShieldCheck, CreditCard, Shield, Truck, Award, Star, Heart, Package, Lock, BadgeCheck, Zap, Gift, ThumbsUp, GripVertical } from 'lucide-react';
 import SettingsBackButton from './SettingsBackButton';
+import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 import {
   DndContext,
   closestCenter,
@@ -244,7 +245,7 @@ const SettingsTrustBar = () => {
     }
   };
 
-  if (loading) return <p className="text-muted-foreground">Carregando...</p>;
+  if (loading) return <SettingsSkeleton />;
 
   return (
     <div className="space-y-6 w-full">

@@ -9,6 +9,7 @@ import { Truck, MapPin, Eye, EyeOff, Link2, CheckCircle2, Loader2, Download } fr
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SettingsBackButton from './SettingsBackButton';
+import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 import WebhookUrlCard from '@/components/admin/WebhookUrlCard';
 import PublicSiteUrlCard from '@/components/admin/PublicSiteUrlCard';
 import { usePublicBaseUrl } from '@/hooks/usePublicBaseUrl';
@@ -164,7 +165,7 @@ const SettingsShipping = () => {
     } finally { setSaving(false); }
   };
 
-  if (loading) return <p className="text-muted-foreground">Carregando...</p>;
+  if (loading) return <SettingsSkeleton />;
 
   return (
     <div className="space-y-6 w-full">

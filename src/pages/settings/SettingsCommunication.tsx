@@ -9,6 +9,8 @@ import { Phone, Mail, MessageSquare, Eye, EyeOff, Send, Loader2, BellRing, Alert
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import SettingsBackButton from './SettingsBackButton';
+import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const SettingsCommunication = () => {
   const { toast } = useToast();
@@ -111,12 +113,26 @@ const SettingsCommunication = () => {
     } finally { setSaving(false); }
   };
 
-  if (loading) return <p className="text-muted-foreground">Carregando...</p>;
+  if (loading) return <SettingsSkeleton />;
 
   return (
     <div className="space-y-6 w-full">
-      <SettingsBackButton title="WhatsApp, Email & Mensagens" description="WhatsApp, Evolution API e Resend" />
+      <SettingsBackButton title="WhatsApp, Email & Mensagens" description="WhatsApp, Evolution API e SMTP Hostinger" />
 
+      <Tabs defaultValue="email" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+          <TabsTrigger value="email" className="gap-1.5">
+            <Mail className="w-4 h-4" /> E-mail
+          </TabsTrigger>
+          <TabsTrigger value="whatsapp" className="gap-1.5">
+            <Phone className="w-4 h-4" /> WhatsApp
+          </TabsTrigger>
+          <TabsTrigger value="auto" className="gap-1.5">
+            <Zap className="w-4 h-4" /> Disparo Automático
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="whatsapp" className="space-y-6 mt-6">
       <Card className="border-border/50">
         <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Phone className="w-5 h-5" /> WhatsApp</CardTitle></CardHeader>
         <CardContent className="space-y-4">
@@ -143,6 +159,52 @@ const SettingsCommunication = () => {
         </CardContent>
       </Card>
 
+      <Card className="border-border/50">
+        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><MessageSquare className="w-5 h-5" /> Evolution API - Mensagens WhatsApp</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>URL da API</Label>
+            <Input value={evolutionApiUrl} onChange={(e) => setEvolutionApiUrl(e.target.value)} placeholder="https://evocooli.vw2.shop" />
+          </div>
+          <div className="space-y-2">
+            <Label>Nome da Instância</Label>
+            <Input value={evolutionInstanceName} onChange={(e) => setEvolutionInstanceName(e.target.value)} placeholder="minha-instancia" />
+          </div>
+          <div className="space-y-2">
+            <Label>API Key (Global)</Label>
+            <div className="relative">
+              <Input type={showEvolutionKey ? 'text' : 'password'} value={evolutionApiKey} onChange={(e) => setEvolutionApiKey(e.target.value)} placeholder="Sua apikey global" className="pr-10" />
+              <button type="button" onClick={() => setShowEvolutionKey(!showEvolutionKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                {showEvolutionKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="pt-4 border-t border-border/50">
+            <p className="text-sm font-medium text-foreground mb-3">Enviar mensagem de teste</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Número (com código do país)</Label><Input value={testNumber} onChange={(e) => setTestNumber(e.target.value.replace(/\D/g, ''))} placeholder="559999999999" inputMode="numeric" /></div>
+              <div className="space-y-2"><Label>Mensagem</Label><Input value={testMessage} onChange={(e) => setTestMessage(e.target.value)} placeholder="Olá, teste de envio!" /></div>
+            </div>
+            <Button type="button" variant="outline" className="mt-3 flex items-center gap-2" disabled={sendingTest || !testNumber || !testMessage || !evolutionApiUrl || !evolutionApiKey || !evolutionInstanceName} onClick={async () => {
+              setSendingTest(true);
+              try {
+                const { data, error } = await supabase.functions.invoke('evolution-send-message', { body: { number: testNumber, text: testMessage } });
+                if (error) throw new Error(error.message);
+                if (data?.error) throw new Error(data.error);
+                toast({ title: 'Mensagem enviada com sucesso!' });
+              } catch (err: any) {
+                toast({ title: 'Erro ao enviar', description: err.message, variant: 'destructive' });
+              } finally { setSendingTest(false); }
+            }}>
+              {sendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {sendingTest ? 'Enviando...' : 'Enviar Teste'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+        </TabsContent>
+
+        <TabsContent value="email" className="space-y-6 mt-6">
       <Card className="border-border/50">
         <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Mail className="w-5 h-5" /> SMTP Hostinger - Envio de E-mails</CardTitle></CardHeader>
         <CardContent className="space-y-4">
@@ -268,7 +330,9 @@ const SettingsCommunication = () => {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
 
+        <TabsContent value="auto" className="space-y-6 mt-6">
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
@@ -324,50 +388,8 @@ const SettingsCommunication = () => {
           </Button>
         </CardContent>
       </Card>
-
-      <Card className="border-border/50">
-        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><MessageSquare className="w-5 h-5" /> Evolution API - Mensagens WhatsApp</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>URL da API</Label>
-            <Input value={evolutionApiUrl} onChange={(e) => setEvolutionApiUrl(e.target.value)} placeholder="https://evocooli.vw2.shop" />
-          </div>
-          <div className="space-y-2">
-            <Label>Nome da Instância</Label>
-            <Input value={evolutionInstanceName} onChange={(e) => setEvolutionInstanceName(e.target.value)} placeholder="minha-instancia" />
-          </div>
-          <div className="space-y-2">
-            <Label>API Key (Global)</Label>
-            <div className="relative">
-              <Input type={showEvolutionKey ? 'text' : 'password'} value={evolutionApiKey} onChange={(e) => setEvolutionApiKey(e.target.value)} placeholder="Sua apikey global" className="pr-10" />
-              <button type="button" onClick={() => setShowEvolutionKey(!showEvolutionKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                {showEvolutionKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-          <div className="pt-4 border-t border-border/50">
-            <p className="text-sm font-medium text-foreground mb-3">Enviar mensagem de teste</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Número (com código do país)</Label><Input value={testNumber} onChange={(e) => setTestNumber(e.target.value.replace(/\D/g, ''))} placeholder="559999999999" inputMode="numeric" /></div>
-              <div className="space-y-2"><Label>Mensagem</Label><Input value={testMessage} onChange={(e) => setTestMessage(e.target.value)} placeholder="Olá, teste de envio!" /></div>
-            </div>
-            <Button type="button" variant="outline" className="mt-3 flex items-center gap-2" disabled={sendingTest || !testNumber || !testMessage || !evolutionApiUrl || !evolutionApiKey || !evolutionInstanceName} onClick={async () => {
-              setSendingTest(true);
-              try {
-                const { data, error } = await supabase.functions.invoke('evolution-send-message', { body: { number: testNumber, text: testMessage } });
-                if (error) throw new Error(error.message);
-                if (data?.error) throw new Error(data.error);
-                toast({ title: 'Mensagem enviada com sucesso!' });
-              } catch (err: any) {
-                toast({ title: 'Erro ao enviar', description: err.message, variant: 'destructive' });
-              } finally { setSendingTest(false); }
-            }}>
-              {sendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {sendingTest ? 'Enviando...' : 'Enviar Teste'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
+      </Tabs>
 
       <Button onClick={handleSave} disabled={saving} className="px-8">
         {saving ? 'Salvando...' : 'Salvar'}

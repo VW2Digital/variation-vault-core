@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { CreditCard, CheckCircle2 } from 'lucide-react';
 import SettingsBackButton from './SettingsBackButton';
+import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 import AsaasSettings from './payment/AsaasSettings';
 import MercadoPagoSettings from './payment/MercadoPagoSettings';
 import PagBankSettings from './payment/PagBankSettings';
@@ -50,7 +51,7 @@ const SettingsPayment = () => {
     }
   };
 
-  if (loading) return <p className="text-muted-foreground">Carregando...</p>;
+  if (loading) return <SettingsSkeleton />;
 
   const selectedMeta = selected ? GATEWAYS.find((g) => g.key === selected)! : null;
 
