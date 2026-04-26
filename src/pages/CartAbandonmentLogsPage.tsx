@@ -431,50 +431,11 @@ export default function CartAbandonmentLogsPage() {
                               {format(new Date(user.oldest_item_date), "dd/MM/yyyy", { locale: ptBR })}
                             </TableCell>
                             <TableCell className="text-center">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="gap-1.5 text-green-700 border-green-300 hover:bg-green-50 hover:text-green-800"
-                                  disabled={!user.phone || !user.allow_whatsapp_marketing || sendingWhatsApp === user.user_id}
-                                  onClick={() => handleSendWhatsApp(user)}
-                                  title={
-                                    !user.phone
-                                      ? 'Sem telefone cadastrado'
-                                      : !user.allow_whatsapp_marketing
-                                        ? 'Cliente optou por não receber WhatsApp de marketing'
-                                        : 'Enviar via WhatsApp'
-                                  }
-                                >
-                                  {sendingWhatsApp === user.user_id ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <MessageCircle className="h-4 w-4" />
-                                  )}
-                                  WhatsApp
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="gap-1.5 text-blue-700 border-blue-300 hover:bg-blue-50 hover:text-blue-800"
-                                  disabled={!user.email || !user.allow_email_marketing || sendingEmail === user.user_id}
-                                  onClick={() => handleSendEmail(user)}
-                                  title={
-                                    !user.email
-                                      ? 'Sem email cadastrado'
-                                      : !user.allow_email_marketing
-                                        ? 'Cliente optou por não receber emails de marketing'
-                                        : 'Enviar email de recuperação'
-                                  }
-                                >
-                                  {sendingEmail === user.user_id ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Mail className="h-4 w-4" />
-                                  )}
-                                  Email
-                                </Button>
-                              </div>
+                              <ActionsMenu
+                                user={user}
+                                isSending={sendingWhatsApp === user.user_id || sendingEmail === user.user_id}
+                                onAction={(type) => setConfirmAction({ type, user })}
+                              />
                             </TableCell>
                           </TableRow>
                         ))}
@@ -487,12 +448,19 @@ export default function CartAbandonmentLogsPage() {
                     {filteredCarts.map((user) => (
                       <div key={user.user_id} className="border rounded-lg p-4 space-y-2">
                         <div className="flex justify-between items-start">
-                          <div>
+                          <div className="min-w-0">
                             <p className="font-medium">{user.full_name}</p>
                             <p className="text-sm text-muted-foreground">{user.email || '—'}</p>
                             {user.phone && <p className="text-sm text-muted-foreground">{user.phone}</p>}
                           </div>
-                          <Badge variant="destructive">{user.total_items} {user.total_items === 1 ? 'item' : 'itens'}</Badge>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge variant="destructive">{user.total_items} {user.total_items === 1 ? 'item' : 'itens'}</Badge>
+                            <ActionsMenu
+                              user={user}
+                              isSending={sendingWhatsApp === user.user_id || sendingEmail === user.user_id}
+                              onAction={(type) => setConfirmAction({ type, user })}
+                            />
+                          </div>
                         </div>
                         <div className="space-y-1 border-t pt-2">
                           {user.items.map((item, i) => (
@@ -513,36 +481,6 @@ export default function CartAbandonmentLogsPage() {
                           <span className="font-bold text-primary">
                             R$ {user.total_value.toFixed(2).replace('.', ',')}
                           </span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5 text-green-700 border-green-300 hover:bg-green-50 hover:text-green-800"
-                            disabled={!user.phone || !user.allow_whatsapp_marketing || sendingWhatsApp === user.user_id}
-                            onClick={() => handleSendWhatsApp(user)}
-                          >
-                            {sendingWhatsApp === user.user_id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <MessageCircle className="h-4 w-4" />
-                            )}
-                            WhatsApp
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5 text-blue-700 border-blue-300 hover:bg-blue-50 hover:text-blue-800"
-                            disabled={!user.email || !user.allow_email_marketing || sendingEmail === user.user_id}
-                            onClick={() => handleSendEmail(user)}
-                          >
-                            {sendingEmail === user.user_id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Mail className="h-4 w-4" />
-                            )}
-                            Email
-                          </Button>
                         </div>
                       </div>
                     ))}
