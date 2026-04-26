@@ -521,6 +521,58 @@ const OrdersPage = () => {
     }
   };
 
+  const openEmailDialog = (order: any) => {
+    setEmailOrder(order);
+    setEmailAddress(order.customer_email || '');
+    setEmailSubject('');
+    setEmailMessage('');
+  };
+
+  const applyEmailTemplate = (templateId: string) => {
+    if (!emailOrder) return;
+    const tpl = emailTemplates.find(t => t.id === templateId);
+    if (tpl) {
+      setEmailSubject(tpl.getSubject(emailOrder.product_name));
+      setEmailMessage(tpl.getMessage(emailOrder.customer_name, emailOrder.product_name, emailOrder.tracking_code));
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailOrder || !emailAddress.trim() || !emailSubject.trim() || !emailMessage.trim()) return;
+    setSendingEmail(true);
+    try {
+      // Convert plain text message into HTML preserving line breaks.
+      const safeHtml = emailMessage
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br/>');
+      const html = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1a1a2e;line-height:1.6;">${safeHtml}</div>`;
+
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          template: 'custom',
+          to: emailAddress.trim(),
+          subject: emailSubject.trim(),
+          html,
+          text: emailMessage,
+        },
+      });
+      if (error) throw new Error(error.message || 'Erro ao chamar função de envio de email');
+      if (data?.error) throw new Error(data.error);
+
+      toast({ title: 'Email enviado!', description: `Para ${emailAddress.trim()}` });
+      setEmailOrder(null);
+      setEmailAddress('');
+      setEmailSubject('');
+      setEmailMessage('');
+    } catch (err: any) {
+      toast({ title: 'Erro ao enviar email', description: err.message, variant: 'destructive' });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   const uniqueCoupons = Array.from(new Set(orders.map(o => o.coupon_code).filter(Boolean))) as string[];
 
   const filteredOrders = orders.filter(order => {
