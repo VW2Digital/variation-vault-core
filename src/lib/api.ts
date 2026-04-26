@@ -329,6 +329,23 @@ export const fetchSetting = async (key: string) => {
   return (data as any)?.value || '';
 };
 
+// Fetch many settings in one round-trip. Returns a map { key: value }.
+// Missing keys come back as empty strings.
+export const fetchSettingsBulk = async (keys: string[]): Promise<Record<string, string>> => {
+  if (!keys || keys.length === 0) return {};
+  const { data, error } = await supabase
+    .from('site_settings' as any)
+    .select('key,value')
+    .in('key', keys);
+  if (error) throw error;
+  const out: Record<string, string> = {};
+  for (const k of keys) out[k] = '';
+  for (const row of (data as any[]) || []) {
+    if (row?.key != null) out[row.key] = row.value ?? '';
+  }
+  return out;
+};
+
 export const upsertSetting = async (key: string, value: string, userId?: string) => {
   let uid = userId;
   if (!uid) {
