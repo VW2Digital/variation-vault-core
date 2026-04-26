@@ -60,6 +60,10 @@ const UsersPage = () => {
   const [editForm, setEditForm] = useState({ full_name: '', phone: '' });
   const [saving, setSaving] = useState(false);
 
+  const openUserInNewTab = (userId: string) => {
+    window.open(`/admin/usuarios/${userId}`, '_blank', 'noopener,noreferrer');
+  };
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
