@@ -1271,6 +1271,83 @@ const OrdersPage = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Email message dialog */}
+      <Dialog open={!!emailOrder} onOpenChange={(open) => !open && setEmailOrder(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" /> Enviar Email
+            </DialogTitle>
+          </DialogHeader>
+          {emailOrder && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Destinatário</Label>
+                <p className="text-xs text-muted-foreground mb-1">{emailOrder.customer_name}</p>
+                <Input
+                  type="email"
+                  value={emailAddress}
+                  onChange={(e) => setEmailAddress(e.target.value)}
+                  placeholder="cliente@email.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Templates</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {emailTemplates.map(tpl => (
+                    <Button
+                      key={tpl.id}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => applyEmailTemplate(tpl.id)}
+                    >
+                      {tpl.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Assunto</Label>
+                <Input
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  placeholder="Assunto do email"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Mensagem</Label>
+                <Textarea
+                  value={emailMessage}
+                  onChange={(e) => setEmailMessage(e.target.value)}
+                  rows={6}
+                  placeholder="Selecione um template ou digite a mensagem..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  As quebras de linha serão preservadas no email enviado.
+                </p>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setEmailOrder(null)}>Cancelar</Button>
+                <Button
+                  onClick={handleSendEmail}
+                  disabled={
+                    sendingEmail ||
+                    !emailAddress.trim() ||
+                    !emailSubject.trim() ||
+                    !emailMessage.trim()
+                  }
+                >
+                  {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                  Enviar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
