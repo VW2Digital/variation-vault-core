@@ -270,6 +270,62 @@ const SettingsCommunication = () => {
       </Card>
 
       <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Zap className="w-5 h-5" /> Disparo Automático de Emails
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Ativa o envio automático de emails diretamente pelo banco de dados sempre
+            que um pedido for criado, pago, recusado ou tiver código de rastreio
+            adicionado. Isso garante o envio mesmo se o webhook do gateway falhar.
+          </p>
+          {triggerKeyInstalled ? (
+            <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 rounded-md px-3 py-2">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Triggers ativos. Emails automáticos estão sendo disparados pelo banco.</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-md px-3 py-2">
+              <AlertTriangle className="w-4 h-4" />
+              <span>Triggers ainda não foram ativados. Clique no botão abaixo para ativar.</span>
+            </div>
+          )}
+          <Button
+            type="button"
+            variant={triggerKeyInstalled ? 'outline' : 'default'}
+            className="flex items-center gap-2"
+            disabled={installingTriggerKey}
+            onClick={async () => {
+              setInstallingTriggerKey(true);
+              try {
+                const { data, error } = await supabase.functions.invoke('install-trigger-key');
+                if (error) throw new Error(error.message);
+                if (data?.error) throw new Error(data.error);
+                setTriggerKeyInstalled(true);
+                toast({
+                  title: 'Triggers ativados!',
+                  description: data?.message || 'Pedidos novos enviarão emails automaticamente.',
+                });
+              } catch (err: any) {
+                toast({ title: 'Erro ao ativar triggers', description: err.message, variant: 'destructive' });
+              } finally {
+                setInstallingTriggerKey(false);
+              }
+            }}
+          >
+            {installingTriggerKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+            {installingTriggerKey
+              ? 'Ativando...'
+              : triggerKeyInstalled
+                ? 'Reativar / Atualizar Chave'
+                : 'Ativar Disparo Automático'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
         <CardHeader><CardTitle className="text-lg flex items-center gap-2"><MessageSquare className="w-5 h-5" /> Evolution API - Mensagens WhatsApp</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
