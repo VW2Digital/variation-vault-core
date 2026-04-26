@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +41,7 @@ const ITEMS_PER_PAGE = 15;
 
 const UsersPage = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -60,8 +62,8 @@ const UsersPage = () => {
   const [editForm, setEditForm] = useState({ full_name: '', phone: '' });
   const [saving, setSaving] = useState(false);
 
-  const openUserInNewTab = (userId: string) => {
-    window.open(`/admin/usuarios/${userId}`, '_blank', 'noopener,noreferrer');
+  const openUserDetail = (userId: string) => {
+    navigate(`/admin/usuarios/${userId}`);
   };
 
   const fetchUsers = async () => {
@@ -309,7 +311,7 @@ const UsersPage = () => {
                   onClick={(e) => {
                     // Ignore clicks coming from interactive children
                     if ((e.target as HTMLElement).closest('button, [role="checkbox"], [role="menuitem"], a')) return;
-                    openUserInNewTab(u.id);
+                    openUserDetail(u.id);
                   }}
                 >
                   <CardContent className="p-4 space-y-2">
@@ -330,7 +332,7 @@ const UsersPage = () => {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openUserInNewTab(u.id)}>
+                          <DropdownMenuItem onClick={() => openUserDetail(u.id)}>
                             <Eye className="mr-2 h-4 w-4" /> Visualizar
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openEdit(u)}>
@@ -398,7 +400,7 @@ const UsersPage = () => {
                         className={`cursor-pointer hover:bg-accent/40 transition-colors ${selectedIds.has(u.id) ? 'bg-primary/5' : ''}`}
                         onClick={(e) => {
                           if ((e.target as HTMLElement).closest('button, [role="checkbox"], [role="menuitem"], a')) return;
-                          openUserInNewTab(u.id);
+                          openUserDetail(u.id);
                         }}
                       >
                         <TableCell onClick={(e) => e.stopPropagation()}>
@@ -435,7 +437,7 @@ const UsersPage = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openUserInNewTab(u.id)}>
+                              <DropdownMenuItem onClick={() => openUserDetail(u.id)}>
                                 <Eye className="mr-2 h-4 w-4" /> Visualizar
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openEdit(u)}>
