@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, LogOut, LayoutDashboard, Video, Megaphone, Settings, ShoppingBag, Users, MessageCircle, Star, MousePointerClick, AlertTriangle, Mail, LinkIcon, Ticket, FileBarChart, ChevronDown, Activity, Send, BellRing } from 'lucide-react';
+import { Package, LogOut, LayoutDashboard, Video, Settings, ShoppingBag, Users, MessageCircle, Star, AlertTriangle, Mail, LinkIcon, Ticket, FileBarChart, ChevronDown, Activity } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
   Sidebar,
@@ -32,8 +32,6 @@ const menuCategories = [
     label: 'Catálogo',
     items: [
       { title: 'Produtos', url: '/admin/produtos', icon: Package },
-      { title: 'Banners', url: '/admin/banners', icon: Megaphone },
-      { title: 'Popups', url: '/admin/popups', icon: MousePointerClick },
       { title: 'Depoimentos', url: '/admin/depoimentos', icon: Video },
     ],
   },
@@ -54,9 +52,6 @@ const menuCategories = [
       { title: 'Usuários', url: '/admin/usuarios', icon: Users },
       { title: 'Avaliações', url: '/admin/avaliacoes', icon: Star },
       { title: 'Suporte', url: '/admin/suporte', icon: MessageCircle },
-      { title: 'Templates Email', url: '/admin/templates-email', icon: Mail },
-      { title: 'Eventos de Email', url: '/admin/eventos-email', icon: BellRing },
-      { title: 'Logs de Email', url: '/admin/logs-email', icon: Send },
     ],
   },
   {
