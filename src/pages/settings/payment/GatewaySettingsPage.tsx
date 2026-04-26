@@ -93,6 +93,11 @@ const GatewaySettingsPage = () => {
         description={meta.description}
         action="back"
         backTo="/admin/configuracoes/pagamento"
+        breadcrumbs={[
+          { label: 'Configurações', to: '/admin/configuracoes' },
+          { label: 'Pagamento', to: '/admin/configuracoes/pagamento' },
+          { label: meta.name },
+        ]}
         icon={
           meta.logo ? (
             <img src={meta.logo} alt="" className="w-6 h-6 rounded object-cover" />
