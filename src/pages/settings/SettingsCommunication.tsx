@@ -117,8 +117,22 @@ const SettingsCommunication = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <SettingsBackButton title="WhatsApp, Email & Mensagens" description="WhatsApp, Evolution API e Resend" />
+      <SettingsBackButton title="WhatsApp, Email & Mensagens" description="WhatsApp, Evolution API e SMTP Hostinger" />
 
+      <Tabs defaultValue="email" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+          <TabsTrigger value="email" className="gap-1.5">
+            <Mail className="w-4 h-4" /> E-mail
+          </TabsTrigger>
+          <TabsTrigger value="whatsapp" className="gap-1.5">
+            <Phone className="w-4 h-4" /> WhatsApp
+          </TabsTrigger>
+          <TabsTrigger value="auto" className="gap-1.5">
+            <Zap className="w-4 h-4" /> Disparo Automático
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="whatsapp" className="space-y-6 mt-6">
       <Card className="border-border/50">
         <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Phone className="w-5 h-5" /> WhatsApp</CardTitle></CardHeader>
         <CardContent className="space-y-4">
