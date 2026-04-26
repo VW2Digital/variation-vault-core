@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw, MoreVertical, Eye, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, CheckSquare, MessageSquare, Send, FileText, AlertCircle, ChevronDown, ChevronUp, Star, Link as LinkIcon, CreditCard, QrCode, Ticket } from 'lucide-react';
+import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw, MoreVertical, Eye, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, CheckSquare, MessageSquare, Send, FileText, AlertCircle, ChevronDown, ChevronUp, Star, Link as LinkIcon, CreditCard, QrCode, Ticket, Mail } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -81,6 +81,65 @@ const whatsappTemplates = [
   { id: 'delivered', label: '🎉 Entregue', getMessage: (name: string, product: string) => `Olá ${name}! 🎉 Seu pedido "${product}" foi *entregue*! Esperamos que goste. Se precisar de algo, estamos à disposição. Obrigado por comprar conosco! ⭐` },
   { id: 'payment_pending', label: '💳 Pagamento Pendente', getMessage: (name: string, product: string) => `Olá ${name}! 💳 Notamos que o pagamento do seu pedido "${product}" ainda está *pendente*. Precisa de ajuda? Estamos aqui para te auxiliar!` },
   { id: 'thanks', label: '🙏 Agradecimento', getMessage: (name: string, product: string) => `Olá ${name}! 🙏 Agradecemos pela sua compra de "${product}"! Sua satisfação é muito importante para nós. Qualquer dúvida, estamos à disposição!` },
+];
+
+const emailTemplates = [
+  {
+    id: 'greeting',
+    label: 'Saudação',
+    getSubject: (product: string) => `Sobre o seu pedido — ${product}`,
+    getMessage: (name: string, product: string) =>
+      `Olá ${name}, tudo bem?\n\nEntramos em contato sobre o seu pedido "${product}". Estamos à disposição para qualquer dúvida.`,
+  },
+  {
+    id: 'confirmed',
+    label: 'Pedido Confirmado',
+    getSubject: (product: string) => `Pedido confirmado — ${product}`,
+    getMessage: (name: string, product: string) =>
+      `Olá ${name},\n\nSeu pedido "${product}" foi confirmado com sucesso! Em breve iniciaremos o preparo para envio.\n\nObrigado pela confiança!`,
+  },
+  {
+    id: 'preparing',
+    label: 'Em Preparação',
+    getSubject: (product: string) => `Seu pedido está sendo preparado — ${product}`,
+    getMessage: (name: string, product: string) =>
+      `Olá ${name},\n\nSeu pedido "${product}" já está sendo preparado para envio. Assim que for despachado, você receberá o código de rastreio.`,
+  },
+  {
+    id: 'shipped',
+    label: 'Pedido Enviado',
+    getSubject: (product: string) => `Seu pedido foi enviado — ${product}`,
+    getMessage: (name: string, product: string) =>
+      `Olá ${name},\n\nÓtima notícia! Seu pedido "${product}" foi enviado. Em breve você receberá o código de rastreio para acompanhar a entrega.`,
+  },
+  {
+    id: 'tracking',
+    label: 'Código de Rastreio',
+    getSubject: (product: string) => `Código de rastreio — ${product}`,
+    getMessage: (name: string, product: string, tracking?: string) =>
+      `Olá ${name},\n\nSeu pedido "${product}" já está a caminho!\n\nCódigo de rastreio: ${tracking || '[código]'}\n\nAcompanhe a entrega pelo site da transportadora.`,
+  },
+  {
+    id: 'delivered',
+    label: 'Entregue',
+    getSubject: (product: string) => `Pedido entregue — ${product}`,
+    getMessage: (name: string, product: string) =>
+      `Olá ${name},\n\nSeu pedido "${product}" foi entregue! Esperamos que você goste. Se precisar de qualquer coisa, estamos à disposição.\n\nObrigado por comprar conosco!`,
+  },
+  {
+    id: 'payment_pending',
+    label: 'Pagamento Pendente',
+    getSubject: (product: string) => `Pagamento pendente — ${product}`,
+    getMessage: (name: string, product: string) =>
+      `Olá ${name},\n\nNotamos que o pagamento do seu pedido "${product}" ainda está pendente. Caso precise de ajuda para finalizar, é só responder este email.`,
+  },
+  {
+    id: 'thanks',
+    label: 'Agradecimento',
+    getSubject: (product: string) => `Obrigado pela sua compra — ${product}`,
+    getMessage: (name: string, product: string) =>
+      `Olá ${name},\n\nAgradecemos imensamente pela sua compra de "${product}". Sua satisfação é muito importante para nós.\n\nQualquer dúvida, estamos à disposição.`,
+  },
 ];
 
 const OrdersPage = () => {
