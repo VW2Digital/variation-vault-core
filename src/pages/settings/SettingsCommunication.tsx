@@ -282,12 +282,12 @@ const SettingsCommunication = () => {
             adicionado. Isso garante o envio mesmo se o webhook do gateway falhar.
           </p>
           {triggerKeyInstalled ? (
-            <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 rounded-md px-3 py-2">
+            <div className="flex items-center gap-2 text-sm text-primary bg-primary/10 border border-primary/30 rounded-md px-3 py-2">
               <CheckCircle2 className="w-4 h-4" />
               <span>Triggers ativos. Emails automáticos estão sendo disparados pelo banco.</span>
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-md px-3 py-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted border border-border rounded-md px-3 py-2">
               <AlertTriangle className="w-4 h-4" />
               <span>Triggers ainda não foram ativados. Clique no botão abaixo para ativar.</span>
             </div>
