@@ -841,8 +841,15 @@ const OrdersPage = () => {
                     const status = statusMap[order.status] || { label: order.status, variant: 'outline' as const, badgeClass: '' };
                     const delivery = deliveryStatuses.find(d => d.value === order.delivery_status);
                     return (
-                      <TableRow key={order.id} className={selectedIds.has(order.id) ? 'bg-primary/5' : ''}>
-                        <TableCell>
+                      <TableRow
+                        key={order.id}
+                        className={`cursor-pointer hover:bg-accent/40 transition-colors ${selectedIds.has(order.id) ? 'bg-primary/5' : ''}`}
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).closest('button, [role="checkbox"], [role="menuitem"], a, input')) return;
+                          navigate(`/admin/pedidos/${order.id}`);
+                        }}
+                      >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <Checkbox
                             checked={selectedIds.has(order.id)}
                             onCheckedChange={() => toggleSelect(order.id)}
