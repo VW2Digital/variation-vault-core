@@ -60,6 +60,10 @@ const UsersPage = () => {
   const [editForm, setEditForm] = useState({ full_name: '', phone: '' });
   const [saving, setSaving] = useState(false);
 
+  const openUserInNewTab = (userId: string) => {
+    window.open(`/admin/usuarios/${userId}`, '_blank', 'noopener,noreferrer');
+  };
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
@@ -299,11 +303,21 @@ const UsersPage = () => {
             {paginatedUsers.map((u) => {
               const isAdmin = u.roles.includes('admin');
               return (
-                <Card key={u.id} className={`border-border/50 ${selectedIds.has(u.id) ? 'ring-1 ring-primary' : ''}`}>
+                <Card
+                  key={u.id}
+                  className={`border-border/50 cursor-pointer hover:bg-accent/30 transition-colors ${selectedIds.has(u.id) ? 'ring-1 ring-primary' : ''}`}
+                  onClick={(e) => {
+                    // Ignore clicks coming from interactive children
+                    if ((e.target as HTMLElement).closest('button, [role="checkbox"], [role="menuitem"], a')) return;
+                    openUserInNewTab(u.id);
+                  }}
+                >
                   <CardContent className="p-4 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        <Checkbox checked={selectedIds.has(u.id)} onCheckedChange={() => toggleSelect(u.id)} />
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Checkbox checked={selectedIds.has(u.id)} onCheckedChange={() => toggleSelect(u.id)} />
+                        </div>
                         <div className="min-w-0">
                           <p className="font-medium text-sm text-foreground truncate">{u.full_name || 'Sem nome'}</p>
                           <p className="text-xs text-muted-foreground truncate">{u.email}</p>
@@ -311,12 +325,12 @@ const UsersPage = () => {
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={(e) => e.stopPropagation()}>
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setViewUser(u)}>
+                          <DropdownMenuItem onClick={() => openUserInNewTab(u.id)}>
                             <Eye className="mr-2 h-4 w-4" /> Visualizar
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openEdit(u)}>
@@ -379,8 +393,15 @@ const UsersPage = () => {
                   {paginatedUsers.map((u) => {
                     const isAdmin = u.roles.includes('admin');
                     return (
-                      <TableRow key={u.id} className={selectedIds.has(u.id) ? 'bg-primary/5' : ''}>
-                        <TableCell>
+                      <TableRow
+                        key={u.id}
+                        className={`cursor-pointer hover:bg-accent/40 transition-colors ${selectedIds.has(u.id) ? 'bg-primary/5' : ''}`}
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).closest('button, [role="checkbox"], [role="menuitem"], a')) return;
+                          openUserInNewTab(u.id);
+                        }}
+                      >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <Checkbox checked={selectedIds.has(u.id)} onCheckedChange={() => toggleSelect(u.id)} />
                         </TableCell>
                         <TableCell>
@@ -406,7 +427,7 @@ const UsersPage = () => {
                         <TableCell className="text-xs text-muted-foreground">
                           {new Date(u.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -414,7 +435,7 @@ const UsersPage = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => setViewUser(u)}>
+                              <DropdownMenuItem onClick={() => openUserInNewTab(u.id)}>
                                 <Eye className="mr-2 h-4 w-4" /> Visualizar
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openEdit(u)}>

@@ -34,6 +34,7 @@ import SettingsBackup from "./pages/settings/SettingsBackup";
 import OrdersPage from "./pages/OrdersPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
 import UsersPage from "./pages/UsersPage";
+import UserDetailPage from "./pages/UserDetailPage";
 import Checkout from "./pages/Checkout";
 import CustomerLogin from "./pages/CustomerLogin";
 import CustomerDashboard from "./pages/CustomerDashboard";
@@ -110,6 +111,7 @@ const App = () => (
             <Route path="pedidos" element={<OrdersPage />} />
             <Route path="pedidos/:id" element={<OrderDetailPage />} />
             <Route path="usuarios" element={<UsersPage />} />
+            <Route path="usuarios/:id" element={<UserDetailPage />} />
             <Route path="avaliacoes" element={<AdminReviewsPage />} />
             <Route path="suporte" element={<AdminSupportPage />} />
             <Route path="falhas-pagamento" element={<PaymentLogsPage />} />
