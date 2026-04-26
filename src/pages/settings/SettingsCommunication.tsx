@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Phone, Mail, MessageSquare, Eye, EyeOff, Send, Loader2, BellRing, AlertTriangle } from 'lucide-react';
+import { Phone, Mail, MessageSquare, Eye, EyeOff, Send, Loader2, BellRing, AlertTriangle, Zap, CheckCircle2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import SettingsBackButton from './SettingsBackButton';
@@ -32,6 +32,10 @@ const SettingsCommunication = () => {
   const [testEmailSubject, setTestEmailSubject] = useState('');
   const [testEmailMessage, setTestEmailMessage] = useState('');
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
+
+  // Ativação dos triggers de envio automático de email
+  const [installingTriggerKey, setInstallingTriggerKey] = useState(false);
+  const [triggerKeyInstalled, setTriggerKeyInstalled] = useState(false);
 
   const PUBLIC_EMAIL_DOMAINS = ['gmail.com','googlemail.com','hotmail.com','outlook.com','live.com','yahoo.com','yahoo.com.br','icloud.com','msn.com','bol.com.br','uol.com.br','terra.com.br'];
   const fromDomain = smtpFromEmail.split('@')[1]?.toLowerCase() || '';
@@ -63,7 +67,8 @@ const SettingsCommunication = () => {
       fetchSetting('evolution_api_key'),
       fetchSetting('evolution_instance_name'),
       fetchSetting('notify_customer_on_payment'),
-    ]).then(([wp, sHost, sPort, sUser, sPass, sFrom, sFromName, sSecure, evoUrl, evoKey, evoInstance, notifyFlag]) => {
+      fetchSetting('service_role_key_for_triggers'),
+    ]).then(([wp, sHost, sPort, sUser, sPass, sFrom, sFromName, sSecure, evoUrl, evoKey, evoInstance, notifyFlag, triggerKey]) => {
       setWhatsapp(wp || '');
       setSmtpHost(sHost || 'smtp.hostinger.com');
       setSmtpPort(sPort || '465');
@@ -76,6 +81,7 @@ const SettingsCommunication = () => {
       setEvolutionApiKey(evoKey || '');
       setEvolutionInstanceName(evoInstance || '');
       setNotifyCustomerOnPayment(notifyFlag !== 'false'); // default: ativado
+      setTriggerKeyInstalled(Boolean(triggerKey));
     }).finally(() => setLoading(false));
   }, []);
 
@@ -260,6 +266,62 @@ const SettingsCommunication = () => {
               </p>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Zap className="w-5 h-5" /> Disparo Automático de Emails
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Ativa o envio automático de emails diretamente pelo banco de dados sempre
+            que um pedido for criado, pago, recusado ou tiver código de rastreio
+            adicionado. Isso garante o envio mesmo se o webhook do gateway falhar.
+          </p>
+          {triggerKeyInstalled ? (
+            <div className="flex items-center gap-2 text-sm text-primary bg-primary/10 border border-primary/30 rounded-md px-3 py-2">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Triggers ativos. Emails automáticos estão sendo disparados pelo banco.</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted border border-border rounded-md px-3 py-2">
+              <AlertTriangle className="w-4 h-4" />
+              <span>Triggers ainda não foram ativados. Clique no botão abaixo para ativar.</span>
+            </div>
+          )}
+          <Button
+            type="button"
+            variant={triggerKeyInstalled ? 'outline' : 'default'}
+            className="flex items-center gap-2"
+            disabled={installingTriggerKey}
+            onClick={async () => {
+              setInstallingTriggerKey(true);
+              try {
+                const { data, error } = await supabase.functions.invoke('install-trigger-key');
+                if (error) throw new Error(error.message);
+                if (data?.error) throw new Error(data.error);
+                setTriggerKeyInstalled(true);
+                toast({
+                  title: 'Triggers ativados!',
+                  description: data?.message || 'Pedidos novos enviarão emails automaticamente.',
+                });
+              } catch (err: any) {
+                toast({ title: 'Erro ao ativar triggers', description: err.message, variant: 'destructive' });
+              } finally {
+                setInstallingTriggerKey(false);
+              }
+            }}
+          >
+            {installingTriggerKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+            {installingTriggerKey
+              ? 'Ativando...'
+              : triggerKeyInstalled
+                ? 'Reativar / Atualizar Chave'
+                : 'Ativar Disparo Automático'}
+          </Button>
         </CardContent>
       </Card>
 
