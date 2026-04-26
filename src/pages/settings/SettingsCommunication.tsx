@@ -330,7 +330,9 @@ const SettingsCommunication = () => {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
 
+        <TabsContent value="auto" className="space-y-6 mt-6">
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
@@ -386,50 +388,8 @@ const SettingsCommunication = () => {
           </Button>
         </CardContent>
       </Card>
-
-      <Card className="border-border/50">
-        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><MessageSquare className="w-5 h-5" /> Evolution API - Mensagens WhatsApp</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>URL da API</Label>
-            <Input value={evolutionApiUrl} onChange={(e) => setEvolutionApiUrl(e.target.value)} placeholder="https://evocooli.vw2.shop" />
-          </div>
-          <div className="space-y-2">
-            <Label>Nome da Instância</Label>
-            <Input value={evolutionInstanceName} onChange={(e) => setEvolutionInstanceName(e.target.value)} placeholder="minha-instancia" />
-          </div>
-          <div className="space-y-2">
-            <Label>API Key (Global)</Label>
-            <div className="relative">
-              <Input type={showEvolutionKey ? 'text' : 'password'} value={evolutionApiKey} onChange={(e) => setEvolutionApiKey(e.target.value)} placeholder="Sua apikey global" className="pr-10" />
-              <button type="button" onClick={() => setShowEvolutionKey(!showEvolutionKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                {showEvolutionKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-          <div className="pt-4 border-t border-border/50">
-            <p className="text-sm font-medium text-foreground mb-3">Enviar mensagem de teste</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Número (com código do país)</Label><Input value={testNumber} onChange={(e) => setTestNumber(e.target.value.replace(/\D/g, ''))} placeholder="559999999999" inputMode="numeric" /></div>
-              <div className="space-y-2"><Label>Mensagem</Label><Input value={testMessage} onChange={(e) => setTestMessage(e.target.value)} placeholder="Olá, teste de envio!" /></div>
-            </div>
-            <Button type="button" variant="outline" className="mt-3 flex items-center gap-2" disabled={sendingTest || !testNumber || !testMessage || !evolutionApiUrl || !evolutionApiKey || !evolutionInstanceName} onClick={async () => {
-              setSendingTest(true);
-              try {
-                const { data, error } = await supabase.functions.invoke('evolution-send-message', { body: { number: testNumber, text: testMessage } });
-                if (error) throw new Error(error.message);
-                if (data?.error) throw new Error(data.error);
-                toast({ title: 'Mensagem enviada com sucesso!' });
-              } catch (err: any) {
-                toast({ title: 'Erro ao enviar', description: err.message, variant: 'destructive' });
-              } finally { setSendingTest(false); }
-            }}>
-              {sendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {sendingTest ? 'Enviando...' : 'Enviar Teste'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
+      </Tabs>
 
       <Button onClick={handleSave} disabled={saving} className="px-8">
         {saving ? 'Salvando...' : 'Salvar'}
