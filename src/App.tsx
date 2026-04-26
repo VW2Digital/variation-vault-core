@@ -34,6 +34,7 @@ import SettingsBackup from "./pages/settings/SettingsBackup";
 import OrdersPage from "./pages/OrdersPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
 import UsersPage from "./pages/UsersPage";
+import UserDetailPage from "./pages/UserDetailPage";
 import Checkout from "./pages/Checkout";
 import CustomerLogin from "./pages/CustomerLogin";
 import CustomerDashboard from "./pages/CustomerDashboard";
