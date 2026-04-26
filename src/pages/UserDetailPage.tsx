@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Loader2, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -73,7 +72,7 @@ const UserDetailPage = () => {
   }
 
   return (
-    <div className="space-y-6 w-full max-w-3xl">
+    <div className="space-y-6 w-full max-w-5xl">
       <div className="flex items-start gap-3">
         <Button
           variant="ghost"
@@ -93,6 +92,7 @@ const UserDetailPage = () => {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Informações</CardTitle>
@@ -142,6 +142,7 @@ const UserDetailPage = () => {
           <InfoRow label="ID" value={user.id} />
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 };
