@@ -153,7 +153,7 @@ const EmailEventsPage = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="space-y-6 w-full">
       <div className="flex items-center gap-3">
         <PackageCheck className="w-6 h-6 text-primary" />
         <div>
