@@ -767,6 +767,11 @@ const OrdersPage = () => {
                               <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
                             </DropdownMenuItem>
                           )}
+                          {order.customer_email && (
+                            <DropdownMenuItem onClick={() => openEmailDialog(order)}>
+                              <Mail className="mr-2 h-4 w-4" /> Email
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem onClick={() => {
                             const url = `${window.location.origin}/minha-conta?tab=reviews&order=${order.id}`;
                             navigator.clipboard.writeText(url);
