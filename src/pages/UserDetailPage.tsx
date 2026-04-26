@@ -72,7 +72,7 @@ const UserDetailPage = () => {
   }
 
   return (
-    <div className="space-y-6 w-full max-w-5xl">
+    <div className="space-y-6 w-full">
       <div className="flex items-start gap-3">
         <Button
           variant="ghost"
