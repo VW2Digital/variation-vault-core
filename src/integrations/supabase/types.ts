@@ -1198,6 +1198,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      dispatch_order_email: {
+        Args: { _data: Json; _subject: string; _template: string; _to: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
