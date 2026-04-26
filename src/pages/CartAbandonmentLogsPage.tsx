@@ -556,6 +556,117 @@ export default function CartAbandonmentLogsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction?.type === 'whatsapp'
+                ? 'Enviar mensagem via WhatsApp?'
+                : 'Enviar email de recuperação?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction?.type === 'whatsapp' ? (
+                <>
+                  Uma mensagem de recuperação de carrinho será enviada para{' '}
+                  <strong className="text-foreground">{confirmAction.user.full_name}</strong>
+                  {confirmAction.user.phone && (
+                    <> no número <strong className="text-foreground">{confirmAction.user.phone}</strong></>
+                  )}.
+                </>
+              ) : confirmAction?.type === 'email' ? (
+                <>
+                  Um email de recuperação de carrinho será enviado para{' '}
+                  <strong className="text-foreground">{confirmAction.user.full_name}</strong>
+                  {confirmAction.user.email && (
+                    <> ({confirmAction.user.email})</>
+                  )}.
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!confirmAction) return;
+                const { type, user } = confirmAction;
+                setConfirmAction(null);
+                if (type === 'whatsapp') handleSendWhatsApp(user);
+                else handleSendEmail(user);
+              }}
+            >
+              Confirmar envio
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+}
+
+interface ActionsMenuProps {
+  user: ActiveCartUser;
+  isSending: boolean;
+  onAction: (type: 'whatsapp' | 'email') => void;
+}
+
+function ActionsMenu({ user, isSending, onAction }: ActionsMenuProps) {
+  const whatsappDisabled = !user.phone || !user.allow_whatsapp_marketing;
+  const emailDisabled = !user.email || !user.allow_email_marketing;
+
+  const whatsappReason = !user.phone
+    ? 'Sem telefone cadastrado'
+    : !user.allow_whatsapp_marketing
+      ? 'Cliente optou por não receber WhatsApp'
+      : null;
+
+  const emailReason = !user.email
+    ? 'Sem email cadastrado'
+    : !user.allow_email_marketing
+      ? 'Cliente optou por não receber emails'
+      : null;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isSending}>
+          {isSending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <MoreVertical className="h-4 w-4" />
+          )}
+          <span className="sr-only">Abrir menu de ações</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>Ações de recuperação</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={whatsappDisabled}
+          onSelect={() => onAction('whatsapp')}
+        >
+          <MessageCircle className="mr-2 h-4 w-4" />
+          <div className="flex flex-col">
+            <span>Enviar WhatsApp</span>
+            {whatsappReason && (
+              <span className="text-xs text-muted-foreground">{whatsappReason}</span>
+            )}
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={emailDisabled}
+          onSelect={() => onAction('email')}
+        >
+          <Mail className="mr-2 h-4 w-4" />
+          <div className="flex flex-col">
+            <span>Enviar Email</span>
+            {emailReason && (
+              <span className="text-xs text-muted-foreground">{emailReason}</span>
+            )}
+          </div>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
