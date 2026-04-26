@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Phone, Mail, MessageSquare, Eye, EyeOff, Send, Loader2, BellRing, AlertTriangle } from 'lucide-react';
+import { Phone, Mail, MessageSquare, Eye, EyeOff, Send, Loader2, BellRing, AlertTriangle, Zap, CheckCircle2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import SettingsBackButton from './SettingsBackButton';
@@ -32,6 +32,10 @@ const SettingsCommunication = () => {
   const [testEmailSubject, setTestEmailSubject] = useState('');
   const [testEmailMessage, setTestEmailMessage] = useState('');
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
+
+  // Ativação dos triggers de envio automático de email
+  const [installingTriggerKey, setInstallingTriggerKey] = useState(false);
+  const [triggerKeyInstalled, setTriggerKeyInstalled] = useState(false);
 
   const PUBLIC_EMAIL_DOMAINS = ['gmail.com','googlemail.com','hotmail.com','outlook.com','live.com','yahoo.com','yahoo.com.br','icloud.com','msn.com','bol.com.br','uol.com.br','terra.com.br'];
   const fromDomain = smtpFromEmail.split('@')[1]?.toLowerCase() || '';
