@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw, MoreVertical, Eye, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, CheckSquare, MessageSquare, Send, FileText, AlertCircle, ChevronDown, ChevronUp, Star, Link as LinkIcon, CreditCard, QrCode, Ticket } from 'lucide-react';
+import { RefreshCw, Receipt, Loader2, Truck, Save, RotateCw, MoreVertical, Eye, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, CheckSquare, MessageSquare, Send, FileText, AlertCircle, ChevronDown, ChevronUp, Star, Link as LinkIcon, CreditCard, QrCode, Ticket, Mail } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -83,6 +83,65 @@ const whatsappTemplates = [
   { id: 'thanks', label: '🙏 Agradecimento', getMessage: (name: string, product: string) => `Olá ${name}! 🙏 Agradecemos pela sua compra de "${product}"! Sua satisfação é muito importante para nós. Qualquer dúvida, estamos à disposição!` },
 ];
 
+const emailTemplates = [
+  {
+    id: 'greeting',
+    label: 'Saudação',
+    getSubject: (product: string) => `Sobre o seu pedido — ${product}`,
+    getMessage: (name: string, product: string) =>
+      `Olá ${name}, tudo bem?\n\nEntramos em contato sobre o seu pedido "${product}". Estamos à disposição para qualquer dúvida.`,
+  },
+  {
+    id: 'confirmed',
+    label: 'Pedido Confirmado',
+    getSubject: (product: string) => `Pedido confirmado — ${product}`,
+    getMessage: (name: string, product: string) =>
+      `Olá ${name},\n\nSeu pedido "${product}" foi confirmado com sucesso! Em breve iniciaremos o preparo para envio.\n\nObrigado pela confiança!`,
+  },
+  {
+    id: 'preparing',
+    label: 'Em Preparação',
+    getSubject: (product: string) => `Seu pedido está sendo preparado — ${product}`,
+    getMessage: (name: string, product: string) =>
+      `Olá ${name},\n\nSeu pedido "${product}" já está sendo preparado para envio. Assim que for despachado, você receberá o código de rastreio.`,
+  },
+  {
+    id: 'shipped',
+    label: 'Pedido Enviado',
+    getSubject: (product: string) => `Seu pedido foi enviado — ${product}`,
+    getMessage: (name: string, product: string) =>
+      `Olá ${name},\n\nÓtima notícia! Seu pedido "${product}" foi enviado. Em breve você receberá o código de rastreio para acompanhar a entrega.`,
+  },
+  {
+    id: 'tracking',
+    label: 'Código de Rastreio',
+    getSubject: (product: string) => `Código de rastreio — ${product}`,
+    getMessage: (name: string, product: string, tracking?: string) =>
+      `Olá ${name},\n\nSeu pedido "${product}" já está a caminho!\n\nCódigo de rastreio: ${tracking || '[código]'}\n\nAcompanhe a entrega pelo site da transportadora.`,
+  },
+  {
+    id: 'delivered',
+    label: 'Entregue',
+    getSubject: (product: string) => `Pedido entregue — ${product}`,
+    getMessage: (name: string, product: string) =>
+      `Olá ${name},\n\nSeu pedido "${product}" foi entregue! Esperamos que você goste. Se precisar de qualquer coisa, estamos à disposição.\n\nObrigado por comprar conosco!`,
+  },
+  {
+    id: 'payment_pending',
+    label: 'Pagamento Pendente',
+    getSubject: (product: string) => `Pagamento pendente — ${product}`,
+    getMessage: (name: string, product: string) =>
+      `Olá ${name},\n\nNotamos que o pagamento do seu pedido "${product}" ainda está pendente. Caso precise de ajuda para finalizar, é só responder este email.`,
+  },
+  {
+    id: 'thanks',
+    label: 'Agradecimento',
+    getSubject: (product: string) => `Obrigado pela sua compra — ${product}`,
+    getMessage: (name: string, product: string) =>
+      `Olá ${name},\n\nAgradecemos imensamente pela sua compra de "${product}". Sua satisfação é muito importante para nós.\n\nQualquer dúvida, estamos à disposição.`,
+  },
+];
+
 const OrdersPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -112,6 +171,13 @@ const OrdersPage = () => {
   const [whatsappMessage, setWhatsappMessage] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
+
+  // Email dialog
+  const [emailOrder, setEmailOrder] = useState<any>(null);
+  const [emailAddress, setEmailAddress] = useState('');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailMessage, setEmailMessage] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
 
 
   // Edit form state
@@ -455,6 +521,58 @@ const OrdersPage = () => {
     }
   };
 
+  const openEmailDialog = (order: any) => {
+    setEmailOrder(order);
+    setEmailAddress(order.customer_email || '');
+    setEmailSubject('');
+    setEmailMessage('');
+  };
+
+  const applyEmailTemplate = (templateId: string) => {
+    if (!emailOrder) return;
+    const tpl = emailTemplates.find(t => t.id === templateId);
+    if (tpl) {
+      setEmailSubject(tpl.getSubject(emailOrder.product_name));
+      setEmailMessage(tpl.getMessage(emailOrder.customer_name, emailOrder.product_name, emailOrder.tracking_code));
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailOrder || !emailAddress.trim() || !emailSubject.trim() || !emailMessage.trim()) return;
+    setSendingEmail(true);
+    try {
+      // Convert plain text message into HTML preserving line breaks.
+      const safeHtml = emailMessage
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br/>');
+      const html = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1a1a2e;line-height:1.6;">${safeHtml}</div>`;
+
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          template: 'custom',
+          to: emailAddress.trim(),
+          subject: emailSubject.trim(),
+          html,
+          text: emailMessage,
+        },
+      });
+      if (error) throw new Error(error.message || 'Erro ao chamar função de envio de email');
+      if (data?.error) throw new Error(data.error);
+
+      toast({ title: 'Email enviado!', description: `Para ${emailAddress.trim()}` });
+      setEmailOrder(null);
+      setEmailAddress('');
+      setEmailSubject('');
+      setEmailMessage('');
+    } catch (err: any) {
+      toast({ title: 'Erro ao enviar email', description: err.message, variant: 'destructive' });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   const uniqueCoupons = Array.from(new Set(orders.map(o => o.coupon_code).filter(Boolean))) as string[];
 
   const filteredOrders = orders.filter(order => {
@@ -649,6 +767,11 @@ const OrdersPage = () => {
                               <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
                             </DropdownMenuItem>
                           )}
+                          {order.customer_email && (
+                            <DropdownMenuItem onClick={() => openEmailDialog(order)}>
+                              <Mail className="mr-2 h-4 w-4" /> Email
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem onClick={() => {
                             const url = `${window.location.origin}/minha-conta?tab=reviews&order=${order.id}`;
                             navigator.clipboard.writeText(url);
@@ -829,6 +952,11 @@ const OrdersPage = () => {
                               {order.customer_phone && (
                                 <DropdownMenuItem onClick={() => openWhatsappDialog(order)}>
                                   <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
+                                </DropdownMenuItem>
+                              )}
+                              {order.customer_email && (
+                                <DropdownMenuItem onClick={() => openEmailDialog(order)}>
+                                  <Mail className="mr-2 h-4 w-4" /> Email
                                 </DropdownMenuItem>
                               )}
                               {order.status === 'PAID' && !order.tracking_code && (
@@ -1136,6 +1264,83 @@ const OrdersPage = () => {
                 <Button variant="outline" onClick={() => setWhatsappOrder(null)}>Cancelar</Button>
                 <Button onClick={handleSendWhatsapp} disabled={sendingWhatsapp || !whatsappMessage.trim() || !whatsappNumber.trim()}>
                   {sendingWhatsapp ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                  Enviar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Email message dialog */}
+      <Dialog open={!!emailOrder} onOpenChange={(open) => !open && setEmailOrder(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" /> Enviar Email
+            </DialogTitle>
+          </DialogHeader>
+          {emailOrder && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Destinatário</Label>
+                <p className="text-xs text-muted-foreground mb-1">{emailOrder.customer_name}</p>
+                <Input
+                  type="email"
+                  value={emailAddress}
+                  onChange={(e) => setEmailAddress(e.target.value)}
+                  placeholder="cliente@email.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Templates</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {emailTemplates.map(tpl => (
+                    <Button
+                      key={tpl.id}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => applyEmailTemplate(tpl.id)}
+                    >
+                      {tpl.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Assunto</Label>
+                <Input
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  placeholder="Assunto do email"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Mensagem</Label>
+                <Textarea
+                  value={emailMessage}
+                  onChange={(e) => setEmailMessage(e.target.value)}
+                  rows={6}
+                  placeholder="Selecione um template ou digite a mensagem..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  As quebras de linha serão preservadas no email enviado.
+                </p>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setEmailOrder(null)}>Cancelar</Button>
+                <Button
+                  onClick={handleSendEmail}
+                  disabled={
+                    sendingEmail ||
+                    !emailAddress.trim() ||
+                    !emailSubject.trim() ||
+                    !emailMessage.trim()
+                  }
+                >
+                  {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
                   Enviar
                 </Button>
               </div>
