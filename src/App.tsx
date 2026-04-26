@@ -22,6 +22,7 @@ import SettingsFonts from "./pages/settings/SettingsFonts";
 import SettingsCSS from "./pages/settings/SettingsCSS";
 import SettingsHomePage from "./pages/settings/SettingsHomePage";
 import SettingsPayment from "./pages/settings/SettingsPayment";
+import GatewaySettingsPage from "./pages/settings/payment/GatewaySettingsPage";
 import SettingsShipping from "./pages/settings/SettingsShipping";
 import SettingsCommunication from "./pages/settings/SettingsCommunication";
 import SettingsFooter from "./pages/settings/SettingsFooter";
@@ -127,7 +128,7 @@ const App = () => (
             <Route path="configuracoes/css" element={<SettingsCSS />} />
             <Route path="configuracoes/pagina-inicial" element={<SettingsHomePage />} />
             <Route path="configuracoes/pagamento" element={<SettingsPayment />} />
-            <Route path="configuracoes/pagamento/:gateway" element={<SettingsPayment />} />
+            <Route path="configuracoes/pagamento/:gateway" element={<GatewaySettingsPage />} />
             <Route path="configuracoes/logistica" element={<SettingsShipping />} />
             <Route path="configuracoes/comunicacao" element={<SettingsCommunication />} />
             <Route path="configuracoes/rodape" element={<SettingsFooter />} />
