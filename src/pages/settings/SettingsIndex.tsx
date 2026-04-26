@@ -202,7 +202,7 @@ const SettingsIndex = () => {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-medium text-foreground">{item.title}</p>
                       {!statusLoading && configured === true && (
-                        <Badge variant="secondary" className="h-5 text-[10px] gap-1 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/10">
+                        <Badge variant="secondary" className="h-5 text-[10px] gap-1">
                           Configurado
                         </Badge>
                       )}
