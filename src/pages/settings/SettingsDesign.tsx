@@ -187,12 +187,12 @@ const SettingsDesign = () => {
 
           <div className="rounded-lg border border-border/50 bg-muted/30 p-4 space-y-1">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
-              Pré-visualização no Google
+              Pré-visualização nos resultados de busca
             </p>
-            <p className="text-[#1a0dab] dark:text-[#8ab4f8] text-base leading-snug truncate">
+            <p className="text-primary text-base leading-snug truncate">
               {metaTitle || storeName || 'Título da página'}
             </p>
-            <p className="text-[#006621] dark:text-emerald-400 text-xs truncate">{previewUrl}</p>
+            <p className="text-foreground/70 text-xs truncate">{previewUrl}</p>
             <p className="text-xs text-muted-foreground line-clamp-2">
               {metaDescription || 'A descrição que aparece aqui é o que os clientes vão ler nos resultados de busca antes de clicarem na sua loja.'}
             </p>
