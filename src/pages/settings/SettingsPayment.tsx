@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchSetting } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { CreditCard, CheckCircle2, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { CreditCard, CheckCircle2 } from 'lucide-react';
 import SettingsBackButton from './SettingsBackButton';
+import SettingsHeader from '@/components/admin/settings/SettingsHeader';
 import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 import AsaasSettings from './payment/AsaasSettings';
 import MercadoPagoSettings from './payment/MercadoPagoSettings';
@@ -104,28 +104,20 @@ const SettingsPayment = () => {
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           {selectedMeta && (
             <>
-              <div className="flex items-start gap-3 mb-4">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={closeSheet}
-                  className="shrink-0 mt-0.5"
-                  aria-label="Voltar para Gateways de Pagamento"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
-                <SheetHeader className="space-y-1 text-left flex-1">
-                  <SheetTitle className="flex items-center gap-2 text-xl sm:text-2xl">
-                    {selectedMeta.logo ? (
-                      <img src={selectedMeta.logo} alt="" className="w-6 h-6 rounded object-cover" />
-                    ) : (
-                      <CreditCard className={`w-5 h-5 ${selectedMeta.brandClass}`} />
-                    )}
-                    {selectedMeta.name}
-                  </SheetTitle>
-                  <SheetDescription>{selectedMeta.description}</SheetDescription>
-                </SheetHeader>
-              </div>
+              <SettingsHeader
+                title={selectedMeta.name}
+                description={selectedMeta.description}
+                action="back"
+                onAction={closeSheet}
+                className="mb-4"
+                icon={
+                  selectedMeta.logo ? (
+                    <img src={selectedMeta.logo} alt="" className="w-6 h-6 rounded object-cover" />
+                  ) : (
+                    <CreditCard className={`w-5 h-5 ${selectedMeta.brandClass}`} />
+                  )
+                }
+              />
               {renderSettings(selectedMeta.key)}
             </>
           )}
