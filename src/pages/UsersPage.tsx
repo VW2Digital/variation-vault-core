@@ -393,8 +393,15 @@ const UsersPage = () => {
                   {paginatedUsers.map((u) => {
                     const isAdmin = u.roles.includes('admin');
                     return (
-                      <TableRow key={u.id} className={selectedIds.has(u.id) ? 'bg-primary/5' : ''}>
-                        <TableCell>
+                      <TableRow
+                        key={u.id}
+                        className={`cursor-pointer hover:bg-accent/40 transition-colors ${selectedIds.has(u.id) ? 'bg-primary/5' : ''}`}
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).closest('button, [role="checkbox"], [role="menuitem"], a')) return;
+                          openUserInNewTab(u.id);
+                        }}
+                      >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <Checkbox checked={selectedIds.has(u.id)} onCheckedChange={() => toggleSelect(u.id)} />
                         </TableCell>
                         <TableCell>
@@ -420,7 +427,7 @@ const UsersPage = () => {
                         <TableCell className="text-xs text-muted-foreground">
                           {new Date(u.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -428,7 +435,7 @@ const UsersPage = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => setViewUser(u)}>
+                              <DropdownMenuItem onClick={() => openUserInNewTab(u.id)}>
                                 <Eye className="mr-2 h-4 w-4" /> Visualizar
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openEdit(u)}>
