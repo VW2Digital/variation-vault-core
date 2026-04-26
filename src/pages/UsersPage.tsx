@@ -311,7 +311,7 @@ const UsersPage = () => {
                   onClick={(e) => {
                     // Ignore clicks coming from interactive children
                     if ((e.target as HTMLElement).closest('button, [role="checkbox"], [role="menuitem"], a')) return;
-                    openUserInNewTab(u.id);
+                    openUserDetail(u.id);
                   }}
                 >
                   <CardContent className="p-4 space-y-2">
@@ -332,7 +332,7 @@ const UsersPage = () => {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openUserInNewTab(u.id)}>
+                          <DropdownMenuItem onClick={() => openUserDetail(u.id)}>
                             <Eye className="mr-2 h-4 w-4" /> Visualizar
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openEdit(u)}>
@@ -400,7 +400,7 @@ const UsersPage = () => {
                         className={`cursor-pointer hover:bg-accent/40 transition-colors ${selectedIds.has(u.id) ? 'bg-primary/5' : ''}`}
                         onClick={(e) => {
                           if ((e.target as HTMLElement).closest('button, [role="checkbox"], [role="menuitem"], a')) return;
-                          openUserInNewTab(u.id);
+                          openUserDetail(u.id);
                         }}
                       >
                         <TableCell onClick={(e) => e.stopPropagation()}>
@@ -437,7 +437,7 @@ const UsersPage = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openUserInNewTab(u.id)}>
+                              <DropdownMenuItem onClick={() => openUserDetail(u.id)}>
                                 <Eye className="mr-2 h-4 w-4" /> Visualizar
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openEdit(u)}>
