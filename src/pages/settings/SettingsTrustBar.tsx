@@ -14,6 +14,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, Plus, ShieldCheck, CreditCard, Shield, Truck, Award, Star, Heart, Package, Lock, BadgeCheck, Zap, Gift, ThumbsUp, GripVertical } from 'lucide-react';
 import SettingsBackButton from './SettingsBackButton';
+import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 import {
   DndContext,
   closestCenter,

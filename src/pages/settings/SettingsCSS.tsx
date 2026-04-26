@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Code } from 'lucide-react';
 import SettingsBackButton from './SettingsBackButton';
+import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 
 const SettingsCSS = () => {
   const { toast } = useToast();

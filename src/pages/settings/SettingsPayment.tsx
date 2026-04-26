@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { CreditCard, CheckCircle2 } from 'lucide-react';
 import SettingsBackButton from './SettingsBackButton';
+import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 import AsaasSettings from './payment/AsaasSettings';
 import MercadoPagoSettings from './payment/MercadoPagoSettings';
 import PagBankSettings from './payment/PagBankSettings';

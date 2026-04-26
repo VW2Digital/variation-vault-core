@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Code, Plus, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import SettingsBackButton from './SettingsBackButton';
+import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 import DeployUpdateCard from '@/components/admin/DeployUpdateCard';
 import SiteUrlCard from '@/components/admin/SiteUrlCard';
 import SupabaseUrlOverrideCard from '@/components/admin/SupabaseUrlOverrideCard';

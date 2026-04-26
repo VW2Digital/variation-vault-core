@@ -9,6 +9,7 @@ import { Phone, Mail, MessageSquare, Eye, EyeOff, Send, Loader2, BellRing, Alert
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import SettingsBackButton from './SettingsBackButton';
+import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 
 const SettingsCommunication = () => {
   const { toast } = useToast();

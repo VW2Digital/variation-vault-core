@@ -1,3 +1,4 @@
+import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 import { useState, useEffect } from 'react';
 import { fetchSetting, upsertSetting, getCurrentUser } from '@/lib/api';
 import { Input } from '@/components/ui/input';
