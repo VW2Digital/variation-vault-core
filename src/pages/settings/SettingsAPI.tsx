@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plug, Copy, Check, ExternalLink, Key, RefreshCw, Save, Eye, EyeOff } from 'lucide-react';
+import { Plug, Copy, Check, ExternalLink, Key, RefreshCw, Save, Eye, EyeOff, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
 import SettingsBackButton from './SettingsBackButton';
+import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const API_ENDPOINT = `${SUPABASE_URL}/functions/v1/orders-api`;
@@ -138,7 +139,9 @@ const SettingsAPI = () => {
           </p>
 
           {loading ? (
-            <div className="text-sm text-muted-foreground">Carregando...</div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin" /> Carregando chave…
+            </div>
           ) : (
             <>
               <div className="flex items-center gap-2">
@@ -176,7 +179,9 @@ const SettingsAPI = () => {
 
               {savedApiKey && (
                 <div className="rounded-lg bg-accent/30 p-3 space-y-1">
-                  <p className="text-xs font-medium text-foreground">✅ Chave ativa:</p>
+                  <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-primary" /> Chave ativa
+                  </p>
                   <div className="flex items-center gap-2">
                     <code className="text-xs font-mono text-muted-foreground">{maskedKey}</code>
                     <CopyButton text={savedApiKey} field="savedkey" />
@@ -186,8 +191,9 @@ const SettingsAPI = () => {
 
               {!savedApiKey && (
                 <div className="rounded-lg bg-destructive/10 p-3">
-                  <p className="text-xs text-destructive font-medium">
-                    ⚠️ Nenhuma chave configurada. Gere uma chave e salve para ativar a API.
+                  <p className="text-xs text-destructive font-medium flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    Nenhuma chave configurada. Gere uma chave e salve para ativar a API.
                   </p>
                 </div>
               )}
