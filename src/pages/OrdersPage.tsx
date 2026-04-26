@@ -172,6 +172,13 @@ const OrdersPage = () => {
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
 
+  // Email dialog
+  const [emailOrder, setEmailOrder] = useState<any>(null);
+  const [emailAddress, setEmailAddress] = useState('');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailMessage, setEmailMessage] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
+
 
   // Edit form state
   const [editForm, setEditForm] = useState({
