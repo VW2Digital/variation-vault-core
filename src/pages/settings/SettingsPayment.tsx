@@ -1,16 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { fetchSetting } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { CreditCard, CheckCircle2 } from 'lucide-react';
 import SettingsBackButton from './SettingsBackButton';
-import SettingsHeader from '@/components/admin/settings/SettingsHeader';
 import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
-import AsaasSettings from './payment/AsaasSettings';
-import MercadoPagoSettings from './payment/MercadoPagoSettings';
-import PagBankSettings from './payment/PagBankSettings';
-import PagarMeSettings from './payment/PagarMeSettings';
 import asaasLogo from '@/assets/gateway-asaas.png';
 import mercadoPagoLogo from '@/assets/gateway-mercadopago.png';
 import pagarMeLogo from '@/assets/gateway-pagarme.png';
@@ -26,8 +20,6 @@ const GATEWAYS: { key: GatewayKey; name: string; description: string; brandClass
 ];
 
 const SettingsPayment = () => {
-  const navigate = useNavigate();
-  const { gateway } = useParams<{ gateway?: string }>();
   const [activeGateway, setActiveGateway] = useState<GatewayKey>('asaas');
   const [loading, setLoading] = useState(true);
 
@@ -37,24 +29,7 @@ const SettingsPayment = () => {
     }).finally(() => setLoading(false));
   }, []);
 
-  const selected = gateway && GATEWAYS.find((g) => g.key === gateway) ? (gateway as GatewayKey) : null;
-
-  const closeSheet = () => navigate('/admin/configuracoes/pagamento');
-  const openSheet = (key: GatewayKey) => navigate(`/admin/configuracoes/pagamento/${key}`);
-
-  const renderSettings = (key: GatewayKey) => {
-    const props = { isActive: activeGateway === key, onActivate: () => setActiveGateway(key) };
-    switch (key) {
-      case 'asaas': return <AsaasSettings {...props} />;
-      case 'mercadopago': return <MercadoPagoSettings {...props} />;
-      case 'pagbank': return <PagBankSettings {...props} />;
-      case 'pagarme': return <PagarMeSettings {...props} />;
-    }
-  };
-
   if (loading) return <SettingsSkeleton />;
-
-  const selectedMeta = selected ? GATEWAYS.find((g) => g.key === selected)! : null;
 
   return (
     <div className="space-y-6 w-full">
@@ -64,10 +39,9 @@ const SettingsPayment = () => {
         {GATEWAYS.map((gw) => {
           const isActive = activeGateway === gw.key;
           return (
-            <button
+            <Link
               key={gw.key}
-              type="button"
-              onClick={() => openSheet(gw.key)}
+              to={`/admin/configuracoes/pagamento/${gw.key}`}
               className="group relative aspect-square rounded-xl bg-card border border-border/60 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
               aria-label={`Configurar ${gw.name}`}
             >
@@ -95,34 +69,10 @@ const SettingsPayment = () => {
                   </div>
                 )}
               </div>
-            </button>
+            </Link>
           );
         })}
       </div>
-
-      <Sheet open={!!selected} onOpenChange={(open) => { if (!open) closeSheet(); }}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          {selectedMeta && (
-            <>
-              <SettingsHeader
-                title={selectedMeta.name}
-                description={selectedMeta.description}
-                action="back"
-                onAction={closeSheet}
-                className="mb-4"
-                icon={
-                  selectedMeta.logo ? (
-                    <img src={selectedMeta.logo} alt="" className="w-6 h-6 rounded object-cover" />
-                  ) : (
-                    <CreditCard className={`w-5 h-5 ${selectedMeta.brandClass}`} />
-                  )
-                }
-              />
-              {renderSettings(selectedMeta.key)}
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
     </div>
   );
 };
