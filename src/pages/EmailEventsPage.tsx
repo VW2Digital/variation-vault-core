@@ -17,7 +17,9 @@ import {
   PackageCheck,
   ShoppingBag,
   Inbox,
+  ArrowLeft,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 type EventKey =
   | "order_created"
@@ -77,6 +79,7 @@ const flagKey = (k: EventKey) => `email_event_${k}_enabled`;
 
 const EmailEventsPage = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [flags, setFlags] = useState<Record<EventKey, boolean>>({
@@ -154,8 +157,16 @@ const EmailEventsPage = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <div className="flex items-center gap-3">
-        <PackageCheck className="w-6 h-6 text-primary" />
+      <div className="flex items-start gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate('/admin/configuracoes/comunicacao')}
+          className="shrink-0 mt-0.5"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+        <PackageCheck className="w-6 h-6 text-primary mt-1" />
         <div>
           <h1 className="text-2xl font-bold">Eventos de E-mail</h1>
           <p className="text-sm text-muted-foreground">
