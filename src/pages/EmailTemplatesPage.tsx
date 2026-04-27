@@ -135,6 +135,7 @@ function interpolate(input: string, vars: Record<string, string>): string {
 
 const EmailTemplatesPage = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [active, setActive] = useState<TemplateKey>("order_created");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
