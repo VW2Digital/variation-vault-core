@@ -87,6 +87,7 @@ const statusBadge = (status: string) => {
 
 const EmailLogsPage = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<keyof typeof RANGES>("7d");
@@ -189,14 +190,24 @@ const EmailLogsPage = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Mail className="h-7 w-7" />
-            Logs de Email
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Histórico de envios da função send-email
-          </p>
+        <div className="flex items-start gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/admin/configuracoes/comunicacao')}
+            className="shrink-0 mt-1"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Mail className="h-7 w-7" />
+              Logs de Email
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Histórico de envios da função send-email
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={load} disabled={loading}>
