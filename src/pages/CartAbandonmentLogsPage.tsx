@@ -8,7 +8,18 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Mail, ShoppingCart, Users, AlertTriangle, MessageCircle, CalendarIcon, X, Loader2, RefreshCw, Send, MoreVertical } from 'lucide-react';
+import { Mail, ShoppingCart, Users, AlertTriangle, MessageCircle, CalendarIcon, X, Loader2, RefreshCw, Send, MoreVertical, Megaphone } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,6 +70,14 @@ export default function CartAbandonmentLogsPage() {
     type: 'whatsapp' | 'email';
     user: ActiveCartUser;
   } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [campaignOpen, setCampaignOpen] = useState(false);
+  const [campaignChannels, setCampaignChannels] = useState<{ email: boolean; whatsapp: boolean }>({
+    email: true,
+    whatsapp: false,
+  });
+  const [campaignRunning, setCampaignRunning] = useState(false);
+  const [campaignProgress, setCampaignProgress] = useState({ done: 0, total: 0, success: 0, failed: 0 });
 
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['cart-abandonment-logs'],
@@ -255,6 +274,110 @@ export default function CartAbandonmentLogsPage() {
   const activeCartUsers = filteredCarts.length;
   const activeCartValue = filteredCarts.reduce((sum, u) => sum + u.total_value, 0);
 
+  const toggleSelect = (userId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredCarts.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredCarts.map((u) => u.user_id)));
+    }
+  };
+
+  const selectedUsers = filteredCarts.filter((u) => selectedIds.has(u.user_id));
+
+  const runCampaign = async () => {
+    if (selectedUsers.length === 0) {
+      toast.error('Selecione pelo menos um cliente.');
+      return;
+    }
+    if (!campaignChannels.email && !campaignChannels.whatsapp) {
+      toast.error('Selecione pelo menos um canal (Email ou WhatsApp).');
+      return;
+    }
+
+    setCampaignRunning(true);
+    setCampaignProgress({ done: 0, total: selectedUsers.length, success: 0, failed: 0 });
+
+    let success = 0;
+    let failed = 0;
+
+    for (let i = 0; i < selectedUsers.length; i++) {
+      const user = selectedUsers[i];
+      let userSuccess = false;
+      let userFailed = false;
+
+      if (campaignChannels.email) {
+        if (user.email && user.allow_email_marketing) {
+          try {
+            const { data, error } = await supabase.functions.invoke('cart-abandonment-send', {
+              body: {
+                user_id: user.user_id,
+                email: user.email,
+                full_name: user.full_name,
+                items: user.items,
+                total_value: user.total_value,
+              },
+            });
+            if (error) throw error;
+            if (data?.error) throw new Error(data.error);
+            userSuccess = true;
+          } catch {
+            userFailed = true;
+          }
+        } else {
+          userFailed = true;
+        }
+      }
+
+      if (campaignChannels.whatsapp) {
+        if (user.phone && user.allow_whatsapp_marketing) {
+          try {
+            const productsList = user.items
+              .map((item) => `• ${item.product_name}${item.dosage ? ` (${item.dosage})` : ''} x${item.quantity}`)
+              .join('\n');
+            const message = `Olá ${user.full_name}! 😊\n\nNotamos que você tem itens no seu carrinho:\n\n${productsList}\n\n💰 Total: R$ ${user.total_value.toFixed(2).replace('.', ',')}\n\nPrecisa de ajuda para finalizar sua compra? Estamos à disposição! 🛒`;
+            const { data, error } = await supabase.functions.invoke('evolution-send-message', {
+              body: {
+                number: user.phone,
+                text: message,
+                user_id: user.user_id,
+                purpose: 'marketing',
+              },
+            });
+            if (error) throw error;
+            if (data?.error) throw new Error(data.error);
+            userSuccess = true;
+          } catch {
+            userFailed = true;
+          }
+        } else {
+          userFailed = true;
+        }
+      }
+
+      if (userSuccess && !userFailed) success++;
+      else if (userFailed && !userSuccess) failed++;
+      else success++; // pelo menos um canal teve sucesso
+
+      setCampaignProgress({ done: i + 1, total: selectedUsers.length, success, failed });
+
+      // pequeno delay para não sobrecarregar
+      await new Promise((r) => setTimeout(r, 300));
+    }
+
+    setCampaignRunning(false);
+    toast.success(`Campanha finalizada: ${success} enviados, ${failed} falhas.`);
+    setSelectedIds(new Set());
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-foreground">Recuperação de Carrinho</h1>
@@ -333,6 +456,15 @@ export default function CartAbandonmentLogsPage() {
                   <RefreshCw className={cn("h-4 w-4", isLoadingCarts && "animate-spin")} />
                   Atualizar
                 </Button>
+                <Button
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={() => setCampaignOpen(true)}
+                  disabled={selectedIds.size === 0}
+                >
+                  <Megaphone className="h-4 w-4" />
+                  Enviar campanha {selectedIds.size > 0 && `(${selectedIds.size})`}
+                </Button>
                 {dateRange?.from && (
                   <Button
                     variant="ghost"
@@ -394,6 +526,13 @@ export default function CartAbandonmentLogsPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-10">
+                            <Checkbox
+                              checked={filteredCarts.length > 0 && selectedIds.size === filteredCarts.length}
+                              onCheckedChange={toggleSelectAll}
+                              aria-label="Selecionar todos"
+                            />
+                          </TableHead>
                           <TableHead>Cliente</TableHead>
                           <TableHead>Email</TableHead>
                           <TableHead>Telefone</TableHead>
@@ -406,7 +545,14 @@ export default function CartAbandonmentLogsPage() {
                       </TableHeader>
                       <TableBody>
                         {filteredCarts.map((user) => (
-                          <TableRow key={user.user_id}>
+                          <TableRow key={user.user_id} className={selectedIds.has(user.user_id) ? 'bg-primary/5' : ''}>
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedIds.has(user.user_id)}
+                                onCheckedChange={() => toggleSelect(user.user_id)}
+                                aria-label={`Selecionar ${user.full_name}`}
+                              />
+                            </TableCell>
                             <TableCell className="font-medium">{user.full_name}</TableCell>
                             <TableCell className="text-sm">{user.email || '—'}</TableCell>
                             <TableCell className="text-sm">{user.phone || '—'}</TableCell>
@@ -446,12 +592,20 @@ export default function CartAbandonmentLogsPage() {
                   {/* Mobile */}
                   <div className="md:hidden space-y-3">
                     {filteredCarts.map((user) => (
-                      <div key={user.user_id} className="border rounded-lg p-4 space-y-2">
+                      <div key={user.user_id} className={cn("border rounded-lg p-4 space-y-2", selectedIds.has(user.user_id) && "bg-primary/5 border-primary/40")}>
                         <div className="flex justify-between items-start">
-                          <div className="min-w-0">
-                            <p className="font-medium">{user.full_name}</p>
-                            <p className="text-sm text-muted-foreground">{user.email || '—'}</p>
-                            {user.phone && <p className="text-sm text-muted-foreground">{user.phone}</p>}
+                          <div className="flex items-start gap-2 min-w-0">
+                            <Checkbox
+                              className="mt-1"
+                              checked={selectedIds.has(user.user_id)}
+                              onCheckedChange={() => toggleSelect(user.user_id)}
+                              aria-label={`Selecionar ${user.full_name}`}
+                            />
+                            <div className="min-w-0">
+                              <p className="font-medium">{user.full_name}</p>
+                              <p className="text-sm text-muted-foreground">{user.email || '—'}</p>
+                              {user.phone && <p className="text-sm text-muted-foreground">{user.phone}</p>}
+                            </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <Badge variant="destructive">{user.total_items} {user.total_items === 1 ? 'item' : 'itens'}</Badge>
@@ -556,6 +710,93 @@ export default function CartAbandonmentLogsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog
+        open={campaignOpen}
+        onOpenChange={(open) => {
+          if (!campaignRunning) setCampaignOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Megaphone className="h-5 w-5" />
+              Campanha de recuperação
+            </DialogTitle>
+            <DialogDescription>
+              Enviar mensagem em lote para {selectedUsers.length}{' '}
+              {selectedUsers.length === 1 ? 'cliente selecionado' : 'clientes selecionados'}.
+            </DialogDescription>
+          </DialogHeader>
+
+          {!campaignRunning ? (
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Canais de envio</Label>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="ch-email"
+                    checked={campaignChannels.email}
+                    onCheckedChange={(v) => setCampaignChannels((c) => ({ ...c, email: !!v }))}
+                  />
+                  <Label htmlFor="ch-email" className="flex items-center gap-2 cursor-pointer font-normal">
+                    <Mail className="h-4 w-4" /> Email
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="ch-wpp"
+                    checked={campaignChannels.whatsapp}
+                    onCheckedChange={(v) => setCampaignChannels((c) => ({ ...c, whatsapp: !!v }))}
+                  />
+                  <Label htmlFor="ch-wpp" className="flex items-center gap-2 cursor-pointer font-normal">
+                    <MessageCircle className="h-4 w-4" /> WhatsApp
+                  </Label>
+                </div>
+              </div>
+              <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
+                <p>• Clientes sem dados ou que optaram por não receber serão ignorados no canal correspondente.</p>
+                <p>• O envio é sequencial com pequeno intervalo para evitar bloqueios.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Progresso</span>
+                <span className="font-medium">
+                  {campaignProgress.done} / {campaignProgress.total}
+                </span>
+              </div>
+              <Progress
+                value={campaignProgress.total ? (campaignProgress.done / campaignProgress.total) * 100 : 0}
+              />
+              <div className="flex justify-between text-xs">
+                <span className="text-primary">Sucesso: {campaignProgress.success}</span>
+                <span className="text-destructive">Falhas: {campaignProgress.failed}</span>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            {!campaignRunning ? (
+              <>
+                <Button variant="outline" onClick={() => setCampaignOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={runCampaign} className="gap-1.5">
+                  <Send className="h-4 w-4" />
+                  Iniciar campanha
+                </Button>
+              </>
+            ) : (
+              <Button disabled className="gap-1.5">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Enviando...
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
         <AlertDialogContent>
