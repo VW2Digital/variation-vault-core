@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Mail, ShoppingCart, Users, AlertTriangle, MessageCircle, CalendarIcon, X, Loader2, RefreshCw, Send, MoreVertical, Megaphone } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Dialog,
   DialogContent,
@@ -72,10 +73,7 @@ export default function CartAbandonmentLogsPage() {
   } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [campaignOpen, setCampaignOpen] = useState(false);
-  const [campaignChannels, setCampaignChannels] = useState<{ email: boolean; whatsapp: boolean }>({
-    email: true,
-    whatsapp: true,
-  });
+  const [campaignChannel, setCampaignChannel] = useState<'email' | 'whatsapp'>('email');
   const [campaignRunning, setCampaignRunning] = useState(false);
   const [campaignProgress, setCampaignProgress] = useState({ done: 0, total: 0, success: 0, failed: 0 });
 
@@ -296,10 +294,6 @@ export default function CartAbandonmentLogsPage() {
   const runCampaign = async () => {
     if (selectedUsers.length === 0) {
       toast.error('Selecione pelo menos um cliente.');
-      return;
-    }
-    if (!campaignChannels.email && !campaignChannels.whatsapp) {
-      toast.error('Selecione pelo menos um canal (Email ou WhatsApp).');
       return;
     }
 
