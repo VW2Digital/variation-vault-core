@@ -771,7 +771,7 @@ export default function CartAbandonmentLogsPage() {
                 value={campaignProgress.total ? (campaignProgress.done / campaignProgress.total) * 100 : 0}
               />
               <div className="flex justify-between text-xs">
-                <span className="text-green-600">Sucesso: {campaignProgress.success}</span>
+                <span className="text-primary">Sucesso: {campaignProgress.success}</span>
                 <span className="text-destructive">Falhas: {campaignProgress.failed}</span>
               </div>
             </div>
