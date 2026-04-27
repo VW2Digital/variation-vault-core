@@ -274,6 +274,110 @@ export default function CartAbandonmentLogsPage() {
   const activeCartUsers = filteredCarts.length;
   const activeCartValue = filteredCarts.reduce((sum, u) => sum + u.total_value, 0);
 
+  const toggleSelect = (userId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredCarts.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredCarts.map((u) => u.user_id)));
+    }
+  };
+
+  const selectedUsers = filteredCarts.filter((u) => selectedIds.has(u.user_id));
+
+  const runCampaign = async () => {
+    if (selectedUsers.length === 0) {
+      toast.error('Selecione pelo menos um cliente.');
+      return;
+    }
+    if (!campaignChannels.email && !campaignChannels.whatsapp) {
+      toast.error('Selecione pelo menos um canal (Email ou WhatsApp).');
+      return;
+    }
+
+    setCampaignRunning(true);
+    setCampaignProgress({ done: 0, total: selectedUsers.length, success: 0, failed: 0 });
+
+    let success = 0;
+    let failed = 0;
+
+    for (let i = 0; i < selectedUsers.length; i++) {
+      const user = selectedUsers[i];
+      let userSuccess = false;
+      let userFailed = false;
+
+      if (campaignChannels.email) {
+        if (user.email && user.allow_email_marketing) {
+          try {
+            const { data, error } = await supabase.functions.invoke('cart-abandonment-send', {
+              body: {
+                user_id: user.user_id,
+                email: user.email,
+                full_name: user.full_name,
+                items: user.items,
+                total_value: user.total_value,
+              },
+            });
+            if (error) throw error;
+            if (data?.error) throw new Error(data.error);
+            userSuccess = true;
+          } catch {
+            userFailed = true;
+          }
+        } else {
+          userFailed = true;
+        }
+      }
+
+      if (campaignChannels.whatsapp) {
+        if (user.phone && user.allow_whatsapp_marketing) {
+          try {
+            const productsList = user.items
+              .map((item) => `• ${item.product_name}${item.dosage ? ` (${item.dosage})` : ''} x${item.quantity}`)
+              .join('\n');
+            const message = `Olá ${user.full_name}! 😊\n\nNotamos que você tem itens no seu carrinho:\n\n${productsList}\n\n💰 Total: R$ ${user.total_value.toFixed(2).replace('.', ',')}\n\nPrecisa de ajuda para finalizar sua compra? Estamos à disposição! 🛒`;
+            const { data, error } = await supabase.functions.invoke('evolution-send-message', {
+              body: {
+                number: user.phone,
+                text: message,
+                user_id: user.user_id,
+                purpose: 'marketing',
+              },
+            });
+            if (error) throw error;
+            if (data?.error) throw new Error(data.error);
+            userSuccess = true;
+          } catch {
+            userFailed = true;
+          }
+        } else {
+          userFailed = true;
+        }
+      }
+
+      if (userSuccess && !userFailed) success++;
+      else if (userFailed && !userSuccess) failed++;
+      else success++; // pelo menos um canal teve sucesso
+
+      setCampaignProgress({ done: i + 1, total: selectedUsers.length, success, failed });
+
+      // pequeno delay para não sobrecarregar
+      await new Promise((r) => setTimeout(r, 300));
+    }
+
+    setCampaignRunning(false);
+    toast.success(`Campanha finalizada: ${success} enviados, ${failed} falhas.`);
+    setSelectedIds(new Set());
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-foreground">Recuperação de Carrinho</h1>
