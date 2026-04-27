@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { fetchSetting, upsertSetting, getCurrentUser } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Phone, Mail, MessageSquare, Eye, EyeOff, Send, Loader2, BellRing, AlertTriangle, Zap, CheckCircle2 } from 'lucide-react';
+import { Phone, Mail, MessageSquare, Eye, EyeOff, Send, Loader2, BellRing, AlertTriangle, Zap, CheckCircle2, FileText, Inbox, ArrowRight } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import SettingsBackButton from './SettingsBackButton';
@@ -205,6 +206,65 @@ const SettingsCommunication = () => {
         </TabsContent>
 
         <TabsContent value="email" className="space-y-6 mt-6">
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Mail className="w-5 h-5" /> Gestão de E-mails
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <Link
+              to="/admin/templates-email"
+              className="group flex items-center justify-between p-4 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/60 hover:border-primary/40 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-md bg-primary/10 text-primary">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Templates de E-mail</p>
+                  <p className="text-xs text-muted-foreground">Editar conteúdo dos e-mails</p>
+                </div>
+              </div>
+              <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            </Link>
+
+            <Link
+              to="/admin/logs-email"
+              className="group flex items-center justify-between p-4 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/60 hover:border-primary/40 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-md bg-primary/10 text-primary">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Logs de E-mail</p>
+                  <p className="text-xs text-muted-foreground">Histórico de envios</p>
+                </div>
+              </div>
+              <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            </Link>
+
+            <Link
+              to="/admin/eventos-email"
+              className="group flex items-center justify-between p-4 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/60 hover:border-primary/40 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-md bg-primary/10 text-primary">
+                  <Inbox className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Eventos de E-mail</p>
+                  <p className="text-xs text-muted-foreground">Aberturas, cliques e bounces</p>
+                </div>
+              </div>
+              <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="border-border/50">
         <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Mail className="w-5 h-5" /> SMTP Hostinger - Envio de E-mails</CardTitle></CardHeader>
         <CardContent className="space-y-4">
