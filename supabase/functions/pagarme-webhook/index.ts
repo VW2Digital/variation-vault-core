@@ -306,6 +306,23 @@ serve(async (req) => {
       } else {
         console.log(`[Pagar.me Webhook] Order ${orderCode}: ${previousStatus} -> ${newStatus}`);
 
+        // Increment coupon usage on first transition to PAID
+        if (newStatus === 'PAID' && previousStatus !== 'PAID') {
+          try {
+            const { data: orderForCoupon } = await supabase
+              .from('orders')
+              .select('coupon_code')
+              .eq('id', orderCode)
+              .maybeSingle();
+            if (orderForCoupon?.coupon_code) {
+              await supabase.rpc('increment_coupon_usage', { _coupon_code: orderForCoupon.coupon_code });
+              console.log(`[Pagar.me Webhook] Coupon usage incremented for: ${orderForCoupon.coupon_code}`);
+            }
+          } catch (couponErr: any) {
+            console.error('[Pagar.me Webhook] Coupon increment error:', couponErr?.message);
+          }
+        }
+
         // Send notifications on terminal status (PAID/REFUSED).
         // Uses email_send_log as idempotency guard to avoid duplicates when
         // multiple webhooks (charge.paid, antifraud_approved) arrive for the

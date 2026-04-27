@@ -131,6 +131,23 @@ serve(async (req) => {
         console.log(`[PagBank Webhook] Order ${referenceId}: ${previousStatus} -> ${newStatus}`);
       }
 
+      // Increment coupon usage on first transition to PAID
+      if (newStatus === 'PAID' && previousStatus !== 'PAID') {
+        try {
+          const { data: orderForCoupon } = await supabase
+            .from('orders')
+            .select('coupon_code')
+            .eq('id', referenceId)
+            .maybeSingle();
+          if (orderForCoupon?.coupon_code) {
+            await supabase.rpc('increment_coupon_usage', { _coupon_code: orderForCoupon.coupon_code });
+            console.log(`[PagBank Webhook] Coupon usage incremented for: ${orderForCoupon.coupon_code}`);
+          }
+        } catch (couponErr: any) {
+          console.error(`[PagBank Webhook] Coupon increment error: ${couponErr?.message}`);
+        }
+      }
+
       // Send admin notifications for approved/refused payments
       if (newStatus === 'PAID' || newStatus === 'REFUSED') {
         try {
