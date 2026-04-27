@@ -526,6 +526,13 @@ export default function CartAbandonmentLogsPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-10">
+                            <Checkbox
+                              checked={filteredCarts.length > 0 && selectedIds.size === filteredCarts.length}
+                              onCheckedChange={toggleSelectAll}
+                              aria-label="Selecionar todos"
+                            />
+                          </TableHead>
                           <TableHead>Cliente</TableHead>
                           <TableHead>Email</TableHead>
                           <TableHead>Telefone</TableHead>
@@ -538,7 +545,14 @@ export default function CartAbandonmentLogsPage() {
                       </TableHeader>
                       <TableBody>
                         {filteredCarts.map((user) => (
-                          <TableRow key={user.user_id}>
+                          <TableRow key={user.user_id} className={selectedIds.has(user.user_id) ? 'bg-primary/5' : ''}>
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedIds.has(user.user_id)}
+                                onCheckedChange={() => toggleSelect(user.user_id)}
+                                aria-label={`Selecionar ${user.full_name}`}
+                              />
+                            </TableCell>
                             <TableCell className="font-medium">{user.full_name}</TableCell>
                             <TableCell className="text-sm">{user.email || '—'}</TableCell>
                             <TableCell className="text-sm">{user.phone || '—'}</TableCell>
