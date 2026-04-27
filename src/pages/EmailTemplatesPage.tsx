@@ -280,8 +280,16 @@ const EmailTemplatesPage = () => {
 
   return (
     <div className="space-y-6 max-w-7xl">
-      <div className="flex items-center gap-3">
-        <Mail className="w-6 h-6 text-primary" />
+      <div className="flex items-start gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate('/admin/configuracoes/comunicacao')}
+          className="shrink-0 mt-0.5"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+        <Mail className="w-6 h-6 text-primary mt-1" />
         <div>
           <h1 className="text-2xl font-bold">Templates de Email</h1>
           <p className="text-sm text-muted-foreground">
