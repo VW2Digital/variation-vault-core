@@ -456,6 +456,15 @@ export default function CartAbandonmentLogsPage() {
                   <RefreshCw className={cn("h-4 w-4", isLoadingCarts && "animate-spin")} />
                   Atualizar
                 </Button>
+                <Button
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={() => setCampaignOpen(true)}
+                  disabled={selectedIds.size === 0}
+                >
+                  <Megaphone className="h-4 w-4" />
+                  Enviar campanha {selectedIds.size > 0 && `(${selectedIds.size})`}
+                </Button>
                 {dateRange?.from && (
                   <Button
                     variant="ghost"
