@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Mail, ShoppingCart, Users, AlertTriangle, MessageCircle, CalendarIcon, X, Loader2, RefreshCw, Send, MoreVertical, Megaphone } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Dialog,
   DialogContent,
@@ -72,10 +73,7 @@ export default function CartAbandonmentLogsPage() {
   } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [campaignOpen, setCampaignOpen] = useState(false);
-  const [campaignChannels, setCampaignChannels] = useState<{ email: boolean; whatsapp: boolean }>({
-    email: true,
-    whatsapp: true,
-  });
+  const [campaignChannel, setCampaignChannel] = useState<'email' | 'whatsapp'>('email');
   const [campaignRunning, setCampaignRunning] = useState(false);
   const [campaignProgress, setCampaignProgress] = useState({ done: 0, total: 0, success: 0, failed: 0 });
 
@@ -298,10 +296,6 @@ export default function CartAbandonmentLogsPage() {
       toast.error('Selecione pelo menos um cliente.');
       return;
     }
-    if (!campaignChannels.email && !campaignChannels.whatsapp) {
-      toast.error('Selecione pelo menos um canal (Email ou WhatsApp).');
-      return;
-    }
 
     setCampaignRunning(true);
     setCampaignProgress({ done: 0, total: selectedUsers.length, success: 0, failed: 0 });
@@ -314,7 +308,7 @@ export default function CartAbandonmentLogsPage() {
       let userSuccess = false;
       let userFailed = false;
 
-      if (campaignChannels.email) {
+      if (campaignChannel === 'email') {
         if (user.email && user.allow_email_marketing) {
           try {
             const { data, error } = await supabase.functions.invoke('cart-abandonment-send', {
@@ -337,7 +331,7 @@ export default function CartAbandonmentLogsPage() {
         }
       }
 
-      if (campaignChannels.whatsapp) {
+      if (campaignChannel === 'whatsapp') {
         if (user.phone && user.allow_whatsapp_marketing) {
           try {
             const productsList = user.items
@@ -732,30 +726,28 @@ export default function CartAbandonmentLogsPage() {
           {!campaignRunning ? (
             <div className="space-y-4">
               <div className="space-y-3">
-                <Label className="text-sm font-medium">Canais de envio</Label>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="ch-email"
-                    checked={campaignChannels.email}
-                    onCheckedChange={(v) => setCampaignChannels((c) => ({ ...c, email: !!v }))}
-                  />
-                  <Label htmlFor="ch-email" className="flex items-center gap-2 cursor-pointer font-normal">
-                    <Mail className="h-4 w-4" /> Email
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="ch-wpp"
-                    checked={campaignChannels.whatsapp}
-                    onCheckedChange={(v) => setCampaignChannels((c) => ({ ...c, whatsapp: !!v }))}
-                  />
-                  <Label htmlFor="ch-wpp" className="flex items-center gap-2 cursor-pointer font-normal">
-                    <MessageCircle className="h-4 w-4" /> WhatsApp
-                  </Label>
-                </div>
+                <Label className="text-sm font-medium">Canal de envio</Label>
+                <RadioGroup
+                  value={campaignChannel}
+                  onValueChange={(v) => setCampaignChannel(v as 'email' | 'whatsapp')}
+                  className="space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem id="ch-email" value="email" />
+                    <Label htmlFor="ch-email" className="flex items-center gap-2 cursor-pointer font-normal">
+                      <Mail className="h-4 w-4" /> Email
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem id="ch-wpp" value="whatsapp" />
+                    <Label htmlFor="ch-wpp" className="flex items-center gap-2 cursor-pointer font-normal">
+                      <MessageCircle className="h-4 w-4" /> WhatsApp
+                    </Label>
+                  </div>
+                </RadioGroup>
               </div>
               <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
-                <p>• Clientes sem dados ou que optaram por não receber serão ignorados no canal correspondente.</p>
+                <p>• Clientes sem dados ou que optaram por não receber serão ignorados.</p>
                 <p>• O envio é sequencial com pequeno intervalo para evitar bloqueios.</p>
               </div>
             </div>
