@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { fetchSetting, upsertSetting } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Save, Send, RotateCcw, Eye, Code2, Mail } from "lucide-react";
+import { Loader2, Save, Send, RotateCcw, Eye, Code2, Mail, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 type TemplateKey =
   | "order_created"
