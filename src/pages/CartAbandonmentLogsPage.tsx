@@ -308,7 +308,7 @@ export default function CartAbandonmentLogsPage() {
       let userSuccess = false;
       let userFailed = false;
 
-      if (campaignChannels.email) {
+      if (campaignChannel === 'email') {
         if (user.email && user.allow_email_marketing) {
           try {
             const { data, error } = await supabase.functions.invoke('cart-abandonment-send', {
@@ -331,7 +331,7 @@ export default function CartAbandonmentLogsPage() {
         }
       }
 
-      if (campaignChannels.whatsapp) {
+      if (campaignChannel === 'whatsapp') {
         if (user.phone && user.allow_whatsapp_marketing) {
           try {
             const productsList = user.items
