@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { fetchSetting, upsertSetting } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Save, Send, RotateCcw, Eye, Code2, Mail } from "lucide-react";
+import { Loader2, Save, Send, RotateCcw, Eye, Code2, Mail, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 type TemplateKey =
   | "order_created"
@@ -134,6 +135,7 @@ function interpolate(input: string, vars: Record<string, string>): string {
 
 const EmailTemplatesPage = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [active, setActive] = useState<TemplateKey>("order_created");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -280,8 +282,16 @@ const EmailTemplatesPage = () => {
 
   return (
     <div className="space-y-6 max-w-7xl">
-      <div className="flex items-center gap-3">
-        <Mail className="w-6 h-6 text-primary" />
+      <div className="flex items-start gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate('/admin/configuracoes/comunicacao')}
+          className="shrink-0 mt-0.5"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+        <Mail className="w-6 h-6 text-primary mt-1" />
         <div>
           <h1 className="text-2xl font-bold">Templates de Email</h1>
           <p className="text-sm text-muted-foreground">
