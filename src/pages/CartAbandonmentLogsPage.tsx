@@ -711,6 +711,93 @@ export default function CartAbandonmentLogsPage() {
         </TabsContent>
       </Tabs>
 
+      <Dialog
+        open={campaignOpen}
+        onOpenChange={(open) => {
+          if (!campaignRunning) setCampaignOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Megaphone className="h-5 w-5" />
+              Campanha de recuperação
+            </DialogTitle>
+            <DialogDescription>
+              Enviar mensagem em lote para {selectedUsers.length}{' '}
+              {selectedUsers.length === 1 ? 'cliente selecionado' : 'clientes selecionados'}.
+            </DialogDescription>
+          </DialogHeader>
+
+          {!campaignRunning ? (
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Canais de envio</Label>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="ch-email"
+                    checked={campaignChannels.email}
+                    onCheckedChange={(v) => setCampaignChannels((c) => ({ ...c, email: !!v }))}
+                  />
+                  <Label htmlFor="ch-email" className="flex items-center gap-2 cursor-pointer font-normal">
+                    <Mail className="h-4 w-4" /> Email
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="ch-wpp"
+                    checked={campaignChannels.whatsapp}
+                    onCheckedChange={(v) => setCampaignChannels((c) => ({ ...c, whatsapp: !!v }))}
+                  />
+                  <Label htmlFor="ch-wpp" className="flex items-center gap-2 cursor-pointer font-normal">
+                    <MessageCircle className="h-4 w-4" /> WhatsApp
+                  </Label>
+                </div>
+              </div>
+              <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
+                <p>• Clientes sem dados ou que optaram por não receber serão ignorados no canal correspondente.</p>
+                <p>• O envio é sequencial com pequeno intervalo para evitar bloqueios.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Progresso</span>
+                <span className="font-medium">
+                  {campaignProgress.done} / {campaignProgress.total}
+                </span>
+              </div>
+              <Progress
+                value={campaignProgress.total ? (campaignProgress.done / campaignProgress.total) * 100 : 0}
+              />
+              <div className="flex justify-between text-xs">
+                <span className="text-green-600">Sucesso: {campaignProgress.success}</span>
+                <span className="text-destructive">Falhas: {campaignProgress.failed}</span>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            {!campaignRunning ? (
+              <>
+                <Button variant="outline" onClick={() => setCampaignOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={runCampaign} className="gap-1.5">
+                  <Send className="h-4 w-4" />
+                  Iniciar campanha
+                </Button>
+              </>
+            ) : (
+              <Button disabled className="gap-1.5">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Enviando...
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
