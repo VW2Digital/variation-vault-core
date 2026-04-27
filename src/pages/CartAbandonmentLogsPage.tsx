@@ -592,12 +592,20 @@ export default function CartAbandonmentLogsPage() {
                   {/* Mobile */}
                   <div className="md:hidden space-y-3">
                     {filteredCarts.map((user) => (
-                      <div key={user.user_id} className="border rounded-lg p-4 space-y-2">
+                      <div key={user.user_id} className={cn("border rounded-lg p-4 space-y-2", selectedIds.has(user.user_id) && "bg-primary/5 border-primary/40")}>
                         <div className="flex justify-between items-start">
-                          <div className="min-w-0">
-                            <p className="font-medium">{user.full_name}</p>
-                            <p className="text-sm text-muted-foreground">{user.email || '—'}</p>
-                            {user.phone && <p className="text-sm text-muted-foreground">{user.phone}</p>}
+                          <div className="flex items-start gap-2 min-w-0">
+                            <Checkbox
+                              className="mt-1"
+                              checked={selectedIds.has(user.user_id)}
+                              onCheckedChange={() => toggleSelect(user.user_id)}
+                              aria-label={`Selecionar ${user.full_name}`}
+                            />
+                            <div className="min-w-0">
+                              <p className="font-medium">{user.full_name}</p>
+                              <p className="text-sm text-muted-foreground">{user.email || '—'}</p>
+                              {user.phone && <p className="text-sm text-muted-foreground">{user.phone}</p>}
+                            </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <Badge variant="destructive">{user.total_items} {user.total_items === 1 ? 'item' : 'itens'}</Badge>
