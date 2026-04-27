@@ -8,7 +8,18 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Mail, ShoppingCart, Users, AlertTriangle, MessageCircle, CalendarIcon, X, Loader2, RefreshCw, Send, MoreVertical } from 'lucide-react';
+import { Mail, ShoppingCart, Users, AlertTriangle, MessageCircle, CalendarIcon, X, Loader2, RefreshCw, Send, MoreVertical, Megaphone } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,6 +70,14 @@ export default function CartAbandonmentLogsPage() {
     type: 'whatsapp' | 'email';
     user: ActiveCartUser;
   } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [campaignOpen, setCampaignOpen] = useState(false);
+  const [campaignChannels, setCampaignChannels] = useState<{ email: boolean; whatsapp: boolean }>({
+    email: true,
+    whatsapp: false,
+  });
+  const [campaignRunning, setCampaignRunning] = useState(false);
+  const [campaignProgress, setCampaignProgress] = useState({ done: 0, total: 0, success: 0, failed: 0 });
 
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['cart-abandonment-logs'],
