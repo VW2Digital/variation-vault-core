@@ -74,7 +74,7 @@ export default function CartAbandonmentLogsPage() {
   const [campaignOpen, setCampaignOpen] = useState(false);
   const [campaignChannels, setCampaignChannels] = useState<{ email: boolean; whatsapp: boolean }>({
     email: true,
-    whatsapp: false,
+    whatsapp: true,
   });
   const [campaignRunning, setCampaignRunning] = useState(false);
   const [campaignProgress, setCampaignProgress] = useState({ done: 0, total: 0, success: 0, failed: 0 });
