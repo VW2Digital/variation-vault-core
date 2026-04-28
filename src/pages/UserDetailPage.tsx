@@ -75,12 +75,12 @@ const UserDetailPage = () => {
   return (
     <div className="space-y-6 w-full">
       <AdminPageHeader
-        title={user.full_name || 'Sem nome'}
-        description={user.email}
+        title={(user.full_name || '').trim() || (user.email || '').trim() || 'Usuário sem nome'}
+        description={(user.email || '').trim() || 'E-mail não cadastrado'}
         icon={UserIcon}
         breadcrumbs={[
           { label: 'Usuários', to: '/admin/usuarios' },
-          { label: user.full_name || user.email || 'Detalhe' },
+          { label: (user.full_name || '').trim() || (user.email || '').trim() || 'Detalhe' },
         ]}
         actions={
           <Button variant="outline" size="sm" onClick={() => navigate('/admin/usuarios')}>
