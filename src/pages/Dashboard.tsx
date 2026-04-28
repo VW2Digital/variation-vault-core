@@ -105,6 +105,11 @@ const Dashboard = () => {
   const [stockSearch, setStockSearch] = useState('');
   const [cartUsers, setCartUsers] = useState(0);
   const [monthlyGoal, setMonthlyGoal] = useState<number>(0);
+  const [adminName, setAdminName] = useState<string>('');
+  const [summaryRange, setSummaryRange] = useState<'month' | 'quarter' | 'year'>('month');
+  const [recentSignups, setRecentSignups] = useState<{ id: string; full_name: string | null; created_at: string }[]>([]);
+  const [recentTickets, setRecentTickets] = useState<{ id: string; subject: string | null; created_at: string }[]>([]);
+  const [recentFailures, setRecentFailures] = useState<{ id: string; customer_email: string | null; created_at: string; error_message?: string | null }[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
