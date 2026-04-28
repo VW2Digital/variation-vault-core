@@ -1329,6 +1329,7 @@ serve(async (req) => {
           await supabase.from('orders').update({
             asaas_payment_id: result.id,
             status: result.status || 'PENDING',
+            payment_gateway: gatewayName,
           }).eq('id', orderId);
         }
         break;
