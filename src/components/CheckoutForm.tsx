@@ -1099,7 +1099,9 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
             customerEmail: email.trim(),
             customerPhone: phone.replace(/\D/g, ''),
             paymentMethod,
-            errorMessage: rawMessage,
+            // Mensagem amigável em português (com instrução clara) — usada
+            // tanto na notificação ao admin quanto no WhatsApp para o cliente.
+            errorMessage: message,
             productName: `${productName} ${dosage} x${quantity}`,
             totalValue,
           },
