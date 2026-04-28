@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
-import { MessageCircle } from 'lucide-react';
 
 const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   open: { label: 'Aberto', variant: 'default' },
