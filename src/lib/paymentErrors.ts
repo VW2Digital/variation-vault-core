@@ -78,3 +78,60 @@ export function mapPaymentErrorMessage(message: string): string {
 
   return message;
 }
+
+/**
+ * Classifies whether an error is a card rejection / fraud / risk error
+ * (eligible for multi-gateway fallback) vs. a user input mistake
+ * (CVV/date/number wrong) or unrelated error.
+ *
+ * Returns true ONLY for errors where retrying with a DIFFERENT gateway
+ * is likely to succeed — e.g. issuer rejection, fraud rules, blacklist,
+ * insufficient funds, "other reason". Returns false for typos in the
+ * card form, network/timeout, or non-card errors.
+ */
+export function isCardRejectionEligibleForFallback(message: string): boolean {
+  if (!message) return false;
+  const n = message.toLowerCase();
+
+  // Explicit user input errors → fallback won't help, user must fix data
+  const userInputErrors = [
+    'bad_filled_card_number',
+    'bad_filled_date',
+    'bad_filled_security_code',
+    'bad_filled_other',
+    'bad_filled_card_data',
+    'invalid_installments',
+    'cc_rejected_invalid_installments',
+    'cvv',
+    'ccv',
+    'expired',
+    'expirad',
+    'cpf inválido',
+    'cpf invalido',
+    'tokeniz',
+  ];
+  if (userInputErrors.some((k) => n.includes(k))) return false;
+
+  // Eligible: issuer rejected / fraud / risk / insufficient / generic refusal
+  const eligibleKeywords = [
+    'rejected', 'recusad', 'reprovad', 'declined',
+    'high_risk', 'blacklist', 'fraud',
+    'insufficient', 'insufficient_amount', 'sem limite', 'sem saldo', 'saldo',
+    'call_for_authorize', 'required_call_for_authorize',
+    'card_disabled', 'cc_rejected_card_disabled',
+    'duplicated_payment',
+    'max_attempts', 'cc_rejected_max_attempts',
+    'rejected_by_issuer',
+    'cc_rejected_other_reason',
+    'cc_rejected_high_risk',
+    'cc_rejected_blacklist',
+    'cc_rejected_insufficient_amount',
+    'pagamento recusado',
+    'pagamento não aprovado',
+    'pagamento nao aprovado',
+    'não autorizado',
+    'nao autorizado',
+    'not authorized',
+  ];
+  return eligibleKeywords.some((k) => n.includes(k));
+}

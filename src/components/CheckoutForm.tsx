@@ -5,13 +5,15 @@ import { gtagEvent } from '@/lib/gtag';
 import { fbAddPaymentInfo, fbPurchase } from '@/lib/fbPixel';
 import { supabase } from '@/integrations/supabase/client';
 import { gerarOpcoesParcelamento, type InstallmentResult } from '@/lib/installments';
-import { mapPaymentErrorMessage } from '@/lib/paymentErrors';
+import { mapPaymentErrorMessage, isCardRejectionEligibleForFallback } from '@/lib/paymentErrors';
+import { getAvailableCardFallbacks, type AvailableCardGateway, type CheckoutGateway } from '@/services/payments/paymentFactory';
+import { tokenizeCardForGateway } from '@/services/payments/cardTokenizers';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle, MapPin, Truck, ShoppingBag, User, Check, Ticket, Clock } from 'lucide-react';
+import { CreditCard, QrCode, Loader2, CheckCircle2, Copy, AlertCircle, MapPin, Truck, ShoppingBag, User, Check, Ticket, Clock, RefreshCw } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCart } from '@/contexts/CartContext';
 import { useMercadoPago } from '@/hooks/useMercadoPago';
@@ -159,6 +161,8 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
   const [paymentResult, setPaymentResult] = useState<any>(null);
   const [showPixFallback, setShowPixFallback] = useState(false);
   const [cardFailMessage, setCardFailMessage] = useState('');
+  const [availableFallbacks, setAvailableFallbacks] = useState<AvailableCardGateway[]>([]);
+  const [fallbackProcessing, setFallbackProcessing] = useState<CheckoutGateway | null>(null);
 
   // Coupon
   const [couponCode, setCouponCode] = useState('');
@@ -1101,6 +1105,19 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
       if (paymentMethod === 'credit_card') {
         setCardFailMessage(message);
         setShowPixFallback(true);
+        // Multi-gateway fallback: only for card rejection / fraud / risk errors,
+        // NOT for user input mistakes (CVV/date wrong) where switching gateway won't help.
+        if (isCardRejectionEligibleForFallback(rawMessage)) {
+          try {
+            const fallbacks = await getAvailableCardFallbacks(activeGateway as CheckoutGateway);
+            setAvailableFallbacks(fallbacks);
+          } catch (e) {
+            console.warn('[Checkout] Falha ao carregar fallbacks:', e);
+            setAvailableFallbacks([]);
+          }
+        } else {
+          setAvailableFallbacks([]);
+        }
       }
 
       toast({ title: 'Erro no pagamento', description: message, variant: 'destructive' });
@@ -1113,8 +1130,144 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
     setPaymentMethod('pix');
     setShowPixFallback(false);
     setCardFailMessage('');
+    setAvailableFallbacks([]);
     // Trigger PIX payment immediately
     handlePayment();
+  };
+
+  /**
+   * Retry the same card with a DIFFERENT payment gateway (fallback).
+   * Re-tokenizes the card with the chosen gateway's SDK and submits
+   * via `payment-checkout` using `gatewayOverride`.
+   */
+  const handleFallbackToGateway = async (target: AvailableCardGateway) => {
+    if (fallbackProcessing) return;
+    setFallbackProcessing(target.gateway);
+    try {
+      const holderCpfDigits = (holderCpf || cpf).replace(/\D/g, '');
+      const holderPhoneDigits = (holderPhone || phone).replace(/\D/g, '');
+      const holderEmailValue = (holderEmail || email).trim();
+
+      if (!holderCpfDigits || !holderPhoneDigits || !holderEmailValue) {
+        throw new Error('Dados do titular incompletos. Revise CPF, telefone e e-mail.');
+      }
+
+      // Tokenize on the FALLBACK gateway
+      const tokenized = await tokenizeCardForGateway(
+        target.gateway,
+        {
+          number: cardNumber.replace(/\s/g, ''),
+          holderName: cardName.trim() || name.trim(),
+          expMonth: cardExpMonth,
+          expYear: cardExpYear,
+          cvv: cardCcv,
+          cpf: holderCpfDigits,
+        },
+        target.publicKey,
+      );
+
+      const selectedOpt = installmentOptions.find(o => o.parcelas === installments);
+      const valorFinalCartao = selectedOpt ? selectedOpt.valorFinal : totalValue;
+      const valorParcelaCartao = selectedOpt ? selectedOpt.valorParcela : totalValue;
+
+      // Reuse existing order if possible (same amount); else create a new one
+      const orderId = paymentResult?.orderId || await createOrder(paymentMethod, customerId, valorFinalCartao);
+      const fbDescription = `${paymentDescription || productName} ${dosage} x${quantity}`;
+
+      const holderInfo = {
+        name: cardName.trim() || name.trim(),
+        email: holderEmailValue,
+        cpfCnpj: holderCpfDigits,
+        postalCode: holderPostalCode.replace(/\D/g, ''),
+        addressNumber: holderAddressNumber.trim(),
+        phone: holderPhoneDigits,
+        mobilePhone: holderPhoneDigits,
+      };
+
+      const result = await invokeGateway('create_card_payment', {
+        gatewayOverride: target.gateway,
+        customer: customerId,
+        value: valorFinalCartao,
+        description: fbDescription,
+        installmentCount: installments,
+        installmentValue: valorParcelaCartao,
+        creditCard: tokenized.creditCard,
+        creditCardHolderInfo: holderInfo,
+        orderId,
+        ...(tokenized.paymentMethodId ? { paymentMethodId: tokenized.paymentMethodId } : {}),
+        ...(tokenized.issuerId ? { issuerId: tokenized.issuerId } : {}),
+        additionalInfo: {
+          payer: {
+            first_name: (cardName.trim() || name.trim()).split(' ')[0],
+            last_name: (cardName.trim() || name.trim()).split(' ').slice(1).join(' ') || (cardName.trim() || name.trim()).split(' ')[0],
+            phone: { area_code: holderPhoneDigits.slice(0, 2), number: holderPhoneDigits.slice(2) },
+            address: {
+              zip_code: addrPostalCode.replace(/\D/g, ''),
+              street_name: addrStreet.trim(),
+              street_number: parseInt(addrNumber.trim()) || 0,
+            },
+          },
+          items: [{
+            id: orderId,
+            title: `${paymentDescription || productName}${dosage ? ` ${dosage}` : ''}`,
+            quantity,
+            unit_price: unitPrice,
+          }],
+          shipments: {
+            receiver_address: {
+              zip_code: addrPostalCode.replace(/\D/g, ''),
+              street_name: addrStreet.trim(),
+              street_number: parseInt(addrNumber.trim()) || 0,
+              city_name: addrCity.trim(),
+              state_name: addrState.trim().toUpperCase(),
+            },
+          },
+        },
+      });
+
+      setPaymentResult({ ...result, orderId, finalValue: valorFinalCartao, finalInstallments: installments, finalInstallmentValue: valorParcelaCartao });
+      setShowPixFallback(false);
+      setCardFailMessage('');
+      setAvailableFallbacks([]);
+      setStep('success');
+      await clearCart();
+
+      try {
+        if (typeof window !== 'undefined' && typeof (window as any).gtag === 'function') {
+          (window as any).gtag('event', 'conversion', {
+            send_to: 'AW-17791843489/purchase',
+            value: valorFinalCartao,
+            currency: 'BRL',
+            transaction_id: result?.orderId || orderId,
+          });
+        }
+      } catch { /* non-blocking */ }
+      fbPurchase(valorFinalCartao, [{ id: productId || '', name: productName, price: unitPrice, quantity }]);
+      onSuccess?.();
+
+      toast({ title: 'Pagamento aprovado!', description: `Processado via ${target.label}.` });
+    } catch (err: any) {
+      const rawMsg = err?.message || 'Falha no fallback';
+      const friendly = mapPaymentErrorMessage(rawMsg);
+      // Log the fallback failure
+      try {
+        await supabase.from('payment_logs' as any).insert({
+          customer_email: email.trim(),
+          customer_name: name.trim(),
+          payment_method: 'credit_card',
+          error_message: `[Fallback ${target.gateway}] ${rawMsg}`,
+          error_source: 'checkout_fallback',
+          request_payload: { fallbackGateway: target.gateway, productName, totalValue },
+        });
+      } catch { /* non-blocking */ }
+
+      // Remove the failed gateway from the list so user can try the next one
+      setAvailableFallbacks((prev) => prev.filter((f) => f.gateway !== target.gateway));
+      setCardFailMessage(friendly);
+      toast({ title: `${target.label} também recusou`, description: friendly, variant: 'destructive' });
+    } finally {
+      setFallbackProcessing(null);
+    }
   };
 
   const maxInstallments = Math.min(maxInstallmentsSetting, Math.floor(totalValue / 5) || 1);
@@ -1711,6 +1864,34 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
             <p className="text-[10px] text-center text-muted-foreground">
               PIX é instantâneo e seguro • Valor: R$ {pixTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
+            {availableFallbacks.length > 0 && (
+              <div className="pt-3 border-t border-primary/20 space-y-2">
+                <p className="text-xs text-muted-foreground text-center">
+                  Ou tente o mesmo cartão em outro processador:
+                </p>
+                <div className="grid grid-cols-1 gap-2">
+                  {availableFallbacks.map((fb) => (
+                    <Button
+                      key={fb.gateway}
+                      onClick={() => handleFallbackToGateway(fb)}
+                      disabled={processing || fallbackProcessing !== null}
+                      variant="outline"
+                      className="w-full gap-2"
+                    >
+                      {fallbackProcessing === fb.gateway ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4" />
+                      )}
+                      Tentar com {fb.label}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-center text-muted-foreground">
+                  Reenviaremos os dados do cartão para outro processador, sem precisar digitar de novo.
+                </p>
+              </div>
+            )}
           </div>
         )}
         {paymentMethod === 'credit_card' && (

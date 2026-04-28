@@ -56,3 +56,58 @@ export async function getMercadoPagoPublicKey(): Promise<string> {
 export async function getPagBankPublicKey(): Promise<string> {
   return await fetchSetting('pagbank_public_key');
 }
+
+/**
+ * Card gateway fallback chain. Order: Mercado Pago → Pagar.me → Asaas.
+ * PagBank is excluded because it uses a redirect flow (not transparent),
+ * so it cannot be used as an in-form retry option.
+ */
+export const CARD_FALLBACK_ORDER: CheckoutGateway[] = ['mercadopago', 'pagarme', 'asaas'];
+
+export interface AvailableCardGateway {
+  gateway: CheckoutGateway;
+  label: string;
+  publicKey?: string; // for SDKs that need it on the frontend
+  environment: 'sandbox' | 'production';
+}
+
+const GATEWAY_LABELS: Record<CheckoutGateway, string> = {
+  mercadopago: 'Mercado Pago',
+  pagarme: 'Pagar.me',
+  asaas: 'Asaas',
+  pagbank: 'PagBank',
+};
+
+/**
+ * Returns the list of card gateways that are configured (have valid keys)
+ * EXCLUDING the one currently being used. Used to populate the
+ * "Try with another processor" fallback buttons after a card rejection.
+ */
+export async function getAvailableCardFallbacks(currentGateway: CheckoutGateway): Promise<AvailableCardGateway[]> {
+  const candidates = CARD_FALLBACK_ORDER.filter((g) => g !== currentGateway);
+  const results: AvailableCardGateway[] = [];
+
+  for (const gw of candidates) {
+    try {
+      if (gw === 'mercadopago') {
+        const env = (await fetchSetting('mercadopago_environment')) === 'production' ? 'production' : 'sandbox';
+        const pk = (await fetchSetting(`mercadopago_public_key_${env}`)) || (await fetchSetting('mercadopago_public_key'));
+        if (pk) results.push({ gateway: gw, label: GATEWAY_LABELS[gw], publicKey: pk, environment: env });
+      } else if (gw === 'pagarme') {
+        const env = (await fetchSetting('pagarme_environment')) === 'production' ? 'production' : 'sandbox';
+        const pk = (await fetchSetting(`pagarme_public_key_${env}`)) || (await fetchSetting('pagarme_public_key'));
+        if (pk) results.push({ gateway: gw, label: GATEWAY_LABELS[gw], publicKey: pk, environment: env });
+      } else if (gw === 'asaas') {
+        // Asaas tokenization is server-side, so we just need to know the gateway is configured.
+        // We can't read the secret API key from the client; assume admin has set it if user enabled fallback.
+        // We mark Asaas as available always as a last-resort fallback (server will reject if not configured).
+        const env = (await fetchSetting('asaas_environment')) === 'production' ? 'production' : 'sandbox';
+        results.push({ gateway: gw, label: GATEWAY_LABELS[gw], environment: env });
+      }
+    } catch {
+      // Ignore — gateway not configured
+    }
+  }
+
+  return results;
+}

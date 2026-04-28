@@ -1135,17 +1135,24 @@ class PagarMeGateway implements PaymentGateway {
 // PAYMENT FACTORY
 // ────────────────────────────────────────────────────────
 
-async function createGateway(supabaseUrl: string, supabaseKey: string): Promise<{ gateway: PaymentGateway; gatewayName: string }> {
+async function createGateway(supabaseUrl: string, supabaseKey: string, gatewayOverride?: string): Promise<{ gateway: PaymentGateway; gatewayName: string }> {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // Read which gateway is active
-  const { data: gwRow } = await supabase
-    .from('site_settings')
-    .select('value')
-    .eq('key', 'payment_gateway')
-    .maybeSingle();
-
-  const gatewayName = gwRow?.value || 'asaas';
+  let gatewayName: string;
+  // Allow callers (e.g. card-rejection fallback flow) to force a specific gateway
+  // instead of the globally configured `payment_gateway`. Whitelist for safety.
+  const ALLOWED_OVERRIDES = new Set(['mercadopago', 'pagarme', 'asaas', 'pagbank']);
+  if (gatewayOverride && ALLOWED_OVERRIDES.has(gatewayOverride)) {
+    gatewayName = gatewayOverride;
+    console.log(`[PaymentFactory] Gateway OVERRIDE requested: ${gatewayName}`);
+  } else {
+    const { data: gwRow } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', 'payment_gateway')
+      .maybeSingle();
+    gatewayName = gwRow?.value || 'asaas';
+  }
 
   if (gatewayName === 'pagarme') {
     const { data: pgmeEnvRow } = await supabase
@@ -1283,8 +1290,8 @@ serve(async (req) => {
       }));
     }
 
-    const { gateway, gatewayName } = await createGateway(supabaseUrl, supabaseKey);
-    console.log(`[payment-checkout] Gateway resolved: ${gatewayName}`);
+    const { gateway, gatewayName } = await createGateway(supabaseUrl, supabaseKey, payload.gatewayOverride);
+    console.log(`[payment-checkout] Gateway resolved: ${gatewayName}${payload.gatewayOverride ? ' (via override)' : ''}`);
 
     // Set device session ID for anti-fraud (Mercado Pago only)
     if (gatewayName === 'mercadopago' && payload.deviceSessionId) {
@@ -1322,6 +1329,7 @@ serve(async (req) => {
           await supabase.from('orders').update({
             asaas_payment_id: result.id,
             status: result.status || 'PENDING',
+            payment_gateway: gatewayName,
           }).eq('id', orderId);
         }
         break;
@@ -1344,6 +1352,7 @@ serve(async (req) => {
           const updateData: any = {
             asaas_payment_id: result.id,
             status: result.status || 'PENDING',
+            payment_gateway: gatewayName,
           };
           if (gatewayName === 'mercadopago') {
             updateData.total_value = toCurrencyNumber(value);
