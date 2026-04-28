@@ -468,6 +468,39 @@ export type Database = {
         }
         Relationships: []
       }
+      gateway_settings_audit: {
+        Row: {
+          created_at: string
+          gateway: string
+          id: string
+          new_value: boolean
+          old_value: boolean | null
+          setting_type: string
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          gateway: string
+          id?: string
+          new_value: boolean
+          old_value?: boolean | null
+          setting_type: string
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          gateway?: string
+          id?: string
+          new_value?: boolean
+          old_value?: boolean | null
+          setting_type?: string
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           asaas_customer_id: string | null
