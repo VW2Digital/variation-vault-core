@@ -396,6 +396,31 @@ const Dashboard = () => {
         </Tabs>
       </div>
 
+      {/* Hero Receita + Meta do Mês (estilo referência) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2">
+          <DashboardHero
+            currentRevenue={metrics.totalRevenue}
+            previousRevenue={previousPeriodRevenue}
+            periodLabel={PERIOD_LABELS[period]}
+            subline={`Atualizado em tempo real • Últimos ${PERIOD_LABELS[period]}`}
+          />
+        </div>
+        <DashboardMonthlyGoal
+          currentMonthRevenue={monthRevenues.current}
+          previousMonthRevenue={monthRevenues.prev}
+          monthlyGoal={monthlyGoal}
+        />
+      </div>
+
+      {/* Top produtos + Pedidos recentes */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2">
+          <DashboardTopProducts products={topProducts} />
+        </div>
+        <DashboardRecentOrders orders={recentOrders} />
+      </div>
+
       {/* KPIs Grid 3x2 — estilo da referência */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Receita Total */}
