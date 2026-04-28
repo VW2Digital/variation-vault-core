@@ -161,6 +161,8 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
   const [paymentResult, setPaymentResult] = useState<any>(null);
   const [showPixFallback, setShowPixFallback] = useState(false);
   const [cardFailMessage, setCardFailMessage] = useState('');
+  const [availableFallbacks, setAvailableFallbacks] = useState<AvailableCardGateway[]>([]);
+  const [fallbackProcessing, setFallbackProcessing] = useState<CheckoutGateway | null>(null);
 
   // Coupon
   const [couponCode, setCouponCode] = useState('');
