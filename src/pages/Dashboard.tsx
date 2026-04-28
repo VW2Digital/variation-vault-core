@@ -308,6 +308,124 @@ const Dashboard = () => {
 
   const chartData = useMemo(() => buildChartData(filterByPeriod(allOrders, period), period), [allOrders, period]);
 
+  // Resumo Geral (mês/trimestre/ano vs período anterior equivalente)
+  const summary = useMemo(() => {
+    const now = new Date();
+    let curStart: Date;
+    let prevStart: Date;
+    let prevEnd: Date;
+    if (summaryRange === 'month') {
+      curStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      prevEnd = curStart;
+    } else if (summaryRange === 'quarter') {
+      curStart = new Date(now);
+      curStart.setMonth(curStart.getMonth() - 3);
+      prevEnd = curStart;
+      prevStart = new Date(prevEnd);
+      prevStart.setMonth(prevStart.getMonth() - 3);
+    } else {
+      curStart = new Date(now.getFullYear(), 0, 1);
+      prevStart = new Date(now.getFullYear() - 1, 0, 1);
+      prevEnd = curStart;
+    }
+    let curRev = 0, prevRev = 0, curConfirmed = 0, curTotal = 0;
+    allOrders.forEach((o) => {
+      const d = new Date(o.created_at);
+      const v = Number(o.total_value || 0);
+      const isConfirmed = CONFIRMED_STATUSES.includes(o.status);
+      if (d >= curStart) {
+        curTotal++;
+        if (isConfirmed) {
+          curRev += v;
+          curConfirmed++;
+        }
+      } else if (d >= prevStart && d < prevEnd && isConfirmed) {
+        prevRev += v;
+      }
+    });
+    const balanceDelta = prevRev > 0 ? ((curRev - prevRev) / prevRev) * 100 : curRev > 0 ? 100 : 0;
+    const newCustomers = recentSignups.filter((s) => new Date(s.created_at) >= curStart).length;
+    const prevCustomers = recentSignups.filter((s) => {
+      const d = new Date(s.created_at);
+      return d >= prevStart && d < prevEnd;
+    }).length;
+    const customersDelta = prevCustomers > 0
+      ? ((newCustomers - prevCustomers) / prevCustomers) * 100
+      : newCustomers > 0 ? 100 : 0;
+    const achievementRate = curTotal > 0 ? (curConfirmed / curTotal) * 100 : 0;
+    return {
+      balance: curRev,
+      balanceDelta,
+      achievementRate,
+      customers: totalClients,
+      customersDelta,
+    };
+  }, [allOrders, summaryRange, recentSignups, totalClients]);
+
+  // Sales overview bars: últimos N pontos do chartData
+  const salesBars = useMemo(() => {
+    const points = chartData.slice(-7);
+    return points.map((p) => ({ label: p.date.split('/')[0], value: p.receita }));
+  }, [chartData]);
+
+  // Atividade recente unificada
+  const activityItems = useMemo<ActivityItem[]>(() => {
+    const fmt = (iso: string) => {
+      const diff = Date.now() - new Date(iso).getTime();
+      const min = Math.floor(diff / 60000);
+      if (min < 1) return 'agora';
+      if (min < 60) return `${min} min atrás`;
+      const h = Math.floor(min / 60);
+      if (h < 24) return `${h} h atrás`;
+      const d = Math.floor(h / 24);
+      return `${d} d atrás`;
+    };
+    const items: ActivityItem[] = [];
+    allOrders.slice(0, 3).forEach((o) => {
+      items.push({
+        id: `o-${o.id}`,
+        type: 'order',
+        title: o.customer_name || o.customer_email || 'Novo pedido',
+        description: `Pediu ${o.product_name || 'um produto'} • ${o.status}`,
+        timeAgo: fmt(o.created_at),
+        link: o.id ? `/admin/pedidos/${o.id}` : '/admin/pedidos',
+      });
+    });
+    recentTickets.slice(0, 2).forEach((t) => {
+      items.push({
+        id: `t-${t.id}`,
+        type: 'support',
+        title: 'Novo chamado de suporte',
+        description: t.subject || 'Cliente abriu um chamado',
+        timeAgo: fmt(t.created_at),
+        link: '/admin/suporte',
+        cta: { acceptLabel: 'Responder', declineLabel: 'Depois' },
+      });
+    });
+    recentFailures.slice(0, 2).forEach((f) => {
+      items.push({
+        id: `f-${f.id}`,
+        type: 'failure',
+        title: 'Falha de pagamento',
+        description: `${f.customer_email || 'Cliente'} • ${f.error_message || 'Pagamento recusado'}`,
+        timeAgo: fmt(f.created_at),
+        link: '/admin/falhas-pagamento',
+      });
+    });
+    recentSignups.slice(0, 2).forEach((s) => {
+      items.push({
+        id: `s-${s.id}`,
+        type: 'signup',
+        title: 'Novo cliente cadastrado',
+        description: s.full_name || 'Conta criada com sucesso',
+        timeAgo: fmt(s.created_at),
+        link: '/admin/usuarios',
+      });
+    });
+    return items.sort((a, b) => (a.timeAgo > b.timeAgo ? 1 : -1)).slice(0, 5);
+  }, [allOrders, recentTickets, recentFailures, recentSignups]);
+
   const paymentPieData = useMemo(() => {
     const data = [];
     if (metrics.pixOrders > 0) data.push({ name: 'PIX', value: metrics.pixOrders });
