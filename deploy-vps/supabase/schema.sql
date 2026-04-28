@@ -12,6 +12,9 @@
 -- EXTENSIONS
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- pg_net é necessário para dispatch_order_email (HTTP POST para send-email)
+-- pg_cron é opcional (recuperação de carrinho abandonado / sync de rastreio)
+CREATE EXTENSION IF NOT EXISTS pg_net;
 
 -- ENUMS
 DO $$ BEGIN
