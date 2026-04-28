@@ -16,6 +16,11 @@ import { DashboardMonthlyGoal } from '@/components/admin/DashboardMonthlyGoal';
 import { DashboardRecentOrders } from '@/components/admin/DashboardRecentOrders';
 import { DashboardTopProducts } from '@/components/admin/DashboardTopProducts';
 import { DashboardProductsGrid } from '@/components/admin/DashboardProductsGrid';
+import { DashboardWelcomeHeader } from '@/components/admin/DashboardWelcomeHeader';
+import { DashboardOverallSummary } from '@/components/admin/DashboardOverallSummary';
+import { DashboardSalesOverview } from '@/components/admin/DashboardSalesOverview';
+import { DashboardRecentActivity, type ActivityItem } from '@/components/admin/DashboardRecentActivity';
+import { DashboardMostRecentProducts } from '@/components/admin/DashboardMostRecentProducts';
 
 type PeriodKey = '7' | '30' | '90';
 
@@ -100,6 +105,11 @@ const Dashboard = () => {
   const [stockSearch, setStockSearch] = useState('');
   const [cartUsers, setCartUsers] = useState(0);
   const [monthlyGoal, setMonthlyGoal] = useState<number>(0);
+  const [adminName, setAdminName] = useState<string>('');
+  const [summaryRange, setSummaryRange] = useState<'month' | 'quarter' | 'year'>('month');
+  const [recentSignups, setRecentSignups] = useState<{ id: string; full_name: string | null; created_at: string }[]>([]);
+  const [recentTickets, setRecentTickets] = useState<{ id: string; subject: string | null; created_at: string }[]>([]);
+  const [recentFailures, setRecentFailures] = useState<{ id: string; customer_email: string | null; created_at: string; error_message?: string | null }[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -148,6 +158,39 @@ const Dashboard = () => {
         .maybeSingle();
       const parsed = Number((goalSetting as any)?.value);
       setMonthlyGoal(Number.isFinite(parsed) ? parsed : 0);
+
+      // Nome do admin
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user?.id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', userData.user.id)
+          .maybeSingle();
+        setAdminName((profile as any)?.full_name || userData.user.email?.split('@')[0] || 'Admin');
+      }
+
+      // Atividade: signups recentes, tickets, falhas
+      const { data: signups } = await supabase
+        .from('profiles')
+        .select('id, full_name, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      setRecentSignups((signups as any) || []);
+
+      const { data: tickets } = await supabase
+        .from('support_tickets')
+        .select('id, subject, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      setRecentTickets((tickets as any) || []);
+
+      const { data: failures } = await supabase
+        .from('payment_logs')
+        .select('id, customer_email, created_at, error_message')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      setRecentFailures((failures as any) || []);
 
       setLoading(false);
     };
@@ -264,6 +307,124 @@ const Dashboard = () => {
   }, [allOrders]);
 
   const chartData = useMemo(() => buildChartData(filterByPeriod(allOrders, period), period), [allOrders, period]);
+
+  // Resumo Geral (mês/trimestre/ano vs período anterior equivalente)
+  const summary = useMemo(() => {
+    const now = new Date();
+    let curStart: Date;
+    let prevStart: Date;
+    let prevEnd: Date;
+    if (summaryRange === 'month') {
+      curStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      prevEnd = curStart;
+    } else if (summaryRange === 'quarter') {
+      curStart = new Date(now);
+      curStart.setMonth(curStart.getMonth() - 3);
+      prevEnd = curStart;
+      prevStart = new Date(prevEnd);
+      prevStart.setMonth(prevStart.getMonth() - 3);
+    } else {
+      curStart = new Date(now.getFullYear(), 0, 1);
+      prevStart = new Date(now.getFullYear() - 1, 0, 1);
+      prevEnd = curStart;
+    }
+    let curRev = 0, prevRev = 0, curConfirmed = 0, curTotal = 0;
+    allOrders.forEach((o) => {
+      const d = new Date(o.created_at);
+      const v = Number(o.total_value || 0);
+      const isConfirmed = CONFIRMED_STATUSES.includes(o.status);
+      if (d >= curStart) {
+        curTotal++;
+        if (isConfirmed) {
+          curRev += v;
+          curConfirmed++;
+        }
+      } else if (d >= prevStart && d < prevEnd && isConfirmed) {
+        prevRev += v;
+      }
+    });
+    const balanceDelta = prevRev > 0 ? ((curRev - prevRev) / prevRev) * 100 : curRev > 0 ? 100 : 0;
+    const newCustomers = recentSignups.filter((s) => new Date(s.created_at) >= curStart).length;
+    const prevCustomers = recentSignups.filter((s) => {
+      const d = new Date(s.created_at);
+      return d >= prevStart && d < prevEnd;
+    }).length;
+    const customersDelta = prevCustomers > 0
+      ? ((newCustomers - prevCustomers) / prevCustomers) * 100
+      : newCustomers > 0 ? 100 : 0;
+    const achievementRate = curTotal > 0 ? (curConfirmed / curTotal) * 100 : 0;
+    return {
+      balance: curRev,
+      balanceDelta,
+      achievementRate,
+      customers: totalClients,
+      customersDelta,
+    };
+  }, [allOrders, summaryRange, recentSignups, totalClients]);
+
+  // Sales overview bars: últimos N pontos do chartData
+  const salesBars = useMemo(() => {
+    const points = chartData.slice(-7);
+    return points.map((p) => ({ label: p.date.split('/')[0], value: p.receita }));
+  }, [chartData]);
+
+  // Atividade recente unificada
+  const activityItems = useMemo<ActivityItem[]>(() => {
+    const fmt = (iso: string) => {
+      const diff = Date.now() - new Date(iso).getTime();
+      const min = Math.floor(diff / 60000);
+      if (min < 1) return 'agora';
+      if (min < 60) return `${min} min atrás`;
+      const h = Math.floor(min / 60);
+      if (h < 24) return `${h} h atrás`;
+      const d = Math.floor(h / 24);
+      return `${d} d atrás`;
+    };
+    const items: ActivityItem[] = [];
+    allOrders.slice(0, 3).forEach((o) => {
+      items.push({
+        id: `o-${o.id}`,
+        type: 'order',
+        title: o.customer_name || o.customer_email || 'Novo pedido',
+        description: `Pediu ${o.product_name || 'um produto'} • ${o.status}`,
+        timeAgo: fmt(o.created_at),
+        link: o.id ? `/admin/pedidos/${o.id}` : '/admin/pedidos',
+      });
+    });
+    recentTickets.slice(0, 2).forEach((t) => {
+      items.push({
+        id: `t-${t.id}`,
+        type: 'support',
+        title: 'Novo chamado de suporte',
+        description: t.subject || 'Cliente abriu um chamado',
+        timeAgo: fmt(t.created_at),
+        link: '/admin/suporte',
+        cta: { acceptLabel: 'Responder', declineLabel: 'Depois' },
+      });
+    });
+    recentFailures.slice(0, 2).forEach((f) => {
+      items.push({
+        id: `f-${f.id}`,
+        type: 'failure',
+        title: 'Falha de pagamento',
+        description: `${f.customer_email || 'Cliente'} • ${f.error_message || 'Pagamento recusado'}`,
+        timeAgo: fmt(f.created_at),
+        link: '/admin/falhas-pagamento',
+      });
+    });
+    recentSignups.slice(0, 2).forEach((s) => {
+      items.push({
+        id: `s-${s.id}`,
+        type: 'signup',
+        title: 'Novo cliente cadastrado',
+        description: s.full_name || 'Conta criada com sucesso',
+        timeAgo: fmt(s.created_at),
+        link: '/admin/usuarios',
+      });
+    });
+    return items.sort((a, b) => (a.timeAgo > b.timeAgo ? 1 : -1)).slice(0, 5);
+  }, [allOrders, recentTickets, recentFailures, recentSignups]);
 
   const paymentPieData = useMemo(() => {
     const data = [];
@@ -386,15 +547,34 @@ const Dashboard = () => {
       )}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground uppercase">Dashboard</h1>
-        <Tabs value={period} onValueChange={(v) => setPeriod(v as PeriodKey)}>
-          <TabsList className="bg-muted/50">
-            {Object.entries(PERIOD_LABELS).map(([k, label]) => (
-              <TabsTrigger key={k} value={k} className="text-xs sm:text-sm">{label}</TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+      <DashboardWelcomeHeader adminName={adminName} />
+
+      {/* Conteúdo principal: 2/3 painel + 1/3 sidebar (estilo referência) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 space-y-4">
+          <DashboardOverallSummary
+            balance={summary.balance}
+            balanceDelta={summary.balanceDelta}
+            achievementRate={summary.achievementRate}
+            customers={summary.customers}
+            customersDelta={summary.customersDelta}
+            range={summaryRange}
+            onRangeChange={setSummaryRange}
+          />
+          <DashboardSalesOverview
+            total={metrics.totalRevenue}
+            delta={previousPeriodRevenue > 0
+              ? ((metrics.totalRevenue - previousPeriodRevenue) / previousPeriodRevenue) * 100
+              : metrics.totalRevenue > 0 ? 100 : 0}
+            bars={salesBars}
+            range={period}
+            onRangeChange={(v) => setPeriod(v)}
+          />
+        </div>
+        <div className="space-y-4">
+          <DashboardRecentActivity items={activityItems} />
+          <DashboardMostRecentProducts products={allProducts as any} />
+        </div>
       </div>
 
       {/* Hero Receita + Meta do Mês (estilo referência) */}
