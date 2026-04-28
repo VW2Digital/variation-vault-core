@@ -9,6 +9,8 @@ import { Phone, CreditCard, Eye, EyeOff, Truck, MapPin, Mail, Link2, CheckCircle
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import WebhookUrlCard from '@/components/admin/WebhookUrlCard';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import { Settings as SettingsIcon } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -360,7 +362,11 @@ const SettingsPage = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <h1 className="text-xl sm:text-2xl font-bold text-foreground">Configurações</h1>
+      <AdminPageHeader
+        title="Configurações"
+        description="Integrações, gateways de pagamento, frete, e-mails e ajustes da loja."
+        icon={SettingsIcon}
+      />
 
       <Card className="border-border/50">
         <CardHeader>

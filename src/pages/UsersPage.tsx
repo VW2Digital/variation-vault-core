@@ -26,6 +26,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 
 interface UserItem {
   id: string;
@@ -246,12 +247,16 @@ const UsersPage = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Gerenciar Usuários</h1>
-        <Button variant="outline" size="sm" onClick={fetchUsers} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Atualizar
-        </Button>
-      </div>
+      <AdminPageHeader
+        title="Gerenciar Usuários"
+        description="Lista de clientes cadastrados, com permissões, busca e ações em lote."
+        icon={Users}
+        actions={
+          <Button size="sm" onClick={fetchUsers} disabled={loading} className="bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-95 shadow-sm shadow-primary/20">
+            <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+          </Button>
+        }
+      />
 
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 sm:flex-none">
