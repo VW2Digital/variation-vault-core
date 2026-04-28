@@ -199,6 +199,69 @@ const Dashboard = () => {
     };
   }, [allOrders, allLogs, period]);
 
+  // Receita do período anterior equivalente (variação % do hero)
+  const previousPeriodRevenue = useMemo(() => {
+    const days = Number(period);
+    const cutoffEnd = new Date();
+    cutoffEnd.setDate(cutoffEnd.getDate() - days);
+    const cutoffStart = new Date(cutoffEnd);
+    cutoffStart.setDate(cutoffStart.getDate() - days);
+    return allOrders
+      .filter((o) => {
+        const d = new Date(o.created_at);
+        return d >= cutoffStart && d < cutoffEnd && CONFIRMED_STATUSES.includes(o.status);
+      })
+      .reduce((s, o) => s + Number(o.total_value || 0), 0);
+  }, [allOrders, period]);
+
+  // Receita do mês corrente vs mês anterior (card de meta)
+  const monthRevenues = useMemo(() => {
+    const now = new Date();
+    const startCurrent = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startPrev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endPrev = new Date(now.getFullYear(), now.getMonth(), 1);
+    let current = 0;
+    let prev = 0;
+    allOrders.forEach((o) => {
+      if (!CONFIRMED_STATUSES.includes(o.status)) return;
+      const d = new Date(o.created_at);
+      const v = Number(o.total_value || 0);
+      if (d >= startCurrent) current += v;
+      else if (d >= startPrev && d < endPrev) prev += v;
+    });
+    return { current, prev };
+  }, [allOrders]);
+
+  // Top produtos por receita no período
+  const topProducts = useMemo(() => {
+    const map = new Map<string, { qty: number; revenue: number }>();
+    filterByPeriod(allOrders, period)
+      .filter((o) => CONFIRMED_STATUSES.includes(o.status))
+      .forEach((o) => {
+        const key = o.product_name || '—';
+        const cur = map.get(key) || { qty: 0, revenue: 0 };
+        cur.qty += 1;
+        cur.revenue += Number(o.total_value || 0);
+        map.set(key, cur);
+      });
+    return Array.from(map.entries())
+      .map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [allOrders, period]);
+
+  // Pedidos mais recentes (qualquer status) para o painel lateral
+  const recentOrders = useMemo(() => {
+    return allOrders.slice(0, 6).map((o) => ({
+      id: o.id || `${o.created_at}-${o.customer_email}`,
+      customer_name: o.customer_name || (o.customer_email || 'Cliente').split('@')[0],
+      product_name: o.product_name || '—',
+      total_value: Number(o.total_value || 0),
+      payment_method: o.payment_method || 'pix',
+      status: o.status,
+      created_at: o.created_at,
+    }));
+  }, [allOrders]);
+
   const chartData = useMemo(() => buildChartData(filterByPeriod(allOrders, period), period), [allOrders, period]);
 
   const paymentPieData = useMemo(() => {
