@@ -17,7 +17,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail, FileText, Sparkles, Wand2 } from "lucide-react";
+import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail, FileText, Sparkles, Wand2, Save, Bookmark, Trash2 } from "lucide-react";
 import { BULK_EMAIL_TEMPLATES, type BulkEmailTemplate } from "@/lib/bulkEmailTemplates";
 
 type Audience = "all_customers" | "paid_customers" | "no_orders" | "manual";
@@ -59,6 +59,16 @@ export default function BulkEmailPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [aiInstructions, setAiInstructions] = useState("");
   const [generating, setGenerating] = useState(false);
+
+  // Templates próprios (salvos no banco)
+  type CustomTemplate = { id: string; name: string; subject: string; html_content: string; updated_at: string };
+  const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([]);
+  const [loadingCustom, setLoadingCustom] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [loadedCustomId, setLoadedCustomId] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // Amostras (fallback fictício + amostra real do público carregado)
   const SAMPLE_PROFILES: Record<string, { label: string; nome: string; email: string }[]> = {
@@ -147,6 +157,82 @@ export default function BulkEmailPage() {
     {},
   );
 
+  // ===== Templates próprios =====
+  const loadCustomTemplates = async () => {
+    setLoadingCustom(true);
+    const { data, error } = await supabase
+      .from("bulk_email_templates")
+      .select("id, name, subject, html_content, updated_at")
+      .order("updated_at", { ascending: false });
+    if (!error) setCustomTemplates((data || []) as CustomTemplate[]);
+    setLoadingCustom(false);
+  };
+
+  const handleSaveTemplate = async (mode: "new" | "update") => {
+    if (mode === "new" && !saveName.trim()) {
+      toast({ title: "Informe um nome para o template", variant: "destructive" });
+      return;
+    }
+    if (!html.trim()) {
+      toast({ title: "Conteúdo vazio", description: "Escreva o HTML antes de salvar.", variant: "destructive" });
+      return;
+    }
+    setSavingTemplate(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Sessão expirada");
+
+      if (mode === "update" && loadedCustomId) {
+        const { error } = await supabase
+          .from("bulk_email_templates")
+          .update({ subject, html_content: html })
+          .eq("id", loadedCustomId);
+        if (error) throw error;
+        toast({ title: "Template atualizado" });
+      } else {
+        const { data, error } = await supabase
+          .from("bulk_email_templates")
+          .insert({ user_id: user.id, name: saveName.trim(), subject, html_content: html })
+          .select("id")
+          .single();
+        if (error) throw error;
+        setLoadedCustomId(data.id);
+        toast({ title: "Template salvo", description: saveName });
+      }
+      setSaveOpen(false);
+      setSaveName("");
+      loadCustomTemplates();
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar", description: e?.message, variant: "destructive" });
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const applyCustomTemplate = (tpl: CustomTemplate) => {
+    setSubject(tpl.subject || "");
+    setHtml(tpl.html_content || "");
+    setLoadedCustomId(tpl.id);
+    setSelectedTemplateId("");
+    toast({ title: "Template carregado", description: tpl.name });
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!deleteTargetId) return;
+    const { error } = await supabase
+      .from("bulk_email_templates")
+      .delete()
+      .eq("id", deleteTargetId);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Template excluído" });
+      if (loadedCustomId === deleteTargetId) setLoadedCustomId(null);
+      loadCustomTemplates();
+    }
+    setDeleteTargetId(null);
+  };
+
   // Carrega histórico
   const loadCampaigns = async () => {
     const { data } = await supabase
@@ -159,6 +245,7 @@ export default function BulkEmailPage() {
 
   useEffect(() => {
     loadCampaigns();
+    loadCustomTemplates();
   }, []);
 
   // Resolve destinatários conforme audiência
