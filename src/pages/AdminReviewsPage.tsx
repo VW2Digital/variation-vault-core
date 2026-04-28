@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Star, Trash2 } from 'lucide-react';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -50,10 +51,11 @@ const AdminReviewsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Gerenciar Avaliações</h1>
-        <p className="text-muted-foreground text-sm">Modere e gerencie as avaliações dos clientes.</p>
-      </div>
+      <AdminPageHeader
+        title="Gerenciar Avaliações"
+        description="Modere e gerencie as avaliações dos clientes."
+        icon={Star}
+      />
 
       {loading ? (
         <p className="text-muted-foreground">Carregando...</p>

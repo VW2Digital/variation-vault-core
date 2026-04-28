@@ -8,6 +8,8 @@ import {
   Loader2, MessageCircle, Send, ArrowLeft, XCircle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import { MessageCircle } from 'lucide-react';
 
 const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   open: { label: 'Aberto', variant: 'default' },
@@ -202,10 +204,11 @@ const AdminSupportPage = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Suporte</h1>
-        <p className="text-muted-foreground text-sm">Gerencie os tickets de suporte dos clientes</p>
-      </div>
+      <AdminPageHeader
+        title="Suporte"
+        description="Gerencie os tickets de suporte dos clientes."
+        icon={MessageCircle}
+      />
 
       {loading ? (
         <div className="flex justify-center py-12">

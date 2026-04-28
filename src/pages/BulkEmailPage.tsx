@@ -19,6 +19,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail, FileText, Sparkles, Wand2, Save, Bookmark, Trash2 } from "lucide-react";
 import { BULK_EMAIL_TEMPLATES, type BulkEmailTemplate } from "@/lib/bulkEmailTemplates";
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 
 type Audience = "all_customers" | "paid_customers" | "no_orders" | "manual";
 
@@ -381,17 +382,11 @@ export default function BulkEmailPage() {
 
   return (
     <div className="space-y-6 w-full">
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-primary/10">
-          <Send className="w-5 h-5 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold">Disparo de E-mails</h1>
-          <p className="text-sm text-muted-foreground">
-            Envio manual em massa para clientes selecionados.
-          </p>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="Disparo de E-mails"
+        description="Envio manual em massa para clientes selecionados."
+        icon={Send}
+      />
 
       <Alert>
         <AlertTriangle className="h-4 w-4" />
