@@ -113,6 +113,7 @@ const PagBankSettings = ({ isActive, onActivate }: Props) => {
 
   return (
     <div className="space-y-4">
+      <GatewayToggles gateway="pagbank" fallbackSupported={false} />
       <div className="space-y-2">
         <Label>Ambiente</Label>
         <Select value={env} onValueChange={handleEnvChange}>
