@@ -142,7 +142,7 @@ const AdminLayout = () => {
       <div className="min-h-screen flex w-full overflow-x-hidden">
         <AdminSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-16 flex items-center gap-2 sm:gap-3 border-b border-border/50 bg-card/95 backdrop-blur px-3 sm:px-5 fixed top-0 right-0 left-0 md:left-[var(--sidebar-width)] z-40 transition-[left] duration-200 ease-linear group-data-[state=collapsed]/sidebar-wrapper:md:left-[--sidebar-width-icon]">
+          <header className="h-16 flex items-center gap-2 sm:gap-3 border-b border-border/50 bg-card/80 backdrop-blur-xl px-3 sm:px-5 fixed top-0 right-0 left-0 md:left-[var(--sidebar-width)] z-40 transition-[left] duration-200 ease-linear group-data-[state=collapsed]/sidebar-wrapper:md:left-[--sidebar-width-icon]">
             {/* Esquerda: trigger + logo */}
             <div className="flex items-center gap-2 shrink-0">
               <SidebarTrigger className="hidden md:inline-flex" />
@@ -170,10 +170,10 @@ const AdminLayout = () => {
                 <DropdownMenuTrigger asChild>
                   <Button
                     size="sm"
-                    className="hidden sm:inline-flex rounded-full h-9 px-3.5 gap-1.5 bg-foreground text-background hover:bg-foreground/90"
+                    className="hidden sm:inline-flex rounded-full h-9 px-4 gap-1.5 bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-95 shadow-md shadow-primary/25 border-0"
                   >
                     <Plus className="h-4 w-4" />
-                    <span className="text-xs font-semibold">Criar</span>
+                    <span className="text-xs font-semibold">Criar novo</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52">
@@ -225,8 +225,10 @@ const AdminLayout = () => {
             </div>
           </header>
 
-          <main className="flex-1 p-3 sm:p-6 overflow-x-auto min-w-0 mt-16">
-            <Outlet />
+          <main className="flex-1 p-3 sm:p-6 overflow-x-auto min-w-0 mt-16 bg-gradient-to-b from-background via-background to-primary/[0.02]">
+            <div className="mx-auto w-full max-w-[1600px] space-y-5">
+              <Outlet />
+            </div>
           </main>
         </div>
       </div>
