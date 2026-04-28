@@ -14,7 +14,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail, FileText, Sparkles } from "lucide-react";
+import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail, FileText, Sparkles, Wand2 } from "lucide-react";
 import { BULK_EMAIL_TEMPLATES, type BulkEmailTemplate } from "@/lib/bulkEmailTemplates";
 
 type Audience = "all_customers" | "paid_customers" | "no_orders" | "manual";
@@ -54,6 +54,38 @@ export default function BulkEmailPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [aiInstructions, setAiInstructions] = useState("");
+  const [generating, setGenerating] = useState(false);
+
+  const handleGenerateAI = async () => {
+    if (!subject.trim() && !html.trim() && !aiInstructions.trim()) {
+      toast({
+        title: "Forneça contexto",
+        description: "Preencha o assunto, o HTML atual ou instruções para gerar um template.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("bulk-email-generate", {
+        body: { subject, currentHtml: html, instructions: aiInstructions },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.html) throw new Error("Resposta vazia da IA");
+      setHtml(data.html);
+      toast({ title: "Nova versão gerada", description: "O HTML foi atualizado pela IA." });
+    } catch (e: any) {
+      toast({
+        title: "Falha ao gerar template",
+        description: e?.message || "Erro inesperado",
+        variant: "destructive",
+      });
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const applyTemplate = (id: string) => {
     const tpl = BULK_EMAIL_TEMPLATES.find((t) => t.id === id);
@@ -389,6 +421,37 @@ export default function BulkEmailPage() {
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setPreviewOpen(true)}>
                   <Eye className="w-4 h-4 mr-2" /> Pré-visualizar
+                </Button>
+              </div>
+
+              <div className="border-t pt-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Wand2 className="w-4 h-4 text-primary" />
+                  <Label className="text-sm font-semibold">Gerar nova versão com IA</Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  A IA usará o assunto, o HTML atual e as instruções abaixo para criar uma nova versão
+                  preservando as variáveis <code className="bg-muted px-1 rounded">{"{{nome}}"}</code> e{" "}
+                  <code className="bg-muted px-1 rounded">{"{{email}}"}</code>.
+                </p>
+                <Textarea
+                  value={aiInstructions}
+                  onChange={(e) => setAiInstructions(e.target.value)}
+                  rows={2}
+                  placeholder="Instruções opcionais (ex: tom mais informal, adicionar CTA para WhatsApp, destacar frete grátis...)"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleGenerateAI}
+                  disabled={generating}
+                >
+                  {generating ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Wand2 className="w-4 h-4 mr-2" />
+                  )}
+                  {generating ? "Gerando..." : "Gerar nova versão"}
                 </Button>
               </div>
             </CardContent>
