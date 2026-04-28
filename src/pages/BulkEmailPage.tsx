@@ -14,7 +14,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail } from "lucide-react";
+import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail, FileText, Sparkles } from "lucide-react";
+import { BULK_EMAIL_TEMPLATES, type BulkEmailTemplate } from "@/lib/bulkEmailTemplates";
 
 type Audience = "all_customers" | "paid_customers" | "no_orders" | "manual";
 
@@ -52,6 +53,27 @@ export default function BulkEmailPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+
+  const applyTemplate = (id: string) => {
+    const tpl = BULK_EMAIL_TEMPLATES.find((t) => t.id === id);
+    if (!tpl) return;
+    setSelectedTemplateId(id);
+    if (tpl.subject) setSubject(tpl.subject);
+    setHtml(tpl.html);
+    toast({
+      title: "Template aplicado",
+      description: tpl.name,
+    });
+  };
+
+  const groupedTemplates = BULK_EMAIL_TEMPLATES.reduce<Record<string, BulkEmailTemplate[]>>(
+    (acc, t) => {
+      (acc[t.category] = acc[t.category] || []).push(t);
+      return acc;
+    },
+    {},
+  );
 
   // Carrega histórico
   const loadCampaigns = async () => {
