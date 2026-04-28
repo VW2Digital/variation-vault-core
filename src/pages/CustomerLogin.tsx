@@ -9,12 +9,32 @@ import { Package, Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import logoImg from '@/assets/liberty-pharma-logo.png';
 
+// Máscara BR: (11) 91234-5678 ou (11) 1234-5678
+const formatPhoneBR = (raw: string) => {
+  const d = raw.replace(/\D/g, '').slice(0, 11);
+  if (d.length <= 2) return d.length ? `(${d}` : '';
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+};
+
+// Validação BR: DDD 11-99, 10-11 dígitos, móvel (11) começa com 9
+const validatePhoneBR = (raw: string): string | null => {
+  const d = raw.replace(/\D/g, '');
+  if (d.length < 10 || d.length > 11) return 'Telefone deve ter 10 ou 11 dígitos (com DDD).';
+  const ddd = parseInt(d.slice(0, 2), 10);
+  if (isNaN(ddd) || ddd < 11 || ddd > 99) return 'DDD inválido. Use um DDD válido (entre 11 e 99).';
+  if (d.length === 11 && d[2] !== '9') return 'Celular deve começar com 9 após o DDD.';
+  return null;
+};
+
 const CustomerLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
@@ -33,15 +53,34 @@ const CustomerLogin = () => {
     setLoading(true);
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const phoneError = validatePhoneBR(phone);
+        if (phoneError) {
+          toast({ title: 'Telefone inválido', description: phoneError, variant: 'destructive' });
+          setLoading(false);
+          return;
+        }
+        const phoneDigits = phone.replace(/\D/g, '');
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { full_name: name, role: 'customer' },
+            data: { full_name: name, phone: phoneDigits, role: 'customer' },
             emailRedirectTo: window.location.origin + '/minha-conta',
           },
         });
         if (error) throw error;
+
+        // Garante que o telefone fique salvo em profiles (handle_new_user só grava full_name).
+        const newUserId = signUpData.user?.id;
+        if (newUserId) {
+          await supabase
+            .from('profiles')
+            .upsert(
+              { user_id: newUserId, full_name: name, phone: phoneDigits },
+              { onConflict: 'user_id' }
+            );
+        }
+
         toast({
           title: 'Conta criada!',
           description: 'Verifique seu email para confirmar o cadastro.',
