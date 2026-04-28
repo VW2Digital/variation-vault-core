@@ -10,6 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
@@ -56,6 +59,43 @@ export default function BulkEmailPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [aiInstructions, setAiInstructions] = useState("");
   const [generating, setGenerating] = useState(false);
+
+  // Amostras (fallback fictício + amostra real do público carregado)
+  const SAMPLE_PROFILES: Record<string, { label: string; nome: string; email: string }[]> = {
+    paid_customers: [
+      { label: "Cliente recorrente", nome: "Maria Silva", email: "maria.silva@gmail.com" },
+      { label: "Cliente VIP", nome: "Carlos Andrade", email: "c.andrade@outlook.com" },
+    ],
+    all_customers: [
+      { label: "Cliente cadastrado", nome: "Ana Beatriz", email: "ana.b@yahoo.com.br" },
+      { label: "Novo cadastro", nome: "Pedro", email: "pedro@hotmail.com" },
+    ],
+    no_orders: [
+      { label: "Sem compras", nome: "João Pereira", email: "joao.p@gmail.com" },
+      { label: "Lead frio", nome: "Cliente", email: "lead@email.com" },
+    ],
+    manual: [
+      { label: "Lista manual", nome: "Cliente", email: "exemplo@email.com" },
+    ],
+  };
+
+  const interpolate = (text: string, nome: string, email: string) =>
+    text
+      .replace(/\{\{\s*nome\s*\}\}/gi, nome || "Cliente")
+      .replace(/\{\{\s*email\s*\}\}/gi, email || "cliente@email.com");
+
+  // Junta fallback + 1 amostra real (se o usuário carregou destinatários)
+  const previewSamples = (() => {
+    const fallback = SAMPLE_PROFILES[audience] || SAMPLE_PROFILES.all_customers;
+    const realSample = resolved[0]
+      ? [{
+          label: "Destinatário real",
+          nome: resolved[0].name?.trim() || resolved[0].email.split("@")[0],
+          email: resolved[0].email,
+        }]
+      : [];
+    return [...realSample, ...fallback];
+  })();
 
   const handleGenerateAI = async () => {
     if (!subject.trim() && !html.trim() && !aiInstructions.trim()) {
@@ -527,30 +567,64 @@ export default function BulkEmailPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <AlertDialogContent className="max-w-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Pré-visualização</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div>
-                <div className="text-sm mb-2">
-                  <strong>Assunto:</strong>{" "}
-                  {subject.replace(/\{\{nome\}\}/gi, "João").replace(/\{\{email\}\}/gi, "joao@email.com")}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="w-5 h-5" /> Pré-visualização do e-mail
+            </DialogTitle>
+            <DialogDescription>
+              Veja como o e-mail aparece para diferentes destinatários, com as
+              variáveis <code className="bg-muted px-1 rounded">{"{{nome}}"}</code> e{" "}
+              <code className="bg-muted px-1 rounded">{"{{email}}"}</code> substituídas.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Tabs defaultValue="0" className="flex-1 overflow-hidden flex flex-col">
+            <TabsList className="flex-wrap h-auto justify-start">
+              {previewSamples.map((s, i) => (
+                <TabsTrigger key={i} value={String(i)} className="text-xs">
+                  {s.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            {previewSamples.map((s, i) => (
+              <TabsContent
+                key={i}
+                value={String(i)}
+                className="flex-1 overflow-auto mt-3 space-y-3"
+              >
+                <div className="rounded-lg border bg-muted/30 p-3 text-xs space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Para:</span>
+                    <span className="font-mono">
+                      {s.nome ? `${s.nome} <${s.email}>` : s.email}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground shrink-0">Assunto:</span>
+                    <span className="font-medium text-right truncate">
+                      {interpolate(subject || "(sem assunto)", s.nome, s.email)}
+                    </span>
+                  </div>
                 </div>
+
                 <div
-                  className="border rounded p-4 bg-white text-foreground max-h-[400px] overflow-auto"
+                  className="border rounded-lg p-4 bg-white text-foreground"
                   dangerouslySetInnerHTML={{
-                    __html: html.replace(/\{\{nome\}\}/gi, "João").replace(/\{\{email\}\}/gi, "joao@email.com"),
+                    __html: interpolate(html, s.nome, s.email),
                   }}
                 />
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction>Fechar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              </TabsContent>
+            ))}
+          </Tabs>
+
+          <DialogFooter className="border-t pt-3">
+            <Button variant="outline" onClick={() => setPreviewOpen(false)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
