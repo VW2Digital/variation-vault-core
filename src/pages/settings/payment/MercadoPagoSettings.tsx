@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import WebhookUrlCard from '@/components/admin/WebhookUrlCard';
+import GatewayToggles from '@/components/admin/settings/GatewayToggles';
 
 interface Props {
   isActive: boolean;

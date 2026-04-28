@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import PagarMeWebhooksPanel from '@/components/admin/PagarMeWebhooksPanel';
 import WebhookUrlCard from '@/components/admin/WebhookUrlCard';
+import GatewayToggles from '@/components/admin/settings/GatewayToggles';
 
 interface Props {
   isActive: boolean;
