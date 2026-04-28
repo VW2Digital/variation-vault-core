@@ -1,0 +1,1 @@
+- [Multi-Gateway Card Fallback](mem://features/fallback-multi-gateway) — Re-try same card on MP→Pagar.me→Asaas after issuer rejection, via `gatewayOverride`
