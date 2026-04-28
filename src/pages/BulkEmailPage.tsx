@@ -423,6 +423,37 @@ export default function BulkEmailPage() {
                   <Eye className="w-4 h-4 mr-2" /> Pré-visualizar
                 </Button>
               </div>
+
+              <div className="border-t pt-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Wand2 className="w-4 h-4 text-primary" />
+                  <Label className="text-sm font-semibold">Gerar nova versão com IA</Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  A IA usará o assunto, o HTML atual e as instruções abaixo para criar uma nova versão
+                  preservando as variáveis <code className="bg-muted px-1 rounded">{"{{nome}}"}</code> e{" "}
+                  <code className="bg-muted px-1 rounded">{"{{email}}"}</code>.
+                </p>
+                <Textarea
+                  value={aiInstructions}
+                  onChange={(e) => setAiInstructions(e.target.value)}
+                  rows={2}
+                  placeholder="Instruções opcionais (ex: tom mais informal, adicionar CTA para WhatsApp, destacar frete grátis...)"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleGenerateAI}
+                  disabled={generating}
+                >
+                  {generating ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Wand2 className="w-4 h-4 mr-2" />
+                  )}
+                  {generating ? "Gerando..." : "Gerar nova versão"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
