@@ -1146,6 +1146,7 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
     setShowPixFallback(false);
     setCardFailMessage('');
     setAvailableFallbacks([]);
+    setSuggestedAltGateway(null);
     // Trigger PIX payment immediately
     handlePayment();
   };
