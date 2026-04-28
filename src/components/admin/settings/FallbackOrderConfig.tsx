@@ -166,7 +166,13 @@ const FallbackOrderConfig = () => {
     try {
       const user = await getCurrentUser();
       if (!user) throw new Error('Não autenticado');
-      const value = order.join(',');
+      // Persist ONLY the eligible gateways' order. Ineligible ones are
+      // appended at the end so their relative position is preserved if
+      // they become eligible again later.
+      const eligible = order.filter(isEligible);
+      const ineligible = order.filter((g) => !isEligible(g));
+      const persistedOrder: Gateway[] = [...eligible, ...ineligible];
+      const value = eligible.join(',');
       await upsertSetting('card_fallback_order', value, user.id);
       // Audit (non-blocking)
       try {
@@ -179,8 +185,14 @@ const FallbackOrderConfig = () => {
           new_value: true,
         });
       } catch { /* noop */ }
-      setInitial(order);
-      toast({ title: 'Ordem de fallback salva' });
+      setOrder(persistedOrder);
+      setInitial(persistedOrder);
+      toast({
+        title: 'Ordem de fallback salva',
+        description: ineligible.length > 0
+          ? `Salvos ${eligible.length} gateway(s) aptos. Inelegíveis ficam em reserva.`
+          : undefined,
+      });
     } catch (err: any) {
       toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
     } finally {
