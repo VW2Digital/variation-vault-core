@@ -136,11 +136,18 @@ const GatewayToggles = ({ gateway, fallbackSupported = true }: Props) => {
 
   return (
     <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
-      <div className="flex items-start justify-between gap-3">
+      <div className={`flex items-start justify-between gap-3 rounded-md p-2 -m-2 transition-colors ${externalUpdate === 'enabled' ? 'bg-primary/10 ring-1 ring-primary/40' : ''}`}>
         <div className="flex items-start gap-2 min-w-0">
           <Power className="w-4 h-4 mt-0.5 text-foreground shrink-0" />
           <div className="min-w-0">
-            <Label className="text-sm font-medium">Gateway habilitado</Label>
+            <Label className="text-sm font-medium flex items-center gap-1.5">
+              Gateway habilitado
+              {externalUpdate === 'enabled' && (
+                <span className="inline-flex items-center gap-1 text-[10px] text-primary font-normal">
+                  <Radio className="w-3 h-3 animate-pulse" /> sincronizado
+                </span>
+              )}
+            </Label>
             <p className="text-xs text-muted-foreground">
               Quando desligado, o gateway não processa cobranças nem aparece como opção de fallback.
             </p>
@@ -149,11 +156,18 @@ const GatewayToggles = ({ gateway, fallbackSupported = true }: Props) => {
         <Switch checked={enabled} onCheckedChange={handleEnabledChange} />
       </div>
 
-      <div className="flex items-start justify-between gap-3">
+      <div className={`flex items-start justify-between gap-3 rounded-md p-2 -m-2 transition-colors ${externalUpdate === 'fallback_enabled' ? 'bg-primary/10 ring-1 ring-primary/40' : ''}`}>
         <div className="flex items-start gap-2 min-w-0">
           <Shuffle className="w-4 h-4 mt-0.5 text-foreground shrink-0" />
           <div className="min-w-0">
-            <Label className="text-sm font-medium">Apto para fallback de cartão</Label>
+            <Label className="text-sm font-medium flex items-center gap-1.5">
+              Apto para fallback de cartão
+              {externalUpdate === 'fallback_enabled' && (
+                <span className="inline-flex items-center gap-1 text-[10px] text-primary font-normal">
+                  <Radio className="w-3 h-3 animate-pulse" /> sincronizado
+                </span>
+              )}
+            </Label>
             <p className="text-xs text-muted-foreground">
               {fallbackSupported
                 ? 'Permite que este gateway apareça como alternativa quando outro recusar o cartão.'
