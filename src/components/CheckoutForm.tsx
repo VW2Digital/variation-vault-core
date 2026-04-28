@@ -162,6 +162,11 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
   const [showPixFallback, setShowPixFallback] = useState(false);
   const [cardFailMessage, setCardFailMessage] = useState('');
   const [availableFallbacks, setAvailableFallbacks] = useState<AvailableCardGateway[]>([]);
+  // Suggested alternative gateway shown when the card error is NOT eligible
+  // for automatic re-tokenization fallback (e.g. wrong CVV/expiration date).
+  // We still tell the user which other processor is available so they can
+  // fix the data and try again, or switch processor manually.
+  const [suggestedAltGateway, setSuggestedAltGateway] = useState<AvailableCardGateway | null>(null);
   const [fallbackProcessing, setFallbackProcessing] = useState<CheckoutGateway | null>(null);
 
   // Coupon
