@@ -1116,12 +1116,22 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
           try {
             const fallbacks = await getAvailableCardFallbacks(activeGateway as CheckoutGateway);
             setAvailableFallbacks(fallbacks);
+            setSuggestedAltGateway(null);
           } catch (e) {
             console.warn('[Checkout] Falha ao carregar fallbacks:', e);
             setAvailableFallbacks([]);
+            setSuggestedAltGateway(null);
           }
         } else {
           setAvailableFallbacks([]);
+          // Not eligible for automatic re-tokenization, but still inform
+          // the user which alternative processor is configured.
+          try {
+            const fallbacks = await getAvailableCardFallbacks(activeGateway as CheckoutGateway);
+            setSuggestedAltGateway(fallbacks[0] ?? null);
+          } catch {
+            setSuggestedAltGateway(null);
+          }
         }
       }
 
