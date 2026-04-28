@@ -1351,6 +1351,7 @@ serve(async (req) => {
           const updateData: any = {
             asaas_payment_id: result.id,
             status: result.status || 'PENDING',
+            payment_gateway: gatewayName,
           };
           if (gatewayName === 'mercadopago') {
             updateData.total_value = toCurrencyNumber(value);
