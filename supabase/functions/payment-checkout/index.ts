@@ -1290,8 +1290,8 @@ serve(async (req) => {
       }));
     }
 
-    const { gateway, gatewayName } = await createGateway(supabaseUrl, supabaseKey);
-    console.log(`[payment-checkout] Gateway resolved: ${gatewayName}`);
+    const { gateway, gatewayName } = await createGateway(supabaseUrl, supabaseKey, payload.gatewayOverride);
+    console.log(`[payment-checkout] Gateway resolved: ${gatewayName}${payload.gatewayOverride ? ' (via override)' : ''}`);
 
     // Set device session ID for anti-fraud (Mercado Pago only)
     if (gatewayName === 'mercadopago' && payload.deviceSessionId) {
