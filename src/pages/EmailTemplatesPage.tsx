@@ -287,15 +287,11 @@ const EmailTemplatesPage = () => {
         title="Templates de Email"
         description="Personalize o assunto e o HTML enviados pela função send-email. Deixe em branco para usar o padrão."
         icon={Mail}
-        actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/admin/configuracoes/comunicacao')}
-          >
-            <ArrowLeft className="w-4 h-4 mr-1" /> Comunicação
-          </Button>
-        }
+        breadcrumbs={[
+          { label: 'Configurações', to: '/admin/configuracoes' },
+          { label: 'Comunicação', to: '/admin/configuracoes/comunicacao' },
+          { label: 'Templates de Email' },
+        ]}
       />
 
       <Card>

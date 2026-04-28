@@ -194,11 +194,13 @@ const EmailLogsPage = () => {
         title="Logs de Email"
         description={`${stats.total} envios únicos no período • histórico da função send-email`}
         icon={Mail}
+        breadcrumbs={[
+          { label: 'Configurações', to: '/admin/configuracoes' },
+          { label: 'Comunicação', to: '/admin/configuracoes/comunicacao' },
+          { label: 'Logs de Email' },
+        ]}
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={() => navigate('/admin/configuracoes/comunicacao')}>
-              <ArrowLeft className="w-4 h-4 mr-1" /> Comunicação
-            </Button>
             <Button variant="outline" size="sm" onClick={load} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} />
               Atualizar
