@@ -296,7 +296,8 @@ export default function CouponsPage() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+        }
+      />
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
