@@ -66,21 +66,21 @@ export function DashboardSalesOverview({ total, delta, bars, range, onRangeChang
           </div>
 
           {/* Barras */}
-          <div className="relative h-48 sm:h-56">
-            <div className="absolute inset-x-0 top-0 bottom-6 flex items-end justify-between gap-1 sm:gap-2">
+          <div className="relative h-48 sm:h-56 min-w-0">
+            <div className="absolute inset-x-0 top-0 bottom-6 flex items-end justify-between gap-[3px] sm:gap-1">
               {bars.map((b, i) => {
                 const isPeak = i === peakIdx && b.value > 0;
                 const heightPct = Math.max(4, (b.value / max) * 100);
                 return (
                   <div key={i} className="relative flex-1 flex flex-col items-center justify-end h-full">
                     {isPeak && (
-                      <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-foreground text-background text-[10px] font-bold px-2 py-1 rounded-md whitespace-nowrap z-10">
+                      <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-foreground text-background text-[10px] font-bold px-2 py-1 rounded-md whitespace-nowrap z-10 pointer-events-none">
                         {shortBRL(b.value)}
                         <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 rotate-45 bg-foreground" />
                       </div>
                     )}
                     <div
-                      className={`w-full rounded-t-xl transition-all duration-500 ${
+                      className={`w-full rounded-t-md sm:rounded-t-lg transition-all duration-500 ${
                         isPeak ? 'bg-primary shadow-md' : 'bg-primary/15'
                       }`}
                       style={{ height: `${heightPct}%` }}
@@ -89,17 +89,22 @@ export function DashboardSalesOverview({ total, delta, bars, range, onRangeChang
                 );
               })}
             </div>
-            <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 sm:gap-2">
-              {bars.map((b, i) => (
-                <span
-                  key={i}
-                  className={`flex-1 text-center text-[10px] ${
-                    i === peakIdx ? 'text-foreground font-bold' : 'text-muted-foreground'
-                  }`}
-                >
-                  {b.label}
-                </span>
-              ))}
+            <div className="absolute inset-x-0 bottom-0 flex justify-between gap-[3px] sm:gap-1">
+              {bars.map((b, i) => {
+                // Para muitos pontos, mostra rótulo a cada N barras
+                const step = bars.length > 20 ? Math.ceil(bars.length / 8) : 1;
+                const show = i === peakIdx || i === 0 || i === bars.length - 1 || i % step === 0;
+                return (
+                  <span
+                    key={i}
+                    className={`flex-1 text-center text-[10px] ${
+                      i === peakIdx ? 'text-foreground font-bold' : 'text-muted-foreground'
+                    }`}
+                  >
+                    {show ? b.label : ''}
+                  </span>
+                );
+              })}
             </div>
           </div>
         </div>
