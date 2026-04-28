@@ -549,6 +549,29 @@ export default function BulkEmailPage() {
                 <Button variant="outline" onClick={() => setPreviewOpen(true)}>
                   <Eye className="w-4 h-4 mr-2" /> Pré-visualizar
                 </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSaveName("");
+                    setSaveOpen(true);
+                  }}
+                >
+                  <Save className="w-4 h-4 mr-2" /> Salvar como template
+                </Button>
+                {loadedCustomId && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleSaveTemplate("update")}
+                    disabled={savingTemplate}
+                  >
+                    {savingTemplate ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Atualizar template carregado
+                  </Button>
+                )}
               </div>
 
               <div className="border-t pt-4 space-y-3">
