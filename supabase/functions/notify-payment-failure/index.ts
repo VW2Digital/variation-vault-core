@@ -25,6 +25,7 @@ serve(async (req) => {
       .in("key", [
         "evolution_api_url", "evolution_api_key", "evolution_instance_name",
         "whatsapp_number", "admin_notification_email", "smtp_from_email",
+        "store_name", "support_whatsapp_number",
       ]);
     const cfg: Record<string, string> = {};
     for (const s of settings || []) cfg[s.key] = s.value;
@@ -40,10 +41,69 @@ serve(async (req) => {
     const apiKey = cfg["evolution_api_key"];
     const instanceName = cfg["evolution_instance_name"];
     const adminWhatsapp = cfg["whatsapp_number"];
+    const storeName = cfg["store_name"] || "nossa loja";
+    const supportWhatsapp = cfg["support_whatsapp_number"] || adminWhatsapp;
 
-    if (apiUrl && apiKey && instanceName && adminWhatsapp) {
+    // Helper: normaliza telefone BR para o formato esperado pela Evolution
+    // (DDI 55 + DDD + número, somente dígitos).
+    const normalizeBrPhone = (raw: string): string | null => {
+      if (!raw) return null;
+      let d = raw.replace(/\D/g, "");
+      if (d.startsWith("55") && (d.length === 12 || d.length === 13)) return d;
+      if (d.length === 10 || d.length === 11) return "55" + d;
+      return null;
+    };
+
+    const baseUrl = apiUrl ? apiUrl.replace(/\/+$/, "") : "";
+    const evolutionReady = !!(apiUrl && apiKey && instanceName);
+
+    // ── WhatsApp para o CLIENTE (mensagem amigável + motivo) ──
+    const customerPhoneNormalized = normalizeBrPhone(customerPhone || "");
+    if (evolutionReady && customerPhoneNormalized) {
       try {
-        const baseUrl = apiUrl.replace(/\/+$/, "");
+        const friendlyName = (customerName || "").split(" ")[0] || "Olá";
+        const reason = errorMessage || "Não conseguimos identificar o motivo exato.";
+        const supportLine = supportWhatsapp
+          ? `\nPrecisa de ajuda? Fale com a gente: https://wa.me/${normalizeBrPhone(supportWhatsapp) || supportWhatsapp.replace(/\D/g, "")}`
+          : "";
+
+        const customerText = [
+          `Olá, ${friendlyName}!`,
+          ``,
+          `Tentamos processar o seu pagamento aqui na *${storeName}*, mas ele *não foi aprovado*. Não se preocupe — *nenhum valor foi cobrado* do seu cartão.`,
+          ``,
+          `*Pedido:* ${productName || "—"}`,
+          `*Valor:* ${valueFormatted}`,
+          `*Forma de pagamento:* ${method}`,
+          ``,
+          `*Motivo informado pelo banco/operadora:*`,
+          `${reason}`,
+          ``,
+          `*O que você pode fazer agora:*`,
+          `1) Conferir os dados do cartão (número, validade e CVV).`,
+          `2) Tentar novamente com outro cartão.`,
+          `3) Pagar via *PIX* — é instantâneo, sem limite de cartão e libera o pedido na hora.`,
+          `4) Ligar para o telefone no verso do seu cartão e autorizar a compra com o seu banco.`,
+          ``,
+          `Seu carrinho continua salvo. É só voltar à loja e finalizar quando quiser.${supportLine}`,
+        ].join("\n");
+
+        const res = await fetch(`${baseUrl}/message/sendText/${instanceName}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "apikey": apiKey },
+          body: JSON.stringify({ number: customerPhoneNormalized, text: customerText }),
+        });
+        results.whatsapp_customer = res.ok ? "sent" : `error:${res.status}`;
+      } catch (e: any) {
+        results.whatsapp_customer = `error:${e.message}`;
+      }
+    } else if (!customerPhoneNormalized) {
+      results.whatsapp_customer = "skipped:invalid_phone";
+    }
+
+    // ── WhatsApp para o ADMIN ──
+    if (evolutionReady && adminWhatsapp) {
+      try {
         const whatsappText = [
           `*Falha no Pagamento*`,
           ``,
