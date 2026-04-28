@@ -14,7 +14,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail } from "lucide-react";
+import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail, FileText, Sparkles } from "lucide-react";
+import { BULK_EMAIL_TEMPLATES, type BulkEmailTemplate } from "@/lib/bulkEmailTemplates";
 
 type Audience = "all_customers" | "paid_customers" | "no_orders" | "manual";
 
@@ -52,6 +53,27 @@ export default function BulkEmailPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+
+  const applyTemplate = (id: string) => {
+    const tpl = BULK_EMAIL_TEMPLATES.find((t) => t.id === id);
+    if (!tpl) return;
+    setSelectedTemplateId(id);
+    if (tpl.subject) setSubject(tpl.subject);
+    setHtml(tpl.html);
+    toast({
+      title: "Template aplicado",
+      description: tpl.name,
+    });
+  };
+
+  const groupedTemplates = BULK_EMAIL_TEMPLATES.reduce<Record<string, BulkEmailTemplate[]>>(
+    (acc, t) => {
+      (acc[t.category] = acc[t.category] || []).push(t);
+      return acc;
+    },
+    {},
+  );
 
   // Carrega histórico
   const loadCampaigns = async () => {
@@ -285,7 +307,59 @@ export default function BulkEmailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>2. Mensagem</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5" /> 2. Escolher template (opcional)
+              </CardTitle>
+              <CardDescription>
+                Selecione um modelo pronto. Você pode editar o conteúdo depois.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Template</Label>
+                <Select value={selectedTemplateId} onValueChange={applyTemplate}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um template pronto..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-80">
+                    {Object.entries(groupedTemplates).map(([cat, items]) => (
+                      <div key={cat}>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          {cat}
+                        </div>
+                        {items.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{t.name}</span>
+                              <span className="text-xs text-muted-foreground">{t.description}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </div>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                {BULK_EMAIL_TEMPLATES.slice(0, 8).map((t) => (
+                  <Button
+                    key={t.id}
+                    variant={selectedTemplateId === t.id ? "default" : "outline"}
+                    size="sm"
+                    className="h-auto py-2 px-3 justify-start text-left"
+                    onClick={() => applyTemplate(t.id)}
+                  >
+                    <FileText className="w-3.5 h-3.5 mr-2 shrink-0" />
+                    <span className="truncate text-xs">{t.name}</span>
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>3. Mensagem</CardTitle>
               <CardDescription>
                 Variáveis disponíveis:{" "}
                 <code className="text-xs bg-muted px-1 rounded">{"{{nome}}"}</code>{" "}
@@ -322,7 +396,7 @@ export default function BulkEmailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>3. Enviar</CardTitle>
+              <CardTitle>4. Enviar</CardTitle>
             </CardHeader>
             <CardContent>
               <Button
