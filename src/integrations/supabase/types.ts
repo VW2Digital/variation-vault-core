@@ -172,6 +172,54 @@ export type Database = {
         }
         Relationships: []
       }
+      bulk_email_campaigns: {
+        Row: {
+          audience_type: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          error_message: string | null
+          html_content: string
+          id: string
+          metadata: Json | null
+          status: string
+          subject: string
+          total_failed: number
+          total_recipients: number
+          total_sent: number
+        }
+        Insert: {
+          audience_type: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          html_content: string
+          id?: string
+          metadata?: Json | null
+          status?: string
+          subject: string
+          total_failed?: number
+          total_recipients?: number
+          total_sent?: number
+        }
+        Update: {
+          audience_type?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          html_content?: string
+          id?: string
+          metadata?: Json | null
+          status?: string
+          subject?: string
+          total_failed?: number
+          total_recipients?: number
+          total_sent?: number
+        }
+        Relationships: []
+      }
       cart_abandonment_logs: {
         Row: {
           cart_item_count: number
