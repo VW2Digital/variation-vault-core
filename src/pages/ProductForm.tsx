@@ -247,12 +247,20 @@ const ProductForm = () => {
   return (
     <div className="space-y-6 w-full">
       <AdminPageHeader
-        title={isEditing ? 'Editar Produto' : 'Novo Produto'}
-        description={isEditing ? 'Atualize informações, variações, mídias e regras de venda.' : 'Cadastre um novo produto com variações, preços e estoque.'}
+        title={
+          isEditing
+            ? ((name || '').trim() ? `Editar: ${name.trim()}` : 'Editar Produto')
+            : 'Novo Produto'
+        }
+        description={
+          isEditing
+            ? 'Atualize informações, variações, mídias e regras de venda.'
+            : 'Cadastre um novo produto com variações, preços e estoque.'
+        }
         icon={PackagePlus}
         breadcrumbs={[
           { label: 'Produtos', to: '/admin/produtos' },
-          { label: isEditing ? (name || 'Editar') : 'Novo Produto' },
+          { label: isEditing ? ((name || '').trim() || 'Editar') : 'Novo Produto' },
         ]}
         actions={
           <Button variant="outline" size="sm" onClick={() => navigate('/admin/produtos')}>

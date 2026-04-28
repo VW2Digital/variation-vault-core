@@ -111,18 +111,21 @@ const OrderDetailPage = () => {
 
   if (!order) return null;
 
-  const status = statusMap[order.status] || { label: order.status, variant: 'outline' as const };
+  const status = statusMap[order.status] || { label: order.status || 'Sem status', variant: 'outline' as const };
   const delivery = deliveryStatuses.find(d => d.value === order.delivery_status);
+  const orderShortId = order.id ? String(order.id).slice(0, 8) : '------';
+  const customerLabel = (order.customer_name || '').trim() || 'Cliente sem nome';
+  const descParts = [customerLabel, status.label].filter(Boolean);
 
   return (
     <div className="space-y-6 w-full">
       <AdminPageHeader
-        title={`Pedido #${String(order.id).slice(0, 8)}`}
-        description={`${order.customer_name || 'Cliente'} • ${status.label}`}
+        title={`Pedido #${orderShortId}`}
+        description={descParts.join(' • ')}
         icon={Package}
         breadcrumbs={[
           { label: 'Pedidos', to: '/admin/pedidos' },
-          { label: `#${String(order.id).slice(0, 8)}` },
+          { label: `#${orderShortId}` },
         ]}
         actions={
           <Button variant="outline" size="sm" onClick={() => navigate('/admin/pedidos')}>
