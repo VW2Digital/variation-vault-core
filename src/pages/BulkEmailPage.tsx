@@ -279,6 +279,14 @@ export default function BulkEmailPage() {
       toast({ title: "Preencha assunto e mensagem", variant: "destructive" });
       return;
     }
+    if (errorCount > 0) {
+      toast({
+        title: "Corrija os erros antes de enviar",
+        description: `${errorCount} erro(s) bloqueando o envio.`,
+        variant: "destructive",
+      });
+      return;
+    }
     if (resolved.length === 0) {
       toast({ title: "Nenhum destinatário carregado", variant: "destructive" });
       return;
