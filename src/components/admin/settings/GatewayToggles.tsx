@@ -7,6 +7,7 @@
  */
 import { useEffect, useState } from 'react';
 import { fetchSetting, upsertSetting, getCurrentUser } from '@/lib/api';
+import { supabase } from '@/integrations/supabase/client';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
@@ -39,25 +40,45 @@ const GatewayToggles = ({ gateway, fallbackSupported = true }: Props) => {
     });
   }, [enabledKey, fallbackKey]);
 
-  const persist = async (key: string, value: boolean) => {
+  const persist = async (
+    key: string,
+    value: boolean,
+    settingType: 'enabled' | 'fallback_enabled',
+    oldValue: boolean,
+  ) => {
     try {
       const user = await getCurrentUser();
       if (!user) throw new Error('Não autenticado');
       await upsertSetting(key, value ? 'true' : 'false', user.id);
+      // Audit log (non-blocking on failure)
+      try {
+        await supabase.from('gateway_settings_audit' as any).insert({
+          user_id: user.id,
+          user_email: user.email ?? null,
+          gateway,
+          setting_type: settingType,
+          old_value: oldValue,
+          new_value: value,
+        });
+      } catch (auditErr) {
+        console.warn('[GatewayToggles] Falha ao gravar auditoria:', auditErr);
+      }
     } catch (err: any) {
       toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' });
     }
   };
 
   const handleEnabledChange = (val: boolean) => {
+    const prev = enabled;
     setEnabled(val);
-    persist(enabledKey, val);
+    persist(enabledKey, val, 'enabled', prev);
     toast({ title: val ? 'Gateway habilitado' : 'Gateway desabilitado' });
   };
 
   const handleFallbackChange = (val: boolean) => {
+    const prev = fallbackEnabled;
     setFallbackEnabled(val);
-    persist(fallbackKey, val);
+    persist(fallbackKey, val, 'fallback_enabled', prev);
     toast({ title: val ? 'Adicionado ao fallback' : 'Removido do fallback' });
   };
 
