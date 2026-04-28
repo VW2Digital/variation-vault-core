@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Loader2, Truck, FileText, AlertCircle, ChevronDown, ChevronUp, CreditCard, QrCode } from 'lucide-react';
+import { ArrowLeft, Loader2, Truck, FileText, AlertCircle, ChevronDown, ChevronUp, CreditCard, QrCode, Package } from 'lucide-react';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 
 const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; badgeClass?: string }> = {
   PENDING: { label: 'Pendente', variant: 'outline' },

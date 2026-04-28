@@ -245,14 +245,16 @@ const ProductForm = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/admin/produtos')}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground">
-          {isEditing ? 'Editar Produto' : 'Novo Produto'}
-        </h1>
-      </div>
+      <AdminPageHeader
+        title={isEditing ? 'Editar Produto' : 'Novo Produto'}
+        description={isEditing ? 'Atualize informações, variações, mídias e regras de venda.' : 'Cadastre um novo produto com variações, preços e estoque.'}
+        icon={PackagePlus}
+        actions={
+          <Button variant="outline" size="sm" onClick={() => navigate('/admin/produtos')}>
+            <ArrowLeft className="w-4 h-4 mr-1" /> Produtos
+          </Button>
+        }
+      />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card className="border-border/50">

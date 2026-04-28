@@ -73,24 +73,16 @@ const UserDetailPage = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <div className="flex items-start gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate('/admin/usuarios')}
-          className="shrink-0 mt-0.5"
-          aria-label="Voltar"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
-            <UserIcon className="w-5 h-5 text-muted-foreground" />
-            <span className="truncate">{user.full_name || 'Sem nome'}</span>
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1 truncate">{user.email}</p>
-        </div>
-      </div>
+      <AdminPageHeader
+        title={user.full_name || 'Sem nome'}
+        description={user.email}
+        icon={UserIcon}
+        actions={
+          <Button variant="outline" size="sm" onClick={() => navigate('/admin/usuarios')}>
+            <ArrowLeft className="w-4 h-4 mr-1" /> Usuários
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card>
