@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, LogOut, LayoutDashboard, Video, Settings, ShoppingBag, Users, MessageCircle, Star, AlertTriangle, Mail, LinkIcon, Ticket, FileBarChart, ChevronDown, Activity, Send, Wallet } from 'lucide-react';
+import { Package, LogOut, LayoutDashboard, Video, Settings, ShoppingBag, Users, MessageCircle, Star, AlertTriangle, Mail, LinkIcon, Ticket, FileBarChart, ChevronDown, Activity, Send, Wallet, Sparkles } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
   Sidebar,
@@ -100,8 +100,30 @@ export function AdminSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r-0">
-      <SidebarContent className="gap-0">
+    <Sidebar
+      collapsible="icon"
+      className="border-r border-sidebar-border/60 bg-sidebar"
+    >
+      {/* Branding topo (mostra somente quando expandido) */}
+      {!isMobile && !collapsed && (
+        <div className="px-4 pt-4 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent shadow-md shadow-primary/30">
+              <Sparkles className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <div className="leading-tight">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/50">
+                Painel
+              </p>
+              <p className="text-sm font-semibold text-sidebar-foreground">
+                Liberty Admin
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <SidebarContent className="gap-0 px-1">
         {menuCategories.map((category, index) => {
           const isOpen = openGroups[index] ?? false;
           const hasActiveItem = category.items.some(item => location.pathname === item.url);
@@ -151,22 +173,27 @@ export function AdminSidebar() {
 
           // Desktop sidebar (unchanged)
           return (
-            <SidebarGroup key={category.label} className="py-1 px-2">
-              <SidebarGroupLabel className="text-sidebar-foreground/60 uppercase tracking-wider text-xs">
-                {!collapsed && category.label}
-              </SidebarGroupLabel>
+            <SidebarGroup key={category.label} className="py-2 px-2">
+              {!collapsed && (
+                <SidebarGroupLabel className="px-2 text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-[0.14em]">
+                  {category.label}
+                </SidebarGroupLabel>
+              )}
               <SidebarGroupContent>
-                <SidebarMenu>
+                <SidebarMenu className="gap-0.5">
                   {category.items.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <Tooltip delayDuration={0}>
                         <TooltipTrigger asChild>
-                          <SidebarMenuButton asChild>
+                          <SidebarMenuButton asChild className="h-9 rounded-lg">
                             <NavLink
                               to={item.url}
                               end
-                              className={`hover:bg-sidebar-accent/50 flex items-center gap-2 ${collapsed ? 'justify-center' : 'justify-start'}`}
-                              activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                              className={cn(
+                                'group/item relative flex items-center gap-2.5 text-sm text-sidebar-foreground/75 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground transition-colors',
+                                collapsed ? 'justify-center px-0' : 'justify-start px-2.5',
+                              )}
+                              activeClassName="!bg-gradient-to-r !from-primary/15 !to-primary/5 !text-sidebar-primary font-semibold before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-[3px] before:rounded-r-full before:bg-sidebar-primary"
                             >
                               <item.icon className="h-4 w-4 shrink-0" />
                               {!collapsed && <span className="truncate">{item.title}</span>}
@@ -187,14 +214,24 @@ export function AdminSidebar() {
           );
         })}
       </SidebarContent>
-      <SidebarFooter className={isMobile ? "border-t border-sidebar-border/50" : ""}>
+      <SidebarFooter className={cn('border-t border-sidebar-border/40 p-2')}>
+        {!collapsed && !isMobile && (
+          <div className="mb-2 rounded-lg bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-3">
+            <p className="text-[11px] font-semibold text-sidebar-foreground">
+              Liberty Pharma
+            </p>
+            <p className="text-[10px] text-sidebar-foreground/60 leading-tight mt-0.5">
+              Identidade visual dourada
+            </p>
+          </div>
+        )}
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               onClick={handleLogout}
               className={cn(
-                "w-full text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 gap-2",
+                "w-full h-9 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 gap-2 rounded-lg",
                 collapsed ? 'justify-center' : 'justify-start'
               )}
             >

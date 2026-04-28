@@ -27,6 +27,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 
 const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; badgeClass?: string }> = {
   PENDING: { label: 'Pendente', variant: 'outline' },
@@ -648,24 +649,28 @@ const OrdersPage = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Pedidos</h1>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={exportToCsv} disabled={filteredOrders.length === 0}>
-            <Download className="w-4 h-4 mr-1" />
-            <span className="hidden sm:inline">Exportar CSV</span>
-            <span className="sm:hidden">CSV</span>
-          </Button>
-          <Button variant="outline" size="sm" onClick={batchRefreshTracking} disabled={batchRefreshing}>
-            {batchRefreshing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Truck className="w-4 h-4 mr-1" />}
-            <span className="hidden sm:inline">Buscar Rastreios</span>
-            <span className="sm:hidden">Rastreios</span>
-          </Button>
-          <Button variant="outline" size="sm" onClick={fetchOrders} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Atualizar
-          </Button>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="Pedidos"
+        description="Acompanhe pagamentos, entregas e ações em lote em um só lugar."
+        icon={Receipt}
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={exportToCsv} disabled={filteredOrders.length === 0}>
+              <Download className="w-4 h-4 mr-1" />
+              <span className="hidden sm:inline">Exportar CSV</span>
+              <span className="sm:hidden">CSV</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={batchRefreshTracking} disabled={batchRefreshing}>
+              {batchRefreshing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Truck className="w-4 h-4 mr-1" />}
+              <span className="hidden sm:inline">Buscar Rastreios</span>
+              <span className="sm:hidden">Rastreios</span>
+            </Button>
+            <Button size="sm" onClick={fetchOrders} disabled={loading} className="bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-95 shadow-sm shadow-primary/20">
+              <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+            </Button>
+          </>
+        }
+      />
 
       <div className="flex flex-col gap-3">
         <div className="relative">

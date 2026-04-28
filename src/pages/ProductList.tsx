@@ -15,6 +15,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   DragEndEvent,
@@ -244,13 +245,21 @@ const ProductList = () => {
   if (loading) return <p className="text-muted-foreground">Carregando...</p>;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-foreground">Produtos</h1>
-        <Button size="sm" onClick={() => navigate('/admin/produtos/novo')}>
-          <Plus className="mr-1.5 h-4 w-4" /> Novo Produto
-        </Button>
-      </div>
+    <div className="space-y-5">
+      <AdminPageHeader
+        title="Produtos"
+        description={`${products.length} ${products.length === 1 ? 'item cadastrado' : 'itens cadastrados'} • arraste para reordenar`}
+        icon={Package}
+        actions={
+          <Button
+            size="sm"
+            onClick={() => navigate('/admin/produtos/novo')}
+            className="bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-95 shadow-sm shadow-primary/20"
+          >
+            <Plus className="mr-1.5 h-4 w-4" /> Novo Produto
+          </Button>
+        }
+      />
 
       {products.length === 0 ? (
         <Card className="border-dashed border-2 border-border">
@@ -265,7 +274,7 @@ const ProductList = () => {
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={products.map(p => p.id)} strategy={verticalListSortingStrategy}>
-            <div className="border border-border/50 rounded-lg overflow-hidden divide-y divide-border/40">
+            <div className="border border-border/60 rounded-xl overflow-hidden divide-y divide-border/40 bg-card shadow-sm">
               {products.map((product) => (
                 <SortableProductRow
                   key={product.id}
