@@ -44,6 +44,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 type LogRow = {
   id: string;
@@ -189,37 +190,26 @@ const EmailLogsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-start gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/admin/configuracoes/comunicacao')}
-            className="shrink-0 mt-1"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Mail className="h-7 w-7" />
-              Logs de Email
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Histórico de envios da função send-email
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={load} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            Atualizar
-          </Button>
-          <Button variant="outline" onClick={handleClearOld}>
-            <Trash2 className="h-4 w-4 mr-2" />
-            Limpar &gt; 30d
-          </Button>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="Logs de Email"
+        description={`${stats.total} envios únicos no período • histórico da função send-email`}
+        icon={Mail}
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin/configuracoes/comunicacao')}>
+              <ArrowLeft className="w-4 h-4 mr-1" /> Comunicação
+            </Button>
+            <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} />
+              Atualizar
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleClearOld}>
+              <Trash2 className="h-4 w-4 mr-1" />
+              Limpar &gt; 30d
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>

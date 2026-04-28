@@ -11,6 +11,7 @@ import { fetchSetting, upsertSetting } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Save, Send, RotateCcw, Eye, Code2, Mail, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 type TemplateKey =
   | "order_created"
@@ -282,23 +283,20 @@ const EmailTemplatesPage = () => {
 
   return (
     <div className="space-y-6 max-w-7xl">
-      <div className="flex items-start gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate('/admin/configuracoes/comunicacao')}
-          className="shrink-0 mt-0.5"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
-        <Mail className="w-6 h-6 text-primary mt-1" />
-        <div>
-          <h1 className="text-2xl font-bold">Templates de Email</h1>
-          <p className="text-sm text-muted-foreground">
-            Personalize o assunto e o HTML enviados pela função send-email. Deixe em branco para usar o padrão.
-          </p>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="Templates de Email"
+        description="Personalize o assunto e o HTML enviados pela função send-email. Deixe em branco para usar o padrão."
+        icon={Mail}
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/admin/configuracoes/comunicacao')}
+          >
+            <ArrowLeft className="w-4 h-4 mr-1" /> Comunicação
+          </Button>
+        }
+      />
 
       <Card>
         <CardHeader className="pb-3">

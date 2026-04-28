@@ -20,6 +20,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 
 type EventKey =
   | "order_created"
@@ -157,23 +158,20 @@ const EmailEventsPage = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <div className="flex items-start gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate('/admin/configuracoes/comunicacao')}
-          className="shrink-0 mt-0.5"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
-        <PackageCheck className="w-6 h-6 text-primary mt-1" />
-        <div>
-          <h1 className="text-2xl font-bold">Eventos de E-mail</h1>
-          <p className="text-sm text-muted-foreground">
-            Marque quais notificações devem ser enviadas automaticamente via SMTP.
-          </p>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="Eventos de E-mail"
+        description="Marque quais notificações devem ser enviadas automaticamente via SMTP."
+        icon={PackageCheck}
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/admin/configuracoes/comunicacao')}
+          >
+            <ArrowLeft className="w-4 h-4 mr-1" /> Comunicação
+          </Button>
+        }
+      />
 
       <Card>
         <CardHeader>
