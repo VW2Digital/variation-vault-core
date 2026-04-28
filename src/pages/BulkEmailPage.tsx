@@ -518,6 +518,61 @@ export default function BulkEmailPage() {
 
           <Card>
             <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bookmark className="w-5 h-5" /> Meus templates salvos
+              </CardTitle>
+              <CardDescription>
+                Modelos personalizados que você criou. Clique para carregar no editor.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingCustom ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Carregando...
+                </div>
+              ) : customTemplates.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Você ainda não salvou templates. Use o botão "Salvar como template" abaixo do editor.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {customTemplates.map((t) => (
+                    <div
+                      key={t.id}
+                      className={`border rounded-lg p-3 flex items-start justify-between gap-2 hover:bg-muted/40 transition ${
+                        loadedCustomId === t.id ? "border-primary bg-primary/5" : ""
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => applyCustomTemplate(t)}
+                        className="flex-1 text-left min-w-0"
+                      >
+                        <div className="font-medium text-sm truncate">{t.name}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {t.subject || "(sem assunto)"}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-1">
+                          {new Date(t.updated_at).toLocaleString("pt-BR")}
+                        </div>
+                      </button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 shrink-0"
+                        onClick={() => setDeleteTargetId(t.id)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>3. Mensagem</CardTitle>
               <CardDescription>
                 Variáveis disponíveis:{" "}
