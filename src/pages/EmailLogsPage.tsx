@@ -15,6 +15,8 @@ import {
   Send,
   TrendingUp,
   ArrowLeft,
+  Download,
+  FileJson,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -188,6 +190,49 @@ const EmailLogsPage = () => {
     }
   };
 
+  const downloadFile = (content: string, filename: string, mime: string) => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportCSV = () => {
+    if (filteredRows.length === 0) {
+      toast({ title: "Nada para exportar", description: "Ajuste os filtros e tente novamente." });
+      return;
+    }
+    const headers = ["created_at", "template_name", "recipient_email", "subject", "status", "message_id", "error_message"];
+    const escape = (v: any) => {
+      const s = v === null || v === undefined ? "" : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows = filteredRows.map((r) =>
+      headers.map((h) => escape((r as any)[h])).join(","),
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadFile(csv, `email-logs-${stamp}.csv`, "text/csv;charset=utf-8");
+    toast({ title: "CSV exportado", description: `${filteredRows.length} registro(s).` });
+  };
+
+  const handleExportJSON = () => {
+    if (filteredRows.length === 0) {
+      toast({ title: "Nada para exportar", description: "Ajuste os filtros e tente novamente." });
+      return;
+    }
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadFile(
+      JSON.stringify(filteredRows, null, 2),
+      `email-logs-${stamp}.json`,
+      "application/json",
+    );
+    toast({ title: "JSON exportado", description: `${filteredRows.length} registro(s).` });
+  };
+
   return (
     <div className="space-y-6">
       <AdminPageHeader
@@ -204,6 +249,14 @@ const EmailLogsPage = () => {
             <Button variant="outline" size="sm" onClick={load} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} />
               Atualizar
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={loading || filteredRows.length === 0}>
+              <Download className="h-4 w-4 mr-1" />
+              CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportJSON} disabled={loading || filteredRows.length === 0}>
+              <FileJson className="h-4 w-4 mr-1" />
+              JSON
             </Button>
             <Button variant="outline" size="sm" onClick={handleClearOld}>
               <Trash2 className="h-4 w-4 mr-1" />

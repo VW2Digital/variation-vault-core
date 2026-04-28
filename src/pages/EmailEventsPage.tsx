@@ -18,6 +18,8 @@ import {
   ShoppingBag,
   Inbox,
   ArrowLeft,
+  Download,
+  FileJson,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
@@ -148,6 +150,52 @@ const EmailEventsPage = () => {
     }
   };
 
+  const buildExportPayload = () => ({
+    exported_at: new Date().toISOString(),
+    admin_copy: { enabled: adminCopy, email: adminEmail },
+    events: EVENTS.map((e) => ({
+      key: e.key,
+      title: e.title,
+      enabled: flags[e.key],
+      trigger: e.trigger,
+    })),
+  });
+
+  const downloadFile = (content: string, filename: string, mime: string) => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportCSV = () => {
+    const headers = ["key", "title", "enabled", "trigger"];
+    const escape = (v: any) => {
+      const s = v === null || v === undefined ? "" : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows = EVENTS.map((e) =>
+      [e.key, e.title, flags[e.key] ? "true" : "false", e.trigger].map(escape).join(","),
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadFile(csv, `email-eventos-${stamp}.csv`, "text/csv;charset=utf-8");
+    toast({ title: "CSV exportado", description: `${EVENTS.length} eventos.` });
+  };
+
+  const handleExportJSON = () => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadFile(
+      JSON.stringify(buildExportPayload(), null, 2),
+      `email-eventos-${stamp}.json`,
+      "application/json",
+    );
+    toast({ title: "JSON exportado", description: "Configuração salva no arquivo." });
+  };
+
   if (loading) {
     return (
       <div className="min-h-[40vh] flex items-center justify-center">
@@ -167,6 +215,16 @@ const EmailEventsPage = () => {
           { label: 'Comunicação', to: '/admin/configuracoes/comunicacao' },
           { label: 'Eventos de E-mail' },
         ]}
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={handleExportCSV}>
+              <Download className="h-4 w-4 mr-1" /> CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportJSON}>
+              <FileJson className="h-4 w-4 mr-1" /> JSON
+            </Button>
+          </>
+        }
       />
 
       <Card>
