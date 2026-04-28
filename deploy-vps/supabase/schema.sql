@@ -4,6 +4,9 @@
 -- 100% idempotente — pode rodar várias vezes sem erro
 -- Atualizado: inclui product_upsells, products.active, webhook_logs,
 --             contact_preferences, email_send_log, api_idempotency_keys
+-- v2 (2026-04-28): inclui bulk_email_campaigns, bulk_email_templates,
+--                  webhook_retry_queue, dispatch_order_email +
+--                  trigger_send_order_emails (auto-email em orders)
 -- =============================================================================
 
 -- EXTENSIONS
@@ -279,6 +282,53 @@ CREATE TABLE IF NOT EXISTS public.email_send_log (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- Disparo de e-mails em massa (campanhas)
+CREATE TABLE IF NOT EXISTS public.bulk_email_campaigns (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_by uuid,
+  subject text NOT NULL,
+  html_content text NOT NULL,
+  audience_type text NOT NULL,
+  status text NOT NULL DEFAULT 'pending',
+  total_recipients integer NOT NULL DEFAULT 0,
+  total_sent integer NOT NULL DEFAULT 0,
+  total_failed integer NOT NULL DEFAULT 0,
+  error_message text,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  completed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Templates próprios salvos pelos administradores (Disparo de E-mails)
+CREATE TABLE IF NOT EXISTS public.bulk_email_templates (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  subject text NOT NULL DEFAULT '',
+  html_content text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Fila de retry automático para webhooks (Asaas, MP, Pagar.me, PagBank)
+CREATE TABLE IF NOT EXISTS public.webhook_retry_queue (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  gateway text NOT NULL,
+  function_name text NOT NULL,
+  external_id text,
+  correlation_id text,
+  request_headers jsonb,
+  request_payload jsonb NOT NULL,
+  attempts integer NOT NULL DEFAULT 0,
+  max_attempts integer NOT NULL DEFAULT 6,
+  status text NOT NULL DEFAULT 'pending',
+  last_status integer,
+  last_error text,
+  next_attempt_at timestamptz NOT NULL DEFAULT now(),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS public.cart_abandonment_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -411,6 +461,132 @@ BEGIN
   RETURN NEW;
 END $$;
 
+-- Mantém updated_at da fila de retry
+CREATE OR REPLACE FUNCTION public.touch_webhook_retry_queue()
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN NEW.updated_at = now(); RETURN NEW; END $$;
+
+-- Dispara e-mail transacional via Edge Function send-email
+-- Requer site_settings.service_role_key_for_triggers configurado.
+CREATE OR REPLACE FUNCTION public.dispatch_order_email(_template text, _to text, _subject text, _data jsonb)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  _supabase_url text;
+  _service_role_key text;
+  _payload jsonb;
+BEGIN
+  SELECT value INTO _supabase_url FROM public.site_settings WHERE key = 'supabase_functions_url' LIMIT 1;
+  IF _supabase_url IS NULL OR _supabase_url = '' THEN
+    RAISE NOTICE 'supabase_functions_url não configurado em site_settings — email não enviado';
+    RETURN;
+  END IF;
+
+  SELECT value INTO _service_role_key FROM public.site_settings WHERE key = 'service_role_key_for_triggers' LIMIT 1;
+  IF _service_role_key IS NULL OR _service_role_key = '' THEN
+    RAISE NOTICE 'service_role_key_for_triggers não configurado em site_settings — email não enviado';
+    RETURN;
+  END IF;
+
+  IF _to IS NULL OR _to = '' THEN
+    RETURN;
+  END IF;
+
+  _payload := jsonb_build_object(
+    'template', _template,
+    'to', _to,
+    'subject', _subject,
+    'data', _data
+  );
+
+  PERFORM net.http_post(
+    url := _supabase_url || '/functions/v1/send-email',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || _service_role_key
+    ),
+    body := _payload
+  );
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'dispatch_order_email failed: %', SQLERRM;
+END $$;
+
+-- Trigger em orders: dispara e-mails de pedido criado, pago, falha e rastreio
+CREATE OR REPLACE FUNCTION public.trigger_send_order_emails()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  _payment_method text;
+  _failed_statuses text[] := ARRAY['REFUSED','REPROVED','CANCELLED','CANCELED','FAILED','REJECTED','DECLINED','refused','reproved','cancelled','canceled','failed','rejected','declined'];
+  _paid_statuses   text[] := ARRAY['PAID','CONFIRMED','RECEIVED','paid','confirmed','received'];
+BEGIN
+  _payment_method := CASE
+    WHEN NEW.payment_method ILIKE '%credit%' OR NEW.payment_method ILIKE '%card%' THEN 'Cartão de Crédito'
+    WHEN NEW.payment_method ILIKE '%pix%' THEN 'PIX'
+    WHEN NEW.payment_method ILIKE '%boleto%' THEN 'Boleto'
+    ELSE COALESCE(NEW.payment_method, '—')
+  END;
+
+  IF (TG_OP = 'INSERT') THEN
+    IF NEW.status = ANY(_failed_statuses) THEN
+      PERFORM public.dispatch_order_email(
+        'payment_failure', NEW.customer_email,
+        'Pagamento Não Aprovado - ' || COALESCE(NEW.product_name, 'seu pedido'),
+        jsonb_build_object('customer_name', NEW.customer_name, 'order_id', NEW.id,
+          'product_name', NEW.product_name, 'total_value', NEW.total_value,
+          'payment_method', _payment_method, 'error_message', 'Pagamento não aprovado.')
+      );
+      RETURN NEW;
+    END IF;
+
+    PERFORM public.dispatch_order_email(
+      'order_created', NEW.customer_email,
+      'Pedido recebido — ' || COALESCE(NEW.product_name, 'seu pedido'),
+      jsonb_build_object('customer_name', NEW.customer_name, 'order_id', NEW.id,
+        'product_name', NEW.product_name, 'total_value', NEW.total_value,
+        'payment_method', _payment_method)
+    );
+    RETURN NEW;
+  END IF;
+
+  IF (TG_OP = 'UPDATE') THEN
+    IF (OLD.status IS DISTINCT FROM NEW.status)
+       AND NEW.status = ANY(_paid_statuses)
+       AND NOT (OLD.status = ANY(_paid_statuses)) THEN
+      PERFORM public.dispatch_order_email(
+        'order_paid', NEW.customer_email,
+        'Pagamento Aprovado - ' || COALESCE(NEW.product_name, 'seu pedido'),
+        jsonb_build_object('customer_name', NEW.customer_name, 'order_id', NEW.id,
+          'product_name', NEW.product_name, 'total_value', NEW.total_value,
+          'payment_method', _payment_method)
+      );
+    END IF;
+
+    IF (OLD.status IS DISTINCT FROM NEW.status)
+       AND NEW.status = ANY(_failed_statuses)
+       AND NOT (OLD.status = ANY(_failed_statuses)) THEN
+      PERFORM public.dispatch_order_email(
+        'payment_failure', NEW.customer_email,
+        'Pagamento Não Aprovado - ' || COALESCE(NEW.product_name, 'seu pedido'),
+        jsonb_build_object('customer_name', NEW.customer_name, 'order_id', NEW.id,
+          'product_name', NEW.product_name, 'total_value', NEW.total_value,
+          'payment_method', _payment_method, 'error_message', 'Pagamento não aprovado.')
+      );
+    END IF;
+
+    IF (COALESCE(OLD.tracking_code,'') IS DISTINCT FROM COALESCE(NEW.tracking_code,''))
+       AND NEW.tracking_code IS NOT NULL AND NEW.tracking_code <> '' THEN
+      PERFORM public.dispatch_order_email(
+        'shipping_update', NEW.customer_email,
+        'Seu pedido foi enviado! Código: ' || NEW.tracking_code,
+        jsonb_build_object('customer_name', NEW.customer_name, 'order_id', NEW.id,
+          'product_name', NEW.product_name, 'tracking_code', NEW.tracking_code,
+          'tracking_url', NEW.tracking_url, 'shipping_service', NEW.shipping_service)
+      );
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END $$;
+
 -- =============================================================================
 -- TRIGGERS
 -- =============================================================================
@@ -418,7 +594,7 @@ DO $$ DECLARE t text;
 BEGIN
   FOR t IN VALUES ('addresses'),('banner_slides'),('cart_items'),('contact_preferences'),
                   ('coupons'),('orders'),('payment_links'),('popups'),('products'),
-                  ('profiles'),('site_settings'),('support_tickets')
+                  ('profiles'),('site_settings'),('support_tickets'),('bulk_email_templates')
   LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS update_%I_updated_at ON public.%I;', t, t);
     EXECUTE format('CREATE TRIGGER update_%I_updated_at BEFORE UPDATE ON public.%I
@@ -435,6 +611,19 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Touch updated_at na fila de retry de webhooks
+DROP TRIGGER IF EXISTS touch_webhook_retry_queue_updated ON public.webhook_retry_queue;
+CREATE TRIGGER touch_webhook_retry_queue_updated
+  BEFORE UPDATE ON public.webhook_retry_queue
+  FOR EACH ROW EXECUTE FUNCTION public.touch_webhook_retry_queue();
+
+-- Dispara e-mails transacionais quando pedidos são criados/atualizados
+-- Requer extensão pg_net habilitada e site_settings.service_role_key_for_triggers
+DROP TRIGGER IF EXISTS send_order_emails ON public.orders;
+CREATE TRIGGER send_order_emails
+  AFTER INSERT OR UPDATE ON public.orders
+  FOR EACH ROW EXECUTE FUNCTION public.trigger_send_order_emails();
 
 -- =============================================================================
 -- INDEXES
@@ -460,6 +649,11 @@ CREATE INDEX IF NOT EXISTS idx_webhook_logs_order_id      ON public.webhook_logs
 CREATE INDEX IF NOT EXISTS idx_email_send_log_created_at  ON public.email_send_log (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_email_send_log_recipient   ON public.email_send_log (recipient_email);
 CREATE INDEX IF NOT EXISTS idx_api_idempotency_expires    ON public.api_idempotency_keys (expires_at);
+CREATE INDEX IF NOT EXISTS idx_bulk_email_campaigns_status     ON public.bulk_email_campaigns (status);
+CREATE INDEX IF NOT EXISTS idx_bulk_email_campaigns_created_at ON public.bulk_email_campaigns (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_bulk_email_templates_user_id    ON public.bulk_email_templates (user_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_retry_queue_status      ON public.webhook_retry_queue (status, next_attempt_at);
+CREATE INDEX IF NOT EXISTS idx_webhook_retry_queue_gateway     ON public.webhook_retry_queue (gateway);
 
 -- =============================================================================
 -- ROW LEVEL SECURITY
@@ -468,6 +662,8 @@ ALTER TABLE public.addresses             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.api_idempotency_keys  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.banner_slides         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.banners               ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bulk_email_campaigns  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bulk_email_templates  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cart_abandonment_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cart_items            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.contact_preferences   ENABLE ROW LEVEL SECURITY;
@@ -490,6 +686,7 @@ ALTER TABLE public.support_tickets       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_roles            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.video_testimonials    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.webhook_logs          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.webhook_retry_queue   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.wholesale_prices      ENABLE ROW LEVEL SECURITY;
 
 -- LIMPA TODAS AS POLICIES EXISTENTES (idempotência)
@@ -586,6 +783,15 @@ CREATE POLICY "Admins can delete email send log" ON public.email_send_log FOR DE
 -- API idempotency keys (admins read-only — service role gerencia)
 CREATE POLICY "Admins can view idempotency keys" ON public.api_idempotency_keys FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'admin'));
 
+-- Bulk Email Campaigns / Templates (admins gerenciam tudo)
+CREATE POLICY "Admins manage bulk_email_campaigns" ON public.bulk_email_campaigns FOR ALL TO authenticated USING (public.has_role(auth.uid(),'admin')) WITH CHECK (public.has_role(auth.uid(),'admin'));
+CREATE POLICY "Admins manage bulk_email_templates" ON public.bulk_email_templates FOR ALL TO authenticated USING (public.has_role(auth.uid(),'admin')) WITH CHECK (public.has_role(auth.uid(),'admin'));
+
+-- Webhook retry queue (admins read/update/delete; service role insere)
+CREATE POLICY "Admins can view webhook retry queue" ON public.webhook_retry_queue FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'admin'));
+CREATE POLICY "Admins can update webhook retry queue" ON public.webhook_retry_queue FOR UPDATE TO authenticated USING (public.has_role(auth.uid(),'admin'));
+CREATE POLICY "Admins can delete webhook retry queue" ON public.webhook_retry_queue FOR DELETE TO authenticated USING (public.has_role(auth.uid(),'admin'));
+
 CREATE POLICY "Service role full access" ON public.cart_abandonment_logs FOR ALL USING (true) WITH CHECK (true);
 
 CREATE POLICY "Anyone can view active banners" ON public.banners FOR SELECT USING (true);
@@ -671,13 +877,16 @@ ALTER TABLE public.site_settings      REPLICA IDENTITY FULL;
 ALTER TABLE public.reviews            REPLICA IDENTITY FULL;
 ALTER TABLE public.webhook_logs       REPLICA IDENTITY FULL;
 ALTER TABLE public.email_send_log     REPLICA IDENTITY FULL;
+ALTER TABLE public.bulk_email_campaigns REPLICA IDENTITY FULL;
+ALTER TABLE public.webhook_retry_queue  REPLICA IDENTITY FULL;
 
 DO $$
 DECLARE
   t text;
   tables text[] := ARRAY['orders','cart_items','support_tickets','support_messages',
                          'payment_logs','products','product_variations','product_upsells',
-                         'site_settings','reviews','webhook_logs','email_send_log'];
+                         'site_settings','reviews','webhook_logs','email_send_log',
+                         'bulk_email_campaigns','webhook_retry_queue'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     IF NOT EXISTS (
