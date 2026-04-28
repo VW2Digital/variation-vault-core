@@ -120,6 +120,10 @@ const OrderDetailPage = () => {
         title={`Pedido #${String(order.id).slice(0, 8)}`}
         description={`${order.customer_name || 'Cliente'} • ${status.label}`}
         icon={Package}
+        breadcrumbs={[
+          { label: 'Pedidos', to: '/admin/pedidos' },
+          { label: `#${String(order.id).slice(0, 8)}` },
+        ]}
         actions={
           <Button variant="outline" size="sm" onClick={() => navigate('/admin/pedidos')}>
             <ArrowLeft className="w-4 h-4 mr-1.5" /> Voltar para Pedidos

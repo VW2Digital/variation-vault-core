@@ -250,6 +250,10 @@ const ProductForm = () => {
         title={isEditing ? 'Editar Produto' : 'Novo Produto'}
         description={isEditing ? 'Atualize informações, variações, mídias e regras de venda.' : 'Cadastre um novo produto com variações, preços e estoque.'}
         icon={PackagePlus}
+        breadcrumbs={[
+          { label: 'Produtos', to: '/admin/produtos' },
+          { label: isEditing ? (name || 'Editar') : 'Novo Produto' },
+        ]}
         actions={
           <Button variant="outline" size="sm" onClick={() => navigate('/admin/produtos')}>
             <ArrowLeft className="w-4 h-4 mr-1.5" /> Voltar para Produtos

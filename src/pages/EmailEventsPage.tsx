@@ -162,15 +162,11 @@ const EmailEventsPage = () => {
         title="Eventos de E-mail"
         description="Marque quais notificações devem ser enviadas automaticamente via SMTP."
         icon={PackageCheck}
-        actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/admin/configuracoes/comunicacao')}
-          >
-            <ArrowLeft className="w-4 h-4 mr-1" /> Comunicação
-          </Button>
-        }
+        breadcrumbs={[
+          { label: 'Configurações', to: '/admin/configuracoes' },
+          { label: 'Comunicação', to: '/admin/configuracoes/comunicacao' },
+          { label: 'Eventos de E-mail' },
+        ]}
       />
 
       <Card>
