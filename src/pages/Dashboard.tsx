@@ -159,6 +159,39 @@ const Dashboard = () => {
       const parsed = Number((goalSetting as any)?.value);
       setMonthlyGoal(Number.isFinite(parsed) ? parsed : 0);
 
+      // Nome do admin
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user?.id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', userData.user.id)
+          .maybeSingle();
+        setAdminName((profile as any)?.full_name || userData.user.email?.split('@')[0] || 'Admin');
+      }
+
+      // Atividade: signups recentes, tickets, falhas
+      const { data: signups } = await supabase
+        .from('profiles')
+        .select('id, full_name, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      setRecentSignups((signups as any) || []);
+
+      const { data: tickets } = await supabase
+        .from('support_tickets')
+        .select('id, subject, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      setRecentTickets((tickets as any) || []);
+
+      const { data: failures } = await supabase
+        .from('payment_logs')
+        .select('id, customer_email, created_at, error_message')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      setRecentFailures((failures as any) || []);
+
       setLoading(false);
     };
     load();
