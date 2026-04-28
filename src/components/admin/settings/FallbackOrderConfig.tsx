@@ -2,7 +2,7 @@
  * Admin UI to reorder the credit-card fallback chain.
  * Persists a comma-separated list in `site_settings.card_fallback_order`.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { fetchSetting, upsertSetting, getCurrentUser } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -18,7 +18,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { GripVertical, Save, Shuffle, RotateCcw } from 'lucide-react';
+import { GripVertical, Save, Shuffle, RotateCcw, Info } from 'lucide-react';
 
 type Gateway = 'mercadopago' | 'pagarme' | 'asaas';
 const ALLOWED: Gateway[] = ['mercadopago', 'pagarme', 'asaas'];
@@ -28,6 +28,8 @@ const LABELS: Record<Gateway, string> = {
   pagarme: 'Pagar.me',
   asaas: 'Asaas',
 };
+
+const isTrue = (v: string | null | undefined) => v === null || v === undefined || v === '' || v === 'true';
 
 function SortableRow({ id, index }: { id: Gateway; index: number }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
@@ -52,6 +54,10 @@ const FallbackOrderConfig = () => {
   const [initial, setInitial] = useState<Gateway[]>(DEFAULT_ORDER);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Per-gateway eligibility (must be both `_enabled` AND `_fallback_enabled`)
+  const [eligibility, setEligibility] = useState<Record<Gateway, boolean>>({
+    mercadopago: true, pagarme: true, asaas: true,
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -59,24 +65,60 @@ const FallbackOrderConfig = () => {
   );
 
   useEffect(() => {
-    fetchSetting('card_fallback_order').then((raw) => {
-      const parsed = (raw || '')
-        .split(',')
-        .map((s) => s.trim().toLowerCase())
-        .filter((s): s is Gateway => (ALLOWED as string[]).includes(s));
-      for (const g of ALLOWED) if (!parsed.includes(g)) parsed.push(g);
-      setOrder(parsed);
-      setInitial(parsed);
-      setLoaded(true);
-    });
+    loadAll();
+    // Realtime: react when any toggle changes in another session
+    const channel = supabase
+      .channel('fallback-order-config')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'site_settings' }, (payload: any) => {
+        const key = payload?.new?.key ?? payload?.old?.key;
+        if (!key) return;
+        if (key === 'card_fallback_order' || /^(asaas|mercadopago|pagarme)_(enabled|fallback_enabled)$/.test(key)) {
+          loadAll();
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadAll = async () => {
+    const [rawOrder, ...flags] = await Promise.all([
+      fetchSetting('card_fallback_order'),
+      ...ALLOWED.flatMap((g) => [fetchSetting(`${g}_enabled`), fetchSetting(`${g}_fallback_enabled`)]),
+    ]);
+    const elig: Record<Gateway, boolean> = { mercadopago: true, pagarme: true, asaas: true };
+    ALLOWED.forEach((g, idx) => {
+      const enabled = isTrue(flags[idx * 2] as string | null);
+      const fbEnabled = isTrue(flags[idx * 2 + 1] as string | null);
+      elig[g] = enabled && fbEnabled;
+    });
+    setEligibility(elig);
+
+    const parsed = (rawOrder || '')
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter((s): s is Gateway => (ALLOWED as string[]).includes(s));
+    for (const g of ALLOWED) if (!parsed.includes(g)) parsed.push(g);
+    setOrder(parsed);
+    setInitial(parsed);
+    setLoaded(true);
+  };
+
+  // Order shown / interactable in the UI: only eligible gateways
+  const visibleOrder = useMemo(() => order.filter((g) => eligibility[g]), [order, eligibility]);
+  const hiddenGateways = useMemo(() => ALLOWED.filter((g) => !eligibility[g]), [eligibility]);
 
   const handleDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
-    const oldIndex = order.indexOf(active.id as Gateway);
-    const newIndex = order.indexOf(over.id as Gateway);
-    setOrder(arrayMove(order, oldIndex, newIndex));
+    // Reorder within the visible list, then merge back preserving hidden gateways at the end
+    const visIds = visibleOrder;
+    const oldIdx = visIds.indexOf(active.id as Gateway);
+    const newIdx = visIds.indexOf(over.id as Gateway);
+    if (oldIdx < 0 || newIdx < 0) return;
+    const reorderedVisible = arrayMove(visIds, oldIdx, newIdx);
+    const hidden = order.filter((g) => !eligibility[g]);
+    setOrder([...reorderedVisible, ...hidden]);
   };
 
   const dirty = order.join(',') !== initial.join(',');
@@ -125,13 +167,27 @@ const FallbackOrderConfig = () => {
         </div>
       </div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={order} strategy={verticalListSortingStrategy}>
-          <div className="space-y-2">
-            {order.map((g, i) => <SortableRow key={g} id={g} index={i} />)}
-          </div>
-        </SortableContext>
-      </DndContext>
+      {visibleOrder.length === 0 ? (
+        <div className="rounded-md border border-dashed border-border p-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+          <Info className="w-4 h-4" />
+          Nenhum gateway está apto para fallback. Habilite "Apto para fallback de cartão" em pelo menos um gateway.
+        </div>
+      ) : (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={visibleOrder} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2">
+              {visibleOrder.map((g, i) => <SortableRow key={g} id={g} index={i} />)}
+            </div>
+          </SortableContext>
+        </DndContext>
+      )}
+
+      {hiddenGateways.length > 0 && (
+        <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+          <Info className="w-3 h-3" />
+          Ocultos por estarem desabilitados: {hiddenGateways.map((g) => LABELS[g]).join(', ')}
+        </p>
+      )}
 
       <div className="flex items-center justify-end gap-2 pt-1">
         <Button variant="ghost" size="sm" onClick={handleReset} className="gap-2">
