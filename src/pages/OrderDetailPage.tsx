@@ -115,12 +115,16 @@ const OrderDetailPage = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/admin/pedidos')}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-xl font-bold text-foreground">Detalhes do Pedido</h1>
-      </div>
+      <AdminPageHeader
+        title={`Pedido #${String(order.id).slice(0, 8)}`}
+        description={`${order.customer_name || 'Cliente'} • ${status.label}`}
+        icon={Package}
+        actions={
+          <Button variant="outline" size="sm" onClick={() => navigate('/admin/pedidos')}>
+            <ArrowLeft className="w-4 h-4 mr-1" /> Pedidos
+          </Button>
+        }
+      />
 
       <Card className="border-border/50">
         <CardContent className="p-5 space-y-4">
