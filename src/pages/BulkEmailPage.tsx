@@ -199,7 +199,7 @@ export default function BulkEmailPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 w-full">
       <div className="flex items-center gap-3">
         <div className="p-2 rounded-lg bg-primary/10">
           <Send className="w-5 h-5 text-primary" />
