@@ -353,11 +353,11 @@ const Catalog = () => {
                       className="block flex-1"
                     >
                       {/* Image */}
-                      <div className="relative aspect-square bg-white flex items-center justify-center p-3 sm:p-4 overflow-hidden">
+                      <div className="relative aspect-square bg-white flex items-center justify-center p-5 sm:p-7 overflow-hidden">
                         <img
                           src={img}
                           alt={displayName}
-                          className="max-w-[80%] max-h-[80%] object-contain group-hover:scale-105 transition-transform duration-500"
+                          className="max-w-[72%] max-h-[72%] object-contain group-hover:scale-105 transition-transform duration-500"
                         />
                         <div className="absolute top-2 left-2 flex flex-col gap-1">
                           {offer && offerPrice && price && (
