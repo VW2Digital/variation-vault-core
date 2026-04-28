@@ -11,6 +11,10 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
   import { Input } from '@/components/ui/input';
   import { Badge } from '@/components/ui/badge';
   import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DashboardHero } from '@/components/admin/DashboardHero';
+import { DashboardMonthlyGoal } from '@/components/admin/DashboardMonthlyGoal';
+import { DashboardRecentOrders } from '@/components/admin/DashboardRecentOrders';
+import { DashboardTopProducts } from '@/components/admin/DashboardTopProducts';
 
 type PeriodKey = '7' | '30' | '90';
 
@@ -21,6 +25,8 @@ interface RawOrder {
   customer_email: string;
   product_name: string;
   created_at: string;
+  id?: string;
+  customer_name?: string;
 }
 
 interface RawLog {
