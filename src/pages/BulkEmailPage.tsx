@@ -18,7 +18,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail, FileText, Sparkles, Wand2 } from "lucide-react";
+import { ShieldCheck, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { BULK_EMAIL_TEMPLATES, type BulkEmailTemplate } from "@/lib/bulkEmailTemplates";
+import { BulkEmailSchema, analyzeBulkEmail, type ValidationIssue } from "@/lib/bulkEmailValidation";
 
 type Audience = "all_customers" | "paid_customers" | "no_orders" | "manual";
 
@@ -59,6 +61,24 @@ export default function BulkEmailPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [aiInstructions, setAiInstructions] = useState("");
   const [generating, setGenerating] = useState(false);
+
+  // Validações pré-envio
+  const schemaResult = BulkEmailSchema.safeParse({ subject, html });
+  const schemaErrors: ValidationIssue[] = schemaResult.success
+    ? []
+    : Object.entries(schemaResult.error.flatten().fieldErrors).flatMap(
+        ([field, msgs]) =>
+          (msgs || []).map((m) => ({
+            level: "error" as const,
+            code: `schema_${field}`,
+            message: m,
+          })),
+      );
+  const heuristicIssues = subject || html ? analyzeBulkEmail(subject, html) : [];
+  const issues: ValidationIssue[] = [...schemaErrors, ...heuristicIssues];
+  const errorCount = issues.filter((i) => i.level === "error").length;
+  const warningCount = issues.filter((i) => i.level === "warning").length;
+  const htmlSizeKB = new Blob([html]).size / 1024;
 
   // Amostras (fallback fictício + amostra real do público carregado)
   const SAMPLE_PROFILES: Record<string, { label: string; nome: string; email: string }[]> = {
