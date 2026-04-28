@@ -1154,6 +1154,30 @@ async function createGateway(supabaseUrl: string, supabaseKey: string, gatewayOv
     gatewayName = gwRow?.value || 'asaas';
   }
 
+  // Honor admin "gateway disabled" toggle. Default = enabled if setting missing.
+  const { data: enabledRow } = await supabase
+    .from('site_settings')
+    .select('value')
+    .eq('key', `${gatewayName}_enabled`)
+    .maybeSingle();
+  const isEnabled = !enabledRow || enabledRow.value === null || enabledRow.value === '' || enabledRow.value === 'true';
+  if (!isEnabled) {
+    throw new Error(`Gateway ${gatewayName} está desabilitado pelo administrador. Tente outro método de pagamento.`);
+  }
+
+  // For overrides (fallback flow), additionally require fallback eligibility.
+  if (gatewayOverride) {
+    const { data: fbRow } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', `${gatewayName}_fallback_enabled`)
+      .maybeSingle();
+    const fbEnabled = !fbRow || fbRow.value === null || fbRow.value === '' || fbRow.value === 'true';
+    if (!fbEnabled) {
+      throw new Error(`Gateway ${gatewayName} não está disponível como fallback.`);
+    }
+  }
+
   if (gatewayName === 'pagarme') {
     const { data: pgmeEnvRow } = await supabase
       .from('site_settings').select('value').eq('key', 'pagarme_environment').maybeSingle();
