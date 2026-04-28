@@ -323,18 +323,20 @@ const Dashboard = () => {
       {/* Header */}
       <DashboardWelcomeHeader adminName={adminName} />
 
-      {/* Painel principal: 2/3 resumo + gráfico | 1/3 atividade + produtos recentes */}
+      {/* Resumo full-width */}
+      <DashboardOverallSummary
+        balance={summary.balance}
+        balanceDelta={summary.balanceDelta}
+        achievementRate={summary.achievementRate}
+        customers={summary.customers}
+        customersDelta={summary.customersDelta}
+        range={summaryRange}
+        onRangeChange={setSummaryRange}
+      />
+
+      {/* Vendas + Atividade lado a lado */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 space-y-4">
-          <DashboardOverallSummary
-            balance={summary.balance}
-            balanceDelta={summary.balanceDelta}
-            achievementRate={summary.achievementRate}
-            customers={summary.customers}
-            customersDelta={summary.customersDelta}
-            range={summaryRange}
-            onRangeChange={setSummaryRange}
-          />
+        <div className="lg:col-span-2">
           <DashboardSalesOverview
             total={totalRevenuePeriod}
             delta={previousPeriodRevenue > 0
@@ -345,11 +347,11 @@ const Dashboard = () => {
             onRangeChange={(v) => setPeriod(v)}
           />
         </div>
-        <div className="space-y-4">
-          <DashboardRecentActivity items={activityItems} />
-          <DashboardMostRecentProducts products={allProducts as any} />
-        </div>
+        <DashboardRecentActivity items={activityItems} />
       </div>
+
+      {/* Produtos recentes — full-width abaixo */}
+      <DashboardMostRecentProducts products={allProducts as any} />
 
       {/* Alerta de estoque */}
       {outOfStock > 0 && (
