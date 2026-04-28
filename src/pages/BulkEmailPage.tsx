@@ -17,10 +17,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail, FileText, Sparkles, Wand2, Save, Trash2, BookmarkPlus, Bookmark } from "lucide-react";
-import { ShieldCheck, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail, FileText, Sparkles, Wand2, Save, Bookmark, Trash2 } from "lucide-react";
 import { BULK_EMAIL_TEMPLATES, type BulkEmailTemplate } from "@/lib/bulkEmailTemplates";
-import { BulkEmailSchema, analyzeBulkEmail, type ValidationIssue } from "@/lib/bulkEmailValidation";
 
 type Audience = "all_customers" | "paid_customers" | "no_orders" | "manual";
 
@@ -35,14 +33,6 @@ type Campaign = {
   total_failed: number;
   status: string;
   created_at: string;
-};
-
-type CustomTemplate = {
-  id: string;
-  name: string;
-  subject: string;
-  html_content: string;
-  updated_at: string;
 };
 
 const AUDIENCE_LABELS: Record<Audience, string> = {
@@ -70,32 +60,15 @@ export default function BulkEmailPage() {
   const [aiInstructions, setAiInstructions] = useState("");
   const [generating, setGenerating] = useState(false);
 
-  // Templates próprios (persistidos)
+  // Templates próprios (salvos no banco)
+  type CustomTemplate = { id: string; name: string; subject: string; html_content: string; updated_at: string };
   const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([]);
-  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [loadingCustom, setLoadingCustom] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
-  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-  const [templateName, setTemplateName] = useState("");
-  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
-  const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null);
-
-  // Validações pré-envio
-  const schemaResult = BulkEmailSchema.safeParse({ subject, html });
-  const schemaErrors: ValidationIssue[] = schemaResult.success
-    ? []
-    : Object.entries(schemaResult.error.flatten().fieldErrors).flatMap(
-        ([field, msgs]) =>
-          (msgs || []).map((m) => ({
-            level: "error" as const,
-            code: `schema_${field}`,
-            message: m,
-          })),
-      );
-  const heuristicIssues = subject || html ? analyzeBulkEmail(subject, html) : [];
-  const issues: ValidationIssue[] = [...schemaErrors, ...heuristicIssues];
-  const errorCount = issues.filter((i) => i.level === "error").length;
-  const warningCount = issues.filter((i) => i.level === "warning").length;
-  const htmlSizeKB = new Blob([html]).size / 1024;
+  const [loadedCustomId, setLoadedCustomId] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // Amostras (fallback fictício + amostra real do público carregado)
   const SAMPLE_PROFILES: Record<string, { label: string; nome: string; email: string }[]> = {
@@ -184,6 +157,82 @@ export default function BulkEmailPage() {
     {},
   );
 
+  // ===== Templates próprios =====
+  const loadCustomTemplates = async () => {
+    setLoadingCustom(true);
+    const { data, error } = await supabase
+      .from("bulk_email_templates")
+      .select("id, name, subject, html_content, updated_at")
+      .order("updated_at", { ascending: false });
+    if (!error) setCustomTemplates((data || []) as CustomTemplate[]);
+    setLoadingCustom(false);
+  };
+
+  const handleSaveTemplate = async (mode: "new" | "update") => {
+    if (mode === "new" && !saveName.trim()) {
+      toast({ title: "Informe um nome para o template", variant: "destructive" });
+      return;
+    }
+    if (!html.trim()) {
+      toast({ title: "Conteúdo vazio", description: "Escreva o HTML antes de salvar.", variant: "destructive" });
+      return;
+    }
+    setSavingTemplate(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Sessão expirada");
+
+      if (mode === "update" && loadedCustomId) {
+        const { error } = await supabase
+          .from("bulk_email_templates")
+          .update({ subject, html_content: html })
+          .eq("id", loadedCustomId);
+        if (error) throw error;
+        toast({ title: "Template atualizado" });
+      } else {
+        const { data, error } = await supabase
+          .from("bulk_email_templates")
+          .insert({ user_id: user.id, name: saveName.trim(), subject, html_content: html })
+          .select("id")
+          .single();
+        if (error) throw error;
+        setLoadedCustomId(data.id);
+        toast({ title: "Template salvo", description: saveName });
+      }
+      setSaveOpen(false);
+      setSaveName("");
+      loadCustomTemplates();
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar", description: e?.message, variant: "destructive" });
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const applyCustomTemplate = (tpl: CustomTemplate) => {
+    setSubject(tpl.subject || "");
+    setHtml(tpl.html_content || "");
+    setLoadedCustomId(tpl.id);
+    setSelectedTemplateId("");
+    toast({ title: "Template carregado", description: tpl.name });
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!deleteTargetId) return;
+    const { error } = await supabase
+      .from("bulk_email_templates")
+      .delete()
+      .eq("id", deleteTargetId);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Template excluído" });
+      if (loadedCustomId === deleteTargetId) setLoadedCustomId(null);
+      loadCustomTemplates();
+    }
+    setDeleteTargetId(null);
+  };
+
   // Carrega histórico
   const loadCampaigns = async () => {
     const { data } = await supabase
@@ -198,89 +247,6 @@ export default function BulkEmailPage() {
     loadCampaigns();
     loadCustomTemplates();
   }, []);
-
-  const loadCustomTemplates = async () => {
-    setLoadingTemplates(true);
-    const { data, error } = await supabase
-      .from("bulk_email_templates")
-      .select("id, name, subject, html_content, updated_at")
-      .order("updated_at", { ascending: false });
-    if (!error) setCustomTemplates((data || []) as CustomTemplate[]);
-    setLoadingTemplates(false);
-  };
-
-  const openSaveDialog = (asNew = true) => {
-    if (!subject.trim() && !html.trim()) {
-      toast({ title: "Nada para salvar", description: "Preencha o assunto ou o HTML antes.", variant: "destructive" });
-      return;
-    }
-    setEditingTemplateId(asNew ? null : editingTemplateId);
-    if (asNew) setTemplateName("");
-    setSaveDialogOpen(true);
-  };
-
-  const handleSaveTemplate = async () => {
-    const name = templateName.trim();
-    if (!name) {
-      toast({ title: "Informe um nome", variant: "destructive" });
-      return;
-    }
-    setSavingTemplate(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Sessão expirada");
-
-      if (editingTemplateId) {
-        const { error } = await supabase
-          .from("bulk_email_templates")
-          .update({ name, subject, html_content: html })
-          .eq("id", editingTemplateId);
-        if (error) throw error;
-        toast({ title: "Template atualizado", description: name });
-      } else {
-        const { error } = await supabase
-          .from("bulk_email_templates")
-          .insert({ name, subject, html_content: html, user_id: user.id });
-        if (error) throw error;
-        toast({ title: "Template salvo", description: name });
-      }
-      setSaveDialogOpen(false);
-      setEditingTemplateId(null);
-      setTemplateName("");
-      loadCustomTemplates();
-    } catch (e: any) {
-      toast({ title: "Erro ao salvar", description: e?.message || "Tente novamente", variant: "destructive" });
-    } finally {
-      setSavingTemplate(false);
-    }
-  };
-
-  const applyCustomTemplate = (tpl: CustomTemplate) => {
-    if (tpl.subject) setSubject(tpl.subject);
-    setHtml(tpl.html_content || "");
-    setEditingTemplateId(tpl.id);
-    setTemplateName(tpl.name);
-    toast({ title: "Template carregado", description: tpl.name });
-  };
-
-  const handleDeleteTemplate = async () => {
-    if (!deleteTemplateId) return;
-    const { error } = await supabase
-      .from("bulk_email_templates")
-      .delete()
-      .eq("id", deleteTemplateId);
-    if (error) {
-      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Template excluído" });
-      if (editingTemplateId === deleteTemplateId) {
-        setEditingTemplateId(null);
-        setTemplateName("");
-      }
-      loadCustomTemplates();
-    }
-    setDeleteTemplateId(null);
-  };
 
   // Resolve destinatários conforme audiência
   const resolveRecipients = async () => {
@@ -378,14 +344,6 @@ export default function BulkEmailPage() {
     setConfirmOpen(false);
     if (!subject.trim() || !html.trim()) {
       toast({ title: "Preencha assunto e mensagem", variant: "destructive" });
-      return;
-    }
-    if (errorCount > 0) {
-      toast({
-        title: "Corrija os erros antes de enviar",
-        description: `${errorCount} erro(s) bloqueando o envio.`,
-        variant: "destructive",
-      });
       return;
     }
     if (resolved.length === 0) {
@@ -560,84 +518,52 @@ export default function BulkEmailPage() {
 
           <Card>
             <CardHeader>
-              <div className="flex items-start justify-between gap-3 flex-wrap">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Bookmark className="w-5 h-5" /> Meus templates salvos
-                  </CardTitle>
-                  <CardDescription>
-                    Salve a mensagem atual para reutilizar em campanhas futuras.
-                  </CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  {editingTemplateId && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleSaveTemplate}
-                      disabled={savingTemplate}
-                    >
-                      {savingTemplate ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Save className="w-4 h-4 mr-2" />
-                      )}
-                      Atualizar "{templateName}"
-                    </Button>
-                  )}
-                  <Button size="sm" onClick={() => openSaveDialog(true)}>
-                    <BookmarkPlus className="w-4 h-4 mr-2" />
-                    Salvar como novo
-                  </Button>
-                </div>
-              </div>
+              <CardTitle className="flex items-center gap-2">
+                <Bookmark className="w-5 h-5" /> Meus templates salvos
+              </CardTitle>
+              <CardDescription>
+                Modelos personalizados que você criou. Clique para carregar no editor.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {loadingTemplates ? (
+              {loadingCustom ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="w-4 h-4 animate-spin" /> Carregando...
                 </div>
               ) : customTemplates.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  Nenhum template salvo ainda. Crie sua mensagem acima e clique em "Salvar como novo".
+                  Você ainda não salvou templates. Use o botão "Salvar como template" abaixo do editor.
                 </p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {customTemplates.map((tpl) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {customTemplates.map((t) => (
                     <div
-                      key={tpl.id}
-                      className={`border rounded-lg p-3 flex flex-col gap-2 ${
-                        editingTemplateId === tpl.id ? "border-primary bg-primary/5" : ""
+                      key={t.id}
+                      className={`border rounded-lg p-3 flex items-start justify-between gap-2 hover:bg-muted/40 transition ${
+                        loadedCustomId === t.id ? "border-primary bg-primary/5" : ""
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <div className="font-medium text-sm truncate">{tpl.name}</div>
-                          <div className="text-xs text-muted-foreground truncate">
-                            {tpl.subject || "(sem assunto)"}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground mt-1">
-                            Atualizado em {new Date(tpl.updated_at).toLocaleString("pt-BR")}
-                          </div>
+                      <button
+                        type="button"
+                        onClick={() => applyCustomTemplate(t)}
+                        className="flex-1 text-left min-w-0"
+                      >
+                        <div className="font-medium text-sm truncate">{t.name}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {t.subject || "(sem assunto)"}
                         </div>
-                      </div>
-                      <div className="flex gap-1.5">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          className="flex-1"
-                          onClick={() => applyCustomTemplate(tpl)}
-                        >
-                          Carregar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setDeleteTemplateId(tpl.id)}
-                        >
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
-                      </div>
+                        <div className="text-[10px] text-muted-foreground mt-1">
+                          {new Date(t.updated_at).toLocaleString("pt-BR")}
+                        </div>
+                      </button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 shrink-0"
+                        onClick={() => setDeleteTargetId(t.id)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -678,6 +604,29 @@ export default function BulkEmailPage() {
                 <Button variant="outline" onClick={() => setPreviewOpen(true)}>
                   <Eye className="w-4 h-4 mr-2" /> Pré-visualizar
                 </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSaveName("");
+                    setSaveOpen(true);
+                  }}
+                >
+                  <Save className="w-4 h-4 mr-2" /> Salvar como template
+                </Button>
+                {loadedCustomId && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleSaveTemplate("update")}
+                    disabled={savingTemplate}
+                  >
+                    {savingTemplate ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Atualizar template carregado
+                  </Button>
+                )}
               </div>
 
               <div className="border-t pt-4 space-y-3">
@@ -715,89 +664,17 @@ export default function BulkEmailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {errorCount > 0 ? (
-                  <ShieldAlert className="w-5 h-5 text-destructive" />
-                ) : warningCount > 0 ? (
-                  <ShieldAlert className="w-5 h-5 text-amber-600" />
-                ) : (
-                  <ShieldCheck className="w-5 h-5 text-green-600" />
-                )}
-                4. Validação e envio
-              </CardTitle>
-              <CardDescription>
-                Verificações automáticas antes do disparo para reduzir falhas de entrega.
-              </CardDescription>
+              <CardTitle>4. Enviar</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Resumo de validação */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-lg border p-3 text-center">
-                  <div className="text-xs text-muted-foreground">Tamanho HTML</div>
-                  <div className={`text-lg font-bold ${htmlSizeKB > 100 ? "text-destructive" : htmlSizeKB > 80 ? "text-amber-600" : "text-foreground"}`}>
-                    {htmlSizeKB.toFixed(1)} KB
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">limite Gmail: 102KB</div>
-                </div>
-                <div className="rounded-lg border p-3 text-center">
-                  <div className="text-xs text-muted-foreground">Erros</div>
-                  <div className={`text-lg font-bold ${errorCount > 0 ? "text-destructive" : "text-green-600"}`}>
-                    {errorCount}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">bloqueiam o envio</div>
-                </div>
-                <div className="rounded-lg border p-3 text-center">
-                  <div className="text-xs text-muted-foreground">Avisos</div>
-                  <div className={`text-lg font-bold ${warningCount > 0 ? "text-amber-600" : "text-green-600"}`}>
-                    {warningCount}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">recomendações</div>
-                </div>
-              </div>
-
-              {/* Lista de avisos */}
-              {issues.length > 0 ? (
-                <div className="space-y-2 max-h-64 overflow-auto pr-1">
-                  {issues.map((it, idx) => (
-                    <Alert
-                      key={`${it.code}-${idx}`}
-                      variant={it.level === "error" ? "destructive" : "default"}
-                      className={it.level === "warning" ? "border-amber-500/50 text-amber-900 dark:text-amber-200 [&>svg]:text-amber-600" : ""}
-                    >
-                      {it.level === "error" ? (
-                        <ShieldAlert className="h-4 w-4" />
-                      ) : (
-                        <AlertTriangle className="h-4 w-4" />
-                      )}
-                      <AlertDescription className="text-xs">
-                        {it.message}
-                      </AlertDescription>
-                    </Alert>
-                  ))}
-                </div>
-              ) : subject && html ? (
-                <Alert className="border-green-500/50 text-green-900 dark:text-green-200 [&>svg]:text-green-600">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <AlertTitle className="text-sm">Tudo certo!</AlertTitle>
-                  <AlertDescription className="text-xs">
-                    Nenhum problema detectado. Pronto para envio.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-
+            <CardContent>
               <Button
                 size="lg"
                 onClick={() => setConfirmOpen(true)}
-                disabled={sending || resolved.length === 0 || !subject || !html || errorCount > 0}
+                disabled={sending || resolved.length === 0 || !subject || !html}
               >
                 {sending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
                 Disparar para {resolved.length} destinatário(s)
               </Button>
-              {errorCount > 0 && (
-                <p className="text-xs text-destructive">
-                  Envio bloqueado até corrigir {errorCount} erro(s) acima.
-                </p>
-              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -914,14 +791,14 @@ export default function BulkEmailPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+      <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Save className="w-5 h-5" /> Salvar template
             </DialogTitle>
             <DialogDescription>
-              Dê um nome para identificar este template na sua biblioteca.
+              Dê um nome para identificar este modelo. O assunto e o HTML atual serão salvos.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
@@ -929,31 +806,28 @@ export default function BulkEmailPage() {
               <Label htmlFor="tpl-name">Nome do template</Label>
               <Input
                 id="tpl-name"
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-                placeholder="Ex: Promo Black Friday 2026"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                placeholder="Ex: Promoção Black Friday"
                 autoFocus
               />
             </div>
-            <div className="text-xs text-muted-foreground">
-              Assunto: <strong>{subject || "(vazio)"}</strong> • {(new Blob([html]).size / 1024).toFixed(1)} KB
+            <div className="text-xs text-muted-foreground space-y-1 border rounded p-2 bg-muted/30">
+              <div><strong>Assunto:</strong> {subject || "(vazio)"}</div>
+              <div><strong>Tamanho:</strong> {(new Blob([html]).size / 1024).toFixed(1)} KB</div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSaveTemplate} disabled={savingTemplate}>
-              {savingTemplate ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
+            <Button variant="outline" onClick={() => setSaveOpen(false)}>Cancelar</Button>
+            <Button onClick={() => handleSaveTemplate("new")} disabled={savingTemplate}>
+              {savingTemplate ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
               Salvar
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleteTemplateId} onOpenChange={(o) => !o && setDeleteTemplateId(null)}>
+      <AlertDialog open={!!deleteTargetId} onOpenChange={(o) => !o && setDeleteTargetId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir template?</AlertDialogTitle>
