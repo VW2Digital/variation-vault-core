@@ -17,7 +17,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail, FileText, Sparkles, Wand2 } from "lucide-react";
+import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail, FileText, Sparkles, Wand2, Save, Trash2, BookmarkPlus, Bookmark } from "lucide-react";
 import { ShieldCheck, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { BULK_EMAIL_TEMPLATES, type BulkEmailTemplate } from "@/lib/bulkEmailTemplates";
 import { BulkEmailSchema, analyzeBulkEmail, type ValidationIssue } from "@/lib/bulkEmailValidation";
@@ -35,6 +35,14 @@ type Campaign = {
   total_failed: number;
   status: string;
   created_at: string;
+};
+
+type CustomTemplate = {
+  id: string;
+  name: string;
+  subject: string;
+  html_content: string;
+  updated_at: string;
 };
 
 const AUDIENCE_LABELS: Record<Audience, string> = {
@@ -61,6 +69,15 @@ export default function BulkEmailPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [aiInstructions, setAiInstructions] = useState("");
   const [generating, setGenerating] = useState(false);
+
+  // Templates próprios (persistidos)
+  const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null);
 
   // Validações pré-envio
   const schemaResult = BulkEmailSchema.safeParse({ subject, html });
@@ -179,7 +196,91 @@ export default function BulkEmailPage() {
 
   useEffect(() => {
     loadCampaigns();
+    loadCustomTemplates();
   }, []);
+
+  const loadCustomTemplates = async () => {
+    setLoadingTemplates(true);
+    const { data, error } = await supabase
+      .from("bulk_email_templates")
+      .select("id, name, subject, html_content, updated_at")
+      .order("updated_at", { ascending: false });
+    if (!error) setCustomTemplates((data || []) as CustomTemplate[]);
+    setLoadingTemplates(false);
+  };
+
+  const openSaveDialog = (asNew = true) => {
+    if (!subject.trim() && !html.trim()) {
+      toast({ title: "Nada para salvar", description: "Preencha o assunto ou o HTML antes.", variant: "destructive" });
+      return;
+    }
+    setEditingTemplateId(asNew ? null : editingTemplateId);
+    if (asNew) setTemplateName("");
+    setSaveDialogOpen(true);
+  };
+
+  const handleSaveTemplate = async () => {
+    const name = templateName.trim();
+    if (!name) {
+      toast({ title: "Informe um nome", variant: "destructive" });
+      return;
+    }
+    setSavingTemplate(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Sessão expirada");
+
+      if (editingTemplateId) {
+        const { error } = await supabase
+          .from("bulk_email_templates")
+          .update({ name, subject, html_content: html })
+          .eq("id", editingTemplateId);
+        if (error) throw error;
+        toast({ title: "Template atualizado", description: name });
+      } else {
+        const { error } = await supabase
+          .from("bulk_email_templates")
+          .insert({ name, subject, html_content: html, user_id: user.id });
+        if (error) throw error;
+        toast({ title: "Template salvo", description: name });
+      }
+      setSaveDialogOpen(false);
+      setEditingTemplateId(null);
+      setTemplateName("");
+      loadCustomTemplates();
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar", description: e?.message || "Tente novamente", variant: "destructive" });
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const applyCustomTemplate = (tpl: CustomTemplate) => {
+    if (tpl.subject) setSubject(tpl.subject);
+    setHtml(tpl.html_content || "");
+    setEditingTemplateId(tpl.id);
+    setTemplateName(tpl.name);
+    toast({ title: "Template carregado", description: tpl.name });
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!deleteTemplateId) return;
+    const { error } = await supabase
+      .from("bulk_email_templates")
+      .delete()
+      .eq("id", deleteTemplateId);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Template excluído" });
+      if (editingTemplateId === deleteTemplateId) {
+        setEditingTemplateId(null);
+        setTemplateName("");
+      }
+      loadCustomTemplates();
+    }
+    setDeleteTemplateId(null);
+  };
 
   // Resolve destinatários conforme audiência
   const resolveRecipients = async () => {
@@ -459,6 +560,93 @@ export default function BulkEmailPage() {
 
           <Card>
             <CardHeader>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bookmark className="w-5 h-5" /> Meus templates salvos
+                  </CardTitle>
+                  <CardDescription>
+                    Salve a mensagem atual para reutilizar em campanhas futuras.
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  {editingTemplateId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSaveTemplate}
+                      disabled={savingTemplate}
+                    >
+                      {savingTemplate ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4 mr-2" />
+                      )}
+                      Atualizar "{templateName}"
+                    </Button>
+                  )}
+                  <Button size="sm" onClick={() => openSaveDialog(true)}>
+                    <BookmarkPlus className="w-4 h-4 mr-2" />
+                    Salvar como novo
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingTemplates ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Carregando...
+                </div>
+              ) : customTemplates.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Nenhum template salvo ainda. Crie sua mensagem acima e clique em "Salvar como novo".
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {customTemplates.map((tpl) => (
+                    <div
+                      key={tpl.id}
+                      className={`border rounded-lg p-3 flex flex-col gap-2 ${
+                        editingTemplateId === tpl.id ? "border-primary bg-primary/5" : ""
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-sm truncate">{tpl.name}</div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {tpl.subject || "(sem assunto)"}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground mt-1">
+                            Atualizado em {new Date(tpl.updated_at).toLocaleString("pt-BR")}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="flex-1"
+                          onClick={() => applyCustomTemplate(tpl)}
+                        >
+                          Carregar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setDeleteTemplateId(tpl.id)}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>3. Mensagem</CardTitle>
               <CardDescription>
                 Variáveis disponíveis:{" "}
@@ -725,6 +913,60 @@ export default function BulkEmailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Save className="w-5 h-5" /> Salvar template
+            </DialogTitle>
+            <DialogDescription>
+              Dê um nome para identificar este template na sua biblioteca.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label htmlFor="tpl-name">Nome do template</Label>
+              <Input
+                id="tpl-name"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="Ex: Promo Black Friday 2026"
+                autoFocus
+              />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Assunto: <strong>{subject || "(vazio)"}</strong> • {(new Blob([html]).size / 1024).toFixed(1)} KB
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveTemplate} disabled={savingTemplate}>
+              {savingTemplate ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTemplateId} onOpenChange={(o) => !o && setDeleteTemplateId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir template?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é permanente e não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTemplate}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
