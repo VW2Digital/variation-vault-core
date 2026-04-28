@@ -1909,6 +1909,14 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
                 </p>
               </div>
             )}
+            {availableFallbacks.length === 0 && suggestedAltGateway && (
+              <div className="pt-3 border-t border-primary/20">
+                <p className="text-xs text-center text-muted-foreground">
+                  Confira os dados do cartão e tente novamente. Caso persista, também aceitamos cartão pelo{' '}
+                  <span className="font-medium text-foreground">{suggestedAltGateway.label}</span> — basta corrigir e reenviar.
+                </p>
+              </div>
+            )}
           </div>
         )}
         {paymentMethod === 'credit_card' && (
