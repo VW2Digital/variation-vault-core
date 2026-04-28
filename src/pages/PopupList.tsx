@@ -15,6 +15,8 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import { Megaphone } from 'lucide-react';
 
 interface Popup {
   id: string;
@@ -181,13 +183,20 @@ const PopupList = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Popups Promocionais</h1>
-        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button><Plus className="w-4 h-4 mr-2" /> Novo Popup</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
+      <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+        <AdminPageHeader
+          title="Popups Promocionais"
+          description={`${popups.length} popup(s) cadastrado(s) • aparece para visitantes do catálogo`}
+          icon={Megaphone}
+          actions={
+            <DialogTrigger asChild>
+              <Button size="sm" className="bg-gradient-to-r from-primary to-accent text-primary-foreground">
+                <Plus className="w-4 h-4 mr-1" /> Novo Popup
+              </Button>
+            </DialogTrigger>
+          }
+        />
+        <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{editingPopup ? 'Editar Popup' : 'Novo Popup'}</DialogTitle>
             </DialogHeader>
@@ -256,8 +265,7 @@ const PopupList = () => {
               </Button>
             </div>
           </DialogContent>
-        </Dialog>
-      </div>
+      </Dialog>
 
       {popups.length === 0 ? (
         <Card>

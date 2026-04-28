@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard, Sparkles, X, PackagePlus } from 'lucide-react';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
@@ -245,14 +246,16 @@ const ProductForm = () => {
 
   return (
     <div className="space-y-6 w-full">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/admin/produtos')}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground">
-          {isEditing ? 'Editar Produto' : 'Novo Produto'}
-        </h1>
-      </div>
+      <AdminPageHeader
+        title={isEditing ? 'Editar Produto' : 'Novo Produto'}
+        description={isEditing ? 'Atualize informações, variações, mídias e regras de venda.' : 'Cadastre um novo produto com variações, preços e estoque.'}
+        icon={PackagePlus}
+        actions={
+          <Button variant="outline" size="sm" onClick={() => navigate('/admin/produtos')}>
+            <ArrowLeft className="w-4 h-4 mr-1" /> Produtos
+          </Button>
+        }
+      />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card className="border-border/50">
