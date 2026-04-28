@@ -162,6 +162,11 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
   const [showPixFallback, setShowPixFallback] = useState(false);
   const [cardFailMessage, setCardFailMessage] = useState('');
   const [availableFallbacks, setAvailableFallbacks] = useState<AvailableCardGateway[]>([]);
+  // Suggested alternative gateway shown when the card error is NOT eligible
+  // for automatic re-tokenization fallback (e.g. wrong CVV/expiration date).
+  // We still tell the user which other processor is available so they can
+  // fix the data and try again, or switch processor manually.
+  const [suggestedAltGateway, setSuggestedAltGateway] = useState<AvailableCardGateway | null>(null);
   const [fallbackProcessing, setFallbackProcessing] = useState<CheckoutGateway | null>(null);
 
   // Coupon
@@ -1111,12 +1116,22 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
           try {
             const fallbacks = await getAvailableCardFallbacks(activeGateway as CheckoutGateway);
             setAvailableFallbacks(fallbacks);
+            setSuggestedAltGateway(null);
           } catch (e) {
             console.warn('[Checkout] Falha ao carregar fallbacks:', e);
             setAvailableFallbacks([]);
+            setSuggestedAltGateway(null);
           }
         } else {
           setAvailableFallbacks([]);
+          // Not eligible for automatic re-tokenization, but still inform
+          // the user which alternative processor is configured.
+          try {
+            const fallbacks = await getAvailableCardFallbacks(activeGateway as CheckoutGateway);
+            setSuggestedAltGateway(fallbacks[0] ?? null);
+          } catch {
+            setSuggestedAltGateway(null);
+          }
         }
       }
 
@@ -1131,6 +1146,7 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
     setShowPixFallback(false);
     setCardFailMessage('');
     setAvailableFallbacks([]);
+    setSuggestedAltGateway(null);
     // Trigger PIX payment immediately
     handlePayment();
   };
@@ -1229,6 +1245,7 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
       setShowPixFallback(false);
       setCardFailMessage('');
       setAvailableFallbacks([]);
+      setSuggestedAltGateway(null);
       setStep('success');
       await clearCart();
 
@@ -1889,6 +1906,14 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
                 </div>
                 <p className="text-[10px] text-center text-muted-foreground">
                   Reenviaremos os dados do cartão para outro processador, sem precisar digitar de novo.
+                </p>
+              </div>
+            )}
+            {availableFallbacks.length === 0 && suggestedAltGateway && (
+              <div className="pt-3 border-t border-primary/20">
+                <p className="text-xs text-center text-muted-foreground">
+                  Confira os dados do cartão e tente novamente. Caso persista, também aceitamos cartão pelo{' '}
+                  <span className="font-medium text-foreground">{suggestedAltGateway.label}</span> — basta corrigir e reenviar.
                 </p>
               </div>
             )}
