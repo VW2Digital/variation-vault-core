@@ -1105,6 +1105,19 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
       if (paymentMethod === 'credit_card') {
         setCardFailMessage(message);
         setShowPixFallback(true);
+        // Multi-gateway fallback: only for card rejection / fraud / risk errors,
+        // NOT for user input mistakes (CVV/date wrong) where switching gateway won't help.
+        if (isCardRejectionEligibleForFallback(rawMessage)) {
+          try {
+            const fallbacks = await getAvailableCardFallbacks(activeGateway as CheckoutGateway);
+            setAvailableFallbacks(fallbacks);
+          } catch (e) {
+            console.warn('[Checkout] Falha ao carregar fallbacks:', e);
+            setAvailableFallbacks([]);
+          }
+        } else {
+          setAvailableFallbacks([]);
+        }
       }
 
       toast({ title: 'Erro no pagamento', description: message, variant: 'destructive' });
