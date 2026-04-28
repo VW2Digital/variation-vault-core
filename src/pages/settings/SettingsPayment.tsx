@@ -6,6 +6,7 @@ import { CreditCard, CheckCircle2, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SettingsBackButton from './SettingsBackButton';
 import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
+import FallbackOrderConfig from '@/components/admin/settings/FallbackOrderConfig';
 import asaasLogo from '@/assets/gateway-asaas.png';
 import mercadoPagoLogo from '@/assets/gateway-mercadopago.png';
 import pagarMeLogo from '@/assets/gateway-pagarme.png';
@@ -82,6 +83,8 @@ const SettingsPayment = () => {
           );
         })}
       </div>
+
+      <FallbackOrderConfig />
     </div>
   );
 };
