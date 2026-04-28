@@ -115,7 +115,7 @@ const FallbackOrderConfig = () => {
   }, []);
 
   const loadAll = async () => {
-    const [rawOrder, ...flags] = await Promise.all([
+    const [rawOrder, ...rawFlags] = await Promise.all([
       fetchSetting('card_fallback_order'),
       ...ALLOWED.flatMap((g) => [fetchSetting(`${g}_enabled`), fetchSetting(`${g}_fallback_enabled`)]),
     ]);
@@ -125,8 +125,8 @@ const FallbackOrderConfig = () => {
       asaas: { enabled: true, fallback_enabled: true },
     };
     ALLOWED.forEach((g, idx) => {
-      const enabled = isTrue(flags[idx * 2] as string | null);
-      const fbEnabled = isTrue(flags[idx * 2 + 1] as string | null);
+      const enabled = isTrue(rawFlags[idx * 2] as string | null);
+      const fbEnabled = isTrue(rawFlags[idx * 2 + 1] as string | null);
       next[g] = { enabled, fallback_enabled: fbEnabled };
     });
     setFlags(next);
@@ -142,8 +142,9 @@ const FallbackOrderConfig = () => {
   };
 
   // Order shown / interactable in the UI: only eligible gateways
-  const visibleOrder = useMemo(() => order.filter((g) => eligibility[g]), [order, eligibility]);
-  const hiddenGateways = useMemo(() => ALLOWED.filter((g) => !eligibility[g]), [eligibility]);
+  const isEligible = (g: Gateway) => flags[g].enabled && flags[g].fallback_enabled;
+  const visibleOrder = useMemo(() => order.filter(isEligible), [order, flags]);
+  const hiddenGateways = useMemo(() => ALLOWED.filter((g) => !isEligible(g)), [flags]);
 
   const handleDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
@@ -154,7 +155,7 @@ const FallbackOrderConfig = () => {
     const newIdx = visIds.indexOf(over.id as Gateway);
     if (oldIdx < 0 || newIdx < 0) return;
     const reorderedVisible = arrayMove(visIds, oldIdx, newIdx);
-    const hidden = order.filter((g) => !eligibility[g]);
+    const hidden = order.filter((g) => !isEligible(g));
     setOrder([...reorderedVisible, ...hidden]);
   };
 
@@ -213,17 +214,65 @@ const FallbackOrderConfig = () => {
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={visibleOrder} strategy={verticalListSortingStrategy}>
             <div className="space-y-2">
-              {visibleOrder.map((g, i) => <SortableRow key={g} id={g} index={i} />)}
+              {visibleOrder.map((g, i) => <SortableRow key={g} id={g} index={i} flags={flags[g]} />)}
             </div>
           </SortableContext>
         </DndContext>
       )}
 
       {hiddenGateways.length > 0 && (
-        <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-          <Info className="w-3 h-3" />
-          Ocultos por estarem desabilitados: {hiddenGateways.map((g) => LABELS[g]).join(', ')}
-        </p>
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
+            <Info className="w-3 h-3" />
+            Ocultos da ordem de fallback:
+          </p>
+          <TooltipProvider>
+            <div className="flex flex-wrap gap-1.5">
+              {hiddenGateways.map((g) => {
+                const f = flags[g];
+                const reasons: string[] = [];
+                if (!f.enabled) reasons.push('gateway desabilitado');
+                if (!f.fallback_enabled) reasons.push('não apto para fallback');
+                return (
+                  <Tooltip key={g}>
+                    <TooltipTrigger asChild>
+                      <Badge variant="outline" className="gap-1 text-[11px] cursor-help border-dashed">
+                        <XCircle className="w-3 h-3 text-muted-foreground" />
+                        {LABELS[g]}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs space-y-1.5">
+                      <p className="text-xs font-medium">Oculto porque:</p>
+                      <div className="text-[11px] space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          {f.enabled
+                            ? <CheckCircle2 className="w-3 h-3 text-green-500" />
+                            : <XCircle className="w-3 h-3 text-destructive" />}
+                          <span>
+                            Gateway {f.enabled ? 'habilitado' : 'desabilitado'}{' '}
+                            (<code>{g}_enabled</code>)
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {f.fallback_enabled
+                            ? <CheckCircle2 className="w-3 h-3 text-green-500" />
+                            : <XCircle className="w-3 h-3 text-destructive" />}
+                          <span>
+                            {f.fallback_enabled ? 'Apto' : 'Não apto'} para fallback{' '}
+                            (<code>{g}_fallback_enabled</code>)
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground pt-1 border-t border-border">
+                        Ative {reasons.join(' e ')} para incluí-lo na ordem.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          </TooltipProvider>
+        </div>
       )}
 
       <div className="flex items-center justify-end gap-2 pt-1">
