@@ -11,8 +11,8 @@ export interface AdminBreadcrumbItem {
 }
 
 interface AdminPageHeaderProps {
-  title: string;
-  description?: string;
+  title?: string | null;
+  description?: string | null;
   icon?: LucideIcon;
   actions?: ReactNode;
   className?: string;
@@ -24,6 +24,27 @@ interface AdminPageHeaderProps {
    * Quando informada, evita a necessidade de um botão "Voltar" duplicado.
    */
   breadcrumbs?: AdminBreadcrumbItem[];
+  /**
+   * Texto exibido quando o `title` chega vazio/indefinido após sanitização.
+   * Default: "Sem título".
+   */
+  fallbackTitle?: string;
+}
+
+/**
+ * Normaliza textos dinâmicos vindos do banco/usuário:
+ * - Converte `null`/`undefined` em string vazia
+ * - Remove espaços nas pontas e colapsa múltiplos espaços/quebras de linha
+ * - Filtra strings literais "null", "undefined", "NaN" que costumam vazar de joins
+ */
+function sanitizeText(input: unknown): string {
+  if (input === null || input === undefined) return '';
+  const raw = typeof input === 'string' ? input : String(input);
+  const collapsed = raw.replace(/\s+/g, ' ').trim();
+  if (!collapsed) return '';
+  const lower = collapsed.toLowerCase();
+  if (lower === 'null' || lower === 'undefined' || lower === 'nan') return '';
+  return collapsed;
 }
 
 /**
@@ -39,7 +60,13 @@ export function AdminPageHeader({
   className,
   children,
   breadcrumbs,
+  fallbackTitle = 'Sem título',
 }: AdminPageHeaderProps) {
+  const safeTitle = sanitizeText(title) || fallbackTitle;
+  const safeDescription = sanitizeText(description);
+  const safeBreadcrumbs = (breadcrumbs ?? [])
+    .map((item) => ({ ...item, label: sanitizeText(item.label) }))
+    .filter((item) => item.label.length > 0);
   return (
     <div
       className={cn(
@@ -51,13 +78,13 @@ export function AdminPageHeader({
       <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-24 -left-10 h-48 w-48 rounded-full bg-accent/10 blur-3xl" />
 
-      {breadcrumbs && breadcrumbs.length > 0 && (
+      {safeBreadcrumbs.length > 0 && (
         <nav
           aria-label="Trilha"
           className="relative mb-3 flex flex-wrap items-center gap-1 text-xs text-muted-foreground"
         >
-          {breadcrumbs.map((item, idx) => {
-            const isLast = idx === breadcrumbs.length - 1;
+          {safeBreadcrumbs.map((item, idx) => {
+            const isLast = idx === safeBreadcrumbs.length - 1;
             return (
               <span key={`${item.label}-${idx}`} className="flex items-center gap-1">
                 {idx > 0 && <ChevronRight className="h-3 w-3 opacity-60" />}
@@ -88,11 +115,11 @@ export function AdminPageHeader({
           )}
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground truncate">
-              {title}
+              {safeTitle}
             </h1>
-            {description && (
+            {safeDescription && (
               <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-                {description}
+                {safeDescription}
               </p>
             )}
           </div>
