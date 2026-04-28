@@ -495,7 +495,7 @@ export default function ProductsOverview() {
             {topProduct ? (
               <>
                 <div
-                  className="mx-4 sm:mx-5 rounded-2xl bg-gradient-to-br from-primary/15 via-primary/5 to-primary/20 p-4 cursor-pointer"
+                  className="mx-4 rounded-2xl bg-gradient-to-br from-primary/15 via-primary/5 to-primary/20 p-4 cursor-pointer sm:mx-[20px] my-0 py-[18px] px-[16px]"
                   onClick={() => navigate(`/admin/produtos/${topProduct.id}`)}
                 >
                   <p className="text-sm font-bold text-foreground mb-2 truncate">{topProduct.name}</p>
