@@ -31,6 +31,7 @@ const menuCategories = [
   {
     label: 'Catálogo',
     items: [
+      { title: 'Visão Produtos', url: '/admin/produtos/visao', icon: LayoutDashboard },
       { title: 'Produtos', url: '/admin/produtos', icon: Package },
       { title: 'Depoimentos', url: '/admin/depoimentos', icon: Video },
     ],
