@@ -57,6 +57,32 @@ export async function getPagBankPublicKey(): Promise<string> {
   return await fetchSetting('pagbank_public_key');
 }
 
+/** Default-true setting reader: missing or empty string ⇒ true (backward compatible). */
+async function fetchBoolSetting(key: string): Promise<boolean> {
+  const v = await fetchSetting(key);
+  if (v === null || v === undefined || v === '') return true;
+  return v !== 'false';
+}
+
+/**
+ * Whether a gateway is operational (admin can switch it off entirely).
+ */
+export async function isGatewayEnabled(gateway: CheckoutGateway): Promise<boolean> {
+  return fetchBoolSetting(`${gateway}_enabled`);
+}
+
+/**
+ * Whether a gateway is allowed to be offered as a fallback option after
+ * a card rejection. Requires both `<gw>_enabled` and `<gw>_fallback_enabled`.
+ */
+export async function isGatewayFallbackEligible(gateway: CheckoutGateway): Promise<boolean> {
+  const [enabled, fallback] = await Promise.all([
+    fetchBoolSetting(`${gateway}_enabled`),
+    fetchBoolSetting(`${gateway}_fallback_enabled`),
+  ]);
+  return enabled && fallback;
+}
+
 /**
  * Card gateway fallback chain. Order: Mercado Pago → Pagar.me → Asaas.
  * PagBank is excluded because it uses a redirect flow (not transparent),
@@ -89,6 +115,9 @@ export async function getAvailableCardFallbacks(currentGateway: CheckoutGateway)
 
   for (const gw of candidates) {
     try {
+      // Respect admin toggles: gateway must be enabled AND marked fallback-eligible
+      if (!(await isGatewayFallbackEligible(gw))) continue;
+
       if (gw === 'mercadopago') {
         const env = (await fetchSetting('mercadopago_environment')) === 'production' ? 'production' : 'sandbox';
         const pk = (await fetchSetting(`mercadopago_public_key_${env}`)) || (await fetchSetting('mercadopago_public_key'));

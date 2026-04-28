@@ -9,6 +9,7 @@ import { Eye, EyeOff, CheckCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import WebhookUrlCard from '@/components/admin/WebhookUrlCard';
+import GatewayToggles from '@/components/admin/settings/GatewayToggles';
 
 interface Props {
   isActive: boolean;
@@ -79,6 +80,7 @@ const AsaasSettings = ({ isActive, onActivate }: Props) => {
 
   return (
     <div className="space-y-4">
+      <GatewayToggles gateway="asaas" />
       <div className="space-y-2">
         <Label>Ambiente</Label>
         <Select value={env} onValueChange={setEnv}>
