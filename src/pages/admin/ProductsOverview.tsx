@@ -505,7 +505,7 @@ export default function ProductsOverview() {
                         src={getImage(topProduct)!}
                         alt={topProduct.name}
                         loading="lazy"
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover py-[9px] mt-0 px-[75px]"
                       />
                     ) : (
                       <Package className="w-10 h-10 text-primary/40" />
