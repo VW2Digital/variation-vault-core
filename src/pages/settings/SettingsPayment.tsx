@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchSetting } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
-import { CreditCard, CheckCircle2 } from 'lucide-react';
+import { CreditCard, CheckCircle2, History } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import SettingsBackButton from './SettingsBackButton';
 import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 import asaasLogo from '@/assets/gateway-asaas.png';
@@ -34,6 +35,14 @@ const SettingsPayment = () => {
   return (
     <div className="space-y-6 w-full">
       <SettingsBackButton title="Gateways de Pagamento" description="Selecione um gateway para configurar. Apenas um pode estar ativo por vez." />
+
+      <div className="flex justify-end">
+        <Button asChild variant="outline" size="sm" className="gap-2">
+          <Link to="/admin/configuracoes/pagamento/auditoria">
+            <History className="w-4 h-4" /> Histórico de alterações
+          </Link>
+        </Button>
+      </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {GATEWAYS.map((gw) => {
