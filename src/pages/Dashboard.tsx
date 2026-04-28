@@ -16,6 +16,11 @@ import { DashboardMonthlyGoal } from '@/components/admin/DashboardMonthlyGoal';
 import { DashboardRecentOrders } from '@/components/admin/DashboardRecentOrders';
 import { DashboardTopProducts } from '@/components/admin/DashboardTopProducts';
 import { DashboardProductsGrid } from '@/components/admin/DashboardProductsGrid';
+import { DashboardWelcomeHeader } from '@/components/admin/DashboardWelcomeHeader';
+import { DashboardOverallSummary } from '@/components/admin/DashboardOverallSummary';
+import { DashboardSalesOverview } from '@/components/admin/DashboardSalesOverview';
+import { DashboardRecentActivity, type ActivityItem } from '@/components/admin/DashboardRecentActivity';
+import { DashboardMostRecentProducts } from '@/components/admin/DashboardMostRecentProducts';
 
 type PeriodKey = '7' | '30' | '90';
 
