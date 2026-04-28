@@ -140,6 +140,14 @@ const Dashboard = () => {
         .select('payment_method, customer_email, created_at');
       setAllLogs((logs as RawLog[]) || []);
 
+      const { data: goalSetting } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'monthly_revenue_goal')
+        .maybeSingle();
+      const parsed = Number((goalSetting as any)?.value);
+      setMonthlyGoal(Number.isFinite(parsed) ? parsed : 0);
+
       setLoading(false);
     };
     load();
