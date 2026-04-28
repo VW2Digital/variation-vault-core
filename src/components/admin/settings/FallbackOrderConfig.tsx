@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-import { GripVertical, Save, Shuffle, RotateCcw, Info, CheckCircle2, XCircle, HelpCircle } from 'lucide-react';
+import { GripVertical, Save, Shuffle, RotateCcw, Info, CheckCircle2, XCircle, HelpCircle, Settings2 } from 'lucide-react';
 
 type Gateway = 'mercadopago' | 'pagarme' | 'asaas';
 const ALLOWED: Gateway[] = ['mercadopago', 'pagarme', 'asaas'];
@@ -218,9 +218,22 @@ const FallbackOrderConfig = () => {
       </div>
 
       {visibleOrder.length === 0 ? (
-        <div className="rounded-md border border-dashed border-border p-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
-          <Info className="w-4 h-4" />
-          Nenhum gateway está apto para fallback. Habilite "Apto para fallback de cartão" em pelo menos um gateway.
+        <div className="rounded-md border border-dashed border-border p-4 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-center gap-3">
+          <span className="flex items-center gap-2 text-center">
+            <Info className="w-4 h-4 shrink-0" />
+            Nenhum gateway está apto para fallback. Habilite "Apto para fallback de cartão" em pelo menos um gateway.
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-2 shrink-0"
+            onClick={() => {
+              const el = document.getElementById('gateway-toggles');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+          >
+            <Settings2 className="w-4 h-4" /> Configurar gateways
+          </Button>
         </div>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
