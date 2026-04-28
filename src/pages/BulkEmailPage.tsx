@@ -14,7 +14,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail, FileText, Sparkles } from "lucide-react";
+import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail, FileText, Sparkles, Wand2 } from "lucide-react";
 import { BULK_EMAIL_TEMPLATES, type BulkEmailTemplate } from "@/lib/bulkEmailTemplates";
 
 type Audience = "all_customers" | "paid_customers" | "no_orders" | "manual";
@@ -54,6 +54,38 @@ export default function BulkEmailPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [aiInstructions, setAiInstructions] = useState("");
+  const [generating, setGenerating] = useState(false);
+
+  const handleGenerateAI = async () => {
+    if (!subject.trim() && !html.trim() && !aiInstructions.trim()) {
+      toast({
+        title: "Forneça contexto",
+        description: "Preencha o assunto, o HTML atual ou instruções para gerar um template.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("bulk-email-generate", {
+        body: { subject, currentHtml: html, instructions: aiInstructions },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.html) throw new Error("Resposta vazia da IA");
+      setHtml(data.html);
+      toast({ title: "Nova versão gerada", description: "O HTML foi atualizado pela IA." });
+    } catch (e: any) {
+      toast({
+        title: "Falha ao gerar template",
+        description: e?.message || "Erro inesperado",
+        variant: "destructive",
+      });
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const applyTemplate = (id: string) => {
     const tpl = BULK_EMAIL_TEMPLATES.find((t) => t.id === id);
