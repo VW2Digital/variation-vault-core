@@ -20,3 +20,9 @@ Quando o cartão é recusado por motivo elegível (issuer, fraude, alto risco, s
 - **Tokenização ad-hoc**: `src/services/payments/cardTokenizers.ts` carrega SDKs sob demanda (MP via script tag) e tokeniza independente do hook `useMercadoPago`. Asaas envia raw para o servidor.
 - **Reuso de pedido**: O mesmo `orderId` é reutilizado nas tentativas (não cria pedido novo) para evitar duplicação no admin.
 - Após uma falha, o gateway falho é removido da lista para que o usuário tente o próximo.
+
+## Toggles administrativos por gateway
+Cada página de gateway (Asaas/MP/Pagar.me/PagBank) exibe `<GatewayToggles>` no topo, gravando em `site_settings`:
+- `<gateway>_enabled` — desliga totalmente o gateway (não processa cobranças nem aparece como fallback). Backend rejeita com erro 400.
+- `<gateway>_fallback_enabled` — controla se aparece como botão de fallback após recusa de cartão.
+Ambas chaves são default-true (compatibilidade retroativa). PagBank tem `fallbackSupported={false}` (redirect-only).
