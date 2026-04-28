@@ -215,9 +215,20 @@ const Dashboard = () => {
   }, [allOrders, summaryRange, recentSignups, totalClients]);
 
   const salesBars = useMemo(() => {
-    const points = chartData.slice(-7);
-    return points.map((p) => ({ label: p.date.split('/')[0], value: p.receita }));
-  }, [chartData]);
+    // Mostra todos os pontos do período selecionado.
+    // Para 90d agrupamos por semana para não ficar ilegível.
+    if (period === '90') {
+      const buckets: { label: string; value: number }[] = [];
+      for (let i = 0; i < chartData.length; i += 7) {
+        const slice = chartData.slice(i, i + 7);
+        const value = slice.reduce((s, p) => s + p.receita, 0);
+        const label = slice[0]?.date.split('/')[0] || '';
+        buckets.push({ label, value });
+      }
+      return buckets;
+    }
+    return chartData.map((p) => ({ label: p.date.split('/')[0], value: p.receita }));
+  }, [chartData, period]);
 
   const activityItems = useMemo<ActivityItem[]>(() => {
     const fmt = (iso: string) => {
@@ -230,9 +241,10 @@ const Dashboard = () => {
       const d = Math.floor(h / 24);
       return `${d} d atrás`;
     };
-    const items: ActivityItem[] = [];
-    allOrders.slice(0, 3).forEach((o) => {
+    const items: (ActivityItem & { _ts: number })[] = [];
+    allOrders.slice(0, 5).forEach((o) => {
       items.push({
+        _ts: new Date(o.created_at).getTime(),
         id: `o-${o.id}`,
         type: 'order',
         title: o.customer_name || o.customer_email || 'Novo pedido',
@@ -241,8 +253,9 @@ const Dashboard = () => {
         link: o.id ? `/admin/pedidos/${o.id}` : '/admin/pedidos',
       });
     });
-    recentTickets.slice(0, 2).forEach((t) => {
+    recentTickets.slice(0, 3).forEach((t) => {
       items.push({
+        _ts: new Date(t.created_at).getTime(),
         id: `t-${t.id}`,
         type: 'support',
         title: 'Novo chamado de suporte',
@@ -252,8 +265,9 @@ const Dashboard = () => {
         cta: { acceptLabel: 'Responder', declineLabel: 'Depois' },
       });
     });
-    recentFailures.slice(0, 2).forEach((f) => {
+    recentFailures.slice(0, 3).forEach((f) => {
       items.push({
+        _ts: new Date(f.created_at).getTime(),
         id: `f-${f.id}`,
         type: 'failure',
         title: 'Falha de pagamento',
@@ -262,8 +276,9 @@ const Dashboard = () => {
         link: '/admin/falhas-pagamento',
       });
     });
-    recentSignups.slice(0, 2).forEach((s) => {
+    recentSignups.slice(0, 3).forEach((s) => {
       items.push({
+        _ts: new Date(s.created_at).getTime(),
         id: `s-${s.id}`,
         type: 'signup',
         title: 'Novo cliente cadastrado',
@@ -272,7 +287,10 @@ const Dashboard = () => {
         link: '/admin/usuarios',
       });
     });
-    return items.sort((a, b) => (a.timeAgo > b.timeAgo ? 1 : -1)).slice(0, 5);
+    return items
+      .sort((a, b) => b._ts - a._ts)
+      .slice(0, 6)
+      .map(({ _ts, ...rest }) => rest);
   }, [allOrders, recentTickets, recentFailures, recentSignups]);
 
   if (loading) {
