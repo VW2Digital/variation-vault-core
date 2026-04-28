@@ -80,7 +80,7 @@ const UserDetailPage = () => {
         icon={UserIcon}
         actions={
           <Button variant="outline" size="sm" onClick={() => navigate('/admin/usuarios')}>
-            <ArrowLeft className="w-4 h-4 mr-1" /> Usuários
+            <ArrowLeft className="w-4 h-4 mr-1.5" /> Voltar para Usuários
           </Button>
         }
       />
