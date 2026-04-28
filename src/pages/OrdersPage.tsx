@@ -605,6 +605,47 @@ const OrdersPage = () => {
     </div>
   );
 
+  const exportToCsv = () => {
+    if (filteredOrders.length === 0) {
+      toast({ title: 'Nada para exportar', description: 'Não há pedidos com os filtros atuais.' });
+      return;
+    }
+    const headers = [
+      'Data', 'Cliente', 'Email', 'CPF', 'Telefone', 'Produto', 'Dosagem',
+      'Quantidade', 'Valor Unitário', 'Valor Total', 'Forma de Pagamento',
+      'Parcelas', 'Status Pagamento', 'Status Entrega', 'Código Rastreio',
+      'Cupom', 'Desconto', 'Gateway', 'Endereço', 'Número', 'Complemento',
+      'Bairro', 'Cidade', 'Estado', 'CEP', 'Frete'
+    ];
+    const escape = (v: any) => {
+      const s = v === null || v === undefined ? '' : String(v);
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+    const rows = filteredOrders.map((o: any) => [
+      o.created_at ? new Date(o.created_at).toLocaleDateString('pt-BR') : '',
+      o.customer_name, o.customer_email, o.customer_cpf, o.customer_phone,
+      o.product_name, o.dosage, o.quantity, o.unit_price, o.total_value,
+      billingTypeMap[o.payment_method] || o.payment_method, o.installments,
+      statusMap[o.status]?.label || o.status,
+      deliveryStatuses.find(d => d.value === o.delivery_status)?.label || o.delivery_status,
+      o.tracking_code, o.coupon_code, o.coupon_discount, o.payment_gateway,
+      o.customer_address, o.customer_number, o.customer_complement,
+      o.customer_district, o.customer_city, o.customer_state,
+      o.customer_postal_code, o.shipping_cost,
+    ].map(escape).join(','));
+    const csv = '\uFEFF' + [headers.map(escape).join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `pedidos-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast({ title: 'CSV exportado', description: `${filteredOrders.length} pedido(s) exportado(s).` });
+  };
+
   return (
     <div className="space-y-6 w-full">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
