@@ -15,6 +15,7 @@ import { DashboardHero } from '@/components/admin/DashboardHero';
 import { DashboardMonthlyGoal } from '@/components/admin/DashboardMonthlyGoal';
 import { DashboardRecentOrders } from '@/components/admin/DashboardRecentOrders';
 import { DashboardTopProducts } from '@/components/admin/DashboardTopProducts';
+import { DashboardProductsGrid } from '@/components/admin/DashboardProductsGrid';
 
 type PeriodKey = '7' | '30' | '90';
 
@@ -416,10 +417,13 @@ const Dashboard = () => {
       {/* Top produtos + Pedidos recentes */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
-          <DashboardTopProducts products={topProducts} />
+          <DashboardProductsGrid products={allProducts as any} limit={4} />
         </div>
         <DashboardRecentOrders orders={recentOrders} />
       </div>
+
+      {/* Ranking de top produtos por receita */}
+      <DashboardTopProducts products={topProducts} />
 
       {/* KPIs Grid 3x2 — estilo da referência */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
