@@ -17,8 +17,9 @@ import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-import { GripVertical, Save, Shuffle, RotateCcw, Info } from 'lucide-react';
+import { GripVertical, Save, Shuffle, RotateCcw, Info, CheckCircle2, XCircle, HelpCircle } from 'lucide-react';
 
 type Gateway = 'mercadopago' | 'pagarme' | 'asaas';
 const ALLOWED: Gateway[] = ['mercadopago', 'pagarme', 'asaas'];
@@ -31,7 +32,9 @@ const LABELS: Record<Gateway, string> = {
 
 const isTrue = (v: string | null | undefined) => v === null || v === undefined || v === '' || v === 'true';
 
-function SortableRow({ id, index }: { id: Gateway; index: number }) {
+type Flags = { enabled: boolean; fallback_enabled: boolean };
+
+function SortableRow({ id, index, flags }: { id: Gateway; index: number; flags: Flags }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   return (
     <Card
@@ -43,7 +46,35 @@ function SortableRow({ id, index }: { id: Gateway; index: number }) {
     >
       <GripVertical className="w-4 h-4 text-muted-foreground" />
       <Badge variant="outline" className="h-5 w-6 justify-center">{index + 1}</Badge>
-      <span className="font-medium text-sm">{LABELS[id]}</span>
+      <span className="font-medium text-sm flex-1">{LABELS[id]}</span>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Por que este gateway aparece"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="left" className="max-w-xs space-y-1.5">
+            <p className="text-xs font-medium">Visível porque está apto para fallback:</p>
+            <div className="text-[11px] space-y-1">
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3 h-3 text-green-500" />
+                <span>Gateway habilitado (<code>{id}_enabled</code>)</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3 h-3 text-green-500" />
+                <span>Apto para fallback (<code>{id}_fallback_enabled</code>)</span>
+              </div>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </Card>
   );
 }
@@ -55,8 +86,10 @@ const FallbackOrderConfig = () => {
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   // Per-gateway eligibility (must be both `_enabled` AND `_fallback_enabled`)
-  const [eligibility, setEligibility] = useState<Record<Gateway, boolean>>({
-    mercadopago: true, pagarme: true, asaas: true,
+  const [flags, setFlags] = useState<Record<Gateway, Flags>>({
+    mercadopago: { enabled: true, fallback_enabled: true },
+    pagarme: { enabled: true, fallback_enabled: true },
+    asaas: { enabled: true, fallback_enabled: true },
   });
 
   const sensors = useSensors(
@@ -86,13 +119,17 @@ const FallbackOrderConfig = () => {
       fetchSetting('card_fallback_order'),
       ...ALLOWED.flatMap((g) => [fetchSetting(`${g}_enabled`), fetchSetting(`${g}_fallback_enabled`)]),
     ]);
-    const elig: Record<Gateway, boolean> = { mercadopago: true, pagarme: true, asaas: true };
+    const next: Record<Gateway, Flags> = {
+      mercadopago: { enabled: true, fallback_enabled: true },
+      pagarme: { enabled: true, fallback_enabled: true },
+      asaas: { enabled: true, fallback_enabled: true },
+    };
     ALLOWED.forEach((g, idx) => {
       const enabled = isTrue(flags[idx * 2] as string | null);
       const fbEnabled = isTrue(flags[idx * 2 + 1] as string | null);
-      elig[g] = enabled && fbEnabled;
+      next[g] = { enabled, fallback_enabled: fbEnabled };
     });
-    setEligibility(elig);
+    setFlags(next);
 
     const parsed = (rawOrder || '')
       .split(',')
