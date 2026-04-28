@@ -45,7 +45,7 @@ const SettingsPayment = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div id="gateway-toggles" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 scroll-mt-24">
         {GATEWAYS.map((gw) => {
           const isActive = activeGateway === gw.key;
           return (
