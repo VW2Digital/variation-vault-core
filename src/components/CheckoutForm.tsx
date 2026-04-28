@@ -1171,7 +1171,8 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
       const valorParcelaCartao = selectedOpt ? selectedOpt.valorParcela : totalValue;
 
       // Reuse existing order if possible (same amount); else create a new one
-      const orderId = paymentResult?.orderId || await createOrder(paymentMethod, asaasCustomerId, valorFinalCartao);
+      const orderId = paymentResult?.orderId || await createOrder(paymentMethod, customerId, valorFinalCartao);
+      const fbDescription = `${paymentDescription || productName} ${dosage} x${quantity}`;
 
       const holderInfo = {
         name: cardName.trim() || name.trim(),
@@ -1185,9 +1186,9 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
 
       const result = await invokeGateway('create_card_payment', {
         gatewayOverride: target.gateway,
-        customer: asaasCustomerId,
+        customer: customerId,
         value: valorFinalCartao,
-        description,
+        description: fbDescription,
         installmentCount: installments,
         installmentValue: valorParcelaCartao,
         creditCard: tokenized.creditCard,
