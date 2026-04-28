@@ -1864,6 +1864,34 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
             <p className="text-[10px] text-center text-muted-foreground">
               PIX é instantâneo e seguro • Valor: R$ {pixTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
+            {availableFallbacks.length > 0 && (
+              <div className="pt-3 border-t border-primary/20 space-y-2">
+                <p className="text-xs text-muted-foreground text-center">
+                  Ou tente o mesmo cartão em outro processador:
+                </p>
+                <div className="grid grid-cols-1 gap-2">
+                  {availableFallbacks.map((fb) => (
+                    <Button
+                      key={fb.gateway}
+                      onClick={() => handleFallbackToGateway(fb)}
+                      disabled={processing || fallbackProcessing !== null}
+                      variant="outline"
+                      className="w-full gap-2"
+                    >
+                      {fallbackProcessing === fb.gateway ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4" />
+                      )}
+                      Tentar com {fb.label}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-center text-muted-foreground">
+                  Reenviaremos os dados do cartão para outro processador, sem precisar digitar de novo.
+                </p>
+              </div>
+            )}
           </div>
         )}
         {paymentMethod === 'credit_card' && (
