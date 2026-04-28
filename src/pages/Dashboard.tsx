@@ -547,15 +547,34 @@ const Dashboard = () => {
       )}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground uppercase">Dashboard</h1>
-        <Tabs value={period} onValueChange={(v) => setPeriod(v as PeriodKey)}>
-          <TabsList className="bg-muted/50">
-            {Object.entries(PERIOD_LABELS).map(([k, label]) => (
-              <TabsTrigger key={k} value={k} className="text-xs sm:text-sm">{label}</TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+      <DashboardWelcomeHeader adminName={adminName} />
+
+      {/* Conteúdo principal: 2/3 painel + 1/3 sidebar (estilo referência) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 space-y-4">
+          <DashboardOverallSummary
+            balance={summary.balance}
+            balanceDelta={summary.balanceDelta}
+            achievementRate={summary.achievementRate}
+            customers={summary.customers}
+            customersDelta={summary.customersDelta}
+            range={summaryRange}
+            onRangeChange={setSummaryRange}
+          />
+          <DashboardSalesOverview
+            total={metrics.totalRevenue}
+            delta={previousPeriodRevenue > 0
+              ? ((metrics.totalRevenue - previousPeriodRevenue) / previousPeriodRevenue) * 100
+              : metrics.totalRevenue > 0 ? 100 : 0}
+            bars={salesBars}
+            range={period}
+            onRangeChange={(v) => setPeriod(v)}
+          />
+        </div>
+        <div className="space-y-4">
+          <DashboardRecentActivity items={activityItems} />
+          <DashboardMostRecentProducts products={allProducts as any} />
+        </div>
       </div>
 
       {/* Hero Receita + Meta do Mês (estilo referência) */}
