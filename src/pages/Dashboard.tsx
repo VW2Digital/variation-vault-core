@@ -98,6 +98,7 @@ const Dashboard = () => {
   const [totalClients, setTotalClients] = useState(0);
   const [stockSearch, setStockSearch] = useState('');
   const [cartUsers, setCartUsers] = useState(0);
+  const [monthlyGoal, setMonthlyGoal] = useState<number>(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -112,7 +113,8 @@ const Dashboard = () => {
       setAllProducts(products);
       const { data: orders } = await supabase
         .from('orders')
-        .select('status, payment_method, total_value, customer_email, product_name, created_at');
+        .select('id, status, payment_method, total_value, customer_email, customer_name, product_name, created_at')
+        .order('created_at', { ascending: false });
       setAllOrders((orders as RawOrder[]) || []);
 
       const { count } = await supabase
