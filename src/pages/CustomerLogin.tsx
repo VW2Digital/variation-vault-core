@@ -198,6 +198,24 @@ const CustomerLogin = () => {
                     />
                   </div>
                 )}
+                {isSignUp && (
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Telefone (WhatsApp)</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      inputMode="numeric"
+                      placeholder="(11) 91234-5678"
+                      value={phone}
+                      onChange={(e) => setPhone(formatPhoneBR(e.target.value))}
+                      maxLength={16}
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Usaremos para avisar você sobre o status do pedido e entrega.
+                    </p>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
