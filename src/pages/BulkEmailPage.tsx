@@ -18,7 +18,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail, FileText, Sparkles, Wand2 } from "lucide-react";
+import { ShieldCheck, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { BULK_EMAIL_TEMPLATES, type BulkEmailTemplate } from "@/lib/bulkEmailTemplates";
+import { BulkEmailSchema, analyzeBulkEmail, type ValidationIssue } from "@/lib/bulkEmailValidation";
 
 type Audience = "all_customers" | "paid_customers" | "no_orders" | "manual";
 
@@ -59,6 +61,24 @@ export default function BulkEmailPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [aiInstructions, setAiInstructions] = useState("");
   const [generating, setGenerating] = useState(false);
+
+  // Validações pré-envio
+  const schemaResult = BulkEmailSchema.safeParse({ subject, html });
+  const schemaErrors: ValidationIssue[] = schemaResult.success
+    ? []
+    : Object.entries(schemaResult.error.flatten().fieldErrors).flatMap(
+        ([field, msgs]) =>
+          (msgs || []).map((m) => ({
+            level: "error" as const,
+            code: `schema_${field}`,
+            message: m,
+          })),
+      );
+  const heuristicIssues = subject || html ? analyzeBulkEmail(subject, html) : [];
+  const issues: ValidationIssue[] = [...schemaErrors, ...heuristicIssues];
+  const errorCount = issues.filter((i) => i.level === "error").length;
+  const warningCount = issues.filter((i) => i.level === "warning").length;
+  const htmlSizeKB = new Blob([html]).size / 1024;
 
   // Amostras (fallback fictício + amostra real do público carregado)
   const SAMPLE_PROFILES: Record<string, { label: string; nome: string; email: string }[]> = {
@@ -257,6 +277,14 @@ export default function BulkEmailPage() {
     setConfirmOpen(false);
     if (!subject.trim() || !html.trim()) {
       toast({ title: "Preencha assunto e mensagem", variant: "destructive" });
+      return;
+    }
+    if (errorCount > 0) {
+      toast({
+        title: "Corrija os erros antes de enviar",
+        description: `${errorCount} erro(s) bloqueando o envio.`,
+        variant: "destructive",
+      });
       return;
     }
     if (resolved.length === 0) {
@@ -499,17 +527,89 @@ export default function BulkEmailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>4. Enviar</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                {errorCount > 0 ? (
+                  <ShieldAlert className="w-5 h-5 text-destructive" />
+                ) : warningCount > 0 ? (
+                  <ShieldAlert className="w-5 h-5 text-amber-600" />
+                ) : (
+                  <ShieldCheck className="w-5 h-5 text-green-600" />
+                )}
+                4. Validação e envio
+              </CardTitle>
+              <CardDescription>
+                Verificações automáticas antes do disparo para reduzir falhas de entrega.
+              </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {/* Resumo de validação */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-lg border p-3 text-center">
+                  <div className="text-xs text-muted-foreground">Tamanho HTML</div>
+                  <div className={`text-lg font-bold ${htmlSizeKB > 100 ? "text-destructive" : htmlSizeKB > 80 ? "text-amber-600" : "text-foreground"}`}>
+                    {htmlSizeKB.toFixed(1)} KB
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">limite Gmail: 102KB</div>
+                </div>
+                <div className="rounded-lg border p-3 text-center">
+                  <div className="text-xs text-muted-foreground">Erros</div>
+                  <div className={`text-lg font-bold ${errorCount > 0 ? "text-destructive" : "text-green-600"}`}>
+                    {errorCount}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">bloqueiam o envio</div>
+                </div>
+                <div className="rounded-lg border p-3 text-center">
+                  <div className="text-xs text-muted-foreground">Avisos</div>
+                  <div className={`text-lg font-bold ${warningCount > 0 ? "text-amber-600" : "text-green-600"}`}>
+                    {warningCount}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">recomendações</div>
+                </div>
+              </div>
+
+              {/* Lista de avisos */}
+              {issues.length > 0 ? (
+                <div className="space-y-2 max-h-64 overflow-auto pr-1">
+                  {issues.map((it, idx) => (
+                    <Alert
+                      key={`${it.code}-${idx}`}
+                      variant={it.level === "error" ? "destructive" : "default"}
+                      className={it.level === "warning" ? "border-amber-500/50 text-amber-900 dark:text-amber-200 [&>svg]:text-amber-600" : ""}
+                    >
+                      {it.level === "error" ? (
+                        <ShieldAlert className="h-4 w-4" />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4" />
+                      )}
+                      <AlertDescription className="text-xs">
+                        {it.message}
+                      </AlertDescription>
+                    </Alert>
+                  ))}
+                </div>
+              ) : subject && html ? (
+                <Alert className="border-green-500/50 text-green-900 dark:text-green-200 [&>svg]:text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertTitle className="text-sm">Tudo certo!</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    Nenhum problema detectado. Pronto para envio.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
               <Button
                 size="lg"
                 onClick={() => setConfirmOpen(true)}
-                disabled={sending || resolved.length === 0 || !subject || !html}
+                disabled={sending || resolved.length === 0 || !subject || !html || errorCount > 0}
               >
                 {sending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
                 Disparar para {resolved.length} destinatário(s)
               </Button>
+              {errorCount > 0 && (
+                <p className="text-xs text-destructive">
+                  Envio bloqueado até corrigir {errorCount} erro(s) acima.
+                </p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
