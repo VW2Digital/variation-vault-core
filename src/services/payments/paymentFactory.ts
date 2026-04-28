@@ -84,11 +84,29 @@ export async function isGatewayFallbackEligible(gateway: CheckoutGateway): Promi
 }
 
 /**
- * Card gateway fallback chain. Order: Mercado Pago → Pagar.me → Asaas.
- * PagBank is excluded because it uses a redirect flow (not transparent),
- * so it cannot be used as an in-form retry option.
+ * Default card gateway fallback chain (when admin hasn't customized one).
+ * Order: Mercado Pago → Pagar.me → Asaas. PagBank is excluded because it
+ * uses a redirect flow and can't be used as an in-form retry option.
  */
 export const CARD_FALLBACK_ORDER: CheckoutGateway[] = ['mercadopago', 'pagarme', 'asaas'];
+
+/**
+ * Reads the admin-configured fallback order from `site_settings`
+ * (key: `card_fallback_order`, comma-separated). Falls back to defaults
+ * and ensures every supported gateway appears exactly once.
+ */
+async function getConfiguredFallbackOrder(): Promise<CheckoutGateway[]> {
+  const allowed: CheckoutGateway[] = ['mercadopago', 'pagarme', 'asaas'];
+  let raw = '';
+  try { raw = (await fetchSetting('card_fallback_order')) || ''; } catch { /* noop */ }
+  const parsed = raw
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter((s): s is CheckoutGateway => (allowed as string[]).includes(s));
+  // Append any missing gateways at the end so new gateways still work.
+  for (const g of allowed) if (!parsed.includes(g)) parsed.push(g);
+  return parsed;
+}
 
 export interface AvailableCardGateway {
   gateway: CheckoutGateway;
@@ -110,7 +128,8 @@ const GATEWAY_LABELS: Record<CheckoutGateway, string> = {
  * "Try with another processor" fallback buttons after a card rejection.
  */
 export async function getAvailableCardFallbacks(currentGateway: CheckoutGateway): Promise<AvailableCardGateway[]> {
-  const candidates = CARD_FALLBACK_ORDER.filter((g) => g !== currentGateway);
+  const order = await getConfiguredFallbackOrder();
+  const candidates = order.filter((g) => g !== currentGateway);
   const results: AvailableCardGateway[] = [];
 
   for (const gw of candidates) {
