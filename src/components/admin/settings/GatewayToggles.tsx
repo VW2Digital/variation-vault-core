@@ -5,13 +5,13 @@
  *
  * Both flags default to TRUE if missing (backward-compatible with existing installations).
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { fetchSetting, upsertSetting, getCurrentUser } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Power, Shuffle } from 'lucide-react';
+import { Power, Shuffle, Radio } from 'lucide-react';
 
 export type GatewayKey = 'asaas' | 'mercadopago' | 'pagbank' | 'pagarme';
 
@@ -28,6 +28,10 @@ const GatewayToggles = ({ gateway, fallbackSupported = true }: Props) => {
   const [enabled, setEnabled] = useState(true);
   const [fallbackEnabled, setFallbackEnabled] = useState(true);
   const [loaded, setLoaded] = useState(false);
+  // Brief pulse + label when an external session updates a setting
+  const [externalUpdate, setExternalUpdate] = useState<null | 'enabled' | 'fallback_enabled'>(null);
+  // Track the last value WE just persisted so we ignore the realtime echo of our own write
+  const recentlyWrittenRef = useRef<Record<string, { value: string; ts: number }>>({});
 
   const enabledKey = `${gateway}_enabled`;
   const fallbackKey = `${gateway}_fallback_enabled`;
@@ -40,6 +44,50 @@ const GatewayToggles = ({ gateway, fallbackSupported = true }: Props) => {
     });
   }, [enabledKey, fallbackKey]);
 
+  // Realtime sync: listen for changes to these two settings made in OTHER sessions.
+  useEffect(() => {
+    const channel = supabase
+      .channel(`gateway-toggles-${gateway}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'site_settings', filter: `key=eq.${enabledKey}` },
+        (payload: any) => applyRemote('enabled', payload?.new?.value),
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'site_settings', filter: `key=eq.${fallbackKey}` },
+        (payload: any) => applyRemote('fallback_enabled', payload?.new?.value),
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabledKey, fallbackKey]);
+
+  const applyRemote = (which: 'enabled' | 'fallback_enabled', rawValue: string | null | undefined) => {
+    const key = which === 'enabled' ? enabledKey : fallbackKey;
+    const incoming = (rawValue ?? '').toString();
+    // Ignore the realtime echo of our own write (within 4s)
+    const recent = recentlyWrittenRef.current[key];
+    if (recent && recent.value === incoming && Date.now() - recent.ts < 4000) return;
+
+    const next = isTrue(incoming);
+    if (which === 'enabled') {
+      setEnabled((prev) => (prev === next ? prev : (flagExternal(which), next)));
+    } else {
+      setFallbackEnabled((prev) => (prev === next ? prev : (flagExternal(which), next)));
+    }
+  };
+
+  const flagExternal = (which: 'enabled' | 'fallback_enabled') => {
+    setExternalUpdate(which);
+    toast({
+      title: 'Configuração atualizada por outra sessão',
+      description: which === 'enabled' ? '"Gateway habilitado" foi alterado.' : '"Apto para fallback" foi alterado.',
+    });
+    setTimeout(() => setExternalUpdate((cur) => (cur === which ? null : cur)), 2500);
+  };
+
   const persist = async (
     key: string,
     value: boolean,
@@ -50,6 +98,8 @@ const GatewayToggles = ({ gateway, fallbackSupported = true }: Props) => {
       const user = await getCurrentUser();
       if (!user) throw new Error('Não autenticado');
       await upsertSetting(key, value ? 'true' : 'false', user.id);
+      // Mark this write as "ours" so the realtime echo doesn't re-trigger UI flash
+      recentlyWrittenRef.current[key] = { value: value ? 'true' : 'false', ts: Date.now() };
       // Audit log (non-blocking on failure)
       try {
         await supabase.from('gateway_settings_audit' as any).insert({
