@@ -790,6 +790,57 @@ export default function BulkEmailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Save className="w-5 h-5" /> Salvar template
+            </DialogTitle>
+            <DialogDescription>
+              Dê um nome para identificar este modelo. O assunto e o HTML atual serão salvos.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label htmlFor="tpl-name">Nome do template</Label>
+              <Input
+                id="tpl-name"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                placeholder="Ex: Promoção Black Friday"
+                autoFocus
+              />
+            </div>
+            <div className="text-xs text-muted-foreground space-y-1 border rounded p-2 bg-muted/30">
+              <div><strong>Assunto:</strong> {subject || "(vazio)"}</div>
+              <div><strong>Tamanho:</strong> {(new Blob([html]).size / 1024).toFixed(1)} KB</div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveOpen(false)}>Cancelar</Button>
+            <Button onClick={() => handleSaveTemplate("new")} disabled={savingTemplate}>
+              {savingTemplate ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTargetId} onOpenChange={(o) => !o && setDeleteTargetId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir template?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é permanente e não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTemplate}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
