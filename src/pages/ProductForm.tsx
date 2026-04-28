@@ -252,7 +252,7 @@ const ProductForm = () => {
         icon={PackagePlus}
         actions={
           <Button variant="outline" size="sm" onClick={() => navigate('/admin/produtos')}>
-            <ArrowLeft className="w-4 h-4 mr-1" /> Produtos
+            <ArrowLeft className="w-4 h-4 mr-1.5" /> Voltar para Produtos
           </Button>
         }
       />

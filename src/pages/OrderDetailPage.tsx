@@ -122,7 +122,7 @@ const OrderDetailPage = () => {
         icon={Package}
         actions={
           <Button variant="outline" size="sm" onClick={() => navigate('/admin/pedidos')}>
-            <ArrowLeft className="w-4 h-4 mr-1" /> Pedidos
+            <ArrowLeft className="w-4 h-4 mr-1.5" /> Voltar para Pedidos
           </Button>
         }
       />
