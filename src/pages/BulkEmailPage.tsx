@@ -10,6 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
@@ -56,6 +59,43 @@ export default function BulkEmailPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [aiInstructions, setAiInstructions] = useState("");
   const [generating, setGenerating] = useState(false);
+
+  // Amostras (fallback fictício + amostra real do público carregado)
+  const SAMPLE_PROFILES: Record<string, { label: string; nome: string; email: string }[]> = {
+    paid_customers: [
+      { label: "Cliente recorrente", nome: "Maria Silva", email: "maria.silva@gmail.com" },
+      { label: "Cliente VIP", nome: "Carlos Andrade", email: "c.andrade@outlook.com" },
+    ],
+    all_customers: [
+      { label: "Cliente cadastrado", nome: "Ana Beatriz", email: "ana.b@yahoo.com.br" },
+      { label: "Novo cadastro", nome: "Pedro", email: "pedro@hotmail.com" },
+    ],
+    no_orders: [
+      { label: "Sem compras", nome: "João Pereira", email: "joao.p@gmail.com" },
+      { label: "Lead frio", nome: "Cliente", email: "lead@email.com" },
+    ],
+    manual: [
+      { label: "Lista manual", nome: "Cliente", email: "exemplo@email.com" },
+    ],
+  };
+
+  const interpolate = (text: string, nome: string, email: string) =>
+    text
+      .replace(/\{\{\s*nome\s*\}\}/gi, nome || "Cliente")
+      .replace(/\{\{\s*email\s*\}\}/gi, email || "cliente@email.com");
+
+  // Junta fallback + 1 amostra real (se o usuário carregou destinatários)
+  const previewSamples = (() => {
+    const fallback = SAMPLE_PROFILES[audience] || SAMPLE_PROFILES.all_customers;
+    const realSample = resolved[0]
+      ? [{
+          label: "Destinatário real",
+          nome: resolved[0].name?.trim() || resolved[0].email.split("@")[0],
+          email: resolved[0].email,
+        }]
+      : [];
+    return [...realSample, ...fallback];
+  })();
 
   const handleGenerateAI = async () => {
     if (!subject.trim() && !html.trim() && !aiInstructions.trim()) {
