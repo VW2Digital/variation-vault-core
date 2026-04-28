@@ -16,6 +16,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Plus, Copy, Trash2, Pencil, Link as LinkIcon, ExternalLink, Loader2 } from 'lucide-react';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 
 interface PaymentLink {
   id: string;
@@ -167,21 +168,25 @@ export default function PaymentLinksPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Links de Pagamento</h1>
-          {activeGateway && (
-            <Badge variant="outline" className="text-xs gap-1 w-fit">
-              {activeGateway === 'mercadopago' ? 'Mercado Pago' : 'Asaas'}
-              <span className={`inline-block w-2 h-2 rounded-full ${gatewayEnv === 'production' ? 'bg-green-500' : 'bg-yellow-500'}`} />
-              <span className="text-muted-foreground">{gatewayEnv === 'production' ? 'Produção' : 'Sandbox'}</span>
-            </Badge>
-          )}
-        </div>
-        <Button onClick={openCreate} className="gap-2 w-full sm:w-auto">
-          <Plus className="w-4 h-4" /> Novo Link
-        </Button>
-      </div>
+      <AdminPageHeader
+        title="Links de Pagamento"
+        description="Crie links com valores personalizados para enviar aos clientes."
+        icon={LinkIcon}
+        actions={
+          <>
+            {activeGateway && (
+              <Badge variant="outline" className="text-xs gap-1">
+                {activeGateway === 'mercadopago' ? 'Mercado Pago' : 'Asaas'}
+                <span className={`inline-block w-2 h-2 rounded-full ${gatewayEnv === 'production' ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                <span className="text-muted-foreground">{gatewayEnv === 'production' ? 'Produção' : 'Sandbox'}</span>
+              </Badge>
+            )}
+            <Button size="sm" onClick={openCreate} className="gap-2 bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-95 shadow-sm shadow-primary/20">
+              <Plus className="w-4 h-4" /> Novo Link
+            </Button>
+          </>
+        }
+      />
 
       {loading ? (
         <div className="flex justify-center py-12">

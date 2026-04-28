@@ -4,8 +4,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, RefreshCw, X, Calendar, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Download, RefreshCw, X, Calendar, TrendingUp, TrendingDown, Minus, FileBarChart } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 
 interface RawOrder {
   status: string;
@@ -268,14 +269,16 @@ const ReportsPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground uppercase">Relatórios</h1>
-        <Button variant="outline" onClick={exportCSV} className="gap-2 self-start sm:self-auto">
-          <Download className="w-4 h-4" />
-          Exportar CSV
-        </Button>
-      </div>
+      <AdminPageHeader
+        title="Relatórios"
+        description="KPIs financeiros, conversão e variação por período."
+        icon={FileBarChart}
+        actions={
+          <Button variant="outline" size="sm" onClick={exportCSV} className="gap-2">
+            <Download className="w-4 h-4" /> Exportar CSV
+          </Button>
+        }
+      />
 
       {/* Filters */}
       <Card className="border-border/40 shadow-sm">

@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertTriangle, Search, Trash2, RefreshCw, ShoppingCart, Link2, Server, BarChart3, CreditCard, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 
 interface PaymentLog {
   id: string;
@@ -238,34 +239,26 @@ const PaymentLogsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-destructive" />
-            Falhas de Pagamento
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant={showStats ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setShowStats(s => !s)}
-          >
-            <BarChart3 className="w-4 h-4 mr-1" /> Estatísticas
-          </Button>
-          <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Atualizar
-          </Button>
-          {logs.length > 0 && (
-            <Button variant="destructive" size="sm" onClick={handleClearAll}>
-              <Trash2 className="w-4 h-4 mr-1" /> Limpar
+      <AdminPageHeader
+        title="Falhas de Pagamento"
+        description={`${filtered.length} registro${filtered.length !== 1 ? 's' : ''} • diagnóstico técnico das transações recusadas`}
+        icon={AlertTriangle}
+        actions={
+          <>
+            <Button variant={showStats ? 'default' : 'outline'} size="sm" onClick={() => setShowStats(s => !s)}>
+              <BarChart3 className="w-4 h-4 mr-1" /> Estatísticas
             </Button>
-          )}
-        </div>
-      </div>
+            <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+            </Button>
+            {logs.length > 0 && (
+              <Button variant="destructive" size="sm" onClick={handleClearAll}>
+                <Trash2 className="w-4 h-4 mr-1" /> Limpar
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* ── Statistics Panel ── */}
       {showStats && stats && (

@@ -11,6 +11,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 
 const TestimonialList = () => {
   const [testimonials, setTestimonials] = useState<any[]>([]);
@@ -131,12 +132,16 @@ const TestimonialList = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Depoimentos em Vídeo</h1>
-        <Button onClick={() => setIsAdding(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Novo Depoimento
-        </Button>
-      </div>
+      <AdminPageHeader
+        title="Depoimentos em Vídeo"
+        description="Cadastre vídeos de clientes para exibir no catálogo."
+        icon={Video}
+        actions={
+          <Button size="sm" onClick={() => setIsAdding(true)} className="bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-95 shadow-sm shadow-primary/20">
+            <Plus className="mr-2 h-4 w-4" /> Novo Depoimento
+          </Button>
+        }
+      />
 
       {isAdding && (
         <Card className="border-primary/30 border-2">

@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2, Pencil, Ticket, Loader2, X, Check, Package } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 
 interface Coupon {
   id: string;
@@ -199,15 +200,17 @@ export default function CouponsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Cupons de Desconto</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">Gerencie cupons com limite de uso</p>
-        </div>
-        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2 w-full sm:w-auto"><Plus className="w-4 h-4" /> Novo Cupom</Button>
-          </DialogTrigger>
+      <AdminPageHeader
+        title="Cupons de Desconto"
+        description="Gerencie cupons com limite de uso e período de validade."
+        icon={Ticket}
+        actions={
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-2 bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-95 shadow-sm shadow-primary/20">
+                <Plus className="w-4 h-4" /> Novo Cupom
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editing ? 'Editar Cupom' : 'Novo Cupom'}</DialogTitle>
@@ -293,7 +296,8 @@ export default function CouponsPage() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+        }
+      />
 
       {loading ? (
         <div className="flex items-center justify-center py-12">

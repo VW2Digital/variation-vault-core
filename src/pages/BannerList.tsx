@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Trash2, Megaphone, Image, Monitor, Tablet, Smartphone, GripVertical, Pencil, X, Save, Link as LinkIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 
 // ── Slide Form types ──
 interface SlideForm {
@@ -217,10 +218,11 @@ const BannerList = () => {
   // ══════════════════════════════════════
   return (
     <div className="space-y-6 w-full">
-      <div className="flex items-center gap-3">
-        <Megaphone className="h-6 w-6 text-primary" />
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Banners</h1>
-      </div>
+      <AdminPageHeader
+        title="Banners"
+        description="Gerencie banners de texto e imagens exibidos no catálogo."
+        icon={Megaphone}
+      />
 
       <Tabs defaultValue="text" className="w-full">
         <TabsList className="grid w-full grid-cols-2">

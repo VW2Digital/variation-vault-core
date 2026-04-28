@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Activity, AlertTriangle, CheckCircle2, ShieldAlert, Trash2, RefreshCw, Eye, Download, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 
 type WebhookLog = {
   id: string;
@@ -215,23 +216,24 @@ export default function WebhookLogsPage() {
 
   return (
     <div className="space-y-4 max-w-[1400px]">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Logs de Webhooks</h1>
-          <p className="text-sm text-muted-foreground">Eventos recebidos dos gateways em tempo real</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Atualizar
-          </Button>
-          <Button variant="outline" size="sm" onClick={exportCsv}>
-            <Download className="h-4 w-4" /> Exportar CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={clearOld}>
-            <Trash2 className="h-4 w-4" /> Limpar &gt; 7 dias
-          </Button>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="Logs de Webhooks"
+        description="Eventos recebidos dos gateways em tempo real."
+        icon={Activity}
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportCsv}>
+              <Download className="h-4 w-4" /> Exportar CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={clearOld}>
+              <Trash2 className="h-4 w-4" /> Limpar &gt; 7 dias
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Total</p><p className="text-2xl font-bold">{stats.total}</p></CardContent></Card>
