@@ -306,7 +306,7 @@ const Dashboard = () => {
               sessionStorage.setItem('dismiss_labels_alert', '1');
               setDismissedLabelsAlert(true);
             }}
-            className="absolute top-2 right-2 inline-flex items-center justify-center w-7 h-7 rounded-md text-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+            className="absolute top-1/2 -translate-y-1/2 right-2 inline-flex items-center justify-center w-8 h-8 rounded-md text-amber-700 hover:bg-amber-200 dark:hover:bg-amber-900/40 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
