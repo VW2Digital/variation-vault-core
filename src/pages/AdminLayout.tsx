@@ -4,7 +4,7 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AdminSidebar } from '@/components/AdminSidebar';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
-import logoImg from '@/assets/liberty-pharma-logo.png';
+
 import { Loader2, ShieldX, Search, Plus, Bell, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -143,12 +143,9 @@ const AdminLayout = () => {
         <AdminSidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <header className="h-16 flex items-center gap-2 sm:gap-3 border-b border-border/50 bg-card/80 backdrop-blur-xl px-3 sm:px-5 fixed top-0 right-0 left-0 md:left-[var(--sidebar-width)] z-40 transition-[left] duration-200 ease-linear group-data-[state=collapsed]/sidebar-wrapper:md:left-[--sidebar-width-icon]">
-            {/* Esquerda: trigger + logo */}
+            {/* Esquerda: trigger */}
             <div className="flex items-center gap-2 shrink-0">
               <SidebarTrigger className="hidden md:inline-flex" />
-              <Link to="/admin" className="flex items-center gap-2">
-                <img src={logoImg} alt="Liberty Pharma" className="h-7 sm:h-8 object-contain" />
-              </Link>
             </div>
 
             {/* Centro: busca global (desktop) */}
