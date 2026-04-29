@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Package, LogOut, LayoutDashboard, Video, Settings, ShoppingBag, Users, MessageCircle, Star, AlertTriangle, Mail, LinkIcon, Ticket, FileBarChart, ChevronDown, Activity, Send, Wallet } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
-import logoImg from '@/assets/liberty-pharma-logo.png';
 import {
   Sidebar,
   SidebarContent,
@@ -105,25 +104,6 @@ export function AdminSidebar() {
       collapsible="icon"
       className="border-r border-sidebar-border/60 bg-sidebar"
     >
-      {/* Branding topo (mostra somente quando expandido) */}
-      {!isMobile && !collapsed && (
-        <div className="px-4 pt-4 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-accent/40 ring-1 ring-primary/20 overflow-hidden">
-              <img src={logoImg} alt="Liberty Pharma" className="h-7 w-7 object-contain" />
-            </div>
-            <div className="leading-tight">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/50">
-                Painel
-              </p>
-              <p className="text-sm font-semibold text-sidebar-foreground">
-                Liberty Admin
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       <SidebarContent className="gap-0 px-1">
         {menuCategories.map((category, index) => {
           const isOpen = openGroups[index] ?? false;
