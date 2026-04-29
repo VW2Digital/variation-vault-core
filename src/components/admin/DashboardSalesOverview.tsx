@@ -1,6 +1,11 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Calendar as CalendarIcon } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Button } from '@/components/ui/button';
+import { useState } from 'react';
+import type { DateRange } from 'react-day-picker';
 
 interface Bar {
   label: string;
@@ -11,8 +16,10 @@ interface Props {
   total: number;
   delta: number;
   bars: Bar[];
-  range: '7' | '30' | '90';
-  onRangeChange: (v: '7' | '30' | '90') => void;
+  range: '7' | '30' | '90' | 'custom';
+  onRangeChange: (v: '7' | '30' | '90' | 'custom') => void;
+  customRange?: DateRange;
+  onCustomRangeChange?: (range: DateRange | undefined) => void;
 }
 
 function shortBRL(v: number): string {
@@ -25,26 +32,64 @@ function shortBRL(v: number): string {
  * "Sales Overview" — gráfico de barras com pico destacado e tooltip
  * fixo no maior valor, no estilo da referência.
  */
-export function DashboardSalesOverview({ total, delta, bars, range, onRangeChange }: Props) {
+export function DashboardSalesOverview({ total, delta, bars, range, onRangeChange, customRange, onCustomRangeChange }: Props) {
   const max = Math.max(...bars.map((b) => b.value), 1);
   const peakIdx = bars.reduce((best, b, i, arr) => (b.value > arr[best].value ? i : best), 0);
   const positive = delta >= 0;
+  const [open, setOpen] = useState(false);
+
+  const formatDate = (d?: Date) =>
+    d ? d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
+
+  const customLabel =
+    customRange?.from && customRange?.to
+      ? `${formatDate(customRange.from)} - ${formatDate(customRange.to)}`
+      : 'Personalizado';
 
   return (
     <Card className="border-border/40 shadow-sm h-full">
       <CardContent className="p-4 sm:p-5 h-full flex flex-col">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-bold text-foreground">Visão de Vendas</h2>
-          <Select value={range} onValueChange={(v) => onRangeChange(v as any)}>
-            <SelectTrigger className="h-8 w-[130px] text-xs rounded-full bg-muted/50 border-transparent">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">Últimos 7 dias</SelectItem>
-              <SelectItem value="30">Últimos 30 dias</SelectItem>
-              <SelectItem value="90">Últimos 90 dias</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            {range === 'custom' ? (
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs rounded-full bg-muted/50 border-transparent gap-1.5"
+                  >
+                    <CalendarIcon className="w-3.5 h-3.5" />
+                    {customLabel}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="range"
+                    selected={customRange}
+                    onSelect={(r) => {
+                      onCustomRangeChange?.(r);
+                      if (r?.from && r?.to) setOpen(false);
+                    }}
+                    numberOfMonths={2}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            ) : null}
+            <Select value={range} onValueChange={(v) => onRangeChange(v as any)}>
+              <SelectTrigger className="h-8 w-[150px] text-xs rounded-full bg-muted/50 border-transparent">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">Últimos 7 dias</SelectItem>
+                <SelectItem value="30">Últimos 30 dias</SelectItem>
+                <SelectItem value="90">Últimos 90 dias</SelectItem>
+                <SelectItem value="custom">Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-4 sm:gap-6 items-end">
