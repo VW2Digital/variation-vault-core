@@ -66,6 +66,12 @@ const Dashboard = () => {
   const [recentTickets, setRecentTickets] = useState<{ id: string; subject: string | null; created_at: string }[]>([]);
   const [recentFailures, setRecentFailures] = useState<{ id: string; customer_email: string | null; created_at: string; error_message?: string | null }[]>([]);
   const [outOfStock, setOutOfStock] = useState(0);
+  const [dismissedLabelsAlert, setDismissedLabelsAlert] = useState(
+    () => typeof window !== 'undefined' && sessionStorage.getItem('dismiss_labels_alert') === '1'
+  );
+  const [dismissedStockAlert, setDismissedStockAlert] = useState(
+    () => typeof window !== 'undefined' && sessionStorage.getItem('dismiss_stock_alert') === '1'
+  );
   const navigate = useNavigate();
 
   useEffect(() => {
