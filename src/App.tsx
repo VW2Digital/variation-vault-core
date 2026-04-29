@@ -51,7 +51,6 @@ import CartAbandonmentLogsPage from "./pages/CartAbandonmentLogsPage";
 import PaymentLinksPage from "./pages/PaymentLinksPage";
 import CouponsPage from "./pages/CouponsPage";
 import ReportsPage from "./pages/ReportsPage";
-import SalesWallet from "./pages/admin/SalesWallet";
 import EmailTemplatesPage from "./pages/EmailTemplatesPage";
 import EmailLogsPage from "./pages/EmailLogsPage";
 import EmailEventsPage from "./pages/EmailEventsPage";
@@ -123,7 +122,6 @@ const App = () => (
             <Route path="links-pagamento" element={<PaymentLinksPage />} />
             <Route path="cupons" element={<CouponsPage />} />
             <Route path="relatorios" element={<ReportsPage />} />
-            <Route path="vendas" element={<SalesWallet />} />
             <Route path="templates-email" element={<EmailTemplatesPage />} />
             <Route path="logs-email" element={<EmailLogsPage />} />
             <Route path="eventos-email" element={<EmailEventsPage />} />
