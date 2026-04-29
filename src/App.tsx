@@ -52,7 +52,6 @@ import PaymentLinksPage from "./pages/PaymentLinksPage";
 import CouponsPage from "./pages/CouponsPage";
 import ReportsPage from "./pages/ReportsPage";
 import SalesWallet from "./pages/admin/SalesWallet";
-import ProductsOverview from "./pages/admin/ProductsOverview";
 import EmailTemplatesPage from "./pages/EmailTemplatesPage";
 import EmailLogsPage from "./pages/EmailLogsPage";
 import EmailEventsPage from "./pages/EmailEventsPage";
@@ -107,7 +106,6 @@ const App = () => (
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="produtos" element={<ProductList />} />
-            <Route path="produtos/visao" element={<ProductsOverview />} />
             <Route path="produtos/novo" element={<ProductForm />} />
             <Route path="produtos/:id" element={<ProductForm />} />
             <Route path="depoimentos" element={<TestimonialList />} />
