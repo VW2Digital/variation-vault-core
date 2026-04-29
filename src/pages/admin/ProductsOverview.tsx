@@ -325,9 +325,9 @@ export default function ProductsOverview() {
                 <MoreVertical className="w-4 h-4 text-muted-foreground" />
               </button>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-1">
               <SemiDonut total={topCategories.total} segments={topCategories.list} />
-              <ul className="flex-1 space-y-1.5 min-w-0">
+              <ul className="flex-1 space-y-2 min-w-0">
                 {topCategories.list.length === 0 ? (
                   <li className="text-xs text-muted-foreground">Sem vendas ainda.</li>
                 ) : (
