@@ -371,6 +371,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "coupon_products_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons_with_usage"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "coupon_products_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
@@ -1306,7 +1313,56 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      coupons_with_usage: {
+        Row: {
+          active: boolean | null
+          code: string | null
+          created_at: string | null
+          current_uses: number | null
+          discount_type: string | null
+          discount_value: number | null
+          id: string | null
+          max_uses: number | null
+          product_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          code?: string | null
+          created_at?: string | null
+          current_uses?: never
+          discount_type?: string | null
+          discount_value?: number | null
+          id?: string | null
+          max_uses?: number | null
+          product_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          code?: string | null
+          created_at?: string | null
+          current_uses?: never
+          discount_type?: string | null
+          discount_value?: number | null
+          id?: string | null
+          max_uses?: number | null
+          product_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupons_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       dispatch_order_email: {

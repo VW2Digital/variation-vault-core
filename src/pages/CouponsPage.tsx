@@ -50,7 +50,7 @@ export default function CouponsPage() {
 
   const fetchCoupons = async () => {
     const { data: couponsData } = await supabase
-      .from('coupons' as any)
+      .from('coupons_with_usage' as any)
       .select('*')
       .order('created_at', { ascending: false });
 
