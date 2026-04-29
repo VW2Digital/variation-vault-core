@@ -322,24 +322,22 @@ const Dashboard = () => {
         customersDelta={topKpis.customersDelta}
       />
 
-      {/* Vendas + Atividade lado a lado */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2">
-          <DashboardSalesOverview
-            total={totalRevenuePeriod}
-            delta={previousPeriodRevenue > 0
-              ? ((totalRevenuePeriod - previousPeriodRevenue) / previousPeriodRevenue) * 100
-              : totalRevenuePeriod > 0 ? 100 : 0}
-            bars={salesBars}
-            range={period}
-            onRangeChange={(v) => setPeriod(v)}
-          />
-        </div>
+      {/* Vendas — full-width */}
+      <DashboardSalesOverview
+        total={totalRevenuePeriod}
+        delta={previousPeriodRevenue > 0
+          ? ((totalRevenuePeriod - previousPeriodRevenue) / previousPeriodRevenue) * 100
+          : totalRevenuePeriod > 0 ? 100 : 0}
+        bars={salesBars}
+        range={period}
+        onRangeChange={(v) => setPeriod(v)}
+      />
+
+      {/* Produtos Recentes + Atividade Recente lado a lado */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <DashboardMostRecentProducts products={allProducts as any} />
         <DashboardRecentActivity items={activityItems} />
       </div>
-
-      {/* Produtos recentes — full-width abaixo */}
-      <DashboardMostRecentProducts products={allProducts as any} />
 
       {/* Alerta de estoque */}
       {outOfStock > 0 && !dismissedStockAlert && (
