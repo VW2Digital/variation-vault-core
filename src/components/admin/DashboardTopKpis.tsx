@@ -56,9 +56,6 @@ function KpiCard({
         )}
         <div className="flex items-start justify-between mb-3 relative z-10">
           <p className="text-sm font-semibold text-foreground/80">{label}</p>
-          <div className="w-9 h-9 rounded-xl bg-card/80 backdrop-blur flex items-center justify-center shadow-sm">
-            <Icon className="w-4 h-4 text-foreground" />
-          </div>
         </div>
         <p className="text-3xl font-bold text-foreground mb-2 tracking-tight relative z-10">{value}</p>
         <div className="relative z-10">
