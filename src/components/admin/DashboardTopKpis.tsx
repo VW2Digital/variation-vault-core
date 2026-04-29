@@ -1,5 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { DollarSign, ShoppingBag, Users, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import goldBars from '@/assets/gold-bars.png';
 
 interface KpiProps {
   revenueToday: number;
@@ -32,24 +33,37 @@ function KpiCard({
   delta,
   icon: Icon,
   tint,
+  decoration,
 }: {
   label: string;
   value: string;
   delta: number;
   icon: any;
   tint: string;
+  decoration?: string;
 }) {
   return (
-    <Card className="border-border/40 shadow-sm overflow-hidden">
-      <CardContent className={`p-5 ${tint}`}>
-        <div className="flex items-start justify-between mb-3">
+    <Card className="border-border/40 shadow-sm overflow-hidden relative">
+      <CardContent className={`p-5 ${tint} relative`}>
+        {decoration && (
+          <img
+            src={decoration}
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            className="pointer-events-none select-none absolute -right-4 -bottom-4 w-32 h-auto opacity-90 drop-shadow-md"
+          />
+        )}
+        <div className="flex items-start justify-between mb-3 relative z-10">
           <p className="text-sm font-semibold text-foreground/80">{label}</p>
           <div className="w-9 h-9 rounded-xl bg-card/80 backdrop-blur flex items-center justify-center shadow-sm">
             <Icon className="w-4 h-4 text-foreground" />
           </div>
         </div>
-        <p className="text-3xl font-bold text-foreground mb-2 tracking-tight">{value}</p>
-        <Delta value={delta} />
+        <p className="text-3xl font-bold text-foreground mb-2 tracking-tight relative z-10">{value}</p>
+        <div className="relative z-10">
+          <Delta value={delta} />
+        </div>
       </CardContent>
     </Card>
   );
@@ -71,6 +85,7 @@ export function DashboardTopKpis({
         delta={revenueDelta}
         icon={DollarSign}
         tint="bg-gradient-to-br from-primary/15 via-primary/5 to-transparent"
+        decoration={goldBars}
       />
       <KpiCard
         label="Pedidos Hoje"
