@@ -8,8 +8,9 @@ import { DashboardSalesOverview } from '@/components/admin/DashboardSalesOvervie
 import { DashboardRecentActivity, type ActivityItem } from '@/components/admin/DashboardRecentActivity';
 import { DashboardMostRecentProducts } from '@/components/admin/DashboardMostRecentProducts';
 import { DashboardTopKpis } from '@/components/admin/DashboardTopKpis';
+import type { DateRange } from 'react-day-picker';
 
-type PeriodKey = '7' | '30' | '90';
+type PeriodKey = '7' | '30' | '90' | 'custom';
 
 interface RawOrder {
   status: string;
@@ -24,19 +25,43 @@ interface RawOrder {
 
 const CONFIRMED_STATUSES = ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH', 'PAID'];
 
-function filterByPeriod<T extends { created_at: string }>(items: T[], days: PeriodKey): T[] {
+function filterByPeriod<T extends { created_at: string }>(
+  items: T[],
+  days: PeriodKey,
+  customRange?: DateRange
+): T[] {
+  if (days === 'custom') {
+    if (!customRange?.from) return [];
+    const from = new Date(customRange.from);
+    from.setHours(0, 0, 0, 0);
+    const to = customRange.to ? new Date(customRange.to) : new Date(customRange.from);
+    to.setHours(23, 59, 59, 999);
+    return items.filter((i) => {
+      const d = new Date(i.created_at);
+      return d >= from && d <= to;
+    });
+  }
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - Number(days));
-  return items.filter(i => new Date(i.created_at) >= cutoff);
+  return items.filter((i) => new Date(i.created_at) >= cutoff);
 }
 
-function buildChartData(orders: RawOrder[], days: PeriodKey) {
-  const now = new Date();
-  const numDays = Number(days);
+function buildChartData(orders: RawOrder[], days: PeriodKey, customRange?: DateRange) {
+  let numDays: number;
+  let endDate: Date;
+  if (days === 'custom' && customRange?.from) {
+    const from = new Date(customRange.from);
+    const to = customRange.to ? new Date(customRange.to) : new Date(customRange.from);
+    numDays = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86400000) + 1);
+    endDate = to;
+  } else {
+    numDays = Number(days);
+    endDate = new Date();
+  }
   const map = new Map<string, { receita: number }>();
 
   for (let i = numDays - 1; i >= 0; i--) {
-    const d = new Date(now);
+    const d = new Date(endDate);
     d.setDate(d.getDate() - i);
     const key = d.toISOString().slice(0, 10);
     map.set(key, { receita: 0 });
@@ -60,6 +85,7 @@ const Dashboard = () => {
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodKey>('30');
+  const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [paidWithoutLabel, setPaidWithoutLabel] = useState(0);
   const [totalClients, setTotalClients] = useState(0);
   const [recentSignups, setRecentSignups] = useState<{ id: string; full_name: string | null; created_at: string }[]>([]);
@@ -129,14 +155,26 @@ const Dashboard = () => {
   }, []);
 
   const totalRevenuePeriod = useMemo(() => {
-    return filterByPeriod(allOrders, period)
+    return filterByPeriod(allOrders, period, customRange)
       .filter((o) => CONFIRMED_STATUSES.includes(o.status))
       .reduce((s, o) => s + Number(o.total_value || 0), 0);
-  }, [allOrders, period]);
+  }, [allOrders, period, customRange]);
 
   const previousPeriodRevenue = useMemo(() => {
-    const days = Number(period);
+    let days: number;
+    if (period === 'custom' && customRange?.from) {
+      const from = new Date(customRange.from);
+      const to = customRange.to ? new Date(customRange.to) : new Date(customRange.from);
+      days = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86400000) + 1);
+    } else if (period === 'custom') {
+      return 0;
+    } else {
+      days = Number(period);
+    }
     const cutoffEnd = new Date();
+    if (period === 'custom' && customRange?.from) {
+      cutoffEnd.setTime(new Date(customRange.from).getTime());
+    }
     cutoffEnd.setDate(cutoffEnd.getDate() - days);
     const cutoffStart = new Date(cutoffEnd);
     cutoffStart.setDate(cutoffStart.getDate() - days);
@@ -146,11 +184,11 @@ const Dashboard = () => {
         return d >= cutoffStart && d < cutoffEnd && CONFIRMED_STATUSES.includes(o.status);
       })
       .reduce((s, o) => s + Number(o.total_value || 0), 0);
-  }, [allOrders, period]);
+  }, [allOrders, period, customRange]);
 
   const chartData = useMemo(
-    () => buildChartData(filterByPeriod(allOrders, period), period),
-    [allOrders, period]
+    () => buildChartData(filterByPeriod(allOrders, period, customRange), period, customRange),
+    [allOrders, period, customRange]
   );
 
   // KPIs do topo: hoje vs ontem
@@ -196,9 +234,9 @@ const Dashboard = () => {
   }, [allOrders, recentSignups, totalClients]);
 
   const salesBars = useMemo(() => {
-    // Mostra todos os pontos do período selecionado.
-    // Para 90d agrupamos por semana para não ficar ilegível.
-    if (period === '90') {
+    // Para 90d ou ranges customizados longos, agrupamos por semana.
+    const shouldGroupByWeek = period === '90' || (period === 'custom' && chartData.length > 31);
+    if (shouldGroupByWeek) {
       const buckets: { label: string; value: number }[] = [];
       for (let i = 0; i < chartData.length; i += 7) {
         const slice = chartData.slice(i, i + 7);
@@ -331,6 +369,8 @@ const Dashboard = () => {
         bars={salesBars}
         range={period}
         onRangeChange={(v) => setPeriod(v)}
+        customRange={customRange}
+        onCustomRangeChange={setCustomRange}
       />
 
       {/* Produtos Recentes + Atividade Recente lado a lado */}
