@@ -45,6 +45,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { DateRange } from 'react-day-picker';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import iconCarrinho from '@/assets/icon-carrinho-3d.png';
 
 interface ActiveCartUser {
   user_id: string;
@@ -378,7 +379,7 @@ export default function CartAbandonmentLogsPage() {
       <AdminPageHeader
         title="Recuperação de Carrinho"
         description="Acompanhe carrinhos abandonados e disparos automáticos por e-mail."
-        icon={ShoppingCart}
+        iconImage={iconCarrinho}
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

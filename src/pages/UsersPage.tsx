@@ -27,6 +27,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import iconUsuarios from '@/assets/icon-usuarios-3d.png';
 
 interface UserItem {
   id: string;
@@ -250,7 +251,7 @@ const UsersPage = () => {
       <AdminPageHeader
         title="Gerenciar Usuários"
         description="Lista de clientes cadastrados, com permissões, busca e ações em lote."
-        icon={Users}
+        iconImage={iconUsuarios}
         actions={
           <Button size="sm" onClick={fetchUsers} disabled={loading} className="bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-95 shadow-sm shadow-primary/20">
             <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Atualizar

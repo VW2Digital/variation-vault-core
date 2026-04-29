@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Activity, AlertTriangle, CheckCircle2, ShieldAlert, Trash2, RefreshCw, Eye, Download, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import iconWebhooks from '@/assets/icon-webhooks-3d.png';
 
 type WebhookLog = {
   id: string;
@@ -219,7 +220,7 @@ export default function WebhookLogsPage() {
       <AdminPageHeader
         title="Logs de Webhooks"
         description="Eventos recebidos dos gateways em tempo real."
-        icon={Activity}
+        iconImage={iconWebhooks}
         actions={
           <>
             <Button variant="outline" size="sm" onClick={load} disabled={loading}>

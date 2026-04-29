@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import iconEventosEmail from '@/assets/icon-eventos-email-3d.png';
 
 type EventKey =
   | "order_created"
@@ -209,7 +210,7 @@ const EmailEventsPage = () => {
       <AdminPageHeader
         title="Eventos de E-mail"
         description="Marque quais notificações devem ser enviadas automaticamente via SMTP."
-        icon={PackageCheck}
+        iconImage={iconEventosEmail}
         breadcrumbs={[
           { label: 'Configurações', to: '/admin/configuracoes' },
           { label: 'Comunicação', to: '/admin/configuracoes/comunicacao' },

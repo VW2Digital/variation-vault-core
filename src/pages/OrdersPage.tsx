@@ -28,6 +28,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import iconPedidos from '@/assets/icon-pedidos-3d.png';
 
 const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; badgeClass?: string }> = {
   PENDING: { label: 'Pendente', variant: 'outline' },
@@ -652,7 +653,7 @@ const OrdersPage = () => {
       <AdminPageHeader
         title="Pedidos"
         description="Acompanhe pagamentos, entregas e ações em lote em um só lugar."
-        icon={Receipt}
+        iconImage={iconPedidos}
         actions={
           <>
             <Button variant="outline" size="sm" onClick={exportToCsv} disabled={filteredOrders.length === 0}>

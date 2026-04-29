@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Send, Users, Loader2, AlertTriangle, History, Eye, Mail, FileText, Sparkles, Wand2, Save, Bookmark, Trash2 } from "lucide-react";
 import { BULK_EMAIL_TEMPLATES, type BulkEmailTemplate } from "@/lib/bulkEmailTemplates";
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import iconDisparoEmail from '@/assets/icon-disparo-email-3d.png';
 
 type Audience = "all_customers" | "paid_customers" | "no_orders" | "manual";
 
@@ -385,7 +386,7 @@ export default function BulkEmailPage() {
       <AdminPageHeader
         title="Disparo de E-mails"
         description="Envio manual em massa para clientes selecionados."
-        icon={Send}
+        iconImage={iconDisparoEmail}
       />
 
       <Alert>

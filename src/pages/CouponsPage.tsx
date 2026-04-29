@@ -10,6 +10,7 @@ import { Plus, Trash2, Pencil, Ticket, Loader2, X, Check, Package } from 'lucide
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import iconCupons from '@/assets/icon-cupons-3d.png';
 
 interface Coupon {
   id: string;
@@ -203,7 +204,7 @@ export default function CouponsPage() {
       <AdminPageHeader
         title="Cupons de Desconto"
         description="Gerencie cupons com limite de uso e período de validade."
-        icon={Ticket}
+        iconImage={iconCupons}
         actions={
           <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
             <DialogTrigger asChild>

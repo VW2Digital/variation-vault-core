@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Plus, Copy, Trash2, Pencil, Link as LinkIcon, ExternalLink, Loader2 } from 'lucide-react';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import iconLinksPagamento from '@/assets/icon-links-pagamento-3d.png';
 
 interface PaymentLink {
   id: string;
@@ -171,7 +172,7 @@ export default function PaymentLinksPage() {
       <AdminPageHeader
         title="Links de Pagamento"
         description="Crie links com valores personalizados para enviar aos clientes."
-        icon={LinkIcon}
+        iconImage={iconLinksPagamento}
         actions={
           <>
             {activeGateway && (

@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import iconLogsEmail from '@/assets/icon-logs-email-3d.png';
 
 type LogRow = {
   id: string;
@@ -238,7 +239,7 @@ const EmailLogsPage = () => {
       <AdminPageHeader
         title="Logs de Email"
         description={`${stats.total} envios únicos no período • histórico da função send-email`}
-        icon={Mail}
+        iconImage={iconLogsEmail}
         breadcrumbs={[
           { label: 'Configurações', to: '/admin/configuracoes' },
           { label: 'Comunicação', to: '/admin/configuracoes/comunicacao' },

@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Loader2, Truck, FileText, AlertCircle, ChevronDown, ChevronUp, CreditCard, QrCode, Package } from 'lucide-react';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import iconPedidoDetalhe from '@/assets/icon-pedido-detalhe-3d.png';
 
 const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; badgeClass?: string }> = {
   PENDING: { label: 'Pendente', variant: 'outline' },
@@ -122,7 +123,7 @@ const OrderDetailPage = () => {
       <AdminPageHeader
         title={`Pedido #${orderShortId}`}
         description={descParts.join(' • ')}
-        icon={Package}
+        iconImage={iconPedidoDetalhe}
         breadcrumbs={[
           { label: 'Pedidos', to: '/admin/pedidos' },
           { label: `#${orderShortId}` },

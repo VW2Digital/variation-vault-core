@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Star, Trash2 } from 'lucide-react';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import iconAvaliacoes from '@/assets/icon-avaliacoes-3d.png';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -54,7 +55,7 @@ const AdminReviewsPage = () => {
       <AdminPageHeader
         title="Gerenciar Avaliações"
         description="Modere e gerencie as avaliações dos clientes."
-        icon={Star}
+        iconImage={iconAvaliacoes}
       />
 
       {loading ? (

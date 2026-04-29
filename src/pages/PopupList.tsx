@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { Megaphone } from 'lucide-react';
+import iconPopups from '@/assets/icon-popups-3d.png';
 
 interface Popup {
   id: string;
@@ -187,7 +188,7 @@ const PopupList = () => {
         <AdminPageHeader
           title="Popups Promocionais"
           description={`${popups.length} popup(s) cadastrado(s) • aparece para visitantes do catálogo`}
-          icon={Megaphone}
+          iconImage={iconPopups}
           actions={
             <DialogTrigger asChild>
               <Button size="sm" className="bg-gradient-to-r from-primary to-accent text-primary-foreground">
