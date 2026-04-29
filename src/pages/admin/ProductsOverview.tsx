@@ -318,8 +318,7 @@ export default function ProductsOverview() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Top Categorias (donut) */}
         <Card className="border-border/40 shadow-sm flex flex-col">
-          <CardContent className="p-4 sm:p-5">
-            <div className="flex flex-col h-full">
+          <CardContent className="p-4 sm:p-5 flex flex-col flex-1">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-bold text-foreground">Top Categorias</h2>
               <button className="w-7 h-7 rounded-full hover:bg-muted flex items-center justify-center" aria-label="Mais opções">
