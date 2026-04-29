@@ -122,7 +122,7 @@ const CustomerDashboard = () => {
       setUser(session.user);
       userEmail = session.user.email || '';
       await Promise.all([
-        fetchOrders(userEmail),
+        fetchOrders(userEmail, session.user.id),
         fetchProfile(session.user.id),
         fetchReviews(session.user.id),
       ]);
@@ -135,7 +135,7 @@ const CustomerDashboard = () => {
     const channel = supabase
       .channel('customer-orders-realtime')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, () => {
-        if (userEmail) fetchOrders(userEmail);
+        if (userEmail) fetchOrders(userEmail, user?.id);
       })
       .subscribe();
 
@@ -145,13 +145,18 @@ const CustomerDashboard = () => {
     };
   }, [navigate]);
 
-  const fetchOrders = async (email: string) => {
+  const fetchOrders = async (email: string, userId?: string) => {
     setLoading(true);
     try {
+      // Busca por user_id OU email case-insensitive (cobre pedidos antigos sem vínculo
+      // e variações de capitalização no email)
+      const filters = userId
+        ? `customer_user_id.eq.${userId},customer_email.ilike.${email}`
+        : `customer_email.ilike.${email}`;
       const { data, error } = await supabase
         .from('orders')
         .select('*')
-        .eq('customer_email', email)
+        .or(filters)
         .order('created_at', { ascending: false });
       if (error) throw error;
       setOrders(data || []);
