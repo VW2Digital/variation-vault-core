@@ -16,6 +16,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import iconProdutos from '@/assets/icon-produtos.png';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   DragEndEvent,
@@ -392,7 +393,7 @@ const ProductList = () => {
       <AdminPageHeader
         title="Produtos"
         description={`${products.length} ${products.length === 1 ? 'item cadastrado' : 'itens cadastrados'} • arraste para reordenar`}
-        icon={Package}
+        iconImage={iconProdutos}
         actions={
           <div className="flex items-center gap-2">
             <div className="inline-flex items-center rounded-full border border-border/60 bg-muted/40 p-0.5">
