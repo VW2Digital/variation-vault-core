@@ -1,6 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { DollarSign, ShoppingBag, Users, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import goldBars from '@/assets/gold-bars.png';
+import ordersDecoration from '@/assets/orders-decoration.png';
 
 interface KpiProps {
   revenueToday: number;
@@ -90,6 +91,7 @@ export function DashboardTopKpis({
         delta={ordersDelta}
         icon={ShoppingBag}
         tint="bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent"
+        decoration={ordersDecoration}
       />
       <KpiCard
         label="Clientes"
