@@ -51,7 +51,7 @@ function KpiCard({
             alt=""
             aria-hidden="true"
             loading="lazy"
-            className="pointer-events-none select-none absolute -right-4 -bottom-4 w-32 h-auto opacity-90 drop-shadow-md"
+            className="pointer-events-none select-none absolute -right-3 -bottom-3 w-20 sm:w-24 md:w-28 h-auto opacity-70 sm:opacity-80 drop-shadow-md"
           />
         )}
         <div className="flex items-start justify-between mb-3 relative z-10">
