@@ -4,8 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { RefreshCw, Tag, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useNavigate } from 'react-router-dom';
-import { DashboardWelcomeHeader } from '@/components/admin/DashboardWelcomeHeader';
-import { DashboardOverallSummary } from '@/components/admin/DashboardOverallSummary';
 import { DashboardSalesOverview } from '@/components/admin/DashboardSalesOverview';
 import { DashboardRecentActivity, type ActivityItem } from '@/components/admin/DashboardRecentActivity';
 import { DashboardMostRecentProducts } from '@/components/admin/DashboardMostRecentProducts';
@@ -363,9 +361,6 @@ const Dashboard = () => {
         </Alert>
       )}
 
-      {/* Header */}
-      <DashboardWelcomeHeader adminName={adminName} />
-
       {/* KPIs do topo (Receita Hoje, Pedidos, Clientes) */}
       <DashboardTopKpis
         revenueToday={topKpis.revenueToday}
@@ -391,17 +386,6 @@ const Dashboard = () => {
         </div>
         <DashboardRecentActivity items={activityItems} />
       </div>
-
-      {/* Resumo do período (mês/trimestre/ano) */}
-      <DashboardOverallSummary
-        balance={summary.balance}
-        balanceDelta={summary.balanceDelta}
-        achievementRate={summary.achievementRate}
-        customers={summary.customers}
-        customersDelta={summary.customersDelta}
-        range={summaryRange}
-        onRangeChange={setSummaryRange}
-      />
 
       {/* Produtos recentes — full-width abaixo */}
       <DashboardMostRecentProducts products={allProducts as any} />
