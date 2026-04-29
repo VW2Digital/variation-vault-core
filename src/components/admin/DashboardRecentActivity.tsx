@@ -40,11 +40,12 @@ export function DashboardRecentActivity({ items }: Props) {
 
   return (
     <Card className="border-border/40 shadow-sm h-full">
-      <CardContent className="p-4 sm:p-5">
+      <CardContent className="p-4 sm:p-5 h-full flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold text-foreground">Atividade Recente</h2>
         </div>
 
+        <div className="flex-1">
         {items.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-8">Sem atividade recente.</p>
         ) : (
@@ -89,6 +90,7 @@ export function DashboardRecentActivity({ items }: Props) {
             })}
           </ul>
         )}
+        </div>
 
         <Button
           variant="outline"
