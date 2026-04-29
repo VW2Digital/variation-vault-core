@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Image, Palette, Type, Code, LayoutDashboard, CreditCard, Truck, MessageSquare, FileText, Settings, Plug, Tags, ShieldCheck, Database, Search, ChevronRight, X } from 'lucide-react';
+import { Image, Palette, Type, Code, LayoutDashboard, CreditCard, Truck, MessageSquare, FileText, Settings, Plug, Tags, ShieldCheck, Database, Search, ChevronRight, X, BookOpen, GraduationCap } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import SiteUrlCard from '@/components/admin/SiteUrlCard';
@@ -20,6 +20,13 @@ type CatItem = {
 };
 
 const categories: { label: string; icon: React.ComponentType<{ className?: string }>; items: CatItem[] }[] = [
+  {
+    label: 'AJUDA & DOCUMENTAÇÃO',
+    icon: GraduationCap,
+    items: [
+      { title: 'Guias de Configuração', description: 'Tutoriais passo a passo para pagamento, frete, e-mail, scripts e mais', icon: BookOpen, path: 'guias' },
+    ],
+  },
   {
     label: 'DESIGN & IDENTIDADE',
     icon: Palette,
