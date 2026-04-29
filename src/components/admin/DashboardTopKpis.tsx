@@ -1,6 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { DollarSign, ShoppingBag, Users, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import goldBars from '@/assets/gold-bars.png';
 
 interface KpiProps {
   revenueToday: number;
@@ -85,7 +84,6 @@ export function DashboardTopKpis({
         delta={revenueDelta}
         icon={DollarSign}
         tint="bg-gradient-to-br from-primary/15 via-primary/5 to-transparent"
-        decoration={goldBars}
       />
       <KpiCard
         label="Pedidos Hoje"
