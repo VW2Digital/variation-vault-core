@@ -14,6 +14,8 @@ interface AdminPageHeaderProps {
   title?: string | null;
   description?: string | null;
   icon?: LucideIcon;
+  /** Imagem opcional (ex.: ícone 3D) usada no lugar do ícone Lucide. */
+  iconImage?: string;
   actions?: ReactNode;
   className?: string;
   /** Conteúdo extra abaixo do título (filtros, abas, etc) */
@@ -56,6 +58,7 @@ export function AdminPageHeader({
   title,
   description,
   icon: Icon,
+  iconImage,
   actions,
   className,
   children,
@@ -108,7 +111,11 @@ export function AdminPageHeader({
 
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-4 min-w-0">
-          {Icon && (
+          {iconImage ? (
+            <div className="hidden sm:flex h-14 w-14 shrink-0 items-center justify-center">
+              <img src={iconImage} alt="" className="h-14 w-14 object-contain drop-shadow-sm" />
+            </div>
+          ) : Icon && (
             <div className="hidden sm:flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-md shadow-primary/20">
               <Icon className="h-5 w-5" />
             </div>
