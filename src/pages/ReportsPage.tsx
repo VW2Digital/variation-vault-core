@@ -4,9 +4,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, RefreshCw, X, Calendar, TrendingUp, TrendingDown, Minus, FileBarChart } from 'lucide-react';
+import { Download, RefreshCw, X, Calendar, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import reportsIcon from '@/assets/icon-relatorios-3d.png';
 
 interface RawOrder {
   status: string;
@@ -259,7 +260,7 @@ const ReportsPage = () => {
       <AdminPageHeader
         title="Relatórios"
         description="KPIs financeiros, conversão e variação por período."
-        icon={FileBarChart}
+        iconImage={reportsIcon}
         actions={
           <Button variant="outline" size="sm" onClick={exportCSV} className="gap-2">
             <Download className="w-4 h-4" /> Exportar CSV
