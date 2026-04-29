@@ -285,10 +285,10 @@ const Dashboard = () => {
   return (
     <div className="space-y-5">
       {/* Alertas operacionais */}
-      {paidWithoutLabel > 0 && (
+      {paidWithoutLabel > 0 && !dismissedLabelsAlert && (
         <Alert
           variant="destructive"
-          className="border-amber-500 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 cursor-pointer"
+          className="relative border-amber-500 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 cursor-pointer pr-10"
           onClick={() => navigate('/admin/pedidos')}
         >
           <Tag className="h-4 w-4 text-amber-600" />
@@ -298,6 +298,18 @@ const Dashboard = () => {
               ? 'Há 1 pedido pago aguardando geração de etiqueta de envio.'
               : `Há ${paidWithoutLabel} pedidos pagos aguardando geração de etiqueta de envio.`}
           </AlertDescription>
+          <button
+            type="button"
+            aria-label="Fechar notificação"
+            onClick={(e) => {
+              e.stopPropagation();
+              sessionStorage.setItem('dismiss_labels_alert', '1');
+              setDismissedLabelsAlert(true);
+            }}
+            className="absolute top-2 right-2 inline-flex items-center justify-center w-7 h-7 rounded-md text-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </Alert>
       )}
 
@@ -331,15 +343,27 @@ const Dashboard = () => {
       <DashboardMostRecentProducts products={allProducts as any} />
 
       {/* Alerta de estoque */}
-      {outOfStock > 0 && (
+      {outOfStock > 0 && !dismissedStockAlert && (
         <div
-          className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3.5 cursor-pointer hover:bg-destructive/10 transition-colors"
+          className="relative flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3.5 pr-10 cursor-pointer hover:bg-destructive/10 transition-colors"
           onClick={() => navigate('/admin/produtos')}
         >
           <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
           <p className="text-xs text-foreground">
             <span className="font-bold">{outOfStock} variação(ões)</span> sem estoque. Toque para revisar o catálogo.
           </p>
+          <button
+            type="button"
+            aria-label="Fechar notificação"
+            onClick={(e) => {
+              e.stopPropagation();
+              sessionStorage.setItem('dismiss_stock_alert', '1');
+              setDismissedStockAlert(true);
+            }}
+            className="absolute top-1/2 -translate-y-1/2 right-2 inline-flex items-center justify-center w-7 h-7 rounded-md text-destructive hover:bg-destructive/10 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
     </div>
