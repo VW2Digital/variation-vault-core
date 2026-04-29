@@ -38,7 +38,6 @@ const menuCategories = [
   {
     label: 'Vendas',
     items: [
-      { title: 'Carteira', url: '/admin/vendas', icon: Wallet },
       { title: 'Pedidos', url: '/admin/pedidos', icon: ShoppingBag },
       { title: 'Falhas Pgto', url: '/admin/falhas-pagamento', icon: AlertTriangle },
       { title: 'Webhooks Logs', url: '/admin/webhooks-logs', icon: Activity },
