@@ -62,8 +62,6 @@ const Dashboard = () => {
   const [period, setPeriod] = useState<PeriodKey>('30');
   const [paidWithoutLabel, setPaidWithoutLabel] = useState(0);
   const [totalClients, setTotalClients] = useState(0);
-  const [adminName, setAdminName] = useState<string>('');
-  const [summaryRange, setSummaryRange] = useState<'month' | 'quarter' | 'year'>('month');
   const [recentSignups, setRecentSignups] = useState<{ id: string; full_name: string | null; created_at: string }[]>([]);
   const [recentTickets, setRecentTickets] = useState<{ id: string; subject: string | null; created_at: string }[]>([]);
   const [recentFailures, setRecentFailures] = useState<{ id: string; customer_email: string | null; created_at: string; error_message?: string | null }[]>([]);
@@ -97,16 +95,6 @@ const Dashboard = () => {
         .from('profiles')
         .select('id', { count: 'exact', head: true });
       setTotalClients(profileCount || 0);
-
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData?.user?.id) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('id', userData.user.id)
-          .maybeSingle();
-        setAdminName((profile as any)?.full_name || userData.user.email?.split('@')[0] || 'Admin');
-      }
 
       const { data: signups } = await supabase
         .from('profiles')
@@ -158,60 +146,6 @@ const Dashboard = () => {
     () => buildChartData(filterByPeriod(allOrders, period), period),
     [allOrders, period]
   );
-
-  const summary = useMemo(() => {
-    const now = new Date();
-    let curStart: Date;
-    let prevStart: Date;
-    let prevEnd: Date;
-    if (summaryRange === 'month') {
-      curStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      prevEnd = curStart;
-    } else if (summaryRange === 'quarter') {
-      curStart = new Date(now);
-      curStart.setMonth(curStart.getMonth() - 3);
-      prevEnd = curStart;
-      prevStart = new Date(prevEnd);
-      prevStart.setMonth(prevStart.getMonth() - 3);
-    } else {
-      curStart = new Date(now.getFullYear(), 0, 1);
-      prevStart = new Date(now.getFullYear() - 1, 0, 1);
-      prevEnd = curStart;
-    }
-    let curRev = 0, prevRev = 0, curConfirmed = 0, curTotal = 0;
-    allOrders.forEach((o) => {
-      const d = new Date(o.created_at);
-      const v = Number(o.total_value || 0);
-      const isConfirmed = CONFIRMED_STATUSES.includes(o.status);
-      if (d >= curStart) {
-        curTotal++;
-        if (isConfirmed) {
-          curRev += v;
-          curConfirmed++;
-        }
-      } else if (d >= prevStart && d < prevEnd && isConfirmed) {
-        prevRev += v;
-      }
-    });
-    const balanceDelta = prevRev > 0 ? ((curRev - prevRev) / prevRev) * 100 : curRev > 0 ? 100 : 0;
-    const newCustomers = recentSignups.filter((s) => new Date(s.created_at) >= curStart).length;
-    const prevCustomers = recentSignups.filter((s) => {
-      const d = new Date(s.created_at);
-      return d >= prevStart && d < prevEnd;
-    }).length;
-    const customersDelta = prevCustomers > 0
-      ? ((newCustomers - prevCustomers) / prevCustomers) * 100
-      : newCustomers > 0 ? 100 : 0;
-    const achievementRate = curTotal > 0 ? (curConfirmed / curTotal) * 100 : 0;
-    return {
-      balance: curRev,
-      balanceDelta,
-      achievementRate,
-      customers: totalClients,
-      customersDelta,
-    };
-  }, [allOrders, summaryRange, recentSignups, totalClients]);
 
   // KPIs do topo: hoje vs ontem
   const topKpis = useMemo(() => {
