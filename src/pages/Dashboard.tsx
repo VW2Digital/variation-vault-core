@@ -287,8 +287,7 @@ const Dashboard = () => {
       {/* Alertas operacionais */}
       {paidWithoutLabel > 0 && !dismissedLabelsAlert && (
         <Alert
-          variant="destructive"
-          className="relative border-amber-500 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 cursor-pointer pr-10"
+          className="relative border-amber-500 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 cursor-pointer pr-12 [&>svg]:text-amber-600"
           onClick={() => navigate('/admin/pedidos')}
         >
           <Tag className="h-4 w-4 text-amber-600" />
@@ -306,9 +305,9 @@ const Dashboard = () => {
               sessionStorage.setItem('dismiss_labels_alert', '1');
               setDismissedLabelsAlert(true);
             }}
-            className="absolute top-1/2 -translate-y-1/2 right-2 inline-flex items-center justify-center w-8 h-8 rounded-md text-amber-700 hover:bg-amber-200 dark:hover:bg-amber-900/40 transition-colors"
+            className="absolute top-1/2 -translate-y-1/2 right-3 z-10 inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-600 hover:bg-amber-700 transition-colors shadow-md ring-2 ring-amber-200 text-white text-lg leading-none font-bold"
           >
-            <X className="w-4 h-4" />
+            ×
           </button>
         </Alert>
       )}
