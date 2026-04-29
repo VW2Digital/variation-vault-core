@@ -45,7 +45,7 @@ function KpiCard({
   decoration?: string;
 }) {
   return (
-    <Card className="border-border/40 shadow-sm overflow-hidden relative">
+    <Card className="border-border/40 shadow-sm overflow-hidden relative bg-card">
       <CardContent className={`p-5 ${tint} relative`}>
         {decoration && (
           <img
@@ -53,13 +53,20 @@ function KpiCard({
             alt=""
             aria-hidden="true"
             loading="lazy"
-            className="pointer-events-none select-none absolute -right-2 -bottom-2 w-24 sm:w-28 md:w-32 h-auto opacity-100 drop-shadow-lg"
+            className="pointer-events-none select-none absolute -right-2 -bottom-2 w-24 sm:w-28 md:w-32 h-auto opacity-90 drop-shadow-md"
           />
         )}
+        {/* Legibility veil: ensures text stays readable over the decoration */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-card via-card/85 to-transparent"
+        />
         <div className="flex items-start justify-between mb-3 relative z-10">
-          <p className="text-sm font-semibold text-foreground/80">{label}</p>
+          <p className="text-sm font-semibold text-foreground">{label}</p>
         </div>
-        <p className="text-3xl font-bold text-foreground mb-2 tracking-tight relative z-10">{value}</p>
+        <p className="text-3xl font-bold text-foreground mb-2 tracking-tight relative z-10 drop-shadow-sm">
+          {value}
+        </p>
         <div className="relative z-10">
           <Delta value={delta} />
         </div>
