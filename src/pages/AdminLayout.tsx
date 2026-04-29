@@ -8,6 +8,7 @@ import type { User } from '@supabase/supabase-js';
 import { Loader2, ShieldX, Search, Plus, Bell, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import iconImg from '@/assets/liberty-pharma-icon.png';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -209,8 +210,8 @@ const AdminLayout = () => {
 
               {/* Avatar / saudação */}
               <div className="hidden lg:flex items-center gap-2 pl-2 border-l border-border/40 ml-1">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground text-sm font-bold">
-                  {(adminName || 'A').slice(0, 1).toUpperCase()}
+                <div className="w-9 h-9 rounded-full bg-background border border-border/40 flex items-center justify-center overflow-hidden">
+                  <img src={iconImg} alt="Liberty Pharma" className="w-7 h-7 object-contain" />
                 </div>
                 <div className="leading-tight">
                   <p className="text-[11px] text-muted-foreground">Olá,</p>
