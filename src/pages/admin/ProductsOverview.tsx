@@ -290,34 +290,44 @@ export default function ProductsOverview() {
         </div>
       </div>
 
-      {/* KPIs + Top Categorias + Engajamento */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Coluna 1: KPIs empilhados */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
-          <KpiCard
-            label="Total de Produtos"
-            value={products.length.toLocaleString('pt-BR')}
-            icon={Package}
-          />
-          <KpiCard
-            label="Total de Categorias"
-            value={totalCategories.toLocaleString('pt-BR')}
-            icon={Tag}
-          />
-        </div>
+      {/* Linha 1: KPIs lado a lado */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          label="Total de Produtos"
+          value={products.length.toLocaleString('pt-BR')}
+          icon={Package}
+        />
+        <KpiCard
+          label="Total de Categorias"
+          value={totalCategories.toLocaleString('pt-BR')}
+          icon={Tag}
+        />
+        <KpiCard
+          label="Receita Total"
+          value={shortBRL(topCategories.total)}
+          icon={TrendingUp}
+        />
+        <KpiCard
+          label="Avaliações"
+          value={reviews.length.toLocaleString('pt-BR')}
+          icon={Star}
+        />
+      </div>
 
+      {/* Linha 2: Top Categorias + Engajamento */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Top Categorias (donut) */}
-        <Card className="border-border/40 shadow-sm">
-          <CardContent className="p-4 sm:p-5">
+        <Card className="border-border/40 shadow-sm flex flex-col">
+          <CardContent className="p-4 sm:p-5 flex flex-col flex-1">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-bold text-foreground">Top Categorias</h2>
               <button className="w-7 h-7 rounded-full hover:bg-muted flex items-center justify-center" aria-label="Mais opções">
                 <MoreVertical className="w-4 h-4 text-muted-foreground" />
               </button>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-1">
               <SemiDonut total={topCategories.total} segments={topCategories.list} />
-              <ul className="flex-1 space-y-1.5 min-w-0">
+              <ul className="flex-1 space-y-2 min-w-0">
                 {topCategories.list.length === 0 ? (
                   <li className="text-xs text-muted-foreground">Sem vendas ainda.</li>
                 ) : (
