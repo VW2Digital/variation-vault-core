@@ -9,6 +9,7 @@ import { DashboardOverallSummary } from '@/components/admin/DashboardOverallSumm
 import { DashboardSalesOverview } from '@/components/admin/DashboardSalesOverview';
 import { DashboardRecentActivity, type ActivityItem } from '@/components/admin/DashboardRecentActivity';
 import { DashboardMostRecentProducts } from '@/components/admin/DashboardMostRecentProducts';
+import { DashboardTopKpis } from '@/components/admin/DashboardTopKpis';
 
 type PeriodKey = '7' | '30' | '90';
 
@@ -214,6 +215,48 @@ const Dashboard = () => {
     };
   }, [allOrders, summaryRange, recentSignups, totalClients]);
 
+  // KPIs do topo: hoje vs ontem
+  const topKpis = useMemo(() => {
+    const now = new Date();
+    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startYesterday = new Date(startToday);
+    startYesterday.setDate(startYesterday.getDate() - 1);
+
+    let revToday = 0, revYesterday = 0;
+    let ordersTodayCount = 0, ordersYesterdayCount = 0;
+
+    allOrders.forEach((o) => {
+      const d = new Date(o.created_at);
+      const v = Number(o.total_value || 0);
+      const isConfirmed = CONFIRMED_STATUSES.includes(o.status);
+      if (d >= startToday) {
+        ordersTodayCount++;
+        if (isConfirmed) revToday += v;
+      } else if (d >= startYesterday && d < startToday) {
+        ordersYesterdayCount++;
+        if (isConfirmed) revYesterday += v;
+      }
+    });
+
+    const newCustomersToday = recentSignups.filter((s) => new Date(s.created_at) >= startToday).length;
+    const newCustomersYesterday = recentSignups.filter((s) => {
+      const d = new Date(s.created_at);
+      return d >= startYesterday && d < startToday;
+    }).length;
+
+    const pct = (cur: number, prev: number) =>
+      prev > 0 ? ((cur - prev) / prev) * 100 : cur > 0 ? 100 : 0;
+
+    return {
+      revenueToday: revToday,
+      revenueDelta: pct(revToday, revYesterday),
+      ordersToday: ordersTodayCount,
+      ordersDelta: pct(ordersTodayCount, ordersYesterdayCount),
+      totalCustomers: totalClients,
+      customersDelta: pct(newCustomersToday, newCustomersYesterday),
+    };
+  }, [allOrders, recentSignups, totalClients]);
+
   const salesBars = useMemo(() => {
     // Mostra todos os pontos do período selecionado.
     // Para 90d agrupamos por semana para não ficar ilegível.
@@ -323,15 +366,14 @@ const Dashboard = () => {
       {/* Header */}
       <DashboardWelcomeHeader adminName={adminName} />
 
-      {/* Resumo full-width */}
-      <DashboardOverallSummary
-        balance={summary.balance}
-        balanceDelta={summary.balanceDelta}
-        achievementRate={summary.achievementRate}
-        customers={summary.customers}
-        customersDelta={summary.customersDelta}
-        range={summaryRange}
-        onRangeChange={setSummaryRange}
+      {/* KPIs do topo (Receita Hoje, Pedidos, Clientes) */}
+      <DashboardTopKpis
+        revenueToday={topKpis.revenueToday}
+        revenueDelta={topKpis.revenueDelta}
+        ordersToday={topKpis.ordersToday}
+        ordersDelta={topKpis.ordersDelta}
+        totalCustomers={topKpis.totalCustomers}
+        customersDelta={topKpis.customersDelta}
       />
 
       {/* Vendas + Atividade lado a lado */}
@@ -349,6 +391,17 @@ const Dashboard = () => {
         </div>
         <DashboardRecentActivity items={activityItems} />
       </div>
+
+      {/* Resumo do período (mês/trimestre/ano) */}
+      <DashboardOverallSummary
+        balance={summary.balance}
+        balanceDelta={summary.balanceDelta}
+        achievementRate={summary.achievementRate}
+        customers={summary.customers}
+        customersDelta={summary.customersDelta}
+        range={summaryRange}
+        onRangeChange={setSummaryRange}
+      />
 
       {/* Produtos recentes — full-width abaixo */}
       <DashboardMostRecentProducts products={allProducts as any} />
