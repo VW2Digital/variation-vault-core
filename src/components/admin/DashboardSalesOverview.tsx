@@ -31,8 +31,8 @@ export function DashboardSalesOverview({ total, delta, bars, range, onRangeChang
   const positive = delta >= 0;
 
   return (
-    <Card className="border-border/40 shadow-sm">
-      <CardContent className="p-4 sm:p-5">
+    <Card className="border-border/40 shadow-sm h-full">
+      <CardContent className="p-4 sm:p-5 h-full flex flex-col">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-bold text-foreground">Visão de Vendas</h2>
           <Select value={range} onValueChange={(v) => onRangeChange(v as any)}>
