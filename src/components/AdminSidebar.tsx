@@ -215,16 +215,6 @@ export function AdminSidebar() {
         })}
       </SidebarContent>
       <SidebarFooter className={cn('border-t border-sidebar-border/40 p-2')}>
-        {!collapsed && !isMobile && (
-          <div className="mb-2 rounded-lg bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-3">
-            <p className="text-[11px] font-semibold text-sidebar-foreground">
-              Liberty Pharma
-            </p>
-            <p className="text-[10px] text-sidebar-foreground/60 leading-tight mt-0.5">
-              Identidade visual dourada
-            </p>
-          </div>
-        )}
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
             <Button
