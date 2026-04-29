@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { fetchProducts } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
-import { RefreshCw, Tag, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Tag, AlertTriangle, X } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useNavigate } from 'react-router-dom';
 import { DashboardSalesOverview } from '@/components/admin/DashboardSalesOverview';
