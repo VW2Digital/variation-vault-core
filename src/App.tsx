@@ -32,6 +32,7 @@ import SettingsAPI from "./pages/settings/SettingsAPI";
 import SettingsCategories from "./pages/settings/SettingsCategories";
 import SettingsTrustBar from "./pages/settings/SettingsTrustBar";
 import SettingsBackup from "./pages/settings/SettingsBackup";
+import SettingsGuides from "./pages/settings/SettingsGuides";
 import OrdersPage from "./pages/OrdersPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
 import UsersPage from "./pages/UsersPage";
@@ -127,6 +128,7 @@ const App = () => (
             <Route path="eventos-email" element={<EmailEventsPage />} />
             <Route path="disparo-emails" element={<BulkEmailPage />} />
             <Route path="configuracoes" element={<SettingsIndex />} />
+            <Route path="configuracoes/guias" element={<SettingsGuides />} />
             <Route path="configuracoes/design" element={<SettingsDesign />} />
             <Route path="configuracoes/cores" element={<SettingsColors />} />
             <Route path="configuracoes/fontes" element={<SettingsFonts />} />
