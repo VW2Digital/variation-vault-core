@@ -290,22 +290,32 @@ export default function ProductsOverview() {
         </div>
       </div>
 
-      {/* KPIs + Top Categorias + Engajamento */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Coluna 1: KPIs empilhados */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
-          <KpiCard
-            label="Total de Produtos"
-            value={products.length.toLocaleString('pt-BR')}
-            icon={Package}
-          />
-          <KpiCard
-            label="Total de Categorias"
-            value={totalCategories.toLocaleString('pt-BR')}
-            icon={Tag}
-          />
-        </div>
+      {/* Linha 1: KPIs lado a lado */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          label="Total de Produtos"
+          value={products.length.toLocaleString('pt-BR')}
+          icon={Package}
+        />
+        <KpiCard
+          label="Total de Categorias"
+          value={totalCategories.toLocaleString('pt-BR')}
+          icon={Tag}
+        />
+        <KpiCard
+          label="Receita Total"
+          value={shortBRL(topCategories.total)}
+          icon={TrendingUp}
+        />
+        <KpiCard
+          label="Avaliações"
+          value={reviews.length.toLocaleString('pt-BR')}
+          icon={Star}
+        />
+      </div>
 
+      {/* Linha 2: Top Categorias + Engajamento */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Top Categorias (donut) */}
         <Card className="border-border/40 shadow-sm">
           <CardContent className="p-4 sm:p-5">
