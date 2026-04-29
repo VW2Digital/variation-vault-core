@@ -315,9 +315,9 @@ export default function ProductsOverview() {
       </div>
 
       {/* Linha 2: Top Categorias + Engajamento */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
         {/* Top Categorias (donut) */}
-        <Card className="border-border/40 shadow-sm flex flex-col">
+        <Card className="border-border/40 shadow-sm flex flex-col h-full">
           <CardContent className="p-4 sm:p-5 flex flex-col flex-1">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-bold text-foreground">Top Categorias</h2>
@@ -357,8 +357,8 @@ export default function ProductsOverview() {
         </Card>
 
         {/* Engajamento */}
-        <Card className="border-border/40 shadow-sm">
-          <CardContent className="p-4 sm:p-5">
+        <Card className="border-border/40 shadow-sm flex flex-col h-full">
+          <CardContent className="p-4 sm:p-5 flex flex-col flex-1">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-base font-bold text-foreground">Engajamento</h2>
               <button className="w-7 h-7 rounded-full hover:bg-muted flex items-center justify-center" aria-label="Mais opções">
@@ -368,7 +368,7 @@ export default function ProductsOverview() {
             <p className="text-[11px] text-muted-foreground mb-3">
               Vendas confirmadas dos últimos 7 dias
             </p>
-            <div className="h-36">
+            <div className="flex-1 min-h-[144px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={engagementData} margin={{ top: 5, right: 8, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" vertical={false} />
@@ -396,7 +396,7 @@ export default function ProductsOverview() {
             </div>
             <Button
               variant="outline"
-              className="w-full rounded-full mt-3 h-9 text-xs"
+              className="w-full rounded-full mt-4 h-9 text-xs"
               onClick={() => navigate('/admin/relatorios')}
             >
               Ver detalhes <ArrowUpRight className="w-3 h-3 ml-1" />
@@ -406,8 +406,8 @@ export default function ProductsOverview() {
       </div>
 
       {/* Tabela All Products + Top Product */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2 border-border/40 shadow-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+        <Card className="lg:col-span-2 border-border/40 shadow-sm flex flex-col h-full">
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-bold text-foreground">Todos os Produtos</h2>
@@ -491,7 +491,7 @@ export default function ProductsOverview() {
         </Card>
 
         {/* Top Product */}
-        <Card className="border-border/40 shadow-sm overflow-hidden">
+        <Card className="border-border/40 shadow-sm overflow-hidden flex flex-col h-full">
           <CardContent className="p-0">
             <div className="p-4 sm:p-5 pb-3 flex items-center justify-between">
               <h2 className="text-base font-bold text-foreground flex items-center gap-2">
@@ -585,13 +585,13 @@ export default function ProductsOverview() {
 
 function KpiCard({ label, value, icon: Icon }: { label: string; value: string; icon: any }) {
   return (
-    <Card className="border-border/40 shadow-sm">
-      <CardContent className="p-5 flex flex-col items-center justify-center text-center min-h-[140px]">
-        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+    <Card className="border-border/40 shadow-sm h-full">
+      <CardContent className="p-4 sm:p-5 flex flex-col items-center justify-center text-center h-full min-h-[120px] sm:min-h-[140px]">
+        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-primary/10 flex items-center justify-center mb-2">
           <Icon className="w-4 h-4 text-primary" />
         </div>
-        <p className="text-xs text-muted-foreground mb-1">{label}</p>
-        <p className="text-3xl sm:text-4xl font-black text-foreground tracking-tight">{value}</p>
+        <p className="text-[11px] sm:text-xs text-muted-foreground mb-1 leading-tight">{label}</p>
+        <p className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground tracking-tight">{value}</p>
       </CardContent>
     </Card>
   );
