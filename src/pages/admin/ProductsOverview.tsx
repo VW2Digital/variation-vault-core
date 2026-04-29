@@ -491,7 +491,7 @@ export default function ProductsOverview() {
         </Card>
 
         {/* Top Product */}
-        <Card className="border-border/40 shadow-sm overflow-hidden">
+        <Card className="border-border/40 shadow-sm overflow-hidden flex flex-col h-full">
           <CardContent className="p-0">
             <div className="p-4 sm:p-5 pb-3 flex items-center justify-between">
               <h2 className="text-base font-bold text-foreground flex items-center gap-2">
