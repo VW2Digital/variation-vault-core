@@ -196,12 +196,12 @@ const SortableProductCard = ({ product, navigate, onDelete, onDuplicate, onToggl
         </DropdownMenu>
       </div>
 
-      {/* Caixa dourada com imagem */}
+      {/* Imagem do produto */}
       <div
-        className="mx-3 mt-2 rounded-xl bg-gradient-to-br from-primary/15 via-primary/5 to-primary/20 p-3 cursor-pointer relative"
+        className="mx-3 mt-2 cursor-pointer relative"
         onClick={() => navigate(`/admin/produtos/${product.id}`)}
       >
-        <div className="aspect-[4/3] rounded-lg overflow-hidden bg-card flex items-center justify-center">
+        <div className="aspect-[4/3] rounded-xl overflow-hidden bg-muted/30 flex items-center justify-center">
           {img ? (
             <img
               src={img}
@@ -214,7 +214,7 @@ const SortableProductCard = ({ product, navigate, onDelete, onDuplicate, onToggl
           )}
         </div>
         {minPrice > 0 && (
-          <div className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-card/90 backdrop-blur text-[11px] font-bold text-foreground shadow-sm">
+          <div className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-card/95 backdrop-blur text-[11px] font-bold text-foreground shadow-sm border border-border/40">
             <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
             <span className="text-muted-foreground">|</span>
             R$ {minPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
