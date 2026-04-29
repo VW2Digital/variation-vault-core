@@ -317,7 +317,7 @@ export default function ProductsOverview() {
       {/* Linha 2: Top Categorias + Engajamento */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Top Categorias (donut) */}
-        <Card className="border-border/40 shadow-sm">
+        <Card className="border-border/40 shadow-sm flex flex-col">
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-bold text-foreground">Top Categorias</h2>
