@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import iconSuporte from '@/assets/icon-suporte-3d.png';
 
 const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   open: { label: 'Aberto', variant: 'default' },
@@ -206,7 +207,7 @@ const AdminSupportPage = () => {
       <AdminPageHeader
         title="Suporte"
         description="Gerencie os tickets de suporte dos clientes."
-        icon={MessageCircle}
+        iconImage={iconSuporte}
       />
 
       {loading ? (

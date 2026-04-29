@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import WebhookUrlCard from '@/components/admin/WebhookUrlCard';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { Settings as SettingsIcon } from 'lucide-react';
+import iconConfiguracoes from '@/assets/icon-configuracoes-3d.png';
 import {
   Select,
   SelectContent,
@@ -365,7 +366,7 @@ const SettingsPage = () => {
       <AdminPageHeader
         title="Configurações"
         description="Integrações, gateways de pagamento, frete, e-mails e ajustes da loja."
-        icon={SettingsIcon}
+        iconImage={iconConfiguracoes}
       />
 
       <Card className="border-border/50">

@@ -11,6 +11,7 @@ import { Plus, Trash2, Megaphone, Image, Monitor, Tablet, Smartphone, GripVertic
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import iconBanners from '@/assets/icon-banners-3d.png';
 
 // ── Slide Form types ──
 interface SlideForm {
@@ -221,7 +222,7 @@ const BannerList = () => {
       <AdminPageHeader
         title="Banners"
         description="Gerencie banners de texto e imagens exibidos no catálogo."
-        icon={Megaphone}
+        iconImage={iconBanners}
       />
 
       <Tabs defaultValue="text" className="w-full">

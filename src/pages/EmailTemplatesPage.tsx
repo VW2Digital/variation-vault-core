@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Save, Send, RotateCcw, Eye, Code2, Mail, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import iconTemplatesEmail from '@/assets/icon-templates-email-3d.png';
 
 type TemplateKey =
   | "order_created"
@@ -286,7 +287,7 @@ const EmailTemplatesPage = () => {
       <AdminPageHeader
         title="Templates de Email"
         description="Personalize o assunto e o HTML enviados pela função send-email. Deixe em branco para usar o padrão."
-        icon={Mail}
+        iconImage={iconTemplatesEmail}
         breadcrumbs={[
           { label: 'Configurações', to: '/admin/configuracoes' },
           { label: 'Comunicação', to: '/admin/configuracoes/comunicacao' },

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import iconUsuarioDetalhe from '@/assets/icon-usuario-detalhe-3d.png';
 import { useToast } from '@/hooks/use-toast';
 
 interface UserDetail {
@@ -77,7 +78,7 @@ const UserDetailPage = () => {
       <AdminPageHeader
         title={(user.full_name || '').trim() || (user.email || '').trim() || 'Usuário sem nome'}
         description={(user.email || '').trim() || 'E-mail não cadastrado'}
-        icon={UserIcon}
+        iconImage={iconUsuarioDetalhe}
         breadcrumbs={[
           { label: 'Usuários', to: '/admin/usuarios' },
           { label: (user.full_name || '').trim() || (user.email || '').trim() || 'Detalhe' },

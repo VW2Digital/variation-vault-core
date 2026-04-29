@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertTriangle, Search, Trash2, RefreshCw, ShoppingCart, Link2, Server, BarChart3, CreditCard, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import iconFalhasPagamento from '@/assets/icon-falhas-pagamento-3d.png';
 
 interface PaymentLog {
   id: string;
@@ -242,7 +243,7 @@ const PaymentLogsPage = () => {
       <AdminPageHeader
         title="Falhas de Pagamento"
         description={`${filtered.length} registro${filtered.length !== 1 ? 's' : ''} • diagnóstico técnico das transações recusadas`}
-        icon={AlertTriangle}
+        iconImage={iconFalhasPagamento}
         actions={
           <>
             <Button variant={showStats ? 'default' : 'outline'} size="sm" onClick={() => setShowStats(s => !s)}>

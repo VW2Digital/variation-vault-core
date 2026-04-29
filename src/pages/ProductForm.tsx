@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard, Sparkles, X, PackagePlus } from 'lucide-react';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import iconProdutoForm from '@/assets/icon-produto-form-3d.png';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
@@ -257,7 +258,7 @@ const ProductForm = () => {
             ? 'Atualize informações, variações, mídias e regras de venda.'
             : 'Cadastre um novo produto com variações, preços e estoque.'
         }
-        icon={PackagePlus}
+        iconImage={iconProdutoForm}
         breadcrumbs={[
           { label: 'Produtos', to: '/admin/produtos' },
           { label: isEditing ? ((name || '').trim() || 'Editar') : 'Novo Produto' },
