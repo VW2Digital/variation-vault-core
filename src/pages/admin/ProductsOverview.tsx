@@ -585,13 +585,13 @@ export default function ProductsOverview() {
 
 function KpiCard({ label, value, icon: Icon }: { label: string; value: string; icon: any }) {
   return (
-    <Card className="border-border/40 shadow-sm">
-      <CardContent className="p-5 flex flex-col items-center justify-center text-center min-h-[140px]">
-        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+    <Card className="border-border/40 shadow-sm h-full">
+      <CardContent className="p-4 sm:p-5 flex flex-col items-center justify-center text-center h-full min-h-[120px] sm:min-h-[140px]">
+        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-primary/10 flex items-center justify-center mb-2">
           <Icon className="w-4 h-4 text-primary" />
         </div>
-        <p className="text-xs text-muted-foreground mb-1">{label}</p>
-        <p className="text-3xl sm:text-4xl font-black text-foreground tracking-tight">{value}</p>
+        <p className="text-[11px] sm:text-xs text-muted-foreground mb-1 leading-tight">{label}</p>
+        <p className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground tracking-tight">{value}</p>
       </CardContent>
     </Card>
   );
