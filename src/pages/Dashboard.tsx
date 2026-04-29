@@ -305,9 +305,9 @@ const Dashboard = () => {
               sessionStorage.setItem('dismiss_labels_alert', '1');
               setDismissedLabelsAlert(true);
             }}
-            className="absolute top-1/2 -translate-y-1/2 right-3 inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 border border-amber-500/60 text-amber-900 hover:bg-amber-200 hover:text-amber-950 dark:bg-amber-900/40 dark:text-amber-100 dark:hover:bg-amber-900/60 transition-colors shadow-sm"
+            className="absolute top-1/2 -translate-y-1/2 right-3 inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-600 hover:bg-amber-700 transition-colors shadow-md ring-2 ring-amber-200"
           >
-            <X className="!w-4 !h-4 !text-amber-900 dark:!text-amber-100" strokeWidth={2.5} />
+            <X className="w-4 h-4 text-white" strokeWidth={3} />
           </button>
         </Alert>
       )}
