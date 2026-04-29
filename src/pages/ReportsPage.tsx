@@ -181,21 +181,7 @@ const ReportsPage = () => {
       .map(([key, count]) => ({ label: formatLabel(key, grouping), value: count > 0 ? (sumMap.get(key) || 0) / count : 0 }));
   }, [filtered, grouping, startDate, endDate]);
 
-  // Orders by status (donut)
-  const ordersByStatus = useMemo(() => {
-    const map = new Map<string, number>();
-    filtered.forEach(o => {
-      let label = 'Outro';
-      if (CONFIRMED.includes(o.status)) label = 'Confirmado';
-      else if (o.status === 'PENDING') label = 'Pendente';
-      else if (FAILED.includes(o.status)) label = 'Cancelado';
-      else if (o.status === 'REFUNDED') label = 'Reembolsado';
-      map.set(label, (map.get(label) || 0) + 1);
-    });
-    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
-  }, [filtered]);
-
-  // Payment status (donut)
+  // Payment status (donut) — engloba status de pedido (Pago/Pendente/Falhou/Reembolsado)
   const paymentStatus = useMemo(() => {
     const map = new Map<string, number>();
     filtered.forEach(o => {
@@ -203,6 +189,7 @@ const ReportsPage = () => {
       if (CONFIRMED.includes(o.status)) label = 'Pago';
       else if (o.status === 'PENDING') label = 'Pendente';
       else if (FAILED.includes(o.status)) label = 'Falhou';
+      else if (o.status === 'REFUNDED') label = 'Reembolsado';
       map.set(label, (map.get(label) || 0) + 1);
     });
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
@@ -263,7 +250,6 @@ const ReportsPage = () => {
     { label: 'Receita', value: formatCurrency(metrics.revenue), change: pctChange(metrics.revenue, prevMetrics.revenue) },
     { label: 'Pedidos', value: String(metrics.orders), change: pctChange(metrics.orders, prevMetrics.orders) },
     { label: 'Ticket Médio', value: formatCurrency(metrics.avgTicket), change: pctChange(metrics.avgTicket, prevMetrics.avgTicket) },
-    { label: 'Frete Total', value: formatCurrency(metrics.shippingTotal), change: pctChange(metrics.shippingTotal, prevMetrics.shippingTotal) },
     { label: 'Descontos', value: formatCurrency(metrics.discountTotal), change: pctChange(metrics.discountTotal, prevMetrics.discountTotal) },
     { label: 'Conversão', value: `${metrics.conversion.toFixed(1)}%`, change: pctChange(metrics.conversion, prevMetrics.conversion) },
   ];
@@ -354,7 +340,7 @@ const ReportsPage = () => {
       </Card>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {kpis.map((kpi) => (
           <Card key={kpi.label} className="border-border/40 shadow-sm">
             <CardContent className="p-4">
@@ -466,10 +452,9 @@ const ReportsPage = () => {
         </Card>
       </div>
 
-      {/* Donuts: Status, Pagamento, Método */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      {/* Donuts: Status de Pagamento e Receita por Método */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {[
-          { title: 'Pedidos por Status', data: ordersByStatus },
           { title: 'Status de Pagamento', data: paymentStatus },
           { title: 'Receita por Método', data: revenueByMethod },
         ].map((chart) => (
