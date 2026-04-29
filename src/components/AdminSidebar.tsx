@@ -1,8 +1,9 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, LogOut, LayoutDashboard, Video, Settings, ShoppingBag, Users, MessageCircle, Star, AlertTriangle, Mail, LinkIcon, Ticket, FileBarChart, ChevronDown, Activity, Send, Wallet, Sparkles } from 'lucide-react';
+import { Package, LogOut, LayoutDashboard, Video, Settings, ShoppingBag, Users, MessageCircle, Star, AlertTriangle, Mail, LinkIcon, Ticket, FileBarChart, ChevronDown, Activity, Send, Wallet } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
+import logoImg from '@/assets/liberty-pharma-logo.png';
 import {
   Sidebar,
   SidebarContent,
@@ -108,8 +109,8 @@ export function AdminSidebar() {
       {!isMobile && !collapsed && (
         <div className="px-4 pt-4 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent shadow-md shadow-primary/30">
-              <Sparkles className="h-4 w-4 text-primary-foreground" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-accent/40 ring-1 ring-primary/20 overflow-hidden">
+              <img src={logoImg} alt="Liberty Pharma" className="h-7 w-7 object-contain" />
             </div>
             <div className="leading-tight">
               <p className="text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/50">
