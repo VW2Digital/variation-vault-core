@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ShieldCheck, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import logoImg from '@/assets/liberty-pharma-logo.png';
+import logoImg from '@/assets/liberty-pharma-icon.png';
 
 const Login = () => {
   const [email, setEmail] = useState('');
