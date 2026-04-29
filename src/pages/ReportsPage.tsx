@@ -218,11 +218,12 @@ const ReportsPage = () => {
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
   }, [filtered]);
 
-  // Top 10 products
+  // Top 10 products (agrega por nome normalizado para evitar duplicatas)
   const topProducts = useMemo(() => {
     const map = new Map<string, number>();
     filtered.filter(o => CONFIRMED.includes(o.status)).forEach(o => {
-      map.set(o.product_name, (map.get(o.product_name) || 0) + Number(o.total_value || 0));
+      const name = (o.product_name || 'Sem nome').trim().replace(/\s+/g, ' ');
+      map.set(name, (map.get(name) || 0) + Number(o.total_value || 0));
     });
     return Array.from(map.entries())
       .map(([name, value]) => ({ name, value }))
@@ -500,14 +501,32 @@ const ReportsPage = () => {
           {topProducts.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-8">Nenhuma venda no período</p>
           ) : (
-            <div className="h-64">
+            <div style={{ height: Math.max(280, topProducts.length * 40) }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topProducts} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--foreground))' }} tickLine={false} axisLine={false} width={100} />
-                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))' }} formatter={(v: number) => [formatCurrency(v), 'Receita']} />
-                  <Bar dataKey="value" fill="hsl(38 92% 50%)" radius={[0, 4, 4, 0]} barSize={20} />
+                <BarChart data={topProducts} layout="vertical" margin={{ top: 8, right: 24, left: 8, bottom: 8 }} barCategoryGap="25%">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.4} horizontal={false} />
+                  <XAxis
+                    type="number"
+                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={170}
+                    interval={0}
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))' }}
+                    formatter={(v: number) => [formatCurrency(v), 'Receita']}
+                  />
+                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 6, 6, 0]} barSize={22} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
