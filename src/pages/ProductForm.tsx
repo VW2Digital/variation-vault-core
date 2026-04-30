@@ -247,7 +247,7 @@ const ProductForm = () => {
       if (!isEditing && hasDigital && savedProduct?.id) {
         // Redireciona para edição para que o admin possa anexar os arquivos digitais
         toast({ title: 'Produto criado! Agora envie os arquivos digitais.' });
-        navigate(`/admin/produtos/${savedProduct.id}/editar`);
+        navigate(`/admin/produtos/${savedProduct.id}`);
       } else {
         navigate('/admin/produtos');
       }
