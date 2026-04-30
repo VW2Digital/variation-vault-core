@@ -801,15 +801,17 @@ const CustomerDashboard = () => {
                     })}
                   </div>
                 )}
-              </TabsContent>
+              </div>
+              )}
 
               {/* Addresses Tab */}
-              <TabsContent value="addresses">
+              {activeTab === 'addresses' && (
                 <AddressManager />
-              </TabsContent>
+              )}
 
               {/* Profile Tab */}
-              <TabsContent value="profile" className="space-y-4">
+              {activeTab === 'profile' && (
+              <div className="space-y-4">
                 <Card className="border-border/50">
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
@@ -940,10 +942,12 @@ const CustomerDashboard = () => {
                     </CardContent>
                   </Card>
                 )}
-              </TabsContent>
+              </div>
+              )}
 
               {/* Reviews Tab */}
-              <TabsContent value="reviews" className="space-y-4">
+              {activeTab === 'reviews' && (
+              <div className="space-y-4">
                 <Card className="border-border/50">
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
@@ -1049,14 +1053,15 @@ const CustomerDashboard = () => {
                     )}
                   </CardContent>
                 </Card>
-              </TabsContent>
+              </div>
+              )}
 
               {/* Help Tab */}
-              <TabsContent value="help">
-                {user && <SupportChat userId={user.id} />}
-              </TabsContent>
-            </Tabs>
-          </>
+              {activeTab === 'help' && user && (
+                <SupportChat userId={user.id} />
+              )}
+            </section>
+          </div>
         )}
       </main>
       <Footer />
