@@ -8,10 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard, Sparkles, X, PackagePlus } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard, Sparkles, X, PackagePlus, FileUp, FileText, Download } from 'lucide-react';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import iconProdutoForm from '@/assets/icon-produto-form-3d.png';
 import { Checkbox } from '@/components/ui/checkbox';
+import DigitalFilesManager from '@/components/admin/DigitalFilesManager';
 import {
   Select,
   SelectContent,
@@ -39,6 +40,7 @@ interface Variation {
   images: string[];
   stock_quantity: number;
   wholesale_prices: WholesaleTier[];
+  is_digital: boolean;
 }
 
 const emptyVariation = (): Variation => ({
@@ -52,6 +54,7 @@ const emptyVariation = (): Variation => ({
   images: [],
   stock_quantity: 0,
   wholesale_prices: [],
+  is_digital: false,
 });
 
 const ProductForm = () => {
@@ -146,6 +149,7 @@ const ProductForm = () => {
                 images: v.images || [],
                 stock_quantity: Number(v.stock_quantity || 0),
                 wholesale_prices: wholesaleMap[v.id] || [],
+                is_digital: !!v.is_digital,
               }))
             : [emptyVariation()]
         );
@@ -558,6 +562,10 @@ const ProductForm = () => {
                     <Switch checked={v.is_offer} onCheckedChange={(val) => updateVariation(i, 'is_offer', val)} />
                     <Label className="text-xs">Oferta</Label>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={v.is_digital} onCheckedChange={(val) => updateVariation(i, 'is_digital', val)} />
+                    <Label className="text-xs">Produto digital</Label>
+                  </div>
                   {variations.length > 1 && (
                     <Button type="button" variant="ghost" size="icon" onClick={() => setVariations((p) => p.filter((_, j) => j !== i))} className="text-destructive h-8 w-8">
                       <Trash2 className="h-4 w-4" />
@@ -683,6 +691,18 @@ const ProductForm = () => {
                     </label>
                   </div>
                 </div>
+
+                {v.is_digital && (
+                  v.id ? (
+                    <DigitalFilesManager variationId={v.id} />
+                  ) : (
+                    <div className="p-3 rounded-md border border-dashed border-primary/40 bg-primary/5">
+                      <p className="text-[11px] text-muted-foreground">
+                        Salve o produto primeiro para anexar arquivos digitais a esta variação.
+                      </p>
+                    </div>
+                  )
+                )}
               </div>
             ))}
           </CardContent>

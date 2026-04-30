@@ -66,7 +66,7 @@ export const createProduct = async (product: {
   max_installments?: number;
   installments_interest?: string;
   category?: string;
-  variations?: { dosage: string; subtitle?: string; price: number; offer_price?: number; in_stock: boolean; is_offer: boolean; image_url?: string; images?: string[]; stock_quantity?: number }[];
+  variations?: { dosage: string; subtitle?: string; price: number; offer_price?: number; in_stock: boolean; is_offer: boolean; image_url?: string; images?: string[]; stock_quantity?: number; is_digital?: boolean }[];
 }) => {
   const user = await getCurrentUser();
   if (!user) throw new Error('Not authenticated');
@@ -83,7 +83,7 @@ export const createProduct = async (product: {
   if (variations && variations.length > 0) {
     const { error: vError } = await supabase
       .from('product_variations')
-      .insert(variations.map((v) => ({ dosage: v.dosage, subtitle: v.subtitle || '', price: v.price, offer_price: v.offer_price || 0, in_stock: v.in_stock, is_offer: v.is_offer, image_url: v.image_url || '', images: v.images || [], stock_quantity: v.stock_quantity || 0, product_id: data.id } as any)));
+      .insert(variations.map((v) => ({ dosage: v.dosage, subtitle: v.subtitle || '', price: v.price, offer_price: v.offer_price || 0, in_stock: v.in_stock, is_offer: v.is_offer, image_url: v.image_url || '', images: v.images || [], stock_quantity: v.stock_quantity || 0, is_digital: v.is_digital || false, product_id: data.id } as any)));
     if (vError) throw vError;
   }
 
@@ -109,7 +109,7 @@ export const updateProduct = async (
     max_installments?: number;
     installments_interest?: string;
     category?: string;
-    variations?: { id?: string; dosage: string; subtitle?: string; price: number; offer_price?: number; in_stock: boolean; is_offer: boolean; image_url?: string; images?: string[]; stock_quantity?: number }[];
+    variations?: { id?: string; dosage: string; subtitle?: string; price: number; offer_price?: number; in_stock: boolean; is_offer: boolean; image_url?: string; images?: string[]; stock_quantity?: number; is_digital?: boolean }[];
   }
 ) => {
   const { variations, ...productData } = product;
@@ -145,6 +145,7 @@ export const updateProduct = async (
           image_url: v.image_url || '',
           images: v.images || [],
           stock_quantity: v.stock_quantity || 0,
+          is_digital: v.is_digital || false,
           product_id: id,
         };
         if (v.id) row.id = v.id;
