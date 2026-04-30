@@ -17,16 +17,19 @@ const Footer = () => {
   const [footerText, setFooterText] = useState('');
   const [footerEmail, setFooterEmail] = useState('');
   const [footerPhone, setFooterPhone] = useState('');
+  const [footerMission, setFooterMission] = useState('Nossa missão é democratizar o acesso a insumos de última geração que auxiliam no controle metabólico, no manejo do diabetes tipo 2 e na perda de peso, oferecendo soluções avançadas com eficácia comprovada e qualidade farmacêutica para todos.');
 
   useEffect(() => {
     Promise.all([
       fetchSetting('footer_text'),
       fetchSetting('footer_email'),
       fetchSetting('footer_phone'),
-    ]).then(([text, email, phone]) => {
+      fetchSetting('footer_mission'),
+    ]).then(([text, email, phone, mission]) => {
       setFooterText(text || '');
       setFooterEmail(email || '');
       setFooterPhone(phone || '');
+      if (mission) setFooterMission(mission);
     });
   }, []);
 
@@ -40,9 +43,7 @@ const Footer = () => {
             <img src={logoImg} alt="Liberty Pharma" className="h-12 object-contain" />
             <div className="text-sm text-muted-foreground leading-relaxed space-y-2">
               {footerText && <p>{footerText}</p>}
-              <p>
-                Nossa missão é democratizar o acesso a insumos de última geração que auxiliam no controle metabólico, no manejo do diabetes tipo 2 e na perda de peso, oferecendo soluções avançadas com eficácia comprovada e qualidade farmacêutica para todos.
-              </p>
+              {footerMission && <p>{footerMission}</p>}
               {footerEmail && <p>E-mail: {footerEmail}</p>}
               {footerPhone && <p>Tel: {footerPhone}</p>}
             </div>
