@@ -41,6 +41,7 @@ interface Variation {
   stock_quantity: number;
   wholesale_prices: WholesaleTier[];
   is_digital: boolean;
+  pending_files?: File[];
 }
 
 const emptyVariation = (): Variation => ({
@@ -55,6 +56,7 @@ const emptyVariation = (): Variation => ({
   stock_quantity: 0,
   wholesale_prices: [],
   is_digital: false,
+  pending_files: [],
 });
 
 const ProductForm = () => {
@@ -78,6 +80,8 @@ const ProductForm = () => {
   const [maxInstallments, setMaxInstallments] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
   const [variations, setVariations] = useState<Variation[]>([emptyVariation()]);
+  // Tipo do produto inteiro: físico (com variações/dosagem) ou digital (e-book, curso etc.)
+  const [productType, setProductType] = useState<'physical' | 'digital'>('physical');
   const [category, setCategory] = useState('');
   const [saving, setSaving] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
@@ -150,9 +154,13 @@ const ProductForm = () => {
                 stock_quantity: Number(v.stock_quantity || 0),
                 wholesale_prices: wholesaleMap[v.id] || [],
                 is_digital: !!v.is_digital,
+                pending_files: [],
               }))
             : [emptyVariation()]
         );
+        // Detecta o tipo do produto pela primeira variação
+        const anyDigital = (p.product_variations || []).some((v: any) => !!v.is_digital);
+        setProductType(anyDigital ? 'digital' : 'physical');
       }).finally(() => setLoadingProduct(false));
 
       // Load existing upsells
