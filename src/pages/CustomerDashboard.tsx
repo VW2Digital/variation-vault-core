@@ -12,7 +12,7 @@ import {
   Loader2, Package, LogOut, Truck, Clock, CheckCircle2, XCircle,
   Copy, ExternalLink, ShoppingCart, User, Search, Filter,
   TrendingUp, CreditCard, MapPin, ChevronDown, RotateCw, Save, Phone, HelpCircle,
-  Star, MessageSquare, Mail, BellRing, LayoutDashboard,
+  Star, MessageSquare, Mail, BellRing, LayoutDashboard, Download,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +21,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AddressManager from '@/components/AddressManager';
 import SupportChat from '@/components/SupportChat';
+import CustomerDownloads from '@/components/CustomerDownloads';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const paymentStatusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: any; color: string; badgeClass?: string }> = {
@@ -379,6 +380,7 @@ const CustomerDashboard = () => {
                   {[
                     { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
                     { key: 'orders', label: 'Pedidos', icon: Package },
+                    { key: 'downloads', label: 'Downloads', icon: Download },
                     { key: 'addresses', label: 'Endereços', icon: MapPin },
                     { key: 'profile', label: 'Detalhes da Conta', icon: User },
                     { key: 'reviews', label: 'Avaliações', icon: Star },
@@ -1059,6 +1061,11 @@ const CustomerDashboard = () => {
               {/* Help Tab */}
               {activeTab === 'help' && user && (
                 <SupportChat userId={user.id} />
+              )}
+
+              {/* Downloads Tab */}
+              {activeTab === 'downloads' && user && (
+                <CustomerDownloads userId={user.id} />
               )}
             </section>
           </div>
