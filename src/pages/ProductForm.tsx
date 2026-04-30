@@ -12,6 +12,7 @@ import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard, Sparkles, X, PackagePlu
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import iconProdutoForm from '@/assets/icon-produto-form-3d.png';
 import { Checkbox } from '@/components/ui/checkbox';
+import DigitalFilesManager from '@/components/admin/DigitalFilesManager';
 import {
   Select,
   SelectContent,
@@ -690,6 +691,18 @@ const ProductForm = () => {
                     </label>
                   </div>
                 </div>
+
+                {v.is_digital && (
+                  v.id ? (
+                    <DigitalFilesManager variationId={v.id} />
+                  ) : (
+                    <div className="p-3 rounded-md border border-dashed border-primary/40 bg-primary/5">
+                      <p className="text-[11px] text-muted-foreground">
+                        Salve o produto primeiro para anexar arquivos digitais a esta variação.
+                      </p>
+                    </div>
+                  )
+                )}
               </div>
             ))}
           </CardContent>
