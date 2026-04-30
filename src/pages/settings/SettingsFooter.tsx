@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { fetchSetting, upsertSetting, getCurrentUser } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +16,7 @@ const SettingsFooter = () => {
   const [saving, setSaving] = useState(false);
 
   const [footerText, setFooterText] = useState('');
+  const [footerMission, setFooterMission] = useState('');
   const [footerPhone, setFooterPhone] = useState('');
   const [footerEmail, setFooterEmail] = useState('');
   const [instagramUrl, setInstagramUrl] = useState('');
@@ -23,12 +25,14 @@ const SettingsFooter = () => {
   useEffect(() => {
     Promise.all([
       fetchSetting('footer_text'),
+      fetchSetting('footer_mission'),
       fetchSetting('footer_phone'),
       fetchSetting('footer_email'),
       fetchSetting('instagram_url'),
       fetchSetting('facebook_url'),
-    ]).then(([text, phone, email, ig, fb]) => {
+    ]).then(([text, mission, phone, email, ig, fb]) => {
       setFooterText(text || '');
+      setFooterMission(mission || '');
       setFooterPhone(phone || '');
       setFooterEmail(email || '');
       setInstagramUrl(ig || '');
@@ -44,6 +48,7 @@ const SettingsFooter = () => {
       const uid = user.id;
       await Promise.all([
         upsertSetting('footer_text', footerText, uid),
+        upsertSetting('footer_mission', footerMission, uid),
         upsertSetting('footer_phone', footerPhone, uid),
         upsertSetting('footer_email', footerEmail, uid),
         upsertSetting('instagram_url', instagramUrl, uid),
@@ -67,6 +72,15 @@ const SettingsFooter = () => {
           <div className="space-y-2">
             <Label>Texto do rodapé</Label>
             <Input value={footerText} onChange={(e) => setFooterText(e.target.value)} placeholder="© 2024 Minha Loja. Todos os direitos reservados." />
+          </div>
+          <div className="space-y-2">
+            <Label>Texto da missão (exibido na primeira coluna do rodapé)</Label>
+            <Textarea
+              value={footerMission}
+              onChange={(e) => setFooterMission(e.target.value)}
+              placeholder="Nossa missão é democratizar o acesso..."
+              rows={5}
+            />
           </div>
           <div className="space-y-2">
             <Label>Telefone de contato</Label>
