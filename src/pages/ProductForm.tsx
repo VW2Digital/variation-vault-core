@@ -184,10 +184,14 @@ const ProductForm = () => {
         max_installments: maxInstallments,
         installments_interest: installmentsInterest,
         category,
-        variations: variations.filter((v) => v.dosage.trim() !== '').map(v => ({
-          ...v,
-          stock_quantity: v.stock_quantity,
-        })),
+        variations: variations
+          .filter((v) => v.dosage.trim() !== '' || v.is_digital)
+          .map(v => ({
+            ...v,
+            // Variações digitais não exigem dosagem; usamos um rótulo padrão.
+            dosage: v.dosage.trim() !== '' ? v.dosage : (v.is_digital ? 'Digital' : v.dosage),
+            stock_quantity: v.is_digital ? 9999 : v.stock_quantity,
+          })),
       };
 
       let savedProduct: any;
@@ -239,7 +243,14 @@ const ProductForm = () => {
         }
       }
 
-      navigate('/admin/produtos');
+      const hasDigital = variations.some((v) => v.is_digital);
+      if (!isEditing && hasDigital && savedProduct?.id) {
+        // Redireciona para edição para que o admin possa anexar os arquivos digitais
+        toast({ title: 'Produto criado! Agora envie os arquivos digitais.' });
+        navigate(`/admin/produtos/${savedProduct.id}`);
+      } else {
+        navigate('/admin/produtos');
+      }
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     } finally {
