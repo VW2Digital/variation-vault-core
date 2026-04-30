@@ -612,22 +612,28 @@ const ProductForm = () => {
 
         <Card className="border-border/50">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Variações / Dosagens</CardTitle>
-            <Button type="button" variant="outline" size="sm" onClick={() => setVariations((p) => [...p, emptyVariation()])}>
-              <Plus className="mr-1 h-4 w-4" /> Adicionar
-            </Button>
+            <CardTitle className="text-lg">
+              {productType === 'digital' ? 'Arquivos & Preço' : 'Variações / Dosagens'}
+            </CardTitle>
+            {productType === 'physical' && (
+              <Button type="button" variant="outline" size="sm" onClick={() => setVariations((p) => [...p, emptyVariation()])}>
+                <Plus className="mr-1 h-4 w-4" /> Adicionar
+              </Button>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
-            {variations.map((v, i) => (
+            {(productType === 'digital' ? variations.slice(0, 1) : variations).map((v, i) => (
               <div key={i} className="p-4 rounded-lg bg-muted/50 border border-border/30 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {productType === 'physical' && (
                   <div className="space-y-2">
                     <Label>Dosagem</Label>
                     <Input value={v.dosage} onChange={(e) => updateVariation(i, 'dosage', e.target.value)} placeholder="5mg" />
                   </div>
+                  )}
                   <div className="space-y-2 sm:col-span-2">
-                    <Label>Subtítulo da Variação</Label>
-                    <Input value={v.subtitle} onChange={(e) => updateVariation(i, 'subtitle', e.target.value)} placeholder="Ex: contém um total de 20mg, dividida em 4 doses de 15mg." />
+                    <Label>{productType === 'digital' ? 'Subtítulo' : 'Subtítulo da Variação'}</Label>
+                    <Input value={v.subtitle} onChange={(e) => updateVariation(i, 'subtitle', e.target.value)} placeholder={productType === 'digital' ? 'Ex: PDF com 80 páginas + bônus' : 'Ex: contém um total de 20mg, dividida em 4 doses de 15mg.'} />
                   </div>
                   <div className="space-y-2">
                     <Label>{v.is_offer ? 'Preço Original (R$)' : 'Preço (R$)'}</Label>
@@ -640,32 +646,33 @@ const ProductForm = () => {
                     </div>
                   )}
                 </div>
+                {productType === 'physical' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label>Qtd. em Estoque</Label>
                     <Input type="number" min={0} value={v.stock_quantity || ''} onChange={(e) => updateVariation(i, 'stock_quantity', Number(e.target.value))} placeholder="0" />
                   </div>
                 </div>
+                )}
                 <div className="flex items-center gap-4 flex-wrap">
+                  {productType === 'physical' && (
                   <div className="flex items-center gap-2">
                     <Switch checked={v.in_stock} onCheckedChange={(val) => updateVariation(i, 'in_stock', val)} />
                     <Label className="text-xs">Estoque</Label>
                   </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <Switch checked={v.is_offer} onCheckedChange={(val) => updateVariation(i, 'is_offer', val)} />
                     <Label className="text-xs">Oferta</Label>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Switch checked={v.is_digital} onCheckedChange={(val) => updateVariation(i, 'is_digital', val)} />
-                    <Label className="text-xs">Produto digital</Label>
-                  </div>
-                  {variations.length > 1 && (
+                  {productType === 'physical' && variations.length > 1 && (
                     <Button type="button" variant="ghost" size="icon" onClick={() => setVariations((p) => p.filter((_, j) => j !== i))} className="text-destructive h-8 w-8">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
                 {/* Wholesale Prices */}
+                {productType === 'physical' && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-semibold">Preços no Atacado</Label>
@@ -735,10 +742,11 @@ const ProductForm = () => {
                     <p className="text-[10px] text-muted-foreground">Nenhuma faixa de atacado. Clique em "+ Faixa" para adicionar.</p>
                   )}
                 </div>
+                )}
 
                 {/* Variation images */}
                 <div className="space-y-2">
-                  <Label className="text-xs">Imagens da Variação</Label>
+                  <Label className="text-xs">{productType === 'digital' ? 'Imagem de Capa' : 'Imagens da Variação'}</Label>
                   <div className="flex flex-wrap gap-2">
                     {v.images.map((img, imgIdx) => (
                       <div key={imgIdx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-border group">
