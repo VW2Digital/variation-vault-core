@@ -7,13 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Loader2, Package, LogOut, Truck, Clock, CheckCircle2, XCircle,
   Copy, ExternalLink, ShoppingCart, User, Search, Filter,
   TrendingUp, CreditCard, MapPin, ChevronDown, RotateCw, Save, Phone, HelpCircle,
-  Star, MessageSquare, Mail, BellRing,
+  Star, MessageSquare, Mail, BellRing, LayoutDashboard,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
@@ -361,8 +360,80 @@ const CustomerDashboard = () => {
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <>
-            {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6">
+            {/* Sidebar */}
+            <aside className="space-y-3">
+              <Card className="border-border/50">
+                <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                    <User className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="font-semibold text-sm text-foreground truncate max-w-full">{userName}</p>
+                  <Button variant="default" size="sm" onClick={handleLogout} className="w-full gap-1">
+                    <LogOut className="w-3.5 h-3.5" /> Sair
+                  </Button>
+                </CardContent>
+              </Card>
+              <Card className="border-border/50 overflow-hidden">
+                <nav className="flex flex-col">
+                  {[
+                    { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+                    { key: 'orders', label: 'Pedidos', icon: Package },
+                    { key: 'addresses', label: 'Endereços', icon: MapPin },
+                    { key: 'profile', label: 'Detalhes da Conta', icon: User },
+                    { key: 'reviews', label: 'Avaliações', icon: Star },
+                    { key: 'help', label: 'Ajuda', icon: HelpCircle },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    const active = activeTab === item.key;
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setActiveTab(item.key)}
+                        className={`flex items-center gap-2 px-4 py-2.5 text-sm text-left border-l-2 transition-colors ${
+                          active
+                            ? 'border-primary bg-primary/10 text-primary font-medium'
+                            : 'border-transparent text-foreground hover:bg-muted/50'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-left border-l-2 border-transparent text-foreground hover:bg-muted/50"
+                  >
+                    <LogOut className="w-4 h-4" /> Sair
+                  </button>
+                </nav>
+              </Card>
+            </aside>
+
+            {/* Content */}
+            <section className="space-y-4 min-w-0">
+              {activeTab === 'dashboard' && (
+                <Card className="border-border/50">
+                  <CardContent className="p-6 space-y-3">
+                    <h2 className="text-lg font-semibold text-foreground">
+                      Olá, {userName}!
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      A partir do painel da sua conta você pode visualizar seus{' '}
+                      <button onClick={() => setActiveTab('orders')} className="text-primary hover:underline font-medium">pedidos recentes</button>,
+                      gerenciar seus{' '}
+                      <button onClick={() => setActiveTab('addresses')} className="text-primary hover:underline font-medium">endereços de entrega e cobrança</button>,
+                      e{' '}
+                      <button onClick={() => setActiveTab('profile')} className="text-primary hover:underline font-medium">editar sua senha e detalhes da conta</button>.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+            {activeTab === 'dashboard' && (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <Card className="border-border/50">
                 <CardContent className="p-4">
@@ -419,29 +490,11 @@ const CustomerDashboard = () => {
                 </CardContent>
               </Card>
             </div>
-
-            {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-              <TabsList className="bg-muted/50 hidden md:inline-flex">
-                <TabsTrigger value="orders" className="flex items-center gap-1.5">
-                  <Package className="w-4 h-4" /> Pedidos
-                </TabsTrigger>
-                <TabsTrigger value="addresses" className="flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4" /> Endereços
-                </TabsTrigger>
-                <TabsTrigger value="profile" className="flex items-center gap-1.5">
-                  <User className="w-4 h-4" /> Perfil
-                </TabsTrigger>
-                <TabsTrigger value="reviews" className="flex items-center gap-1.5">
-                  <Star className="w-4 h-4" /> Avaliações
-                </TabsTrigger>
-                <TabsTrigger value="help" className="flex items-center gap-1.5">
-                  <HelpCircle className="w-4 h-4" /> Ajuda
-                </TabsTrigger>
-              </TabsList>
+            )}
 
               {/* Orders Tab */}
-              <TabsContent value="orders" className="space-y-4">
+              {activeTab === 'orders' && (
+              <div className="space-y-4">
                 {/* Filters */}
                 <div className="flex flex-col sm:flex-row gap-3">
                   <div className="relative flex-1">
@@ -748,15 +801,17 @@ const CustomerDashboard = () => {
                     })}
                   </div>
                 )}
-              </TabsContent>
+              </div>
+              )}
 
               {/* Addresses Tab */}
-              <TabsContent value="addresses">
+              {activeTab === 'addresses' && (
                 <AddressManager />
-              </TabsContent>
+              )}
 
               {/* Profile Tab */}
-              <TabsContent value="profile" className="space-y-4">
+              {activeTab === 'profile' && (
+              <div className="space-y-4">
                 <Card className="border-border/50">
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
@@ -887,10 +942,12 @@ const CustomerDashboard = () => {
                     </CardContent>
                   </Card>
                 )}
-              </TabsContent>
+              </div>
+              )}
 
               {/* Reviews Tab */}
-              <TabsContent value="reviews" className="space-y-4">
+              {activeTab === 'reviews' && (
+              <div className="space-y-4">
                 <Card className="border-border/50">
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
@@ -996,14 +1053,15 @@ const CustomerDashboard = () => {
                     )}
                   </CardContent>
                 </Card>
-              </TabsContent>
+              </div>
+              )}
 
               {/* Help Tab */}
-              <TabsContent value="help">
-                {user && <SupportChat userId={user.id} />}
-              </TabsContent>
-            </Tabs>
-          </>
+              {activeTab === 'help' && user && (
+                <SupportChat userId={user.id} />
+              )}
+            </section>
+          </div>
         )}
       </main>
       <Footer />
