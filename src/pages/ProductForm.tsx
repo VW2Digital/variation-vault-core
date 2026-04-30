@@ -439,6 +439,7 @@ const ProductForm = () => {
           </CardContent>
         </Card>
 
+        {productType === 'physical' && (
         <Card className="border-border/50">
           <CardHeader><CardTitle className="text-lg">Frete Grátis</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -467,6 +468,7 @@ const ProductForm = () => {
             )}
           </CardContent>
         </Card>
+        )}
 
         <Card className="border-border/50">
           <CardHeader>
