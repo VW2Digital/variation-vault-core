@@ -355,18 +355,6 @@ const CustomerDashboard = () => {
           </div>
         </div>
 
-        {(() => {
-          const navItems = [
-            { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-            { key: 'orders', label: 'Pedidos', icon: Package },
-            { key: 'addresses', label: 'Endereços', icon: MapPin },
-            { key: 'profile', label: 'Detalhes da Conta', icon: User },
-            { key: 'reviews', label: 'Avaliações', icon: Star },
-            { key: 'help', label: 'Ajuda', icon: HelpCircle },
-          ];
-          return null;
-        })()}
-
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -445,7 +433,6 @@ const CustomerDashboard = () => {
                 </Card>
               )}
 
-              <>
             {activeTab === 'dashboard' && (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <Card className="border-border/50">
