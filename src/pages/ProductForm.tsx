@@ -561,6 +561,10 @@ const ProductForm = () => {
                     <Switch checked={v.is_offer} onCheckedChange={(val) => updateVariation(i, 'is_offer', val)} />
                     <Label className="text-xs">Oferta</Label>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={v.is_digital} onCheckedChange={(val) => updateVariation(i, 'is_digital', val)} />
+                    <Label className="text-xs">Produto digital</Label>
+                  </div>
                   {variations.length > 1 && (
                     <Button type="button" variant="ghost" size="icon" onClick={() => setVariations((p) => p.filter((_, j) => j !== i))} className="text-destructive h-8 w-8">
                       <Trash2 className="h-4 w-4" />
