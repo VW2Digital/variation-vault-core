@@ -193,12 +193,15 @@ const ProductForm = () => {
         installments_interest: installmentsInterest,
         category,
         variations: variations
-          .filter((v) => v.dosage.trim() !== '' || v.is_digital)
+          .filter((v) => v.dosage.trim() !== '' || productType === 'digital' || v.is_digital)
           .map(v => ({
             ...v,
+            is_digital: productType === 'digital' ? true : v.is_digital,
             // Variações digitais não exigem dosagem; usamos um rótulo padrão.
-            dosage: v.dosage.trim() !== '' ? v.dosage : (v.is_digital ? 'Digital' : v.dosage),
-            stock_quantity: v.is_digital ? 9999 : v.stock_quantity,
+            dosage: v.dosage.trim() !== '' ? v.dosage : (productType === 'digital' ? 'Digital' : v.dosage),
+            stock_quantity: productType === 'digital' ? 9999 : v.stock_quantity,
+            // pending_files não é coluna; remove antes de enviar
+            pending_files: undefined,
           })),
       };
 
@@ -238,6 +241,38 @@ const ProductForm = () => {
             } else {
               // No wholesale prices, clean up
               await supabase.from('wholesale_prices').delete().eq('variation_id', sv.id);
+            }
+          }
+
+          // Upload de arquivos digitais pendentes (capturados no formulário antes de salvar)
+          const { data: { session } } = await supabase.auth.getSession();
+          const userId = session?.user?.id;
+          for (const sv of savedVars) {
+            const matchedDosage = (productType === 'digital') ? (variations[0]?.dosage || 'Digital') : sv.dosage;
+            const matchingVar = variations.find(v =>
+              v.dosage === sv.dosage ||
+              (productType === 'digital' && (v.dosage === '' || v.dosage === 'Digital'))
+            );
+            const pending = matchingVar?.pending_files || [];
+            if (!pending.length || !userId) continue;
+            for (const file of pending) {
+              try {
+                const path = `${userId}/${sv.id}/${crypto.randomUUID()}-${file.name}`;
+                const { error: upErr } = await supabase.storage
+                  .from('digital-files')
+                  .upload(path, file, { contentType: file.type || 'application/octet-stream' });
+                if (upErr) throw upErr;
+                await supabase.from('product_variation_files' as any).insert({
+                  variation_id: sv.id,
+                  file_path: path,
+                  file_name: file.name,
+                  file_size: file.size,
+                  mime_type: file.type || 'application/octet-stream',
+                  sort_order: 0,
+                } as any);
+              } catch (e: any) {
+                toast({ title: `Falha ao subir ${file.name}`, description: e.message, variant: 'destructive' });
+              }
             }
           }
         }
