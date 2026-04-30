@@ -809,6 +809,42 @@ export type Database = {
           },
         ]
       }
+      product_variation_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          mime_type: string
+          sort_order: number
+          updated_at: string
+          variation_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          sort_order?: number
+          updated_at?: string
+          variation_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          sort_order?: number
+          updated_at?: string
+          variation_id?: string
+        }
+        Relationships: []
+      }
       product_variations: {
         Row: {
           created_at: string
@@ -817,6 +853,7 @@ export type Database = {
           image_url: string | null
           images: string[] | null
           in_stock: boolean
+          is_digital: boolean
           is_offer: boolean
           offer_price: number | null
           price: number
@@ -831,6 +868,7 @@ export type Database = {
           image_url?: string | null
           images?: string[] | null
           in_stock?: boolean
+          is_digital?: boolean
           is_offer?: boolean
           offer_price?: number | null
           price?: number
@@ -845,6 +883,7 @@ export type Database = {
           image_url?: string | null
           images?: string[] | null
           in_stock?: boolean
+          is_digital?: boolean
           is_offer?: boolean
           offer_price?: number | null
           price?: number
