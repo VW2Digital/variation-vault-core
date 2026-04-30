@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard, Sparkles, X, PackagePlus } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard, Sparkles, X, PackagePlus, FileUp, FileText, Download } from 'lucide-react';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import iconProdutoForm from '@/assets/icon-produto-form-3d.png';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -39,6 +39,7 @@ interface Variation {
   images: string[];
   stock_quantity: number;
   wholesale_prices: WholesaleTier[];
+  is_digital: boolean;
 }
 
 const emptyVariation = (): Variation => ({
@@ -52,6 +53,7 @@ const emptyVariation = (): Variation => ({
   images: [],
   stock_quantity: 0,
   wholesale_prices: [],
+  is_digital: false,
 });
 
 const ProductForm = () => {
