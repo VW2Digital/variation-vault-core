@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard, Sparkles, X, PackagePlus, FileUp, FileText, Download } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard, Sparkles, X, PackagePlus, FileUp, FileText, Download, Package, FileDown } from 'lucide-react';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import iconProdutoForm from '@/assets/icon-produto-form-3d.png';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -332,6 +332,43 @@ const ProductForm = () => {
         <Card className="border-border/50">
           <CardHeader><CardTitle className="text-lg">Informações Básicas</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+            {/* Tipo de produto: físico ou digital */}
+            <div className="space-y-2">
+              <Label>Tipo de Produto</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setProductType('physical')}
+                  className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
+                    productType === 'physical'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border/40 hover:border-border'
+                  }`}
+                >
+                  <Package className={`w-5 h-5 ${productType === 'physical' ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <div>
+                    <p className="text-sm font-medium">Produto Físico</p>
+                    <p className="text-[11px] text-muted-foreground">Com estoque, frete e dosagens.</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProductType('digital')}
+                  className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
+                    productType === 'digital'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border/40 hover:border-border'
+                  }`}
+                >
+                  <FileDown className={`w-5 h-5 ${productType === 'digital' ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <div>
+                    <p className="text-sm font-medium">Produto Digital</p>
+                    <p className="text-[11px] text-muted-foreground">E-book, curso, arquivo para download.</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Nome do Produto</Label>
