@@ -148,6 +148,7 @@ const ProductForm = () => {
                 images: v.images || [],
                 stock_quantity: Number(v.stock_quantity || 0),
                 wholesale_prices: wholesaleMap[v.id] || [],
+                is_digital: !!v.is_digital,
               }))
             : [emptyVariation()]
         );
