@@ -215,18 +215,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const addToCart = async (productId: string, variationId: string, quantity = 1) => {
     try {
-      // Garantir quantidade mínima de atacado: se a variação tiver tier configurado,
-      // não permitimos adicionar abaixo do mínimo.
-      const { data: wpRows } = await supabase
-        .from('wholesale_prices')
-        .select('min_quantity')
-        .eq('variation_id', variationId)
-        .order('min_quantity', { ascending: true })
-        .limit(1);
-      const minWholesale = wpRows && wpRows.length > 0 ? wpRows[0].min_quantity : 0;
-      if (minWholesale > 0 && quantity < minWholesale) {
-        quantity = minWholesale;
-      }
+      // Atacado é apenas um benefício opcional de desconto — não força mínimo.
+      // O preço efetivo é calculado em fetchCart via getEffectivePrice.
       if (!userId) {
         // Anonymous cart: persist to localStorage
         const anon = readAnonCart();
@@ -301,19 +291,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const updateQuantity = async (variationId: string, quantity: number) => {
     if (quantity < 1) return;
-    // Enforce wholesale minimum: clamp up to the lowest tier and warn the user
-    const item = items.find(i => i.variation_id === variationId);
-    let finalQuantity = quantity;
-    if (item && item.wholesale_prices.length > 0) {
-      const minQty = Math.min(...item.wholesale_prices.map(t => t.min_quantity));
-      if (quantity < minQty) {
-        finalQuantity = minQty;
-        toast({
-          title: 'Quantidade ajustada para o atacado',
-          description: `${item.product_name}${item.dosage ? ` (${item.dosage})` : ''} exige no mínimo ${minQty} unidades. Quantidade atualizada para ${minQty}.`,
-        });
-      }
-    }
+    // Atacado é benefício opcional: aceitamos qualquer quantidade ≥ 1.
+    const finalQuantity = quantity;
     try {
       if (!userId) {
         const anon = readAnonCart();
@@ -365,18 +344,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       .filter(u => u.quantity >= 1)
       .map(({ variationId, quantity }) => {
         const item = items.find(i => i.variation_id === variationId);
-        let finalQuantity = quantity;
-        if (item && item.wholesale_prices.length > 0) {
-          const minQty = Math.min(...item.wholesale_prices.map(t => t.min_quantity));
-          if (quantity < minQty) {
-            finalQuantity = minQty;
-            adjusted.push({
-              name: `${item.product_name}${item.dosage ? ` (${item.dosage})` : ''}`,
-              minQty,
-            });
-          }
-        }
-        return { variationId, quantity: finalQuantity, currentQty: item?.quantity ?? null };
+        // Atacado não força mínimo — apenas aplica desconto quando atingido.
+        return { variationId, quantity, currentQty: item?.quantity ?? null };
       })
       // Skip no-ops to reduce DB writes
       .filter(u => u.currentQty !== u.quantity);

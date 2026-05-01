@@ -211,9 +211,6 @@ const ProductCheckout = () => {
       .then(({ data }) => {
         const tiers = (data || []).map((w: any) => ({ min_quantity: w.min_quantity, price: Number(w.price) }));
         setWholesaleTiers(tiers);
-        if (tiers.length > 0) {
-          setQuantity(tiers[0].min_quantity);
-        }
       });
   }, [product, selectedVariation]);
 
@@ -452,7 +449,10 @@ const ProductCheckout = () => {
             {/* Quantity */}
             {(() => {
               const hasWholesale = wholesaleTiers.length > 0;
-              const minWholesaleQty = hasWholesale ? wholesaleTiers[0].min_quantity : 1;
+              // Atacado é apenas um benefício de desconto: o cliente pode comprar
+              // a partir de 1 unidade, e o desconto liga automaticamente quando
+              // atingir a quantidade do tier configurado.
+              const minWholesaleQty = 1;
               const basePrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : Number(variation?.price || 0);
               const effectiveUnit = getEffectivePrice(basePrice, quantity, wholesaleTiers);
               const total = effectiveUnit * quantity;
@@ -502,13 +502,13 @@ const ProductCheckout = () => {
 
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-foreground">
-                      Quantidade {hasWholesale ? `(Mínimo: ${minWholesaleQty})` : ''}
+                      Quantidade
                     </p>
                     <div className="flex items-center gap-0">
                       <button
-                        onClick={() => setQuantity((q) => Math.max(hasWholesale ? minWholesaleQty : 1, q - 1))}
+                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                         className="w-10 h-10 border border-border rounded-l-lg flex items-center justify-center hover:bg-muted transition-colors"
-                        disabled={quantity <= (hasWholesale ? minWholesaleQty : 1)}
+                        disabled={quantity <= 1}
                       >
                         <Minus className="w-4 h-4 text-foreground" />
                       </button>
