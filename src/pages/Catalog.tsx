@@ -404,7 +404,7 @@ const Catalog = () => {
                         />
                         {ab.variant === 'B' ? (
                           <>
-                            <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
+                            <div className="absolute top-2 left-2 z-20 flex flex-col gap-1 items-start">
                               {offer && offerPrice && price && (
                                 <Badge className="bg-destructive text-destructive-foreground text-[11px] sm:text-xs font-extrabold px-2 py-0.5 shadow-md shadow-destructive/30 rounded-md">
                                   -{Math.round(((price - offerPrice) / price) * 100)}% OFF
@@ -420,7 +420,7 @@ const Catalog = () => {
                                 <Badge variant="secondary" className="text-[10px]">{t('outOfStock')}</Badge>
                               )}
                             </div>
-                            <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+                            <div className="absolute top-2 right-2 z-20 flex flex-col gap-1 items-end">
                               {product.is_bestseller && (
                                 <Badge className="bg-warning text-white text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wide px-1.5 py-0.5 shadow-md rounded-md">
                                   Mais Vendido
@@ -430,7 +430,7 @@ const Catalog = () => {
                           </>
                         ) : (
                           <>
-                            <div className="absolute top-2 left-2 flex flex-col gap-1">
+                            <div className="absolute top-2 left-2 z-20 flex flex-col gap-1">
                               {offer && offerPrice && price && (
                                 <Badge className="bg-destructive text-destructive-foreground text-[10px] font-bold">
                                   -{Math.round(((price - offerPrice) / price) * 100)}%
@@ -440,7 +440,7 @@ const Catalog = () => {
                                 <Badge variant="secondary" className="text-[10px]">{t('outOfStock')}</Badge>
                               )}
                             </div>
-                            <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+                            <div className="absolute top-2 right-2 z-20 flex flex-col gap-1 items-end">
                               {product.is_bestseller && (
                                 <Badge className="bg-success text-white text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5">
                                   Mais Vendido
