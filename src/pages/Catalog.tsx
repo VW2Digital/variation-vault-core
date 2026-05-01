@@ -343,7 +343,9 @@ const Catalog = () => {
               })();
               const hasWholesale = variation ? (variation.id in wholesaleMap) : false;
               const wholesaleMinQty = variation ? wholesaleMap[variation.id] : undefined;
-              const displayName = variation?.dosage && !product.name.toLowerCase().includes(variation.dosage.toLowerCase())
+              const displayName = variation?.dosage
+                && !variation?.is_digital
+                && !product.name.toLowerCase().includes(variation.dosage.toLowerCase())
                 ? `${product.name} ${variation.dosage}`
                 : product.name;
 
@@ -444,9 +446,7 @@ const Catalog = () => {
                       {/* Content */}
                       <div className="p-3 pt-1.5 space-y-1 flex-1 flex flex-col">
                         <h3 className="font-bold text-foreground text-xs sm:text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
-                          {variation?.dosage && !product.name.toLowerCase().includes(variation.dosage.toLowerCase())
-                            ? `${product.name} ${variation.dosage}`
-                            : product.name}
+                          {displayName}
                         </h3>
 
                         {(variation?.subtitle || product.subtitle) && (
