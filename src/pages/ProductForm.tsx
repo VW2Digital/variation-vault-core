@@ -797,43 +797,49 @@ const ProductForm = () => {
                   v.id ? (
                     <DigitalFilesManager variationId={v.id} />
                   ) : (
-                    <div className="space-y-2 p-3 rounded-md border border-primary/30 bg-primary/5">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs font-semibold flex items-center gap-1.5">
-                          <Download className="w-3.5 h-3.5" /> Arquivos para Download
-                        </Label>
-                        <label>
-                          <Button type="button" size="sm" variant="outline" className="h-7 text-xs gap-1" asChild>
-                            <span className="cursor-pointer">
-                              <FileUp className="w-3 h-3" /> Selecionar arquivos
-                            </span>
-                          </Button>
-                          <input
-                            type="file"
-                            multiple
-                            className="hidden"
-                            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.jpg,.jpeg,.png,.webp"
-                            onChange={(e) => {
-                              const files = e.target.files;
-                              if (!files) return;
-                              const arr = Array.from(files).filter(f => {
-                                if (f.size > 50 * 1024 * 1024) {
-                                  toast({ title: `${f.name} excede 50MB`, variant: 'destructive' });
-                                  return false;
-                                }
-                                return true;
-                              });
-                              const current = v.pending_files || [];
-                              updateVariation(i, 'pending_files', [...current, ...arr]);
-                              e.target.value = '';
-                            }}
-                          />
-                        </label>
+                    <div className="space-y-3 p-4 rounded-lg border border-primary/30 bg-primary/5">
+                      <div className="flex items-center gap-2">
+                        <Download className="w-4 h-4 text-primary" />
+                        <Label className="text-sm font-semibold leading-none">Arquivos para Download</Label>
                       </div>
-                      {(v.pending_files?.length || 0) === 0 ? (
-                        <p className="text-[11px] text-muted-foreground">
-                          Nenhum arquivo selecionado. PDF, DOC, XLS, PPT, TXT, ZIP, JPG, PNG, WEBP (máx. 50MB cada). Os arquivos serão enviados ao salvar o produto.
+
+                      <label
+                        htmlFor={`digital-upload-${i}`}
+                        className="flex flex-col items-center justify-center gap-2 p-5 rounded-lg border-2 border-dashed border-primary/40 bg-background/60 hover:bg-primary/5 hover:border-primary/60 transition-colors cursor-pointer text-center"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <FileUp className="w-5 h-5 text-primary" />
+                        </div>
+                        <p className="text-sm font-medium text-foreground">Clique para selecionar arquivos</p>
+                        <p className="text-[11px] text-muted-foreground max-w-xs">
+                          PDF, DOC, XLS, PPT, TXT, ZIP, JPG, PNG, WEBP &middot; até 50MB cada.
+                          Os arquivos serão enviados ao salvar o produto.
                         </p>
+                        <input
+                          id={`digital-upload-${i}`}
+                          type="file"
+                          multiple
+                          className="hidden"
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.jpg,.jpeg,.png,.webp"
+                          onChange={(e) => {
+                            const files = e.target.files;
+                            if (!files) return;
+                            const arr = Array.from(files).filter(f => {
+                              if (f.size > 50 * 1024 * 1024) {
+                                toast({ title: `${f.name} excede 50MB`, variant: 'destructive' });
+                                return false;
+                              }
+                              return true;
+                            });
+                            const current = v.pending_files || [];
+                            updateVariation(i, 'pending_files', [...current, ...arr]);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+
+                      {(v.pending_files?.length || 0) === 0 ? (
+                        <p className="text-[11px] text-muted-foreground text-center">Nenhum arquivo selecionado.</p>
                       ) : (
                         <div className="space-y-1.5">
                           {(v.pending_files || []).map((f, fi) => (
