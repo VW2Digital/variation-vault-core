@@ -1,4 +1,4 @@
-import { useState, useCallback, MouseEvent } from 'react';
+import { useState, useCallback, useEffect, useRef, MouseEvent } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import productHeroImg from '@/assets/product-hero.png';
 
@@ -6,11 +6,14 @@ interface ProductCardImageCarouselProps {
   images: string[];
   alt: string;
   imgClassName?: string;
+  autoplayMs?: number;
 }
 
-export default function ProductCardImageCarousel({ images, alt, imgClassName = '' }: ProductCardImageCarouselProps) {
+export default function ProductCardImageCarousel({ images, alt, imgClassName = '', autoplayMs = 3500 }: ProductCardImageCarouselProps) {
   const list = images && images.length > 0 ? images : [productHeroImg];
   const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const interactedRef = useRef(false);
   const hasMultiple = list.length > 1;
 
   const stop = (e: MouseEvent) => {
@@ -20,21 +23,40 @@ export default function ProductCardImageCarousel({ images, alt, imgClassName = '
 
   const prev = useCallback((e: MouseEvent) => {
     stop(e);
+    interactedRef.current = true;
     setIndex((i) => (i - 1 + list.length) % list.length);
   }, [list.length]);
 
   const next = useCallback((e: MouseEvent) => {
     stop(e);
+    interactedRef.current = true;
     setIndex((i) => (i + 1) % list.length);
   }, [list.length]);
 
   const goTo = (e: MouseEvent, i: number) => {
     stop(e);
+    interactedRef.current = true;
     setIndex(i);
   };
 
+  useEffect(() => {
+    if (!hasMultiple || paused || autoplayMs <= 0) return;
+    const id = window.setInterval(() => {
+      if (interactedRef.current) {
+        interactedRef.current = false;
+        return;
+      }
+      setIndex((i) => (i + 1) % list.length);
+    }, autoplayMs);
+    return () => window.clearInterval(id);
+  }, [hasMultiple, paused, autoplayMs, list.length]);
+
   return (
-    <>
+    <div
+      className="contents"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
       <img
         src={list[index]}
         alt={alt}
@@ -42,10 +64,11 @@ export default function ProductCardImageCarousel({ images, alt, imgClassName = '
         decoding="async"
         width={1080}
         height={1450}
+        key={index}
         onError={(e) => {
           (e.currentTarget as HTMLImageElement).src = productHeroImg;
         }}
-        className={imgClassName}
+        className={`${imgClassName} animate-fade-in`}
       />
 
       {hasMultiple && (
@@ -82,6 +105,6 @@ export default function ProductCardImageCarousel({ images, alt, imgClassName = '
           </div>
         </>
       )}
-    </>
+    </div>
   );
 }
