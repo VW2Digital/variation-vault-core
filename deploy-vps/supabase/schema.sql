@@ -668,7 +668,8 @@ DO $$ DECLARE t text;
 BEGIN
   FOR t IN VALUES ('addresses'),('banner_slides'),('cart_items'),('contact_preferences'),
                   ('coupons'),('orders'),('payment_links'),('popups'),('products'),
-                  ('profiles'),('site_settings'),('support_tickets'),('bulk_email_templates')
+                  ('profiles'),('site_settings'),('support_tickets'),('bulk_email_templates'),
+                  ('product_variation_files')
   LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS update_%I_updated_at ON public.%I;', t, t);
     EXECUTE format('CREATE TRIGGER update_%I_updated_at BEFORE UPDATE ON public.%I
@@ -698,6 +699,18 @@ DROP TRIGGER IF EXISTS send_order_emails ON public.orders;
 CREATE TRIGGER send_order_emails
   AFTER INSERT OR UPDATE ON public.orders
   FOR EACH ROW EXECUTE FUNCTION public.trigger_send_order_emails();
+
+-- Liga pedido recém-criado a usuário existente pelo e-mail
+DROP TRIGGER IF EXISTS link_order_to_user_by_email_trg ON public.orders;
+CREATE TRIGGER link_order_to_user_by_email_trg
+  BEFORE INSERT ON public.orders
+  FOR EACH ROW EXECUTE FUNCTION public.link_order_to_user_by_email();
+
+-- Liga pedidos antigos a um novo usuário recém-cadastrado
+DROP TRIGGER IF EXISTS link_existing_orders_to_new_user_trg ON auth.users;
+CREATE TRIGGER link_existing_orders_to_new_user_trg
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.link_existing_orders_to_new_user();
 
 -- =============================================================================
 -- INDEXES
