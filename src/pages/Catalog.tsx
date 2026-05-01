@@ -578,7 +578,7 @@ const Catalog = () => {
                           onClick={async (e) => {
                             e.stopPropagation();
                             trackAbEvent(ab.variant, 'cta_click', product.id, variation.id, ab.enabled);
-                            const minQty = wholesaleMap[variation.id]?.min_quantity || 1;
+                            const minQty = wholesaleMinQty || 1;
                             addToCart(product.id, variation.id, minQty);
                           }}
                         >
