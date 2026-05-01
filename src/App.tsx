@@ -124,6 +124,7 @@ const App = () => (
             <Route path="links-pagamento" element={<PaymentLinksPage />} />
             <Route path="cupons" element={<CouponsPage />} />
             <Route path="relatorios" element={<ReportsPage />} />
+            <Route path="ab-test" element={<AbTestPage />} />
             <Route path="templates-email" element={<EmailTemplatesPage />} />
             <Route path="logs-email" element={<EmailLogsPage />} />
             <Route path="eventos-email" element={<EmailEventsPage />} />
