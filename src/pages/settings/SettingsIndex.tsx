@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Image, Palette, Type, Code, LayoutDashboard, CreditCard, Truck, MessageSquare, FileText, Settings, Plug, Tags, ShieldCheck, Database, Search, ChevronRight, X, BookOpen, GraduationCap } from 'lucide-react';
+import { Image, Palette, Type, Code, LayoutDashboard, CreditCard, Truck, MessageSquare, FileText, Settings, Plug, Tags, ShieldCheck, Database, Search, ChevronRight, X, BookOpen, GraduationCap, ListChecks } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import SiteUrlCard from '@/components/admin/SiteUrlCard';
@@ -57,6 +57,7 @@ const categories: { label: string; icon: React.ComponentType<{ className?: strin
     icon: Tags,
     items: [
       { title: 'Categorias de Produtos', description: 'Crie e gerencie categorias para organizar seus produtos', icon: Tags, path: 'categorias', statusKeys: ['product_categories'] },
+      { title: 'Detalhes do Produto', description: 'Personalize os rótulos da seção de detalhes (Princípio Ativo, Dosagem, etc.)', icon: ListChecks, path: 'detalhes-produto', statusKeys: ['product_label_active_ingredient', 'product_label_dosage', 'product_label_pharma_form', 'product_label_admin_route', 'product_label_frequency'] },
     ],
   },
   {

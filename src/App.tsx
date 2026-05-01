@@ -30,6 +30,7 @@ import SettingsFooter from "./pages/settings/SettingsFooter";
 import SettingsAdvanced from "./pages/settings/SettingsAdvanced";
 import SettingsAPI from "./pages/settings/SettingsAPI";
 import SettingsCategories from "./pages/settings/SettingsCategories";
+import SettingsProductDetails from "./pages/settings/SettingsProductDetails";
 import SettingsTrustBar from "./pages/settings/SettingsTrustBar";
 import SettingsBackup from "./pages/settings/SettingsBackup";
 import SettingsGuides from "./pages/settings/SettingsGuides";
@@ -145,6 +146,7 @@ const App = () => (
             <Route path="configuracoes/avancado" element={<SettingsAdvanced />} />
             <Route path="configuracoes/api" element={<SettingsAPI />} />
             <Route path="configuracoes/categorias" element={<SettingsCategories />} />
+            <Route path="configuracoes/detalhes-produto" element={<SettingsProductDetails />} />
             <Route path="configuracoes/trust-bar" element={<SettingsTrustBar />} />
             <Route path="configuracoes/backup" element={<SettingsBackup />} />
           </Route>
