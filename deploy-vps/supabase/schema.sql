@@ -442,7 +442,7 @@ ALTER TABLE public.product_variations ALTER COLUMN is_offer SET NOT NULL;
 ALTER TABLE public.product_variations ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
 ALTER TABLE public.product_variations ALTER COLUMN created_at SET NOT NULL;
 ALTER TABLE public.product_variations ADD COLUMN IF NOT EXISTS image_url text DEFAULT ''::text;
-ALTER TABLE public.product_variations ADD COLUMN IF NOT EXISTS images text[][] DEFAULT '{}'::text[];
+ALTER TABLE public.product_variations ADD COLUMN IF NOT EXISTS images text[] DEFAULT '{}'::text[];
 ALTER TABLE public.product_variations ADD COLUMN IF NOT EXISTS offer_price numeric DEFAULT 0;
 ALTER TABLE public.product_variations ADD COLUMN IF NOT EXISTS subtitle text DEFAULT ''::text;
 ALTER TABLE public.product_variations ADD COLUMN IF NOT EXISTS stock_quantity integer DEFAULT 0;
@@ -464,7 +464,7 @@ ALTER TABLE public.products ADD COLUMN IF NOT EXISTS active_ingredient text DEFA
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS pharma_form text DEFAULT ''::text;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS administration_route text DEFAULT ''::text;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS frequency text DEFAULT ''::text;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS images text[][] DEFAULT '{}'::text[];
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS images text[] DEFAULT '{}'::text[];
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
 ALTER TABLE public.products ALTER COLUMN created_at SET NOT NULL;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
@@ -657,7 +657,7 @@ ALTER TABLE public.wholesale_prices ALTER COLUMN price SET NOT NULL;
 ALTER TABLE public.wholesale_prices ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
 ALTER TABLE public.wholesale_prices ALTER COLUMN created_at SET NOT NULL;
 
--- 4) Primary Keys e Unique Constraints
+-- 4) Constraints (Primary Keys e Unique)
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='ab_card_events_pkey') THEN
@@ -700,18 +700,13 @@ DO $$ BEGIN
   END IF;
 END $$;
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='cart_items_user_id_variation_id_key') THEN
-    ALTER TABLE public.cart_items ADD CONSTRAINT cart_items_user_id_variation_id_key UNIQUE (user_id,variation_id);
-  END IF;
-END $$;
-DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='cart_items_pkey') THEN
     ALTER TABLE public.cart_items ADD CONSTRAINT cart_items_pkey PRIMARY KEY (id);
   END IF;
 END $$;
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='contact_preferences_user_id_key') THEN
-    ALTER TABLE public.contact_preferences ADD CONSTRAINT contact_preferences_user_id_key UNIQUE (user_id);
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='cart_items_user_id_variation_id_key') THEN
+    ALTER TABLE public.cart_items ADD CONSTRAINT cart_items_user_id_variation_id_key UNIQUE (user_id, variation_id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -720,8 +715,13 @@ DO $$ BEGIN
   END IF;
 END $$;
 DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='contact_preferences_user_id_key') THEN
+    ALTER TABLE public.contact_preferences ADD CONSTRAINT contact_preferences_user_id_key UNIQUE (user_id);
+  END IF;
+END $$;
+DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='coupon_products_coupon_id_product_id_key') THEN
-    ALTER TABLE public.coupon_products ADD CONSTRAINT coupon_products_coupon_id_product_id_key UNIQUE (coupon_id,product_id);
+    ALTER TABLE public.coupon_products ADD CONSTRAINT coupon_products_coupon_id_product_id_key UNIQUE (coupon_id, product_id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -750,13 +750,13 @@ DO $$ BEGIN
   END IF;
 END $$;
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='payment_links_slug_key') THEN
-    ALTER TABLE public.payment_links ADD CONSTRAINT payment_links_slug_key UNIQUE (slug);
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='payment_links_pkey') THEN
+    ALTER TABLE public.payment_links ADD CONSTRAINT payment_links_pkey PRIMARY KEY (id);
   END IF;
 END $$;
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='payment_links_pkey') THEN
-    ALTER TABLE public.payment_links ADD CONSTRAINT payment_links_pkey PRIMARY KEY (id);
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='payment_links_slug_key') THEN
+    ALTER TABLE public.payment_links ADD CONSTRAINT payment_links_slug_key UNIQUE (slug);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -770,13 +770,13 @@ DO $$ BEGIN
   END IF;
 END $$;
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='product_upsells_unique') THEN
-    ALTER TABLE public.product_upsells ADD CONSTRAINT product_upsells_unique UNIQUE (product_id,upsell_product_id);
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='product_upsells_pkey') THEN
+    ALTER TABLE public.product_upsells ADD CONSTRAINT product_upsells_pkey PRIMARY KEY (id);
   END IF;
 END $$;
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='product_upsells_pkey') THEN
-    ALTER TABLE public.product_upsells ADD CONSTRAINT product_upsells_pkey PRIMARY KEY (id);
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='product_upsells_unique') THEN
+    ALTER TABLE public.product_upsells ADD CONSTRAINT product_upsells_unique UNIQUE (product_id, upsell_product_id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -795,23 +795,23 @@ DO $$ BEGIN
   END IF;
 END $$;
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='profiles_user_id_key') THEN
-    ALTER TABLE public.profiles ADD CONSTRAINT profiles_user_id_key UNIQUE (user_id);
-  END IF;
-END $$;
-DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='profiles_pkey') THEN
     ALTER TABLE public.profiles ADD CONSTRAINT profiles_pkey PRIMARY KEY (id);
   END IF;
 END $$;
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='reviews_user_id_order_id_key') THEN
-    ALTER TABLE public.reviews ADD CONSTRAINT reviews_user_id_order_id_key UNIQUE (user_id,order_id);
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='profiles_user_id_key') THEN
+    ALTER TABLE public.profiles ADD CONSTRAINT profiles_user_id_key UNIQUE (user_id);
   END IF;
 END $$;
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='reviews_pkey') THEN
     ALTER TABLE public.reviews ADD CONSTRAINT reviews_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='reviews_user_id_order_id_key') THEN
+    ALTER TABLE public.reviews ADD CONSTRAINT reviews_user_id_order_id_key UNIQUE (user_id, order_id);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -845,13 +845,13 @@ DO $$ BEGIN
   END IF;
 END $$;
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='user_roles_user_id_role_key') THEN
-    ALTER TABLE public.user_roles ADD CONSTRAINT user_roles_user_id_role_key UNIQUE (user_id,role);
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='user_roles_pkey') THEN
+    ALTER TABLE public.user_roles ADD CONSTRAINT user_roles_pkey PRIMARY KEY (id);
   END IF;
 END $$;
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='user_roles_pkey') THEN
-    ALTER TABLE public.user_roles ADD CONSTRAINT user_roles_pkey PRIMARY KEY (id);
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='user_roles_user_id_role_key') THEN
+    ALTER TABLE public.user_roles ADD CONSTRAINT user_roles_user_id_role_key UNIQUE (user_id, role);
   END IF;
 END $$;
 DO $$ BEGIN
@@ -876,7 +876,6 @@ DO $$ BEGIN
 END $$;
 
 -- 5) Foreign Keys
-
 
 -- 6) Row Level Security
 
@@ -1303,8 +1302,59 @@ DROP POLICY IF EXISTS "Anyone can view active popups" ON public.popups;
 CREATE POLICY "Anyone can view active popups" ON public.popups AS PERMISSIVE FOR SELECT TO public USING (true);
 DROP POLICY IF EXISTS "Anyone can view upsells" ON public.product_upsells;
 CREATE POLICY "Anyone can view upsells" ON public.product_upsells AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "Owner can delete upsells" ON public.product_upsells;
+CREATE POLICY "Owner can delete upsells" ON public.product_upsells AS PERMISSIVE FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1
+   FROM products p
+  WHERE ((p.id = product_upsells.product_id) AND (p.user_id = auth.uid())))));
+DROP POLICY IF EXISTS "Owner can insert upsells" ON public.product_upsells;
+CREATE POLICY "Owner can insert upsells" ON public.product_upsells AS PERMISSIVE FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1
+   FROM products p
+  WHERE ((p.id = product_upsells.product_id) AND (p.user_id = auth.uid())))));
+DROP POLICY IF EXISTS "Owner can update upsells" ON public.product_upsells;
+CREATE POLICY "Owner can update upsells" ON public.product_upsells AS PERMISSIVE FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1
+   FROM products p
+  WHERE ((p.id = product_upsells.product_id) AND (p.user_id = auth.uid())))));
+DROP POLICY IF EXISTS "Customers can view files of their paid orders" ON public.product_variation_files;
+CREATE POLICY "Customers can view files of their paid orders" ON public.product_variation_files AS PERMISSIVE FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
+   FROM (product_variations pv
+     JOIN orders o ON ((upper(o.status) = ANY (ARRAY['PAID'::text, 'CONFIRMED'::text, 'RECEIVED'::text, 'RECEIVED_IN_CASH'::text]))))
+  WHERE ((pv.id = product_variation_files.variation_id) AND (o.customer_user_id = auth.uid()) AND (o.product_name ~~* (('%'::text || ( SELECT products.name
+           FROM products
+          WHERE (products.id = pv.product_id))) || '%'::text))))));
+DROP POLICY IF EXISTS "Owner can delete digital files" ON public.product_variation_files;
+CREATE POLICY "Owner can delete digital files" ON public.product_variation_files AS PERMISSIVE FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1
+   FROM (product_variations pv
+     JOIN products p ON ((p.id = pv.product_id)))
+  WHERE ((pv.id = product_variation_files.variation_id) AND (p.user_id = auth.uid())))));
+DROP POLICY IF EXISTS "Owner can insert digital files" ON public.product_variation_files;
+CREATE POLICY "Owner can insert digital files" ON public.product_variation_files AS PERMISSIVE FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1
+   FROM (product_variations pv
+     JOIN products p ON ((p.id = pv.product_id)))
+  WHERE ((pv.id = product_variation_files.variation_id) AND (p.user_id = auth.uid())))));
+DROP POLICY IF EXISTS "Owner can update digital files" ON public.product_variation_files;
+CREATE POLICY "Owner can update digital files" ON public.product_variation_files AS PERMISSIVE FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1
+   FROM (product_variations pv
+     JOIN products p ON ((p.id = pv.product_id)))
+  WHERE ((pv.id = product_variation_files.variation_id) AND (p.user_id = auth.uid())))));
+DROP POLICY IF EXISTS "Owner can view digital files" ON public.product_variation_files;
+CREATE POLICY "Owner can view digital files" ON public.product_variation_files AS PERMISSIVE FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
+   FROM (product_variations pv
+     JOIN products p ON ((p.id = pv.product_id)))
+  WHERE ((pv.id = product_variation_files.variation_id) AND (p.user_id = auth.uid())))));
 DROP POLICY IF EXISTS "Anyone can view variations" ON public.product_variations;
 CREATE POLICY "Anyone can view variations" ON public.product_variations AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "Owner can delete variations" ON public.product_variations;
+CREATE POLICY "Owner can delete variations" ON public.product_variations AS PERMISSIVE FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1
+   FROM products
+  WHERE ((products.id = product_variations.product_id) AND (products.user_id = auth.uid())))));
+DROP POLICY IF EXISTS "Owner can insert variations" ON public.product_variations;
+CREATE POLICY "Owner can insert variations" ON public.product_variations AS PERMISSIVE FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1
+   FROM products
+  WHERE ((products.id = product_variations.product_id) AND (products.user_id = auth.uid())))));
+DROP POLICY IF EXISTS "Owner can update variations" ON public.product_variations;
+CREATE POLICY "Owner can update variations" ON public.product_variations AS PERMISSIVE FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1
+   FROM products
+  WHERE ((products.id = product_variations.product_id) AND (products.user_id = auth.uid())))));
 DROP POLICY IF EXISTS "Authenticated users can delete their products" ON public.products;
 CREATE POLICY "Authenticated users can delete their products" ON public.products AS PERMISSIVE FOR DELETE TO authenticated USING ((auth.uid() = user_id));
 DROP POLICY IF EXISTS "Authenticated users can insert products" ON public.products;
@@ -1353,6 +1403,14 @@ DROP POLICY IF EXISTS "Admins can insert messages" ON public.support_messages;
 CREATE POLICY "Admins can insert messages" ON public.support_messages AS PERMISSIVE FOR INSERT TO authenticated WITH CHECK (((auth.uid() = sender_id) AND has_role(auth.uid(), 'admin'::app_role)));
 DROP POLICY IF EXISTS "Admins can view all messages" ON public.support_messages;
 CREATE POLICY "Admins can view all messages" ON public.support_messages AS PERMISSIVE FOR SELECT TO authenticated USING (has_role(auth.uid(), 'admin'::app_role));
+DROP POLICY IF EXISTS "Users can insert messages on own tickets" ON public.support_messages;
+CREATE POLICY "Users can insert messages on own tickets" ON public.support_messages AS PERMISSIVE FOR INSERT TO authenticated WITH CHECK (((auth.uid() = sender_id) AND (EXISTS ( SELECT 1
+   FROM support_tickets
+  WHERE ((support_tickets.id = support_messages.ticket_id) AND (support_tickets.user_id = auth.uid()))))));
+DROP POLICY IF EXISTS "Users can view own ticket messages" ON public.support_messages;
+CREATE POLICY "Users can view own ticket messages" ON public.support_messages AS PERMISSIVE FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
+   FROM support_tickets
+  WHERE ((support_tickets.id = support_messages.ticket_id) AND (support_tickets.user_id = auth.uid())))));
 DROP POLICY IF EXISTS "Admins can update any ticket" ON public.support_tickets;
 CREATE POLICY "Admins can update any ticket" ON public.support_tickets AS PERMISSIVE FOR UPDATE TO authenticated USING (has_role(auth.uid(), 'admin'::app_role));
 DROP POLICY IF EXISTS "Admins can view all tickets" ON public.support_tickets;
@@ -1391,49 +1449,41 @@ DROP POLICY IF EXISTS "Admins can view webhook retry queue" ON public.webhook_re
 CREATE POLICY "Admins can view webhook retry queue" ON public.webhook_retry_queue AS PERMISSIVE FOR SELECT TO authenticated USING (has_role(auth.uid(), 'admin'::app_role));
 DROP POLICY IF EXISTS "Anyone can view wholesale prices" ON public.wholesale_prices;
 CREATE POLICY "Anyone can view wholesale prices" ON public.wholesale_prices AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "Owner can delete wholesale prices" ON public.wholesale_prices;
+CREATE POLICY "Owner can delete wholesale prices" ON public.wholesale_prices AS PERMISSIVE FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1
+   FROM (product_variations pv
+     JOIN products p ON ((p.id = pv.product_id)))
+  WHERE ((pv.id = wholesale_prices.variation_id) AND (p.user_id = auth.uid())))));
+DROP POLICY IF EXISTS "Owner can insert wholesale prices" ON public.wholesale_prices;
+CREATE POLICY "Owner can insert wholesale prices" ON public.wholesale_prices AS PERMISSIVE FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1
+   FROM (product_variations pv
+     JOIN products p ON ((p.id = pv.product_id)))
+  WHERE ((pv.id = wholesale_prices.variation_id) AND (p.user_id = auth.uid())))));
+DROP POLICY IF EXISTS "Owner can update wholesale prices" ON public.wholesale_prices;
+CREATE POLICY "Owner can update wholesale prices" ON public.wholesale_prices AS PERMISSIVE FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1
+   FROM (product_variations pv
+     JOIN products p ON ((p.id = pv.product_id)))
+  WHERE ((pv.id = wholesale_prices.variation_id) AND (p.user_id = auth.uid())))));
 
 -- 9) Views
 
--- 10) Triggers
+CREATE OR REPLACE VIEW public.coupons_with_usage AS
+ SELECT id,
+    user_id,
+    code,
+    discount_type,
+    discount_value,
+    max_uses,
+    active,
+    product_id,
+    created_at,
+    updated_at,
+    COALESCE(( SELECT (count(*))::integer AS count
+           FROM orders o
+          WHERE ((upper(o.coupon_code) = upper(c.code)) AND (o.status = ANY (ARRAY['PAID'::text, 'CONFIRMED'::text, 'RECEIVED'::text, 'paid'::text, 'confirmed'::text, 'received'::text])))), 0) AS current_uses
+   FROM coupons c;
 
-DROP TRIGGER IF EXISTS ensure_single_default ON public.addresses;
-CREATE TRIGGER ensure_single_default BEFORE INSERT OR UPDATE ON public.addresses FOR EACH ROW EXECUTE FUNCTION ensure_single_default_address();
-DROP TRIGGER IF EXISTS update_addresses_updated_at ON public.addresses;
-CREATE TRIGGER update_addresses_updated_at BEFORE UPDATE ON public.addresses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-DROP TRIGGER IF EXISTS update_banner_slides_updated_at ON public.banner_slides;
-CREATE TRIGGER update_banner_slides_updated_at BEFORE UPDATE ON public.banner_slides FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-DROP TRIGGER IF EXISTS update_bulk_email_templates_updated_at ON public.bulk_email_templates;
-CREATE TRIGGER update_bulk_email_templates_updated_at BEFORE UPDATE ON public.bulk_email_templates FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-DROP TRIGGER IF EXISTS update_cart_items_updated_at ON public.cart_items;
-CREATE TRIGGER update_cart_items_updated_at BEFORE UPDATE ON public.cart_items FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-DROP TRIGGER IF EXISTS update_contact_preferences_updated_at ON public.contact_preferences;
-CREATE TRIGGER update_contact_preferences_updated_at BEFORE UPDATE ON public.contact_preferences FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-DROP TRIGGER IF EXISTS update_coupons_updated_at ON public.coupons;
-CREATE TRIGGER update_coupons_updated_at BEFORE UPDATE ON public.coupons FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-DROP TRIGGER IF EXISTS orders_send_email_insert ON public.orders;
-CREATE TRIGGER orders_send_email_insert AFTER INSERT ON public.orders FOR EACH ROW EXECUTE FUNCTION trigger_send_order_emails();
-DROP TRIGGER IF EXISTS orders_send_email_update ON public.orders;
-CREATE TRIGGER orders_send_email_update AFTER UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION trigger_send_order_emails();
-DROP TRIGGER IF EXISTS trg_link_order_to_user ON public.orders;
-CREATE TRIGGER trg_link_order_to_user BEFORE INSERT ON public.orders FOR EACH ROW EXECUTE FUNCTION link_order_to_user_by_email();
-DROP TRIGGER IF EXISTS update_orders_updated_at ON public.orders;
-CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-DROP TRIGGER IF EXISTS update_payment_links_updated_at ON public.payment_links;
-CREATE TRIGGER update_payment_links_updated_at BEFORE UPDATE ON public.payment_links FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-DROP TRIGGER IF EXISTS update_popups_updated_at ON public.popups;
-CREATE TRIGGER update_popups_updated_at BEFORE UPDATE ON public.popups FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-DROP TRIGGER IF EXISTS update_pvf_updated_at ON public.product_variation_files;
-CREATE TRIGGER update_pvf_updated_at BEFORE UPDATE ON public.product_variation_files FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-DROP TRIGGER IF EXISTS update_products_updated_at ON public.products;
-CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON public.products FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
-CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-DROP TRIGGER IF EXISTS update_site_settings_updated_at ON public.site_settings;
-CREATE TRIGGER update_site_settings_updated_at BEFORE UPDATE ON public.site_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-DROP TRIGGER IF EXISTS update_support_tickets_updated_at ON public.support_tickets;
-CREATE TRIGGER update_support_tickets_updated_at BEFORE UPDATE ON public.support_tickets FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-DROP TRIGGER IF EXISTS trg_touch_webhook_retry_queue ON public.webhook_retry_queue;
-CREATE TRIGGER trg_touch_webhook_retry_queue BEFORE UPDATE ON public.webhook_retry_queue FOR EACH ROW EXECUTE FUNCTION touch_webhook_retry_queue();
+-- 10) Triggers
 
 -- 11) Triggers em auth.users
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
@@ -1443,12 +1493,12 @@ CREATE TRIGGER on_auth_user_link_orders AFTER INSERT ON auth.users FOR EACH ROW 
 
 -- 12) Storage buckets
 INSERT INTO storage.buckets (id, name, public) VALUES
-  ('product-images','product-images',true),
-  ('banner-images','banner-images',true),
-  ('testimonial-videos','testimonial-videos',true),
   ('avatars','avatars',true),
+  ('banner-images','banner-images',true),
   ('digital-file-covers','digital-file-covers',true),
-  ('digital-files','digital-files',false)
+  ('digital-files','digital-files',false),
+  ('product-images','product-images',true),
+  ('testimonial-videos','testimonial-videos',true)
 ON CONFLICT (id) DO UPDATE SET public = EXCLUDED.public;
 
 -- 13) Storage policies
