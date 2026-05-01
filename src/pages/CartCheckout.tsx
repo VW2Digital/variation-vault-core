@@ -120,6 +120,16 @@ const CartCheckout = () => {
   // Build combined dosage string from all items
   const combinedDosage = [...new Set(items.map(i => i.dosage).filter(Boolean))].join(', ');
 
+  // Wholesale minimum guard: block submission if any cart item is below its lowest tier
+  const wholesaleViolations = items
+    .filter(i => i.wholesale_prices && i.wholesale_prices.length > 0)
+    .map(i => {
+      const minRequired = Math.min(...i.wholesale_prices.map(t => t.min_quantity));
+      return { item: i, minRequired, ok: i.quantity >= minRequired };
+    })
+    .filter(v => !v.ok);
+  const hasWholesaleViolation = wholesaleViolations.length > 0;
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
