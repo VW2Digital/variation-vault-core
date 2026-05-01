@@ -243,7 +243,29 @@ const CartCheckout = () => {
           )}
 
           {/* Checkout Form - only render once user is authenticated */}
-          {isAuthenticated && (
+          {isAuthenticated && hasWholesaleViolation && (
+            <div className="border border-destructive/30 bg-destructive/5 rounded-xl p-5 space-y-3 mb-6">
+              <p className="text-sm font-semibold text-destructive">
+                Quantidade abaixo do mínimo de atacado
+              </p>
+              <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
+                {wholesaleViolations.map(v => (
+                  <li key={v.item.variation_id}>
+                    <strong>{v.item.product_name}</strong>
+                    {v.item.dosage ? ` (${v.item.dosage})` : ''} exige pelo menos{' '}
+                    <strong>{v.minRequired} unidades</strong>. Você tem {v.item.quantity}.
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => navigate('/carrinho')}
+                className="text-sm text-primary underline hover:no-underline"
+              >
+                Ajustar quantidades no carrinho
+              </button>
+            </div>
+          )}
+          {isAuthenticated && !hasWholesaleViolation && (
             <CheckoutForm
             productName={productName}
             paymentDescription={hasFantasyNames ? paymentDesc : undefined}
