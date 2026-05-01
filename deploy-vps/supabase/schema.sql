@@ -917,526 +917,285 @@ ALTER TABLE public.wholesale_prices ENABLE ROW LEVEL SECURITY;
 -- 7) Funções
 
 CREATE OR REPLACE FUNCTION public.dispatch_order_email(_template text, _to text, _subject text, _data jsonb)
-
  RETURNS void
-
  LANGUAGE plpgsql
-
  SECURITY DEFINER
-
  SET search_path TO 'public'
-
 AS $function$
-
 DECLARE
-
   _supabase_url text;
-
   _service_role_key text;
-
   _payload jsonb;
-
 BEGIN
-
   -- Lê config do vault (criada pelo setup_email_infra) ou usa fallback
-
   -- Se não existir vault, lê de site_settings
-
   SELECT value INTO _supabase_url FROM public.site_settings WHERE key = 'supabase_functions_url' LIMIT 1;
-
   IF _supabase_url IS NULL OR _supabase_url = '' THEN
-
     _supabase_url := 'https://vkomfiplmhpkhfpidrng.supabase.co';
-
   END IF;
 
   -- Service role key precisa estar em site_settings (chave: service_role_key_for_triggers)
-
   -- ou em uma extensão de vault. Para simplificar, lemos de site_settings.
-
   SELECT value INTO _service_role_key FROM public.site_settings WHERE key = 'service_role_key_for_triggers' LIMIT 1;
-
   IF _service_role_key IS NULL OR _service_role_key = '' THEN
-
     RAISE NOTICE 'service_role_key_for_triggers não configurado em site_settings — email não enviado';
-
     RETURN;
-
   END IF;
 
   IF _to IS NULL OR _to = '' THEN
-
     RETURN;
-
   END IF;
 
   _payload := jsonb_build_object(
-
     'template', _template,
-
     'to', _to,
-
     'subject', _subject,
-
     'data', _data
-
   );
 
   PERFORM net.http_post(
-
     url := _supabase_url || '/functions/v1/send-email',
-
     headers := jsonb_build_object(
-
       'Content-Type', 'application/json',
-
       'Authorization', 'Bearer ' || _service_role_key
-
     ),
-
     body := _payload
-
   );
-
 EXCEPTION WHEN OTHERS THEN
-
   RAISE NOTICE 'dispatch_order_email failed: %', SQLERRM;
-
 END;
-
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.ensure_single_default_address()
-
  RETURNS trigger
-
  LANGUAGE plpgsql
-
  SECURITY DEFINER
-
  SET search_path TO 'public'
-
 AS $function$
-
 BEGIN
-
   IF NEW.is_default = true THEN
-
     UPDATE public.addresses SET is_default = false
-
     WHERE user_id = NEW.user_id AND id != NEW.id AND is_default = true;
-
   END IF;
-
   RETURN NEW;
-
 END;
-
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-
  RETURNS trigger
-
  LANGUAGE plpgsql
-
  SECURITY DEFINER
-
  SET search_path TO 'public'
-
 AS $function$
-
 BEGIN
-
   INSERT INTO public.profiles (user_id, full_name)
-
   VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'full_name', ''))
-
   ON CONFLICT (user_id) DO NOTHING;
-
   RETURN NEW;
-
 END;
-
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role app_role)
-
  RETURNS boolean
-
  LANGUAGE sql
-
  STABLE SECURITY DEFINER
-
  SET search_path TO 'public'
-
 AS $function$
-
   SELECT EXISTS (
-
     SELECT 1 FROM public.user_roles
-
     WHERE user_id = _user_id AND role = _role
-
   )
-
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.increment_coupon_usage(_coupon_code text)
-
  RETURNS boolean
-
  LANGUAGE plpgsql
-
  SECURITY DEFINER
-
  SET search_path TO 'public'
-
 AS $function$
-
 BEGIN
-
   -- A contagem agora é em tempo real via view coupons_with_usage.
-
   -- Esta função permanece apenas para compatibilidade com webhooks existentes.
-
   -- Retorna true se o cupom existe e está ativo.
-
   RETURN EXISTS (
-
     SELECT 1 FROM public.coupons
-
     WHERE LOWER(code) = LOWER(_coupon_code) AND active = true
-
   );
-
 END;
-
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.link_existing_orders_to_new_user()
-
  RETURNS trigger
-
  LANGUAGE plpgsql
-
  SECURITY DEFINER
-
  SET search_path TO 'public'
-
 AS $function$
-
 BEGIN
-
   IF NEW.email IS NOT NULL AND NEW.email <> '' THEN
-
     UPDATE public.orders
-
     SET customer_user_id = NEW.id
-
     WHERE customer_user_id IS NULL
-
       AND LOWER(customer_email) = LOWER(NEW.email);
-
   END IF;
-
   RETURN NEW;
-
 END;
-
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.link_order_to_user_by_email()
-
  RETURNS trigger
-
  LANGUAGE plpgsql
-
  SECURITY DEFINER
-
  SET search_path TO 'public'
-
 AS $function$
-
 BEGIN
-
   IF NEW.customer_user_id IS NULL
-
      AND NEW.customer_email IS NOT NULL
-
      AND NEW.customer_email <> '' THEN
-
     SELECT id INTO NEW.customer_user_id
-
     FROM auth.users
-
     WHERE LOWER(email) = LOWER(NEW.customer_email)
-
     LIMIT 1;
-
   END IF;
-
   RETURN NEW;
-
 END;
-
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.touch_webhook_retry_queue()
-
  RETURNS trigger
-
  LANGUAGE plpgsql
-
  SET search_path TO 'public'
-
 AS $function$
-
 BEGIN NEW.updated_at = now(); RETURN NEW; END;
-
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.trigger_send_order_emails()
-
  RETURNS trigger
-
  LANGUAGE plpgsql
-
  SECURITY DEFINER
-
  SET search_path TO 'public'
-
 AS $function$
-
 DECLARE
-
   _payment_method text;
-
   _failed_statuses text[] := ARRAY['REFUSED','REPROVED','CANCELLED','CANCELED','FAILED','REJECTED','DECLINED','refused','reproved','cancelled','canceled','failed','rejected','declined'];
-
   _paid_statuses   text[] := ARRAY['PAID','CONFIRMED','RECEIVED','paid','confirmed','received'];
-
 BEGIN
-
   -- Normaliza método de pagamento para exibição
-
   _payment_method := CASE
-
     WHEN NEW.payment_method ILIKE '%credit%' OR NEW.payment_method ILIKE '%card%' THEN 'Cartão de Crédito'
-
     WHEN NEW.payment_method ILIKE '%pix%' THEN 'PIX'
-
     WHEN NEW.payment_method ILIKE '%boleto%' THEN 'Boleto'
-
     ELSE COALESCE(NEW.payment_method, '—')
-
   END;
 
   -- ── 1. INSERT ──────────────────────────────────────────────────────
-
   IF (TG_OP = 'INSERT') THEN
-
     -- Se o pedido já nasce recusado/cancelado, NÃO mandar "Pedido recebido".
-
     -- Em vez disso, dispara o email de falha de pagamento.
-
     IF NEW.status = ANY(_failed_statuses) THEN
-
       PERFORM public.dispatch_order_email(
-
         'payment_failure',
-
         NEW.customer_email,
-
         'Pagamento Não Aprovado - ' || COALESCE(NEW.product_name, 'seu pedido'),
-
         jsonb_build_object(
-
           'customer_name', NEW.customer_name,
-
           'order_id', NEW.id,
-
           'product_name', NEW.product_name,
-
           'total_value', NEW.total_value,
-
           'payment_method', _payment_method,
-
           'error_message', 'Pagamento não aprovado.'
-
         )
-
       );
-
       RETURN NEW;
-
     END IF;
 
     PERFORM public.dispatch_order_email(
-
       'order_created',
-
       NEW.customer_email,
-
       'Pedido recebido — ' || COALESCE(NEW.product_name, 'seu pedido'),
-
       jsonb_build_object(
-
         'customer_name', NEW.customer_name,
-
         'order_id', NEW.id,
-
         'product_name', NEW.product_name,
-
         'total_value', NEW.total_value,
-
         'payment_method', _payment_method
-
       )
-
     );
-
     RETURN NEW;
-
   END IF;
 
   -- ── 2. UPDATE ──────────────────────────────────────────────────────
-
   IF (TG_OP = 'UPDATE') THEN
-
     -- Pagamento aprovado
-
     IF (OLD.status IS DISTINCT FROM NEW.status)
-
        AND NEW.status = ANY(_paid_statuses)
-
        AND NOT (OLD.status = ANY(_paid_statuses)) THEN
-
       PERFORM public.dispatch_order_email(
-
         'order_paid',
-
         NEW.customer_email,
-
         'Pagamento Aprovado - ' || COALESCE(NEW.product_name, 'seu pedido'),
-
         jsonb_build_object(
-
           'customer_name', NEW.customer_name,
-
           'order_id', NEW.id,
-
           'product_name', NEW.product_name,
-
           'total_value', NEW.total_value,
-
           'payment_method', _payment_method
-
         )
-
       );
-
     END IF;
 
     -- Pagamento recusado / cancelado
-
     IF (OLD.status IS DISTINCT FROM NEW.status)
-
        AND NEW.status = ANY(_failed_statuses)
-
        AND NOT (OLD.status = ANY(_failed_statuses)) THEN
-
       PERFORM public.dispatch_order_email(
-
         'payment_failure',
-
         NEW.customer_email,
-
         'Pagamento Não Aprovado - ' || COALESCE(NEW.product_name, 'seu pedido'),
-
         jsonb_build_object(
-
           'customer_name', NEW.customer_name,
-
           'order_id', NEW.id,
-
           'product_name', NEW.product_name,
-
           'total_value', NEW.total_value,
-
           'payment_method', _payment_method,
-
           'error_message', 'Pagamento não aprovado.'
-
         )
-
       );
-
     END IF;
 
     -- Código de rastreio adicionado/atualizado
-
     IF (COALESCE(OLD.tracking_code, '') IS DISTINCT FROM COALESCE(NEW.tracking_code, ''))
-
        AND NEW.tracking_code IS NOT NULL
-
        AND NEW.tracking_code <> '' THEN
-
       PERFORM public.dispatch_order_email(
-
         'shipping_update',
-
         NEW.customer_email,
-
         'Seu pedido foi enviado! Código: ' || NEW.tracking_code,
-
         jsonb_build_object(
-
           'customer_name', NEW.customer_name,
-
           'order_id', NEW.id,
-
           'product_name', NEW.product_name,
-
           'tracking_code', NEW.tracking_code,
-
           'tracking_url', NEW.tracking_url,
-
           'shipping_service', NEW.shipping_service
-
         )
-
       );
-
     END IF;
-
   END IF;
 
   RETURN NEW;
-
 END;
-
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
-
  RETURNS trigger
-
  LANGUAGE plpgsql
-
  SET search_path TO 'public'
-
 AS $function$
-
 BEGIN
-
   NEW.updated_at = now();
-
   RETURN NEW;
-
 END;
-
-$function$
+$function$;
 
 -- 8) Políticas RLS
 
