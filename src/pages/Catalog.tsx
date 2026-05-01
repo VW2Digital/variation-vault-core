@@ -343,11 +343,14 @@ const Catalog = () => {
               })();
               const hasWholesale = variation ? (variation.id in wholesaleMap) : false;
               const wholesaleMinQty = variation ? wholesaleMap[variation.id] : undefined;
+              const cleanName = variation?.is_digital
+                ? product.name.replace(/\s+digital\s*$/i, '').trim()
+                : product.name;
               const displayName = variation?.dosage
                 && !variation?.is_digital
-                && !product.name.toLowerCase().includes(variation.dosage.toLowerCase())
-                ? `${product.name} ${variation.dosage}`
-                : product.name;
+                && !cleanName.toLowerCase().includes(variation.dosage.toLowerCase())
+                ? `${cleanName} ${variation.dosage}`
+                : cleanName;
 
               const pixPercentSetting = Number((product as any).pix_discount_percent) || 0;
               const maxInstallmentsSetting = Number((product as any).max_installments) || 6;
