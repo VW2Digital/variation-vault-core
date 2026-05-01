@@ -1,25 +1,106 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useCart } from '@/contexts/CartContext';
+import { useCart, getEffectivePrice } from '@/contexts/CartContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Minus, Plus, Trash2, ShoppingCart, ArrowLeft, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Minus, Plus, Trash2, ShoppingCart, ArrowLeft, Loader2, Pencil, Save, X } from 'lucide-react';
+import { toast } from 'sonner';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import productHeroImg from '@/assets/product-hero.png';
 
 const CartPage = () => {
   const navigate = useNavigate();
-  const { items, loading, updateQuantity, removeFromCart, totalItems, totalPrice } = useCart();
+  const { items, loading, updateQuantity, updateQuantitiesBulk, removeFromCart, totalItems, totalPrice } = useCart();
+
+  // Bulk-edit mode: per-item draft quantities, kept in sync when items change
+  const [bulkMode, setBulkMode] = useState(false);
+  const [drafts, setDrafts] = useState<Record<string, number>>({});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!bulkMode) return;
+    setDrafts(prev => {
+      const next: Record<string, number> = {};
+      items.forEach(i => {
+        next[i.variation_id] = prev[i.variation_id] ?? i.quantity;
+      });
+      return next;
+    });
+  }, [bulkMode, items]);
+
+  // Live preview of subtotal/total using draft quantities + correct tier
+  const previewTotal = useMemo(() => {
+    if (!bulkMode) return totalPrice;
+    return items.reduce((sum, i) => {
+      const q = drafts[i.variation_id] ?? i.quantity;
+      const basePrice = i.is_offer ? i.price : i.original_price;
+      const unit = getEffectivePrice(basePrice, q, i.wholesale_prices);
+      return sum + unit * q;
+    }, 0);
+  }, [bulkMode, drafts, items, totalPrice]);
+
+  const previewItems = useMemo(() => {
+    if (!bulkMode) return totalItems;
+    return items.reduce((s, i) => s + (drafts[i.variation_id] ?? i.quantity), 0);
+  }, [bulkMode, drafts, items, totalItems]);
+
+  const hasChanges = useMemo(() => {
+    if (!bulkMode) return false;
+    return items.some(i => (drafts[i.variation_id] ?? i.quantity) !== i.quantity);
+  }, [bulkMode, drafts, items]);
+
+  const handleSaveBulk = async () => {
+    setSaving(true);
+    const updates = items.map(i => ({
+      variationId: i.variation_id,
+      quantity: drafts[i.variation_id] ?? i.quantity,
+    }));
+    const { adjusted } = await updateQuantitiesBulk(updates);
+    setSaving(false);
+    setBulkMode(false);
+    if (adjusted.length === 0) {
+      toast.success('Quantidades atualizadas');
+    } else {
+      toast.warning(
+        `Quantidades atualizadas (${adjusted.length} item${adjusted.length > 1 ? 's' : ''} ajustado${adjusted.length > 1 ? 's' : ''} para o mínimo de atacado)`,
+      );
+    }
+  };
+
+  const handleCancelBulk = () => {
+    setBulkMode(false);
+    setDrafts({});
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-2">
-          <ShoppingCart className="w-6 h-6" /> Meu Carrinho
-        </h1>
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <ShoppingCart className="w-6 h-6" /> Meu Carrinho
+          </h1>
+          {!loading && items.length > 1 && !bulkMode && (
+            <Button variant="outline" size="sm" onClick={() => setBulkMode(true)}>
+              <Pencil className="w-3.5 h-3.5 mr-1.5" /> Editar quantidades
+            </Button>
+          )}
+          {bulkMode && (
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={handleCancelBulk} disabled={saving}>
+                <X className="w-3.5 h-3.5 mr-1.5" /> Cancelar
+              </Button>
+              <Button size="sm" onClick={handleSaveBulk} disabled={saving || !hasChanges}>
+                {saving ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
+                Salvar alterações
+              </Button>
+            </div>
+          )}
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
