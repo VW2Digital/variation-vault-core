@@ -39,7 +39,9 @@ const Catalog = () => {
   const { t } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [wholesaleMap, setWholesaleMap] = useState<Record<string, { min_quantity: number; price: number }>>({});
+  const [wholesaleMap, setWholesaleMap] = useState<Record<string, WholesaleTier[]>>({});
+  // Tier de atacado selecionado por variação (índice no array ordenado por min_quantity asc)
+  const [selectedTierMap, setSelectedTierMap] = useState<Record<string, number>>({});
   const [search, setSearch] = useState(searchParams.get('busca') || '');
 
   // Sync search state with URL params
@@ -97,11 +99,14 @@ const Catalog = () => {
             .select('variation_id, min_quantity, price')
             .in('variation_id', allVarIds)
             .order('min_quantity', { ascending: true });
-          const wpSet: Record<string, { min_quantity: number; price: number }> = {};
+          const wpSet: Record<string, WholesaleTier[]> = {};
           (wpData || []).forEach((w: any) => {
-            if (!(w.variation_id in wpSet) || w.min_quantity < wpSet[w.variation_id].min_quantity) {
-              wpSet[w.variation_id] = { min_quantity: w.min_quantity, price: Number(w.price) };
-            }
+            if (!wpSet[w.variation_id]) wpSet[w.variation_id] = [];
+            wpSet[w.variation_id].push({ min_quantity: w.min_quantity, price: Number(w.price) });
+          });
+          // Garante ordenação ascendente por min_quantity
+          Object.keys(wpSet).forEach((k) => {
+            wpSet[k].sort((a, b) => a.min_quantity - b.min_quantity);
           });
           setWholesaleMap(wpSet);
         }
@@ -341,10 +346,12 @@ const Catalog = () => {
                 if (fromProduct.length > 0) return fromProduct;
                 return [productHeroImg];
               })();
-              const wholesaleTier = variation ? wholesaleMap[variation.id] : undefined;
-              const hasWholesale = !!wholesaleTier;
-              const wholesaleMinQty = wholesaleTier?.min_quantity;
-              const wholesaleUnitPrice = wholesaleTier?.price;
+              const wholesaleTiers: WholesaleTier[] = (variation && wholesaleMap[variation.id]) || [];
+              const hasWholesale = wholesaleTiers.length > 0;
+              const selectedTierIdx = variation ? (selectedTierMap[variation.id] ?? 0) : 0;
+              const activeTier = hasWholesale ? wholesaleTiers[Math.min(selectedTierIdx, wholesaleTiers.length - 1)] : undefined;
+              const wholesaleMinQty = activeTier?.min_quantity;
+              const wholesaleUnitPrice = activeTier?.price;
               const cleanName = variation?.is_digital
                 ? product.name.replace(/\s+digital\s*$/i, '').trim()
                 : product.name;
@@ -557,6 +564,36 @@ const Catalog = () => {
                       </div>
                     )}
 
+                    {/* Wholesale Tier Selector */}
+                    {variation && hasWholesale && wholesaleTiers.length > 1 && (
+                      <div className="px-3 pb-2 space-y-1">
+                        <p className="text-[10px] text-muted-foreground font-medium">Escolha a quantidade:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {wholesaleTiers.map((tier, tIdx) => {
+                            const isActive = tIdx === selectedTierIdx;
+                            return (
+                              <button
+                                key={tier.min_quantity}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  setSelectedTierMap((prev) => ({ ...prev, [variation.id]: tIdx }));
+                                }}
+                                className={`text-[10px] px-2 py-1 rounded-md border transition-colors font-semibold ${
+                                  isActive
+                                    ? 'border-primary bg-primary/10 text-primary'
+                                    : 'border-border bg-background text-muted-foreground hover:border-primary/50'
+                                }`}
+                              >
+                                {tier.min_quantity}+ un.
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Add to Cart Button */}
                     {variation && inStock && (
                       <div className={ab.variant === 'B' ? 'px-3 pb-3 pt-1 mt-auto' : 'px-3 pb-3 pt-0.5 mt-auto'}>
@@ -571,7 +608,7 @@ const Catalog = () => {
                           onClick={async (e) => {
                             e.stopPropagation();
                             trackAbEvent(ab.variant, 'cta_click', product.id, variation.id, ab.enabled);
-                            const minQty = wholesaleMap[variation.id]?.min_quantity || 1;
+                            const minQty = wholesaleMinQty || 1;
                             addToCart(product.id, variation.id, minQty);
                           }}
                         >
