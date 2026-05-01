@@ -300,18 +300,25 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const updateQuantity = async (variationId: string, quantity: number) => {
     if (quantity < 1) return;
-    // Enforce wholesale minimum
+    // Enforce wholesale minimum: clamp up to the lowest tier and warn the user
     const item = items.find(i => i.variation_id === variationId);
+    let finalQuantity = quantity;
     if (item && item.wholesale_prices.length > 0) {
       const minQty = Math.min(...item.wholesale_prices.map(t => t.min_quantity));
-      if (quantity < minQty) return;
+      if (quantity < minQty) {
+        finalQuantity = minQty;
+        toast({
+          title: 'Quantidade ajustada para o atacado',
+          description: `${item.product_name}${item.dosage ? ` (${item.dosage})` : ''} exige no mínimo ${minQty} unidades. Quantidade atualizada para ${minQty}.`,
+        });
+      }
     }
     try {
       if (!userId) {
         const anon = readAnonCart();
         const idx = anon.findIndex(e => e.variation_id === variationId);
         if (idx >= 0) {
-          anon[idx].quantity = quantity;
+          anon[idx].quantity = finalQuantity;
           writeAnonCart(anon);
           await fetchCart();
         }
@@ -319,7 +326,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
       const { error } = await supabase
         .from('cart_items')
-        .update({ quantity })
+        .update({ quantity: finalQuantity })
         .eq('user_id', userId)
         .eq('variation_id', variationId);
       if (error) throw error;
