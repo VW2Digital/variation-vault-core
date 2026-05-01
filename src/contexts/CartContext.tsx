@@ -214,6 +214,18 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const addToCart = async (productId: string, variationId: string, quantity = 1) => {
     try {
+      // Garantir quantidade mínima de atacado: se a variação tiver tier configurado,
+      // não permitimos adicionar abaixo do mínimo.
+      const { data: wpRows } = await supabase
+        .from('wholesale_prices')
+        .select('min_quantity')
+        .eq('variation_id', variationId)
+        .order('min_quantity', { ascending: true })
+        .limit(1);
+      const minWholesale = wpRows && wpRows.length > 0 ? wpRows[0].min_quantity : 0;
+      if (minWholesale > 0 && quantity < minWholesale) {
+        quantity = minWholesale;
+      }
       if (!userId) {
         // Anonymous cart: persist to localStorage
         const anon = readAnonCart();
