@@ -13,6 +13,9 @@
 --                  buckets digital-files (privado) e digital-file-covers (público)
 -- v4 (2026-05-01): profiles.avatar_url + bucket público `avatars`
 --                  (upload de foto de perfil pelo usuário, com Gravatar como fallback)
+-- v5 (2026-05-01): product_variations.is_digital + storage buckets idempotentes
+--                  (UPSERT em storage.buckets + DROP POLICY IF EXISTS, corrige
+--                  erro "Bucket not found" e drift de schema em bancos antigos)
 -- =============================================================================
 
 -- EXTENSIONS
@@ -106,8 +109,13 @@ CREATE TABLE IF NOT EXISTS public.product_variations (
   stock_quantity integer NOT NULL DEFAULT 0,
   image_url text DEFAULT '',
   images text[] DEFAULT '{}',
+  is_digital boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- v5: garante a coluna `is_digital` em bancos antigos (produtos digitais)
+ALTER TABLE public.product_variations
+  ADD COLUMN IF NOT EXISTS is_digital boolean NOT NULL DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS public.wholesale_prices (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
