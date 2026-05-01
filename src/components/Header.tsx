@@ -86,14 +86,14 @@ const Header = () => {
         }`}
       >
         <div className="max-w-7xl mx-auto px-4">
-          {/* Desktop Header */}
-          <div className="hidden md:flex items-center gap-6 h-[72px]">
+          {/* Desktop / Tablet Header */}
+          <div className="hidden md:flex items-center gap-3 lg:gap-6 h-[72px]">
             {/* Logo */}
             <Link to="/catalogo" className="flex items-center shrink-0 group">
               <img
                 src={logoImg}
                 alt="Liberty Pharma"
-                className="h-11 object-contain transition-transform group-hover:scale-105"
+                className="h-9 lg:h-11 object-contain transition-transform group-hover:scale-105"
               />
             </Link>
 
@@ -112,14 +112,14 @@ const Header = () => {
             </form>
 
             {/* Right Actions */}
-            <div className="flex items-center gap-5 shrink-0">
+            <div className="flex items-center gap-3 lg:gap-5 shrink-0">
               <LanguageSwitcher />
               {/* Central de Atendimento */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
                     <Headset className="w-6 h-6 text-primary" />
-                    <div className="text-left leading-tight">
+                    <div className="hidden lg:block text-left leading-tight">
                       <span className="text-[11px] text-muted-foreground">Central de</span>
                       <span className="flex items-center gap-0.5 text-sm font-semibold">
                         Atendimento <ChevronDown className="w-3 h-3" />
@@ -155,7 +155,7 @@ const Header = () => {
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
                     <User className="w-6 h-6 text-primary" />
-                    <div className="text-left leading-tight">
+                    <div className="hidden lg:block text-left leading-tight">
                       {isLoggedIn ? (
                         <>
                           <span className="text-[11px] text-muted-foreground">Minha</span>
@@ -221,7 +221,7 @@ const Header = () => {
                     </span>
                   )}
                 </div>
-                <div className="text-left leading-tight">
+                <div className="hidden lg:block text-left leading-tight">
                   <span className="text-[11px] text-muted-foreground">Meu Carrinho</span>
                   <p className="text-sm font-semibold">{formatCurrency(totalPrice)}</p>
                 </div>
