@@ -378,10 +378,11 @@ const Catalog = () => {
                       className="block flex-1"
                     >
                       {/* Image */}
-                      <div className={`relative aspect-[1080/1450] bg-white flex items-center justify-center overflow-hidden p-[20%] ${ab.variant === 'B' ? 'border-b border-border/40' : ''}`}>
+                      <div className={`relative aspect-[1080/1450] bg-white overflow-hidden ${ab.variant === 'B' ? 'border-b border-border/40' : ''}`}>
                         <ProductCardImageCarousel
                           images={imageList}
                           alt={displayName}
+                          imageInset="20%"
                           imgClassName="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
                         />
                         {ab.variant === 'B' ? (

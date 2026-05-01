@@ -6,6 +6,7 @@ interface ProductCardImageCarouselProps {
   images: string[];
   alt: string;
   imgClassName?: string;
+  imageInset?: string;
   autoplayMs?: number;
   fadeMs?: number;
 }
@@ -14,6 +15,7 @@ export default function ProductCardImageCarousel({
   images,
   alt,
   imgClassName = '',
+  imageInset = '0%',
   autoplayMs = 3500,
   fadeMs = 700,
 }: ProductCardImageCarouselProps) {
@@ -60,32 +62,34 @@ export default function ProductCardImageCarousel({
 
   return (
     <div
-      className="contents"
+      className="absolute inset-0"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      {list.map((src, i) => (
-        <img
-          key={i}
-          src={src}
-          alt={i === index ? alt : ''}
-          aria-hidden={i !== index}
-          loading={i === 0 ? 'eager' : 'lazy'}
-          decoding="async"
-          width={1080}
-          height={1450}
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = productHeroImg;
-          }}
-          style={{
-            opacity: i === index ? 1 : 0,
-            transitionDuration: `${fadeMs}ms`,
-          }}
-          className={`${imgClassName} absolute inset-0 m-auto transition-opacity ease-in-out ${
-            i === index ? 'z-[1]' : 'z-0 pointer-events-none'
-          }`}
-        />
-      ))}
+      <div className="absolute overflow-hidden" style={{ inset: imageInset }}>
+        {list.map((src, i) => (
+          <img
+            key={i}
+            src={src}
+            alt={i === index ? alt : ''}
+            aria-hidden={i !== index}
+            loading={i === 0 ? 'eager' : 'lazy'}
+            decoding="async"
+            width={1080}
+            height={1450}
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = productHeroImg;
+            }}
+            style={{
+              opacity: i === index ? 1 : 0,
+              transitionDuration: `${fadeMs}ms`,
+            }}
+            className={`${imgClassName} absolute inset-0 m-auto transition-opacity ease-in-out ${
+              i === index ? 'z-[1]' : 'z-0 pointer-events-none'
+            }`}
+          />
+        ))}
+      </div>
 
       {hasMultiple && (
         <>
