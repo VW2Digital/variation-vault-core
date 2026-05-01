@@ -7,9 +7,16 @@ interface ProductCardImageCarouselProps {
   alt: string;
   imgClassName?: string;
   autoplayMs?: number;
+  fadeMs?: number;
 }
 
-export default function ProductCardImageCarousel({ images, alt, imgClassName = '', autoplayMs = 3500 }: ProductCardImageCarouselProps) {
+export default function ProductCardImageCarousel({
+  images,
+  alt,
+  imgClassName = '',
+  autoplayMs = 3500,
+  fadeMs = 700,
+}: ProductCardImageCarouselProps) {
   const list = images && images.length > 0 ? images : [productHeroImg];
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -57,19 +64,28 @@ export default function ProductCardImageCarousel({ images, alt, imgClassName = '
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <img
-        src={list[index]}
-        alt={alt}
-        loading="lazy"
-        decoding="async"
-        width={1080}
-        height={1450}
-        key={index}
-        onError={(e) => {
-          (e.currentTarget as HTMLImageElement).src = productHeroImg;
-        }}
-        className={`${imgClassName} animate-fade-in`}
-      />
+      {list.map((src, i) => (
+        <img
+          key={i}
+          src={src}
+          alt={i === index ? alt : ''}
+          aria-hidden={i !== index}
+          loading={i === 0 ? 'eager' : 'lazy'}
+          decoding="async"
+          width={1080}
+          height={1450}
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = productHeroImg;
+          }}
+          style={{
+            opacity: i === index ? 1 : 0,
+            transitionDuration: `${fadeMs}ms`,
+          }}
+          className={`${imgClassName} absolute inset-0 m-auto transition-opacity ease-in-out ${
+            i === index ? 'z-[1]' : 'z-0 pointer-events-none'
+          }`}
+        />
+      ))}
 
       {hasMultiple && (
         <>
@@ -77,7 +93,7 @@ export default function ProductCardImageCarousel({ images, alt, imgClassName = '
             type="button"
             onClick={prev}
             aria-label="Imagem anterior"
-            className="absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/90 hover:bg-white text-foreground shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+            className="absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/90 hover:bg-white text-foreground shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -85,12 +101,12 @@ export default function ProductCardImageCarousel({ images, alt, imgClassName = '
             type="button"
             onClick={next}
             aria-label="Próxima imagem"
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/90 hover:bg-white text-foreground shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/90 hover:bg-white text-foreground shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
 
-          <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+          <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1 z-20">
             {list.map((_, i) => (
               <button
                 key={i}
