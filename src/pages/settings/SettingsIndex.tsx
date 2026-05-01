@@ -78,7 +78,7 @@ const categories: { label: string; icon: React.ComponentType<{ className?: strin
     label: 'RODAPÉ & LEGAL',
     icon: FileText,
     items: [
-      { title: 'Rodapé & Informações Legais', description: 'Links do footer, termos e privacidade', icon: FileText, path: 'rodape', statusKeys: ['footer_company_info'] },
+      { title: 'Rodapé & Informações Legais', description: 'Links do footer, política de privacidade e termos de uso', icon: FileText, path: 'rodape', statusKeys: ['footer_text', 'privacy_policy_content', 'terms_of_use_content'] },
     ],
   },
   {
