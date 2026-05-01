@@ -11,6 +11,8 @@
 --                  product_variation_files (produtos digitais),
 --                  link_order_to_user_by_email + link_existing_orders_to_new_user,
 --                  buckets digital-files (privado) e digital-file-covers (público)
+-- v4 (2026-05-01): profiles.avatar_url + bucket público `avatars`
+--                  (upload de foto de perfil pelo usuário, com Gravatar como fallback)
 -- =============================================================================
 
 -- EXTENSIONS
@@ -34,9 +36,12 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   full_name text NOT NULL DEFAULT '',
   cpf text DEFAULT '',
   phone text DEFAULT '',
+  avatar_url text DEFAULT '',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+-- v4: garante a coluna em bancos antigos
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url text DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS public.user_roles (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -966,7 +971,8 @@ INSERT INTO storage.buckets (id, name, public) VALUES
   ('testimonial-videos', 'testimonial-videos', true),
   ('banner-images', 'banner-images', true),
   ('digital-file-covers', 'digital-file-covers', true),
-  ('digital-files', 'digital-files', false)
+  ('digital-files', 'digital-files', false),
+  ('avatars', 'avatars', true)
 ON CONFLICT (id) DO NOTHING;
 
 CREATE POLICY "Public read product-images" ON storage.objects FOR SELECT USING (bucket_id = 'product-images');
@@ -995,6 +1001,15 @@ CREATE POLICY "Auth read digital-files" ON storage.objects FOR SELECT TO authent
 CREATE POLICY "Auth upload digital-files" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'digital-files');
 CREATE POLICY "Auth update digital-files" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'digital-files');
 CREATE POLICY "Auth delete digital-files" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'digital-files');
+
+-- v4: avatares de usuário (público para leitura; cada usuário só escreve na própria pasta `<uid>/...`)
+CREATE POLICY "Avatars are publicly accessible" ON storage.objects FOR SELECT USING (bucket_id = 'avatars');
+CREATE POLICY "Users can upload their own avatar" ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "Users can update their own avatar" ON storage.objects FOR UPDATE TO authenticated
+  USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "Users can delete their own avatar" ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
 
 -- =============================================================================
 -- REALTIME
