@@ -131,6 +131,11 @@ const CustomerDashboard = () => {
       if (!session) { navigate('/cliente/login'); return; }
       setUser(session.user);
       userEmail = session.user.email || '';
+      if (userEmail) {
+        sha256Hex(userEmail).then((hash) => {
+          setAvatarUrl(`https://www.gravatar.com/avatar/${hash}?d=404&s=160`);
+        });
+      }
       await Promise.all([
         fetchOrders(userEmail, session.user.id),
         fetchProfile(session.user.id),
