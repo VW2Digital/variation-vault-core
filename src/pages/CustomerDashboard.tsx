@@ -23,6 +23,15 @@ import AddressManager from '@/components/AddressManager';
 import SupportChat from '@/components/SupportChat';
 import CustomerDownloads from '@/components/CustomerDownloads';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+
+async function sha256Hex(input: string): Promise<string> {
+  const buf = new TextEncoder().encode(input.trim().toLowerCase());
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 const paymentStatusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: any; color: string; badgeClass?: string }> = {
   PENDING: { label: 'Aguardando Pagamento', variant: 'outline', icon: Clock, color: 'text-amber-500' },
