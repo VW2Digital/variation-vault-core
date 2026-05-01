@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      ab_card_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          product_id: string | null
+          session_id: string
+          user_id: string | null
+          variant: string
+          variation_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          product_id?: string | null
+          session_id: string
+          user_id?: string | null
+          variant: string
+          variation_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          product_id?: string | null
+          session_id?: string
+          user_id?: string | null
+          variant?: string
+          variation_id?: string | null
+        }
+        Relationships: []
+      }
       addresses: {
         Row: {
           city: string
