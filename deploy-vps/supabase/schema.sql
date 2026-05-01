@@ -7,6 +7,10 @@
 -- v2 (2026-04-28): inclui bulk_email_campaigns, bulk_email_templates,
 --                  webhook_retry_queue, dispatch_order_email +
 --                  trigger_send_order_emails (auto-email em orders)
+-- v3 (2026-05-01): inclui ab_card_events, gateway_settings_audit,
+--                  product_variation_files (produtos digitais),
+--                  link_order_to_user_by_email + link_existing_orders_to_new_user,
+--                  buckets digital-files (privado) e digital-file-covers (público)
 -- =============================================================================
 
 -- EXTENSIONS
@@ -421,6 +425,45 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- A/B testing de cards do catálogo (variant 'A' ou 'B')
+CREATE TABLE IF NOT EXISTS public.ab_card_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  variant text NOT NULL,
+  event_type text NOT NULL,
+  session_id text NOT NULL,
+  user_id uuid,
+  product_id uuid,
+  variation_id uuid,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Auditoria de mudanças nos toggles de gateway de pagamento
+CREATE TABLE IF NOT EXISTS public.gateway_settings_audit (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid,
+  user_email text,
+  gateway text NOT NULL,
+  setting_type text NOT NULL,
+  old_value boolean,
+  new_value boolean NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Arquivos digitais (e-books, PDFs) ligados a uma variação
+CREATE TABLE IF NOT EXISTS public.product_variation_files (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  variation_id uuid NOT NULL,
+  file_name text NOT NULL,
+  display_name text,
+  file_path text NOT NULL,
+  file_size bigint NOT NULL DEFAULT 0,
+  mime_type text NOT NULL DEFAULT 'application/octet-stream',
+  cover_image_url text,
+  sort_order integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 -- =============================================================================
 -- FUNCTIONS
 -- =============================================================================
@@ -468,6 +511,34 @@ END $$;
 CREATE OR REPLACE FUNCTION public.touch_webhook_retry_queue()
 RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
 BEGIN NEW.updated_at = now(); RETURN NEW; END $$;
+
+-- Liga um pedido recém-criado a um usuário existente pelo e-mail
+CREATE OR REPLACE FUNCTION public.link_order_to_user_by_email()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NEW.customer_user_id IS NULL
+     AND NEW.customer_email IS NOT NULL
+     AND NEW.customer_email <> '' THEN
+    SELECT id INTO NEW.customer_user_id
+    FROM auth.users
+    WHERE LOWER(email) = LOWER(NEW.customer_email)
+    LIMIT 1;
+  END IF;
+  RETURN NEW;
+END $$;
+
+-- Quando um novo usuário se cadastra, conecta pedidos antigos com mesmo e-mail
+CREATE OR REPLACE FUNCTION public.link_existing_orders_to_new_user()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NEW.email IS NOT NULL AND NEW.email <> '' THEN
+    UPDATE public.orders
+    SET customer_user_id = NEW.id
+    WHERE customer_user_id IS NULL
+      AND LOWER(customer_email) = LOWER(NEW.email);
+  END IF;
+  RETURN NEW;
+END $$;
 
 -- Dispara e-mail transacional via Edge Function send-email
 -- Requer site_settings.service_role_key_for_triggers configurado.
@@ -597,7 +668,8 @@ DO $$ DECLARE t text;
 BEGIN
   FOR t IN VALUES ('addresses'),('banner_slides'),('cart_items'),('contact_preferences'),
                   ('coupons'),('orders'),('payment_links'),('popups'),('products'),
-                  ('profiles'),('site_settings'),('support_tickets'),('bulk_email_templates')
+                  ('profiles'),('site_settings'),('support_tickets'),('bulk_email_templates'),
+                  ('product_variation_files')
   LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS update_%I_updated_at ON public.%I;', t, t);
     EXECUTE format('CREATE TRIGGER update_%I_updated_at BEFORE UPDATE ON public.%I
@@ -628,6 +700,18 @@ CREATE TRIGGER send_order_emails
   AFTER INSERT OR UPDATE ON public.orders
   FOR EACH ROW EXECUTE FUNCTION public.trigger_send_order_emails();
 
+-- Liga pedido recém-criado a usuário existente pelo e-mail
+DROP TRIGGER IF EXISTS link_order_to_user_by_email_trg ON public.orders;
+CREATE TRIGGER link_order_to_user_by_email_trg
+  BEFORE INSERT ON public.orders
+  FOR EACH ROW EXECUTE FUNCTION public.link_order_to_user_by_email();
+
+-- Liga pedidos antigos a um novo usuário recém-cadastrado
+DROP TRIGGER IF EXISTS link_existing_orders_to_new_user_trg ON auth.users;
+CREATE TRIGGER link_existing_orders_to_new_user_trg
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.link_existing_orders_to_new_user();
+
 -- =============================================================================
 -- INDEXES
 -- =============================================================================
@@ -657,10 +741,16 @@ CREATE INDEX IF NOT EXISTS idx_bulk_email_campaigns_created_at ON public.bulk_em
 CREATE INDEX IF NOT EXISTS idx_bulk_email_templates_user_id    ON public.bulk_email_templates (user_id);
 CREATE INDEX IF NOT EXISTS idx_webhook_retry_queue_status      ON public.webhook_retry_queue (status, next_attempt_at);
 CREATE INDEX IF NOT EXISTS idx_webhook_retry_queue_gateway     ON public.webhook_retry_queue (gateway);
+CREATE INDEX IF NOT EXISTS idx_ab_card_events_session         ON public.ab_card_events (session_id);
+CREATE INDEX IF NOT EXISTS idx_ab_card_events_created_at      ON public.ab_card_events (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ab_card_events_product         ON public.ab_card_events (product_id);
+CREATE INDEX IF NOT EXISTS idx_gateway_audit_created_at       ON public.gateway_settings_audit (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pv_files_variation_id          ON public.product_variation_files (variation_id);
 
 -- =============================================================================
 -- ROW LEVEL SECURITY
 -- =============================================================================
+ALTER TABLE public.ab_card_events        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.addresses             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.api_idempotency_keys  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.banner_slides         ENABLE ROW LEVEL SECURITY;
@@ -673,11 +763,13 @@ ALTER TABLE public.contact_preferences   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coupon_products       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coupons               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.email_send_log        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.gateway_settings_audit ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders                ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payment_links         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payment_logs          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.popups                ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.product_upsells       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.product_variation_files ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.product_variations    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles              ENABLE ROW LEVEL SECURITY;
@@ -841,13 +933,40 @@ CREATE POLICY "Admins can insert settings" ON public.site_settings FOR INSERT TO
 CREATE POLICY "Admins can update settings" ON public.site_settings FOR UPDATE TO authenticated USING (public.has_role(auth.uid(),'admin'));
 CREATE POLICY "Admins can delete settings" ON public.site_settings FOR DELETE TO authenticated USING (public.has_role(auth.uid(),'admin'));
 
+-- A/B card events: público insere, admin lê/deleta
+CREATE POLICY "Anyone can insert ab events" ON public.ab_card_events FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admins can view ab events" ON public.ab_card_events FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'admin'));
+CREATE POLICY "Admins can delete ab events" ON public.ab_card_events FOR DELETE TO authenticated USING (public.has_role(auth.uid(),'admin'));
+
+-- Auditoria de gateways: somente admin
+CREATE POLICY "Admins can view gateway audit" ON public.gateway_settings_audit FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'admin'));
+CREATE POLICY "Admins can insert gateway audit" ON public.gateway_settings_audit FOR INSERT TO authenticated WITH CHECK (public.has_role(auth.uid(),'admin') AND auth.uid() = user_id);
+CREATE POLICY "Admins can delete gateway audit" ON public.gateway_settings_audit FOR DELETE TO authenticated USING (public.has_role(auth.uid(),'admin'));
+
+-- Arquivos digitais: dono gerencia; cliente acessa se tem pedido pago
+CREATE POLICY "Owner can view digital files" ON public.product_variation_files FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.product_variations pv JOIN public.products p ON p.id = pv.product_id WHERE pv.id = product_variation_files.variation_id AND p.user_id = auth.uid()));
+CREATE POLICY "Owner can insert digital files" ON public.product_variation_files FOR INSERT TO authenticated WITH CHECK (EXISTS (SELECT 1 FROM public.product_variations pv JOIN public.products p ON p.id = pv.product_id WHERE pv.id = product_variation_files.variation_id AND p.user_id = auth.uid()));
+CREATE POLICY "Owner can update digital files" ON public.product_variation_files FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM public.product_variations pv JOIN public.products p ON p.id = pv.product_id WHERE pv.id = product_variation_files.variation_id AND p.user_id = auth.uid()));
+CREATE POLICY "Owner can delete digital files" ON public.product_variation_files FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM public.product_variations pv JOIN public.products p ON p.id = pv.product_id WHERE pv.id = product_variation_files.variation_id AND p.user_id = auth.uid()));
+CREATE POLICY "Customers can view files of their paid orders" ON public.product_variation_files FOR SELECT TO authenticated USING (
+  EXISTS (
+    SELECT 1 FROM public.product_variations pv
+    JOIN public.orders o ON UPPER(o.status) = ANY (ARRAY['PAID','CONFIRMED','RECEIVED','RECEIVED_IN_CASH'])
+    WHERE pv.id = product_variation_files.variation_id
+      AND o.customer_user_id = auth.uid()
+      AND o.product_name ILIKE ('%' || (SELECT name FROM public.products WHERE id = pv.product_id) || '%')
+  )
+);
+
 -- =============================================================================
 -- STORAGE BUCKETS
 -- =============================================================================
 INSERT INTO storage.buckets (id, name, public) VALUES
   ('product-images', 'product-images', true),
   ('testimonial-videos', 'testimonial-videos', true),
-  ('banner-images', 'banner-images', true)
+  ('banner-images', 'banner-images', true),
+  ('digital-file-covers', 'digital-file-covers', true),
+  ('digital-files', 'digital-files', false)
 ON CONFLICT (id) DO NOTHING;
 
 CREATE POLICY "Public read product-images" ON storage.objects FOR SELECT USING (bucket_id = 'product-images');
@@ -864,6 +983,18 @@ CREATE POLICY "Public read banner-images" ON storage.objects FOR SELECT USING (b
 CREATE POLICY "Auth upload banner-images" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'banner-images');
 CREATE POLICY "Auth update banner-images" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'banner-images');
 CREATE POLICY "Auth delete banner-images" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'banner-images');
+
+-- Capas de e-books / PDFs (públicas para exibir miniatura)
+CREATE POLICY "Public read digital-file-covers" ON storage.objects FOR SELECT USING (bucket_id = 'digital-file-covers');
+CREATE POLICY "Auth upload digital-file-covers" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'digital-file-covers');
+CREATE POLICY "Auth update digital-file-covers" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'digital-file-covers');
+CREATE POLICY "Auth delete digital-file-covers" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'digital-file-covers');
+
+-- Arquivos digitais (privados; download via signed URL gerada por edge function)
+CREATE POLICY "Auth read digital-files" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'digital-files');
+CREATE POLICY "Auth upload digital-files" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'digital-files');
+CREATE POLICY "Auth update digital-files" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'digital-files');
+CREATE POLICY "Auth delete digital-files" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'digital-files');
 
 -- =============================================================================
 -- REALTIME
