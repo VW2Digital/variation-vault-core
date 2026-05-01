@@ -52,6 +52,7 @@ import CartAbandonmentLogsPage from "./pages/CartAbandonmentLogsPage";
 import PaymentLinksPage from "./pages/PaymentLinksPage";
 import CouponsPage from "./pages/CouponsPage";
 import ReportsPage from "./pages/ReportsPage";
+import AbTestPage from "./pages/AbTestPage";
 import EmailTemplatesPage from "./pages/EmailTemplatesPage";
 import EmailLogsPage from "./pages/EmailLogsPage";
 import EmailEventsPage from "./pages/EmailEventsPage";
