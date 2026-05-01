@@ -247,12 +247,47 @@ const ProductForm = () => {
         // Fetch the saved variations to get their IDs
         const { data: savedVars } = await supabase
           .from('product_variations')
-          .select('id, dosage')
-          .eq('product_id', productId);
+          .select('id, dosage, created_at')
+          .eq('product_id', productId)
+          .order('created_at', { ascending: true });
         
         if (savedVars) {
+          // ────────────────────────────────────────────────────────────────
+          // Pareamento determinístico entre variações do formulário (locais)
+          // e variações salvas (savedVars). Estratégia em 2 passos:
+          //   1) Variações locais com `id` (edição) → casa por id.
+          //   2) Variações locais sem `id` (novas) → casa por ordem de
+          //      criação dentro das savedVars que ainda não foram pareadas.
+          // Isso evita: (a) colisão quando duas variações têm a mesma
+          // dosagem; (b) duplicação de upload quando vários savedVars
+          // batem com a mesma matchingVar via `find`; (c) regressão para
+          // produtos digitais com múltiplas variações.
+          // ────────────────────────────────────────────────────────────────
+          const localVars = variations.filter(
+            (v) => v.dosage.trim() !== '' || productType === 'digital' || v.is_digital
+          );
+          const pairing = new Map<string, Variation>(); // savedVar.id -> local Variation
+          const usedSavedIds = new Set<string>();
+          // Passo 1: pareia por id (edições)
+          for (const lv of localVars) {
+            if (lv.id) {
+              const sv = savedVars.find((s) => s.id === lv.id);
+              if (sv) {
+                pairing.set(sv.id, lv);
+                usedSavedIds.add(sv.id);
+              }
+            }
+          }
+          // Passo 2: pareia novas pela ordem dentro das savedVars restantes
+          const remainingSaved = savedVars.filter((s) => !usedSavedIds.has(s.id));
+          const newLocals = localVars.filter((lv) => !lv.id);
+          newLocals.forEach((lv, idx) => {
+            const sv = remainingSaved[idx];
+            if (sv) pairing.set(sv.id, lv);
+          });
+
           for (const sv of savedVars) {
-            const matchingVar = variations.find(v => v.dosage === sv.dosage);
+            const matchingVar = pairing.get(sv.id);
             if (matchingVar && matchingVar.wholesale_prices.length > 0) {
               // Delete existing wholesale prices for this variation
               await supabase.from('wholesale_prices').delete().eq('variation_id', sv.id);
@@ -278,10 +313,7 @@ const ProductForm = () => {
           type Job = { sv: any; file: File; key: string };
           const jobs: Job[] = [];
           for (const sv of savedVars) {
-            const matchingVar = variations.find(v =>
-              v.dosage === sv.dosage ||
-              (productType === 'digital' && (v.dosage === '' || v.dosage === 'Digital'))
-            );
+            const matchingVar = pairing.get(sv.id);
             const pending = matchingVar?.pending_files || [];
             for (const file of pending) {
               jobs.push({ sv, file, key: `${sv.id}-${file.name}-${file.size}-${Math.random().toString(36).slice(2, 8)}` });
