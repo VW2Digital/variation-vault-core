@@ -346,10 +346,12 @@ const Catalog = () => {
                 if (fromProduct.length > 0) return fromProduct;
                 return [productHeroImg];
               })();
-              const wholesaleTier = variation ? wholesaleMap[variation.id] : undefined;
-              const hasWholesale = !!wholesaleTier;
-              const wholesaleMinQty = wholesaleTier?.min_quantity;
-              const wholesaleUnitPrice = wholesaleTier?.price;
+              const wholesaleTiers: WholesaleTier[] = (variation && wholesaleMap[variation.id]) || [];
+              const hasWholesale = wholesaleTiers.length > 0;
+              const selectedTierIdx = variation ? (selectedTierMap[variation.id] ?? 0) : 0;
+              const activeTier = hasWholesale ? wholesaleTiers[Math.min(selectedTierIdx, wholesaleTiers.length - 1)] : undefined;
+              const wholesaleMinQty = activeTier?.min_quantity;
+              const wholesaleUnitPrice = activeTier?.price;
               const cleanName = variation?.is_digital
                 ? product.name.replace(/\s+digital\s*$/i, '').trim()
                 : product.name;
