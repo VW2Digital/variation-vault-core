@@ -92,7 +92,7 @@ const Header = () => {
             <Link to="/catalogo" className="flex items-center shrink-0 group">
               <img
                 src={logoImg}
-                alt="Liberty Pharma"
+                alt="Liberty Lumina"
                 className="h-9 lg:h-11 object-contain transition-transform group-hover:scale-105"
               />
             </Link>
@@ -232,7 +232,7 @@ const Header = () => {
           {/* Mobile Header */}
           <div className="flex md:hidden items-center justify-between h-14">
             <Link to="/catalogo" className="flex items-center shrink-0">
-              <img src={logoImg} alt="Liberty Pharma" className="h-8 object-contain" />
+              <img src={logoImg} alt="Liberty Lumina" className="h-8 object-contain" />
             </Link>
 
             <div className="flex items-center gap-1">
@@ -253,7 +253,7 @@ const Header = () => {
                 </SheetTrigger>
                 <SheetContent side="right" className="w-[280px] p-0 bg-card">
                   <div className="p-5 border-b border-border/30 bg-gradient-to-r from-primary/5 to-transparent">
-                    <img src={logoImg} alt="Liberty Pharma" className="h-9 object-contain" />
+                    <img src={logoImg} alt="Liberty Lumina" className="h-9 object-contain" />
                   </div>
 
                   {/* Mobile Search */}
