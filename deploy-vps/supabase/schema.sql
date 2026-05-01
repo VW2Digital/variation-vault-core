@@ -11,6 +11,8 @@
 --                  product_variation_files (produtos digitais),
 --                  link_order_to_user_by_email + link_existing_orders_to_new_user,
 --                  buckets digital-files (privado) e digital-file-covers (público)
+-- v4 (2026-05-01): profiles.avatar_url + bucket público `avatars`
+--                  (upload de foto de perfil pelo usuário, com Gravatar como fallback)
 -- =============================================================================
 
 -- EXTENSIONS
@@ -34,9 +36,12 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   full_name text NOT NULL DEFAULT '',
   cpf text DEFAULT '',
   phone text DEFAULT '',
+  avatar_url text DEFAULT '',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+-- v4: garante a coluna em bancos antigos
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url text DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS public.user_roles (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
