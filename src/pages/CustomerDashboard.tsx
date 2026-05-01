@@ -82,6 +82,8 @@ const CustomerDashboard = () => {
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSaving, setReviewSaving] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string>('');
+  const [customAvatarUrl, setCustomAvatarUrl] = useState<string>('');
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [payNowLoading, setPayNowLoading] = useState<string | null>(null);
   const [pixModal, setPixModal] = useState<{ orderId: string; qrCode: string; payload: string; value: number } | null>(null);
   const isMobile = useIsMobile();
@@ -187,12 +189,13 @@ const CustomerDashboard = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name, phone')
+        .select('full_name, phone, avatar_url')
         .eq('user_id', userId)
         .maybeSingle();
       if (data) {
         setProfileName(data.full_name || '');
         setProfilePhone(data.phone || '');
+        setCustomAvatarUrl((data as any).avatar_url || '');
       }
       const { data: prefs } = await supabase
         .from('contact_preferences')
