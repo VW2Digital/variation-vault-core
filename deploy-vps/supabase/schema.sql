@@ -918,525 +918,525 @@ ALTER TABLE public.wholesale_prices ENABLE ROW LEVEL SECURITY;
 
 CREATE OR REPLACE FUNCTION public.dispatch_order_email(_template text, _to text, _subject text, _data jsonb)
 
-CREATE OR REPLACE S void
+ RETURNS void
 
-CREATE OR REPLACE GE plpgsql
+ LANGUAGE plpgsql
 
-CREATE OR REPLACE TY DEFINER
+ SECURITY DEFINER
 
-CREATE OR REPLACE arch_path TO 'public'
+ SET search_path TO 'public'
 
-CREATE OR REPLACE ction$
+AS $function$
 
-CREATE OR REPLACE 
+DECLARE
 
-CREATE OR REPLACE base_url text;
+  _supabase_url text;
 
-CREATE OR REPLACE ice_role_key text;
+  _service_role_key text;
 
-CREATE OR REPLACE oad jsonb;
+  _payload jsonb;
 
-CREATE OR REPLACE 
+BEGIN
 
-CREATE OR REPLACE  config do vault (criada pelo setup_email_infra) ou usa fallback
+  -- Lê config do vault (criada pelo setup_email_infra) ou usa fallback
 
-CREATE OR REPLACE  não existir vault, lê de site_settings
+  -- Se não existir vault, lê de site_settings
 
-CREATE OR REPLACE T value INTO _supabase_url FROM public.site_settings WHERE key = 'supabase_functions_url' LIMIT 1;
+  SELECT value INTO _supabase_url FROM public.site_settings WHERE key = 'supabase_functions_url' LIMIT 1;
 
-CREATE OR REPLACE upabase_url IS NULL OR _supabase_url = '' THEN
+  IF _supabase_url IS NULL OR _supabase_url = '' THEN
 
-CREATE OR REPLACE pabase_url := 'https://vkomfiplmhpkhfpidrng.supabase.co';
+    _supabase_url := 'https://vkomfiplmhpkhfpidrng.supabase.co';
 
-CREATE OR REPLACE F;
+  END IF;
 
-CREATE OR REPLACE rvice role key precisa estar em site_settings (chave: service_role_key_for_triggers)
+  -- Service role key precisa estar em site_settings (chave: service_role_key_for_triggers)
 
-CREATE OR REPLACE  em uma extensão de vault. Para simplificar, lemos de site_settings.
+  -- ou em uma extensão de vault. Para simplificar, lemos de site_settings.
 
-CREATE OR REPLACE T value INTO _service_role_key FROM public.site_settings WHERE key = 'service_role_key_for_triggers' LIMIT 1;
+  SELECT value INTO _service_role_key FROM public.site_settings WHERE key = 'service_role_key_for_triggers' LIMIT 1;
 
-CREATE OR REPLACE ervice_role_key IS NULL OR _service_role_key = '' THEN
+  IF _service_role_key IS NULL OR _service_role_key = '' THEN
 
-CREATE OR REPLACE SE NOTICE 'service_role_key_for_triggers não configurado em site_settings — email não enviado';
+    RAISE NOTICE 'service_role_key_for_triggers não configurado em site_settings — email não enviado';
 
-CREATE OR REPLACE URN;
+    RETURN;
 
-CREATE OR REPLACE F;
+  END IF;
 
-CREATE OR REPLACE o IS NULL OR _to = '' THEN
+  IF _to IS NULL OR _to = '' THEN
 
-CREATE OR REPLACE URN;
+    RETURN;
 
-CREATE OR REPLACE F;
+  END IF;
 
-CREATE OR REPLACE oad := jsonb_build_object(
+  _payload := jsonb_build_object(
 
-CREATE OR REPLACE mplate', _template,
+    'template', _template,
 
-CREATE OR REPLACE ', _to,
+    'to', _to,
 
-CREATE OR REPLACE bject', _subject,
+    'subject', _subject,
 
-CREATE OR REPLACE ta', _data
+    'data', _data
 
-CREATE OR REPLACE 
+  );
 
-CREATE OR REPLACE RM net.http_post(
+  PERFORM net.http_post(
 
-CREATE OR REPLACE  := _supabase_url || '/functions/v1/send-email',
+    url := _supabase_url || '/functions/v1/send-email',
 
-CREATE OR REPLACE ders := jsonb_build_object(
+    headers := jsonb_build_object(
 
-CREATE OR REPLACE Content-Type', 'application/json',
+      'Content-Type', 'application/json',
 
-CREATE OR REPLACE Authorization', 'Bearer ' || _service_role_key
+      'Authorization', 'Bearer ' || _service_role_key
 
-CREATE OR REPLACE 
+    ),
 
-CREATE OR REPLACE y := _payload
+    body := _payload
 
-CREATE OR REPLACE 
+  );
 
-CREATE OR REPLACE ON WHEN OTHERS THEN
+EXCEPTION WHEN OTHERS THEN
 
-CREATE OR REPLACE  NOTICE 'dispatch_order_email failed: %', SQLERRM;
+  RAISE NOTICE 'dispatch_order_email failed: %', SQLERRM;
 
-CREATE OR REPLACE 
+END;
 
-CREATE OR REPLACE on$
+$function$
 
 CREATE OR REPLACE FUNCTION public.ensure_single_default_address()
 
-CREATE OR REPLACE S trigger
+ RETURNS trigger
 
-CREATE OR REPLACE GE plpgsql
+ LANGUAGE plpgsql
 
-CREATE OR REPLACE TY DEFINER
+ SECURITY DEFINER
 
-CREATE OR REPLACE arch_path TO 'public'
+ SET search_path TO 'public'
 
-CREATE OR REPLACE ction$
+AS $function$
 
-CREATE OR REPLACE 
+BEGIN
 
-CREATE OR REPLACE W.is_default = true THEN
+  IF NEW.is_default = true THEN
 
-CREATE OR REPLACE ATE public.addresses SET is_default = false
+    UPDATE public.addresses SET is_default = false
 
-CREATE OR REPLACE RE user_id = NEW.user_id AND id != NEW.id AND is_default = true;
+    WHERE user_id = NEW.user_id AND id != NEW.id AND is_default = true;
 
-CREATE OR REPLACE F;
+  END IF;
 
-CREATE OR REPLACE N NEW;
+  RETURN NEW;
 
-CREATE OR REPLACE 
+END;
 
-CREATE OR REPLACE on$
+$function$
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 
-CREATE OR REPLACE S trigger
+ RETURNS trigger
 
-CREATE OR REPLACE GE plpgsql
+ LANGUAGE plpgsql
 
-CREATE OR REPLACE TY DEFINER
+ SECURITY DEFINER
 
-CREATE OR REPLACE arch_path TO 'public'
+ SET search_path TO 'public'
 
-CREATE OR REPLACE ction$
+AS $function$
 
-CREATE OR REPLACE 
+BEGIN
 
-CREATE OR REPLACE T INTO public.profiles (user_id, full_name)
+  INSERT INTO public.profiles (user_id, full_name)
 
-CREATE OR REPLACE S (NEW.id, COALESCE(NEW.raw_user_meta_data->>'full_name', ''))
+  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'full_name', ''))
 
-CREATE OR REPLACE NFLICT (user_id) DO NOTHING;
+  ON CONFLICT (user_id) DO NOTHING;
 
-CREATE OR REPLACE N NEW;
+  RETURN NEW;
 
-CREATE OR REPLACE 
+END;
 
-CREATE OR REPLACE on$
+$function$
 
 CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role app_role)
 
-CREATE OR REPLACE S boolean
+ RETURNS boolean
 
-CREATE OR REPLACE GE sql
+ LANGUAGE sql
 
-CREATE OR REPLACE  SECURITY DEFINER
+ STABLE SECURITY DEFINER
 
-CREATE OR REPLACE arch_path TO 'public'
+ SET search_path TO 'public'
 
-CREATE OR REPLACE ction$
+AS $function$
 
-CREATE OR REPLACE T EXISTS (
+  SELECT EXISTS (
 
-CREATE OR REPLACE ECT 1 FROM public.user_roles
+    SELECT 1 FROM public.user_roles
 
-CREATE OR REPLACE RE user_id = _user_id AND role = _role
+    WHERE user_id = _user_id AND role = _role
 
-CREATE OR REPLACE 
+  )
 
-CREATE OR REPLACE on$
+$function$
 
 CREATE OR REPLACE FUNCTION public.increment_coupon_usage(_coupon_code text)
 
-CREATE OR REPLACE S boolean
+ RETURNS boolean
 
-CREATE OR REPLACE GE plpgsql
+ LANGUAGE plpgsql
 
-CREATE OR REPLACE TY DEFINER
+ SECURITY DEFINER
 
-CREATE OR REPLACE arch_path TO 'public'
+ SET search_path TO 'public'
 
-CREATE OR REPLACE ction$
+AS $function$
 
-CREATE OR REPLACE 
+BEGIN
 
-CREATE OR REPLACE contagem agora é em tempo real via view coupons_with_usage.
+  -- A contagem agora é em tempo real via view coupons_with_usage.
 
-CREATE OR REPLACE ta função permanece apenas para compatibilidade com webhooks existentes.
+  -- Esta função permanece apenas para compatibilidade com webhooks existentes.
 
-CREATE OR REPLACE torna true se o cupom existe e está ativo.
+  -- Retorna true se o cupom existe e está ativo.
 
-CREATE OR REPLACE N EXISTS (
+  RETURN EXISTS (
 
-CREATE OR REPLACE ECT 1 FROM public.coupons
+    SELECT 1 FROM public.coupons
 
-CREATE OR REPLACE RE LOWER(code) = LOWER(_coupon_code) AND active = true
+    WHERE LOWER(code) = LOWER(_coupon_code) AND active = true
 
-CREATE OR REPLACE 
+  );
 
-CREATE OR REPLACE 
+END;
 
-CREATE OR REPLACE on$
+$function$
 
 CREATE OR REPLACE FUNCTION public.link_existing_orders_to_new_user()
 
-CREATE OR REPLACE S trigger
+ RETURNS trigger
 
-CREATE OR REPLACE GE plpgsql
+ LANGUAGE plpgsql
 
-CREATE OR REPLACE TY DEFINER
+ SECURITY DEFINER
 
-CREATE OR REPLACE arch_path TO 'public'
+ SET search_path TO 'public'
 
-CREATE OR REPLACE ction$
+AS $function$
 
-CREATE OR REPLACE 
+BEGIN
 
-CREATE OR REPLACE W.email IS NOT NULL AND NEW.email <> '' THEN
+  IF NEW.email IS NOT NULL AND NEW.email <> '' THEN
 
-CREATE OR REPLACE ATE public.orders
+    UPDATE public.orders
 
-CREATE OR REPLACE  customer_user_id = NEW.id
+    SET customer_user_id = NEW.id
 
-CREATE OR REPLACE RE customer_user_id IS NULL
+    WHERE customer_user_id IS NULL
 
-CREATE OR REPLACE ND LOWER(customer_email) = LOWER(NEW.email);
+      AND LOWER(customer_email) = LOWER(NEW.email);
 
-CREATE OR REPLACE F;
+  END IF;
 
-CREATE OR REPLACE N NEW;
+  RETURN NEW;
 
-CREATE OR REPLACE 
+END;
 
-CREATE OR REPLACE on$
+$function$
 
 CREATE OR REPLACE FUNCTION public.link_order_to_user_by_email()
 
-CREATE OR REPLACE S trigger
+ RETURNS trigger
 
-CREATE OR REPLACE GE plpgsql
+ LANGUAGE plpgsql
 
-CREATE OR REPLACE TY DEFINER
+ SECURITY DEFINER
 
-CREATE OR REPLACE arch_path TO 'public'
+ SET search_path TO 'public'
 
-CREATE OR REPLACE ction$
+AS $function$
 
-CREATE OR REPLACE 
+BEGIN
 
-CREATE OR REPLACE W.customer_user_id IS NULL
+  IF NEW.customer_user_id IS NULL
 
-CREATE OR REPLACE D NEW.customer_email IS NOT NULL
+     AND NEW.customer_email IS NOT NULL
 
-CREATE OR REPLACE D NEW.customer_email <> '' THEN
+     AND NEW.customer_email <> '' THEN
 
-CREATE OR REPLACE ECT id INTO NEW.customer_user_id
+    SELECT id INTO NEW.customer_user_id
 
-CREATE OR REPLACE M auth.users
+    FROM auth.users
 
-CREATE OR REPLACE RE LOWER(email) = LOWER(NEW.customer_email)
+    WHERE LOWER(email) = LOWER(NEW.customer_email)
 
-CREATE OR REPLACE IT 1;
+    LIMIT 1;
 
-CREATE OR REPLACE F;
+  END IF;
 
-CREATE OR REPLACE N NEW;
+  RETURN NEW;
 
-CREATE OR REPLACE 
+END;
 
-CREATE OR REPLACE on$
+$function$
 
 CREATE OR REPLACE FUNCTION public.touch_webhook_retry_queue()
 
-CREATE OR REPLACE S trigger
+ RETURNS trigger
 
-CREATE OR REPLACE GE plpgsql
+ LANGUAGE plpgsql
 
-CREATE OR REPLACE arch_path TO 'public'
+ SET search_path TO 'public'
 
-CREATE OR REPLACE ction$
+AS $function$
 
-CREATE OR REPLACE EW.updated_at = now(); RETURN NEW; END;
+BEGIN NEW.updated_at = now(); RETURN NEW; END;
 
-CREATE OR REPLACE on$
+$function$
 
 CREATE OR REPLACE FUNCTION public.trigger_send_order_emails()
 
-CREATE OR REPLACE S trigger
+ RETURNS trigger
 
-CREATE OR REPLACE GE plpgsql
+ LANGUAGE plpgsql
 
-CREATE OR REPLACE TY DEFINER
+ SECURITY DEFINER
 
-CREATE OR REPLACE arch_path TO 'public'
+ SET search_path TO 'public'
 
-CREATE OR REPLACE ction$
+AS $function$
 
-CREATE OR REPLACE 
+DECLARE
 
-CREATE OR REPLACE ent_method text;
+  _payment_method text;
 
-CREATE OR REPLACE ed_statuses text[] := ARRAY['REFUSED','REPROVED','CANCELLED','CANCELED','FAILED','REJECTED','DECLINED','refused','reproved','cancelled','canceled','failed','rejected','declined'];
+  _failed_statuses text[] := ARRAY['REFUSED','REPROVED','CANCELLED','CANCELED','FAILED','REJECTED','DECLINED','refused','reproved','cancelled','canceled','failed','rejected','declined'];
 
-CREATE OR REPLACE _statuses   text[] := ARRAY['PAID','CONFIRMED','RECEIVED','paid','confirmed','received'];
+  _paid_statuses   text[] := ARRAY['PAID','CONFIRMED','RECEIVED','paid','confirmed','received'];
 
-CREATE OR REPLACE 
+BEGIN
 
-CREATE OR REPLACE rmaliza método de pagamento para exibição
+  -- Normaliza método de pagamento para exibição
 
-CREATE OR REPLACE ent_method := CASE
+  _payment_method := CASE
 
-CREATE OR REPLACE N NEW.payment_method ILIKE '%credit%' OR NEW.payment_method ILIKE '%card%' THEN 'Cartão de Crédito'
+    WHEN NEW.payment_method ILIKE '%credit%' OR NEW.payment_method ILIKE '%card%' THEN 'Cartão de Crédito'
 
-CREATE OR REPLACE N NEW.payment_method ILIKE '%pix%' THEN 'PIX'
+    WHEN NEW.payment_method ILIKE '%pix%' THEN 'PIX'
 
-CREATE OR REPLACE N NEW.payment_method ILIKE '%boleto%' THEN 'Boleto'
+    WHEN NEW.payment_method ILIKE '%boleto%' THEN 'Boleto'
 
-CREATE OR REPLACE E COALESCE(NEW.payment_method, '—')
+    ELSE COALESCE(NEW.payment_method, '—')
 
-CREATE OR REPLACE 
+  END;
 
-CREATE OR REPLACE  1. INSERT ──────────────────────────────────────────────────────
+  -- ── 1. INSERT ──────────────────────────────────────────────────────
 
-CREATE OR REPLACE G_OP = 'INSERT') THEN
+  IF (TG_OP = 'INSERT') THEN
 
-CREATE OR REPLACE Se o pedido já nasce recusado/cancelado, NÃO mandar "Pedido recebido".
+    -- Se o pedido já nasce recusado/cancelado, NÃO mandar "Pedido recebido".
 
-CREATE OR REPLACE Em vez disso, dispara o email de falha de pagamento.
+    -- Em vez disso, dispara o email de falha de pagamento.
 
-CREATE OR REPLACE NEW.status = ANY(_failed_statuses) THEN
+    IF NEW.status = ANY(_failed_statuses) THEN
 
-CREATE OR REPLACE ERFORM public.dispatch_order_email(
+      PERFORM public.dispatch_order_email(
 
-CREATE OR REPLACE  'payment_failure',
+        'payment_failure',
 
-CREATE OR REPLACE  NEW.customer_email,
+        NEW.customer_email,
 
-CREATE OR REPLACE  'Pagamento Não Aprovado - ' || COALESCE(NEW.product_name, 'seu pedido'),
+        'Pagamento Não Aprovado - ' || COALESCE(NEW.product_name, 'seu pedido'),
 
-CREATE OR REPLACE  jsonb_build_object(
+        jsonb_build_object(
 
-CREATE OR REPLACE    'customer_name', NEW.customer_name,
+          'customer_name', NEW.customer_name,
 
-CREATE OR REPLACE    'order_id', NEW.id,
+          'order_id', NEW.id,
 
-CREATE OR REPLACE    'product_name', NEW.product_name,
+          'product_name', NEW.product_name,
 
-CREATE OR REPLACE    'total_value', NEW.total_value,
+          'total_value', NEW.total_value,
 
-CREATE OR REPLACE    'payment_method', _payment_method,
+          'payment_method', _payment_method,
 
-CREATE OR REPLACE    'error_message', 'Pagamento não aprovado.'
+          'error_message', 'Pagamento não aprovado.'
 
-CREATE OR REPLACE  )
+        )
 
-CREATE OR REPLACE ;
+      );
 
-CREATE OR REPLACE ETURN NEW;
+      RETURN NEW;
 
-CREATE OR REPLACE  IF;
+    END IF;
 
-CREATE OR REPLACE FORM public.dispatch_order_email(
+    PERFORM public.dispatch_order_email(
 
-CREATE OR REPLACE order_created',
+      'order_created',
 
-CREATE OR REPLACE EW.customer_email,
+      NEW.customer_email,
 
-CREATE OR REPLACE Pedido recebido — ' || COALESCE(NEW.product_name, 'seu pedido'),
+      'Pedido recebido — ' || COALESCE(NEW.product_name, 'seu pedido'),
 
-CREATE OR REPLACE sonb_build_object(
+      jsonb_build_object(
 
-CREATE OR REPLACE  'customer_name', NEW.customer_name,
+        'customer_name', NEW.customer_name,
 
-CREATE OR REPLACE  'order_id', NEW.id,
+        'order_id', NEW.id,
 
-CREATE OR REPLACE  'product_name', NEW.product_name,
+        'product_name', NEW.product_name,
 
-CREATE OR REPLACE  'total_value', NEW.total_value,
+        'total_value', NEW.total_value,
 
-CREATE OR REPLACE  'payment_method', _payment_method
+        'payment_method', _payment_method
 
-CREATE OR REPLACE 
+      )
 
-CREATE OR REPLACE 
+    );
 
-CREATE OR REPLACE URN NEW;
+    RETURN NEW;
 
-CREATE OR REPLACE F;
+  END IF;
 
-CREATE OR REPLACE  2. UPDATE ──────────────────────────────────────────────────────
+  -- ── 2. UPDATE ──────────────────────────────────────────────────────
 
-CREATE OR REPLACE G_OP = 'UPDATE') THEN
+  IF (TG_OP = 'UPDATE') THEN
 
-CREATE OR REPLACE Pagamento aprovado
+    -- Pagamento aprovado
 
-CREATE OR REPLACE (OLD.status IS DISTINCT FROM NEW.status)
+    IF (OLD.status IS DISTINCT FROM NEW.status)
 
-CREATE OR REPLACE AND NEW.status = ANY(_paid_statuses)
+       AND NEW.status = ANY(_paid_statuses)
 
-CREATE OR REPLACE AND NOT (OLD.status = ANY(_paid_statuses)) THEN
+       AND NOT (OLD.status = ANY(_paid_statuses)) THEN
 
-CREATE OR REPLACE ERFORM public.dispatch_order_email(
+      PERFORM public.dispatch_order_email(
 
-CREATE OR REPLACE  'order_paid',
+        'order_paid',
 
-CREATE OR REPLACE  NEW.customer_email,
+        NEW.customer_email,
 
-CREATE OR REPLACE  'Pagamento Aprovado - ' || COALESCE(NEW.product_name, 'seu pedido'),
+        'Pagamento Aprovado - ' || COALESCE(NEW.product_name, 'seu pedido'),
 
-CREATE OR REPLACE  jsonb_build_object(
+        jsonb_build_object(
 
-CREATE OR REPLACE    'customer_name', NEW.customer_name,
+          'customer_name', NEW.customer_name,
 
-CREATE OR REPLACE    'order_id', NEW.id,
+          'order_id', NEW.id,
 
-CREATE OR REPLACE    'product_name', NEW.product_name,
+          'product_name', NEW.product_name,
 
-CREATE OR REPLACE    'total_value', NEW.total_value,
+          'total_value', NEW.total_value,
 
-CREATE OR REPLACE    'payment_method', _payment_method
+          'payment_method', _payment_method
 
-CREATE OR REPLACE  )
+        )
 
-CREATE OR REPLACE ;
+      );
 
-CREATE OR REPLACE  IF;
+    END IF;
 
-CREATE OR REPLACE Pagamento recusado / cancelado
+    -- Pagamento recusado / cancelado
 
-CREATE OR REPLACE (OLD.status IS DISTINCT FROM NEW.status)
+    IF (OLD.status IS DISTINCT FROM NEW.status)
 
-CREATE OR REPLACE AND NEW.status = ANY(_failed_statuses)
+       AND NEW.status = ANY(_failed_statuses)
 
-CREATE OR REPLACE AND NOT (OLD.status = ANY(_failed_statuses)) THEN
+       AND NOT (OLD.status = ANY(_failed_statuses)) THEN
 
-CREATE OR REPLACE ERFORM public.dispatch_order_email(
+      PERFORM public.dispatch_order_email(
 
-CREATE OR REPLACE  'payment_failure',
+        'payment_failure',
 
-CREATE OR REPLACE  NEW.customer_email,
+        NEW.customer_email,
 
-CREATE OR REPLACE  'Pagamento Não Aprovado - ' || COALESCE(NEW.product_name, 'seu pedido'),
+        'Pagamento Não Aprovado - ' || COALESCE(NEW.product_name, 'seu pedido'),
 
-CREATE OR REPLACE  jsonb_build_object(
+        jsonb_build_object(
 
-CREATE OR REPLACE    'customer_name', NEW.customer_name,
+          'customer_name', NEW.customer_name,
 
-CREATE OR REPLACE    'order_id', NEW.id,
+          'order_id', NEW.id,
 
-CREATE OR REPLACE    'product_name', NEW.product_name,
+          'product_name', NEW.product_name,
 
-CREATE OR REPLACE    'total_value', NEW.total_value,
+          'total_value', NEW.total_value,
 
-CREATE OR REPLACE    'payment_method', _payment_method,
+          'payment_method', _payment_method,
 
-CREATE OR REPLACE    'error_message', 'Pagamento não aprovado.'
+          'error_message', 'Pagamento não aprovado.'
 
-CREATE OR REPLACE  )
+        )
 
-CREATE OR REPLACE ;
+      );
 
-CREATE OR REPLACE  IF;
+    END IF;
 
-CREATE OR REPLACE Código de rastreio adicionado/atualizado
+    -- Código de rastreio adicionado/atualizado
 
-CREATE OR REPLACE (COALESCE(OLD.tracking_code, '') IS DISTINCT FROM COALESCE(NEW.tracking_code, ''))
+    IF (COALESCE(OLD.tracking_code, '') IS DISTINCT FROM COALESCE(NEW.tracking_code, ''))
 
-CREATE OR REPLACE AND NEW.tracking_code IS NOT NULL
+       AND NEW.tracking_code IS NOT NULL
 
-CREATE OR REPLACE AND NEW.tracking_code <> '' THEN
+       AND NEW.tracking_code <> '' THEN
 
-CREATE OR REPLACE ERFORM public.dispatch_order_email(
+      PERFORM public.dispatch_order_email(
 
-CREATE OR REPLACE  'shipping_update',
+        'shipping_update',
 
-CREATE OR REPLACE  NEW.customer_email,
+        NEW.customer_email,
 
-CREATE OR REPLACE  'Seu pedido foi enviado! Código: ' || NEW.tracking_code,
+        'Seu pedido foi enviado! Código: ' || NEW.tracking_code,
 
-CREATE OR REPLACE  jsonb_build_object(
+        jsonb_build_object(
 
-CREATE OR REPLACE    'customer_name', NEW.customer_name,
+          'customer_name', NEW.customer_name,
 
-CREATE OR REPLACE    'order_id', NEW.id,
+          'order_id', NEW.id,
 
-CREATE OR REPLACE    'product_name', NEW.product_name,
+          'product_name', NEW.product_name,
 
-CREATE OR REPLACE    'tracking_code', NEW.tracking_code,
+          'tracking_code', NEW.tracking_code,
 
-CREATE OR REPLACE    'tracking_url', NEW.tracking_url,
+          'tracking_url', NEW.tracking_url,
 
-CREATE OR REPLACE    'shipping_service', NEW.shipping_service
+          'shipping_service', NEW.shipping_service
 
-CREATE OR REPLACE  )
+        )
 
-CREATE OR REPLACE ;
+      );
 
-CREATE OR REPLACE  IF;
+    END IF;
 
-CREATE OR REPLACE F;
+  END IF;
 
-CREATE OR REPLACE N NEW;
+  RETURN NEW;
 
-CREATE OR REPLACE 
+END;
 
-CREATE OR REPLACE on$
+$function$
 
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 
-CREATE OR REPLACE S trigger
+ RETURNS trigger
 
-CREATE OR REPLACE GE plpgsql
+ LANGUAGE plpgsql
 
-CREATE OR REPLACE arch_path TO 'public'
+ SET search_path TO 'public'
 
-CREATE OR REPLACE ction$
+AS $function$
 
-CREATE OR REPLACE 
+BEGIN
 
-CREATE OR REPLACE pdated_at = now();
+  NEW.updated_at = now();
 
-CREATE OR REPLACE N NEW;
+  RETURN NEW;
 
-CREATE OR REPLACE 
+END;
 
-CREATE OR REPLACE on$
+$function$
 
 -- 8) Políticas RLS
 
