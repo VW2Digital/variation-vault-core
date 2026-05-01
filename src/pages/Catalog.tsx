@@ -25,6 +25,7 @@ import Footer from '@/components/Footer';
 import BannerCarousel from '@/components/BannerCarousel';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { TRUST_BAR_ICONS, DEFAULT_TRUST_BAR, DEFAULT_TRUST_BAR_BG, DEFAULT_TRUST_BAR_SPEED, type TrustBarItem } from '@/pages/settings/SettingsTrustBar';
+import { ProductCardSkeletonGrid } from '@/components/ProductCardSkeleton';
 
 const Catalog = () => {
   const { totalItems, addToCart } = useCart();
@@ -311,7 +312,7 @@ const Catalog = () => {
 
         {/* Product Grid */}
         {loading ? (
-          <div className="text-center py-20 text-muted-foreground">{t('loadingProducts')}</div>
+          <ProductCardSkeletonGrid count={8} />
         ) : flatItems.length === 0 ? (
           <div className="text-center py-20 space-y-3">
             <Package className="w-12 h-12 text-muted-foreground mx-auto" />
