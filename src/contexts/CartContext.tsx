@@ -355,11 +355,73 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateQuantitiesBulk = async (
+    updates: Array<{ variationId: string; quantity: number }>,
+  ): Promise<{ adjusted: Array<{ name: string; minQty: number }> }> => {
+    const adjusted: Array<{ name: string; minQty: number }> = [];
+
+    // Resolve final qty per variation, clamping to wholesale minimum when needed
+    const resolved = updates
+      .filter(u => u.quantity >= 1)
+      .map(({ variationId, quantity }) => {
+        const item = items.find(i => i.variation_id === variationId);
+        let finalQuantity = quantity;
+        if (item && item.wholesale_prices.length > 0) {
+          const minQty = Math.min(...item.wholesale_prices.map(t => t.min_quantity));
+          if (quantity < minQty) {
+            finalQuantity = minQty;
+            adjusted.push({
+              name: `${item.product_name}${item.dosage ? ` (${item.dosage})` : ''}`,
+              minQty,
+            });
+          }
+        }
+        return { variationId, quantity: finalQuantity, currentQty: item?.quantity ?? null };
+      })
+      // Skip no-ops to reduce DB writes
+      .filter(u => u.currentQty !== u.quantity);
+
+    if (resolved.length === 0) {
+      return { adjusted };
+    }
+
+    try {
+      if (!userId) {
+        const anon = readAnonCart();
+        resolved.forEach(({ variationId, quantity }) => {
+          const idx = anon.findIndex(e => e.variation_id === variationId);
+          if (idx >= 0) anon[idx].quantity = quantity;
+        });
+        writeAnonCart(anon);
+        await fetchCart();
+        return { adjusted };
+      }
+
+      // Run all updates in parallel for one-shot UX, then a single fetchCart
+      const results = await Promise.all(
+        resolved.map(({ variationId, quantity }) =>
+          supabase
+            .from('cart_items')
+            .update({ quantity })
+            .eq('user_id', userId)
+            .eq('variation_id', variationId),
+        ),
+      );
+      const failed = results.find(r => r.error);
+      if (failed?.error) throw failed.error;
+      await fetchCart();
+      return { adjusted };
+    } catch (err: any) {
+      toast({ title: 'Erro ao atualizar quantidades', description: err.message, variant: 'destructive' });
+      return { adjusted };
+    }
+  };
+
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
   const totalPrice = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ items, loading, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice }}>
+    <CartContext.Provider value={{ items, loading, addToCart, removeFromCart, updateQuantity, updateQuantitiesBulk, clearCart, totalItems, totalPrice }}>
       {children}
     </CartContext.Provider>
   );
