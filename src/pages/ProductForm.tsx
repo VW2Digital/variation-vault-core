@@ -793,14 +793,74 @@ const ProductForm = () => {
                   </div>
                 </div>
 
-                {v.is_digital && (
+                {(productType === 'digital' || v.is_digital) && (
                   v.id ? (
                     <DigitalFilesManager variationId={v.id} />
                   ) : (
-                    <div className="p-3 rounded-md border border-dashed border-primary/40 bg-primary/5">
-                      <p className="text-[11px] text-muted-foreground">
-                        Salve o produto primeiro para anexar arquivos digitais a esta variação.
-                      </p>
+                    <div className="space-y-2 p-3 rounded-md border border-primary/30 bg-primary/5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold flex items-center gap-1.5">
+                          <Download className="w-3.5 h-3.5" /> Arquivos para Download
+                        </Label>
+                        <label>
+                          <Button type="button" size="sm" variant="outline" className="h-7 text-xs gap-1" asChild>
+                            <span className="cursor-pointer">
+                              <FileUp className="w-3 h-3" /> Selecionar arquivos
+                            </span>
+                          </Button>
+                          <input
+                            type="file"
+                            multiple
+                            className="hidden"
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.jpg,.jpeg,.png,.webp"
+                            onChange={(e) => {
+                              const files = e.target.files;
+                              if (!files) return;
+                              const arr = Array.from(files).filter(f => {
+                                if (f.size > 50 * 1024 * 1024) {
+                                  toast({ title: `${f.name} excede 50MB`, variant: 'destructive' });
+                                  return false;
+                                }
+                                return true;
+                              });
+                              const current = v.pending_files || [];
+                              updateVariation(i, 'pending_files', [...current, ...arr]);
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                      </div>
+                      {(v.pending_files?.length || 0) === 0 ? (
+                        <p className="text-[11px] text-muted-foreground">
+                          Nenhum arquivo selecionado. PDF, DOC, XLS, PPT, TXT, ZIP, JPG, PNG, WEBP (máx. 50MB cada). Os arquivos serão enviados ao salvar o produto.
+                        </p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {(v.pending_files || []).map((f, fi) => (
+                            <div key={fi} className="flex items-center gap-2 bg-background/80 rounded px-2 py-1.5 border border-border/40">
+                              <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-foreground truncate">{f.name}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {f.size < 1024 * 1024 ? `${(f.size / 1024).toFixed(1)} KB` : `${(f.size / (1024 * 1024)).toFixed(1)} MB`}
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6 text-destructive shrink-0"
+                                onClick={() => {
+                                  const next = (v.pending_files || []).filter((_, j) => j !== fi);
+                                  updateVariation(i, 'pending_files', next);
+                                }}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )
                 )}
