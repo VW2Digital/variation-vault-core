@@ -370,7 +370,7 @@ const Catalog = () => {
                       className="block flex-1"
                     >
                       {/* Image */}
-                      <div className={`relative aspect-[1080/1450] bg-white flex items-center justify-center overflow-hidden ${ab.variant === 'B' ? 'border-b border-border/40' : ''}`}>
+                      <div className={`relative aspect-[1080/1450] bg-white flex items-center justify-center overflow-hidden ${ab.variant === 'B' ? 'p-3 sm:p-4 border-b border-border/40' : 'p-4 sm:p-5'}`}>
                         <img
                           src={img}
                           alt={displayName}
@@ -383,8 +383,8 @@ const Catalog = () => {
                           }}
                           className={`transition-transform duration-500 ${
                             ab.variant === 'B'
-                              ? 'absolute inset-0 w-full h-full !object-cover group-hover:scale-105'
-                              : 'absolute inset-0 w-full h-full object-cover group-hover:scale-105'
+                              ? 'w-full h-full object-contain group-hover:scale-105'
+                              : 'w-full h-full object-contain group-hover:scale-105'
                           }`}
                         />
                         {ab.variant === 'B' ? (
