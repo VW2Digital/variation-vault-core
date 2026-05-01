@@ -48,6 +48,7 @@ import AdminSupportPage from "./pages/AdminSupportPage";
 import AdminReviewsPage from "./pages/AdminReviewsPage";
 import PopupList from "./pages/PopupList";
 import PaymentLogsPage from "./pages/PaymentLogsPage";
+import WholesalePricingPage from "./pages/WholesalePricingPage";
 import WebhookLogsPage from "./pages/WebhookLogsPage";
 import CartAbandonmentLogsPage from "./pages/CartAbandonmentLogsPage";
 import PaymentLinksPage from "./pages/PaymentLinksPage";
@@ -110,6 +111,7 @@ const App = () => (
             <Route path="produtos" element={<ProductList />} />
             <Route path="produtos/novo" element={<ProductForm />} />
             <Route path="produtos/:id" element={<ProductForm />} />
+            <Route path="atacado" element={<WholesalePricingPage />} />
             <Route path="depoimentos" element={<TestimonialList />} />
             <Route path="banners" element={<BannerList />} />
             <Route path="popups" element={<PopupList />} />
