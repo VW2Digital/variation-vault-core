@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { FileText } from 'lucide-react';
+import { FileText, Shield, ScrollText } from 'lucide-react';
 import SettingsBackButton from './SettingsBackButton';
 import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 
@@ -21,6 +21,8 @@ const SettingsFooter = () => {
   const [footerEmail, setFooterEmail] = useState('');
   const [instagramUrl, setInstagramUrl] = useState('');
   const [facebookUrl, setFacebookUrl] = useState('');
+  const [privacyPolicy, setPrivacyPolicy] = useState('');
+  const [termsOfUse, setTermsOfUse] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -30,13 +32,17 @@ const SettingsFooter = () => {
       fetchSetting('footer_email'),
       fetchSetting('instagram_url'),
       fetchSetting('facebook_url'),
-    ]).then(([text, mission, phone, email, ig, fb]) => {
+      fetchSetting('privacy_policy_content'),
+      fetchSetting('terms_of_use_content'),
+    ]).then(([text, mission, phone, email, ig, fb, privacy, terms]) => {
       setFooterText(text || '');
       setFooterMission(mission || '');
       setFooterPhone(phone || '');
       setFooterEmail(email || '');
       setInstagramUrl(ig || '');
       setFacebookUrl(fb || '');
+      setPrivacyPolicy(privacy || '');
+      setTermsOfUse(terms || '');
     }).finally(() => setLoading(false));
   }, []);
 
@@ -53,6 +59,8 @@ const SettingsFooter = () => {
         upsertSetting('footer_email', footerEmail, uid),
         upsertSetting('instagram_url', instagramUrl, uid),
         upsertSetting('facebook_url', facebookUrl, uid),
+        upsertSetting('privacy_policy_content', privacyPolicy, uid),
+        upsertSetting('terms_of_use_content', termsOfUse, uid),
       ]);
       toast({ title: 'Configurações do rodapé salvas!' });
     } catch (err: any) {
@@ -98,6 +106,44 @@ const SettingsFooter = () => {
             <Label>Facebook URL</Label>
             <Input value={facebookUrl} onChange={(e) => setFacebookUrl(e.target.value)} placeholder="https://facebook.com/minhaloja" />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2"><Shield className="w-5 h-5" /> Política de Privacidade</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Label>Conteúdo da Política de Privacidade</Label>
+          <p className="text-xs text-muted-foreground">
+            Aceita HTML simples (ex.: &lt;h2&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;strong&gt;). Linhas em branco viram parágrafos automaticamente.
+          </p>
+          <Textarea
+            value={privacyPolicy}
+            onChange={(e) => setPrivacyPolicy(e.target.value)}
+            placeholder={'<h2>1. Informações que coletamos</h2>\n<p>Coletamos as seguintes informações...</p>'}
+            rows={14}
+            className="font-mono text-xs"
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2"><ScrollText className="w-5 h-5" /> Termos de Uso</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Label>Conteúdo dos Termos de Uso</Label>
+          <p className="text-xs text-muted-foreground">
+            Aceita HTML simples (ex.: &lt;h2&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;strong&gt;). Linhas em branco viram parágrafos automaticamente.
+          </p>
+          <Textarea
+            value={termsOfUse}
+            onChange={(e) => setTermsOfUse(e.target.value)}
+            placeholder={'<h2>1. Aceitação dos termos</h2>\n<p>Ao acessar e utilizar este site...</p>'}
+            rows={14}
+            className="font-mono text-xs"
+          />
         </CardContent>
       </Card>
 
