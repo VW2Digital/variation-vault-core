@@ -948,6 +948,85 @@ const ProductForm = () => {
           <Button type="button" variant="outline" onClick={() => navigate('/admin/produtos')}>Cancelar</Button>
         </div>
       </form>
+
+      {showUploadOverlay && uploadQueue.length > 0 && (() => {
+        const total = uploadQueue.length;
+        const done = uploadQueue.filter(u => u.status === 'done').length;
+        const errors = uploadQueue.filter(u => u.status === 'error').length;
+        const finished = done + errors;
+        const percent = total === 0 ? 0 : Math.round((finished / total) * 100);
+        const allFinished = finished === total;
+        return (
+          <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-lg bg-card border border-border rounded-xl shadow-xl overflow-hidden">
+              <div className="p-5 border-b border-border">
+                <div className="flex items-center gap-2 mb-1">
+                  {allFinished ? (
+                    <CheckCircle2 className="w-5 h-5 text-primary" />
+                  ) : (
+                    <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                  )}
+                  <h3 className="text-base font-semibold text-foreground">
+                    {allFinished ? 'Envio concluído' : 'Enviando arquivos digitais'}
+                  </h3>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {finished} de {total} concluído{finished !== 1 ? 's' : ''}
+                  {errors > 0 ? ` · ${errors} com erro` : ''}
+                </p>
+                <div className="mt-3">
+                  <Progress value={percent} className="h-2" />
+                  <p className="text-[11px] text-muted-foreground text-right mt-1">{percent}%</p>
+                </div>
+              </div>
+
+              <div className="max-h-72 overflow-y-auto p-3 space-y-2">
+                {uploadQueue.map(item => (
+                  <div
+                    key={item.key}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-background/60 border border-border/50"
+                  >
+                    <div className="shrink-0">
+                      {item.status === 'queued' && <Clock className="w-4 h-4 text-muted-foreground" />}
+                      {item.status === 'uploading' && <Loader2 className="w-4 h-4 text-primary animate-spin" />}
+                      {item.status === 'done' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                      {item.status === 'error' && <AlertCircle className="w-4 h-4 text-destructive" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{item.name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {item.size < 1024 * 1024
+                          ? `${(item.size / 1024).toFixed(1)} KB`
+                          : `${(item.size / (1024 * 1024)).toFixed(1)} MB`}
+                        {' · '}
+                        {item.status === 'queued' && 'Enfileirado'}
+                        {item.status === 'uploading' && 'Enviando...'}
+                        {item.status === 'done' && 'Concluído'}
+                        {item.status === 'error' && (item.error || 'Erro')}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {allFinished && (
+                <div className="p-4 border-t border-border flex justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      setShowUploadOverlay(false);
+                      setUploadQueue([]);
+                    }}
+                  >
+                    Fechar
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
