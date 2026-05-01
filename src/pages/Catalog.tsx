@@ -564,6 +564,36 @@ const Catalog = () => {
                       </div>
                     )}
 
+                    {/* Wholesale Tier Selector */}
+                    {variation && hasWholesale && wholesaleTiers.length > 1 && (
+                      <div className="px-3 pb-2 space-y-1">
+                        <p className="text-[10px] text-muted-foreground font-medium">Escolha a quantidade:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {wholesaleTiers.map((tier, tIdx) => {
+                            const isActive = tIdx === selectedTierIdx;
+                            return (
+                              <button
+                                key={tier.min_quantity}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  setSelectedTierMap((prev) => ({ ...prev, [variation.id]: tIdx }));
+                                }}
+                                className={`text-[10px] px-2 py-1 rounded-md border transition-colors font-semibold ${
+                                  isActive
+                                    ? 'border-primary bg-primary/10 text-primary'
+                                    : 'border-border bg-background text-muted-foreground hover:border-primary/50'
+                                }`}
+                              >
+                                {tier.min_quantity}+ un.
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Add to Cart Button */}
                     {variation && inStock && (
                       <div className={ab.variant === 'B' ? 'px-3 pb-3 pt-1 mt-auto' : 'px-3 pb-3 pt-0.5 mt-auto'}>
