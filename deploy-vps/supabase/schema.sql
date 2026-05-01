@@ -7,6 +7,10 @@
 -- v2 (2026-04-28): inclui bulk_email_campaigns, bulk_email_templates,
 --                  webhook_retry_queue, dispatch_order_email +
 --                  trigger_send_order_emails (auto-email em orders)
+-- v3 (2026-05-01): inclui ab_card_events, gateway_settings_audit,
+--                  product_variation_files (produtos digitais),
+--                  link_order_to_user_by_email + link_existing_orders_to_new_user,
+--                  buckets digital-files (privado) e digital-file-covers (público)
 -- =============================================================================
 
 -- EXTENSIONS
@@ -421,6 +425,45 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- A/B testing de cards do catálogo (variant 'A' ou 'B')
+CREATE TABLE IF NOT EXISTS public.ab_card_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  variant text NOT NULL,
+  event_type text NOT NULL,
+  session_id text NOT NULL,
+  user_id uuid,
+  product_id uuid,
+  variation_id uuid,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Auditoria de mudanças nos toggles de gateway de pagamento
+CREATE TABLE IF NOT EXISTS public.gateway_settings_audit (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid,
+  user_email text,
+  gateway text NOT NULL,
+  setting_type text NOT NULL,
+  old_value boolean,
+  new_value boolean NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Arquivos digitais (e-books, PDFs) ligados a uma variação
+CREATE TABLE IF NOT EXISTS public.product_variation_files (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  variation_id uuid NOT NULL,
+  file_name text NOT NULL,
+  display_name text,
+  file_path text NOT NULL,
+  file_size bigint NOT NULL DEFAULT 0,
+  mime_type text NOT NULL DEFAULT 'application/octet-stream',
+  cover_image_url text,
+  sort_order integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 -- =============================================================================
 -- FUNCTIONS
 -- =============================================================================
@@ -468,6 +511,34 @@ END $$;
 CREATE OR REPLACE FUNCTION public.touch_webhook_retry_queue()
 RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
 BEGIN NEW.updated_at = now(); RETURN NEW; END $$;
+
+-- Liga um pedido recém-criado a um usuário existente pelo e-mail
+CREATE OR REPLACE FUNCTION public.link_order_to_user_by_email()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NEW.customer_user_id IS NULL
+     AND NEW.customer_email IS NOT NULL
+     AND NEW.customer_email <> '' THEN
+    SELECT id INTO NEW.customer_user_id
+    FROM auth.users
+    WHERE LOWER(email) = LOWER(NEW.customer_email)
+    LIMIT 1;
+  END IF;
+  RETURN NEW;
+END $$;
+
+-- Quando um novo usuário se cadastra, conecta pedidos antigos com mesmo e-mail
+CREATE OR REPLACE FUNCTION public.link_existing_orders_to_new_user()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NEW.email IS NOT NULL AND NEW.email <> '' THEN
+    UPDATE public.orders
+    SET customer_user_id = NEW.id
+    WHERE customer_user_id IS NULL
+      AND LOWER(customer_email) = LOWER(NEW.email);
+  END IF;
+  RETURN NEW;
+END $$;
 
 -- Dispara e-mail transacional via Edge Function send-email
 -- Requer site_settings.service_role_key_for_triggers configurado.
