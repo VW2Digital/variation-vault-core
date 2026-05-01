@@ -966,6 +966,10 @@ CREATE POLICY "Customers can view files of their paid orders" ON public.product_
 -- =============================================================================
 -- STORAGE BUCKETS
 -- =============================================================================
+-- IMPORTANTE: usamos UPSERT (ON CONFLICT DO UPDATE) para garantir que mesmo se
+-- o bucket já existir com configuração errada (ex.: public=false), ele seja
+-- corrigido. Isso resolve o erro "Bucket not found" que aparece quando o
+-- bucket existe com nome diferente ou está marcado como inativo.
 INSERT INTO storage.buckets (id, name, public) VALUES
   ('product-images', 'product-images', true),
   ('testimonial-videos', 'testimonial-videos', true),
@@ -973,7 +977,29 @@ INSERT INTO storage.buckets (id, name, public) VALUES
   ('digital-file-covers', 'digital-file-covers', true),
   ('digital-files', 'digital-files', false),
   ('avatars', 'avatars', true)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  public = EXCLUDED.public;
+
+-- Drop de policies antigas para garantir idempotência (re-execução do schema)
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN
+    SELECT policyname FROM pg_policies
+    WHERE schemaname = 'storage' AND tablename = 'objects'
+      AND policyname IN (
+        'Public read product-images','Auth upload product-images','Auth update product-images','Auth delete product-images',
+        'Public read testimonial-videos','Auth upload testimonial-videos','Auth update testimonial-videos','Auth delete testimonial-videos',
+        'Public read banner-images','Auth upload banner-images','Auth update banner-images','Auth delete banner-images',
+        'Public read digital-file-covers','Auth upload digital-file-covers','Auth update digital-file-covers','Auth delete digital-file-covers',
+        'Auth read digital-files','Auth upload digital-files','Auth update digital-files','Auth delete digital-files',
+        'Avatars are publicly accessible','Users can upload their own avatar','Users can update their own avatar','Users can delete their own avatar'
+      )
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON storage.objects', r.policyname);
+  END LOOP;
+END $$;
 
 CREATE POLICY "Public read product-images" ON storage.objects FOR SELECT USING (bucket_id = 'product-images');
 CREATE POLICY "Auth upload product-images" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'product-images');
