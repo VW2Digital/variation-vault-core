@@ -4,7 +4,7 @@ import { fbViewContent } from '@/lib/fbPixel';
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/AnimatedSection';
-import { fetchProduct, fetchTestimonials, fetchBanners, fetchSetting } from '@/lib/api';
+import { fetchProduct, fetchTestimonials, fetchBanners, fetchSetting, fetchSettingsBulk } from '@/lib/api';
 import WhatsAppIcon from '@/components/WhatsAppIcon';
 import { getEffectivePrice, WholesaleTier } from '@/contexts/CartContext';
 import { gerarOpcoesParcelamento, type InstallmentResult } from '@/lib/installments';
@@ -140,12 +140,23 @@ const ProductCheckout = () => {
   const [userPostalCode, setUserPostalCode] = useState('');
   const [manualCep, setManualCep] = useState('');
   const [cepSource, setCepSource] = useState<'auto' | 'manual'>('auto');
+  const [detailLabels, setDetailLabels] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!id) return;
     Promise.all([
-      fetchProduct(id), fetchTestimonials(), fetchBanners(), fetchSetting('whatsapp_number'),
-    ]).then(async ([prod, tests, bans, wp]) => {
+      fetchProduct(id),
+      fetchTestimonials(),
+      fetchBanners(),
+      fetchSetting('whatsapp_number'),
+      fetchSettingsBulk([
+        'product_label_active_ingredient',
+        'product_label_dosage',
+        'product_label_pharma_form',
+        'product_label_admin_route',
+        'product_label_frequency',
+      ]),
+    ]).then(async ([prod, tests, bans, wp, labels]) => {
       // Block inactive products
       if ((prod as any).active === false) {
         toast({
@@ -160,6 +171,7 @@ const ProductCheckout = () => {
       setDynamicTestimonials(tests);
       setBanners(bans);
       setWhatsappNumber(wp);
+      setDetailLabels((labels as Record<string, string>) || {});
       setPixDiscountPercent(Number((prod as any).pix_discount_percent) || 0);
       setMaxInstallments(Number((prod as any).max_installments) || 6);
       setInstallmentsInterest((prod as any).installments_interest || 'sem_juros');
