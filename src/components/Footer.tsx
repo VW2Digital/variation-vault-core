@@ -40,7 +40,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
           {/* Column 1 - Company Info */}
           <div className="space-y-3">
-            <img src={logoImg} alt="Liberty Pharma" className="h-12 object-contain" />
+            <img src={logoImg} alt="Liberty Lumina" className="h-12 object-contain" />
             <div className="text-sm text-muted-foreground leading-relaxed space-y-2">
               {footerText && <p>{footerText}</p>}
               {footerMission && <p>{footerMission}</p>}
@@ -87,7 +87,7 @@ const Footer = () => {
         {/* Bottom bar */}
         <div className="border-t border-border/50 pt-6 flex flex-col items-center gap-4 text-center">
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Liberty Pharma — {t('allRights')}
+            © {new Date().getFullYear()} Liberty Lumina — {t('allRights')}
           </p>
           <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm">
             <Link to="/politica-de-privacidade" className="text-muted-foreground hover:text-foreground transition-colors">
