@@ -450,7 +450,7 @@ const Catalog = () => {
                           </>
                         )}
                         {hasWholesale && wholesaleMinQty && (
-                          <div className="absolute bottom-2 left-2">
+                          <div className="absolute bottom-2 left-2 z-20">
                             <Badge variant="outline" className="bg-background/80 backdrop-blur-sm text-[9px] text-primary border-primary/30 font-bold gap-0.5 px-1.5">
                               <Layers className="w-2.5 h-2.5" /> Atacado a partir de {wholesaleMinQty} unid.
                             </Badge>
