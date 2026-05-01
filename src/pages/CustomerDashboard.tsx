@@ -13,6 +13,7 @@ import {
   Copy, ExternalLink, ShoppingCart, User, Search, Filter,
   TrendingUp, CreditCard, MapPin, ChevronDown, RotateCw, Save, Phone, HelpCircle,
   Star, MessageSquare, Mail, BellRing, LayoutDashboard, Download,
+  Camera, Trash2,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
@@ -434,13 +435,48 @@ const CustomerDashboard = () => {
             <aside className="space-y-3">
               <Card className="border-border/50">
                 <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                  <Avatar className="w-16 h-16">
-                    {avatarUrl ? <AvatarImage src={avatarUrl} alt={userName} /> : null}
-                    <AvatarFallback className="bg-muted">
-                      <User className="w-8 h-8 text-muted-foreground" />
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative group">
+                    <Avatar className="w-16 h-16">
+                      {customAvatarUrl ? (
+                        <AvatarImage src={customAvatarUrl} alt={userName} />
+                      ) : avatarUrl ? (
+                        <AvatarImage src={avatarUrl} alt={userName} />
+                      ) : null}
+                      <AvatarFallback className="bg-muted">
+                        <User className="w-8 h-8 text-muted-foreground" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <label
+                      htmlFor="avatar-upload-input"
+                      className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center cursor-pointer shadow-md hover:opacity-90 transition-opacity"
+                      title="Alterar foto"
+                    >
+                      {avatarUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                    </label>
+                    <input
+                      id="avatar-upload-input"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={avatarUploading}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleAvatarUpload(f);
+                        e.target.value = '';
+                      }}
+                    />
+                  </div>
                   <p className="font-semibold text-sm text-foreground truncate max-w-full">{userName}</p>
+                  {customAvatarUrl && (
+                    <button
+                      type="button"
+                      onClick={handleAvatarRemove}
+                      disabled={avatarUploading}
+                      className="text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3" /> Remover foto
+                    </button>
+                  )}
                   <Button variant="default" size="sm" onClick={handleLogout} className="w-full gap-1">
                     <LogOut className="w-3.5 h-3.5" /> Sair
                   </Button>
