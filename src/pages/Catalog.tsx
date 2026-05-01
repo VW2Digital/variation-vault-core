@@ -358,6 +358,13 @@ const Catalog = () => {
                         <img
                           src={img}
                           alt={displayName}
+                          loading="lazy"
+                          decoding="async"
+                          width={1080}
+                          height={1450}
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = productHeroImg;
+                          }}
                           className="max-w-[78%] max-h-[78%] object-contain group-hover:scale-110 transition-transform duration-500"
                         />
                         <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
