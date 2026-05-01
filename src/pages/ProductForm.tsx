@@ -273,31 +273,50 @@ const ProductForm = () => {
           // Upload de arquivos digitais pendentes (capturados no formulário antes de salvar)
           const { data: { session } } = await supabase.auth.getSession();
           const userId = session?.user?.id;
+
+          // Monta a fila completa para feedback visual
+          type Job = { sv: any; file: File; key: string };
+          const jobs: Job[] = [];
           for (const sv of savedVars) {
-            const matchedDosage = (productType === 'digital') ? (variations[0]?.dosage || 'Digital') : sv.dosage;
             const matchingVar = variations.find(v =>
               v.dosage === sv.dosage ||
               (productType === 'digital' && (v.dosage === '' || v.dosage === 'Digital'))
             );
             const pending = matchingVar?.pending_files || [];
-            if (!pending.length || !userId) continue;
             for (const file of pending) {
+              jobs.push({ sv, file, key: `${sv.id}-${file.name}-${file.size}-${Math.random().toString(36).slice(2, 8)}` });
+            }
+          }
+
+          if (jobs.length && userId) {
+            setUploadQueue(jobs.map(j => ({
+              key: j.key,
+              name: j.file.name,
+              size: j.file.size,
+              status: 'queued',
+            })));
+            setShowUploadOverlay(true);
+
+            for (const job of jobs) {
+              setUploadQueue(prev => prev.map(it => it.key === job.key ? { ...it, status: 'uploading' } : it));
               try {
-                const path = `${userId}/${sv.id}/${crypto.randomUUID()}-${file.name}`;
+                const path = `${userId}/${job.sv.id}/${crypto.randomUUID()}-${job.file.name}`;
                 const { error: upErr } = await supabase.storage
                   .from('digital-files')
-                  .upload(path, file, { contentType: file.type || 'application/octet-stream' });
+                  .upload(path, job.file, { contentType: job.file.type || 'application/octet-stream' });
                 if (upErr) throw upErr;
                 await supabase.from('product_variation_files' as any).insert({
-                  variation_id: sv.id,
+                  variation_id: job.sv.id,
                   file_path: path,
-                  file_name: file.name,
-                  file_size: file.size,
-                  mime_type: file.type || 'application/octet-stream',
+                  file_name: job.file.name,
+                  file_size: job.file.size,
+                  mime_type: job.file.type || 'application/octet-stream',
                   sort_order: 0,
                 } as any);
+                setUploadQueue(prev => prev.map(it => it.key === job.key ? { ...it, status: 'done' } : it));
               } catch (e: any) {
-                toast({ title: `Falha ao subir ${file.name}`, description: e.message, variant: 'destructive' });
+                setUploadQueue(prev => prev.map(it => it.key === job.key ? { ...it, status: 'error', error: e.message } : it));
+                toast({ title: `Falha ao subir ${job.file.name}`, description: e.message, variant: 'destructive' });
               }
             }
           }
