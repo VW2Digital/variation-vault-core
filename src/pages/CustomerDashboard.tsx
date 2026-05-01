@@ -381,9 +381,12 @@ const CustomerDashboard = () => {
             <aside className="space-y-3">
               <Card className="border-border/50">
                 <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-                    <User className="w-8 h-8 text-muted-foreground" />
-                  </div>
+                  <Avatar className="w-16 h-16">
+                    {avatarUrl ? <AvatarImage src={avatarUrl} alt={userName} /> : null}
+                    <AvatarFallback className="bg-muted">
+                      <User className="w-8 h-8 text-muted-foreground" />
+                    </AvatarFallback>
+                  </Avatar>
                   <p className="font-semibold text-sm text-foreground truncate max-w-full">{userName}</p>
                   <Button variant="default" size="sm" onClick={handleLogout} className="w-full gap-1">
                     <LogOut className="w-3.5 h-3.5" /> Sair
