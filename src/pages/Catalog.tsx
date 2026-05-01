@@ -341,8 +341,10 @@ const Catalog = () => {
                 if (fromProduct.length > 0) return fromProduct;
                 return [productHeroImg];
               })();
-              const hasWholesale = variation ? (variation.id in wholesaleMap) : false;
-              const wholesaleMinQty = variation ? wholesaleMap[variation.id] : undefined;
+              const wholesaleTier = variation ? wholesaleMap[variation.id] : undefined;
+              const hasWholesale = !!wholesaleTier;
+              const wholesaleMinQty = wholesaleTier?.min_quantity;
+              const wholesaleUnitPrice = wholesaleTier?.price;
               const cleanName = variation?.is_digital
                 ? product.name.replace(/\s+digital\s*$/i, '').trim()
                 : product.name;
@@ -355,7 +357,10 @@ const Catalog = () => {
               const pixPercentSetting = Number((product as any).pix_discount_percent) || 0;
               const maxInstallmentsSetting = Number((product as any).max_installments) || 6;
               const installmentsInterest = (product as any).installments_interest || 'sem_juros';
-              const displayPrice = offerPrice || price;
+              // Quando há tier de atacado configurado, o preço exibido vira o preço de atacado.
+              // Assim a vitrine reflete que o produto está sendo vendido em modalidade atacado.
+              const retailPrice = offerPrice || price;
+              const displayPrice = hasWholesale && wholesaleUnitPrice ? wholesaleUnitPrice : retailPrice;
               const pixDiscount = displayPrice && pixPercentSetting > 0 ? Math.round(displayPrice * (1 - pixPercentSetting / 100) * 100) / 100 : null;
               const pixPercent = pixPercentSetting;
               const formatPriceParts = (val: number) => {
@@ -554,7 +559,7 @@ const Catalog = () => {
                           onClick={async (e) => {
                             e.stopPropagation();
                             trackAbEvent(ab.variant, 'cta_click', product.id, variation.id, ab.enabled);
-                            const minQty = wholesaleMap[variation.id] || 1;
+                            const minQty = wholesaleMap[variation.id]?.min_quantity || 1;
                             addToCart(product.id, variation.id, minQty);
                           }}
                         >
