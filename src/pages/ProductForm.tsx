@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard, Sparkles, X, PackagePlus, FileUp, FileText, Download } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard, Sparkles, X, PackagePlus, FileUp, FileText, Download, Package, FileDown } from 'lucide-react';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import iconProdutoForm from '@/assets/icon-produto-form-3d.png';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -41,6 +41,7 @@ interface Variation {
   stock_quantity: number;
   wholesale_prices: WholesaleTier[];
   is_digital: boolean;
+  pending_files?: File[];
 }
 
 const emptyVariation = (): Variation => ({
@@ -55,6 +56,7 @@ const emptyVariation = (): Variation => ({
   stock_quantity: 0,
   wholesale_prices: [],
   is_digital: false,
+  pending_files: [],
 });
 
 const ProductForm = () => {
@@ -78,6 +80,8 @@ const ProductForm = () => {
   const [maxInstallments, setMaxInstallments] = useState(6);
   const [installmentsInterest, setInstallmentsInterest] = useState('sem_juros');
   const [variations, setVariations] = useState<Variation[]>([emptyVariation()]);
+  // Tipo do produto inteiro: físico (com variações/dosagem) ou digital (e-book, curso etc.)
+  const [productType, setProductType] = useState<'physical' | 'digital'>('physical');
   const [category, setCategory] = useState('');
   const [saving, setSaving] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
@@ -150,9 +154,13 @@ const ProductForm = () => {
                 stock_quantity: Number(v.stock_quantity || 0),
                 wholesale_prices: wholesaleMap[v.id] || [],
                 is_digital: !!v.is_digital,
+                pending_files: [],
               }))
             : [emptyVariation()]
         );
+        // Detecta o tipo do produto pela primeira variação
+        const anyDigital = (p.product_variations || []).some((v: any) => !!v.is_digital);
+        setProductType(anyDigital ? 'digital' : 'physical');
       }).finally(() => setLoadingProduct(false));
 
       // Load existing upsells
@@ -185,12 +193,15 @@ const ProductForm = () => {
         installments_interest: installmentsInterest,
         category,
         variations: variations
-          .filter((v) => v.dosage.trim() !== '' || v.is_digital)
+          .filter((v) => v.dosage.trim() !== '' || productType === 'digital' || v.is_digital)
           .map(v => ({
             ...v,
+            is_digital: productType === 'digital' ? true : v.is_digital,
             // Variações digitais não exigem dosagem; usamos um rótulo padrão.
-            dosage: v.dosage.trim() !== '' ? v.dosage : (v.is_digital ? 'Digital' : v.dosage),
-            stock_quantity: v.is_digital ? 9999 : v.stock_quantity,
+            dosage: v.dosage.trim() !== '' ? v.dosage : (productType === 'digital' ? 'Digital' : v.dosage),
+            stock_quantity: productType === 'digital' ? 9999 : v.stock_quantity,
+            // pending_files não é coluna; remove antes de enviar
+            pending_files: undefined,
           })),
       };
 
@@ -230,6 +241,38 @@ const ProductForm = () => {
             } else {
               // No wholesale prices, clean up
               await supabase.from('wholesale_prices').delete().eq('variation_id', sv.id);
+            }
+          }
+
+          // Upload de arquivos digitais pendentes (capturados no formulário antes de salvar)
+          const { data: { session } } = await supabase.auth.getSession();
+          const userId = session?.user?.id;
+          for (const sv of savedVars) {
+            const matchedDosage = (productType === 'digital') ? (variations[0]?.dosage || 'Digital') : sv.dosage;
+            const matchingVar = variations.find(v =>
+              v.dosage === sv.dosage ||
+              (productType === 'digital' && (v.dosage === '' || v.dosage === 'Digital'))
+            );
+            const pending = matchingVar?.pending_files || [];
+            if (!pending.length || !userId) continue;
+            for (const file of pending) {
+              try {
+                const path = `${userId}/${sv.id}/${crypto.randomUUID()}-${file.name}`;
+                const { error: upErr } = await supabase.storage
+                  .from('digital-files')
+                  .upload(path, file, { contentType: file.type || 'application/octet-stream' });
+                if (upErr) throw upErr;
+                await supabase.from('product_variation_files' as any).insert({
+                  variation_id: sv.id,
+                  file_path: path,
+                  file_name: file.name,
+                  file_size: file.size,
+                  mime_type: file.type || 'application/octet-stream',
+                  sort_order: 0,
+                } as any);
+              } catch (e: any) {
+                toast({ title: `Falha ao subir ${file.name}`, description: e.message, variant: 'destructive' });
+              }
             }
           }
         }
@@ -289,6 +332,43 @@ const ProductForm = () => {
         <Card className="border-border/50">
           <CardHeader><CardTitle className="text-lg">Informações Básicas</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+            {/* Tipo de produto: físico ou digital */}
+            <div className="space-y-2">
+              <Label>Tipo de Produto</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setProductType('physical')}
+                  className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
+                    productType === 'physical'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border/40 hover:border-border'
+                  }`}
+                >
+                  <Package className={`w-5 h-5 ${productType === 'physical' ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <div>
+                    <p className="text-sm font-medium">Produto Físico</p>
+                    <p className="text-[11px] text-muted-foreground">Com estoque, frete e dosagens.</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProductType('digital')}
+                  className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
+                    productType === 'digital'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border/40 hover:border-border'
+                  }`}
+                >
+                  <FileDown className={`w-5 h-5 ${productType === 'digital' ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <div>
+                    <p className="text-sm font-medium">Produto Digital</p>
+                    <p className="text-[11px] text-muted-foreground">E-book, curso, arquivo para download.</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Nome do Produto</Label>
@@ -359,6 +439,7 @@ const ProductForm = () => {
           </CardContent>
         </Card>
 
+        {productType === 'physical' && (
         <Card className="border-border/50">
           <CardHeader><CardTitle className="text-lg">Frete Grátis</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -387,6 +468,7 @@ const ProductForm = () => {
             )}
           </CardContent>
         </Card>
+        )}
 
         <Card className="border-border/50">
           <CardHeader>
@@ -530,22 +612,28 @@ const ProductForm = () => {
 
         <Card className="border-border/50">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Variações / Dosagens</CardTitle>
-            <Button type="button" variant="outline" size="sm" onClick={() => setVariations((p) => [...p, emptyVariation()])}>
-              <Plus className="mr-1 h-4 w-4" /> Adicionar
-            </Button>
+            <CardTitle className="text-lg">
+              {productType === 'digital' ? 'Arquivos & Preço' : 'Variações / Dosagens'}
+            </CardTitle>
+            {productType === 'physical' && (
+              <Button type="button" variant="outline" size="sm" onClick={() => setVariations((p) => [...p, emptyVariation()])}>
+                <Plus className="mr-1 h-4 w-4" /> Adicionar
+              </Button>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
-            {variations.map((v, i) => (
+            {(productType === 'digital' ? variations.slice(0, 1) : variations).map((v, i) => (
               <div key={i} className="p-4 rounded-lg bg-muted/50 border border-border/30 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {productType === 'physical' && (
                   <div className="space-y-2">
                     <Label>Dosagem</Label>
                     <Input value={v.dosage} onChange={(e) => updateVariation(i, 'dosage', e.target.value)} placeholder="5mg" />
                   </div>
+                  )}
                   <div className="space-y-2 sm:col-span-2">
-                    <Label>Subtítulo da Variação</Label>
-                    <Input value={v.subtitle} onChange={(e) => updateVariation(i, 'subtitle', e.target.value)} placeholder="Ex: contém um total de 20mg, dividida em 4 doses de 15mg." />
+                    <Label>{productType === 'digital' ? 'Subtítulo' : 'Subtítulo da Variação'}</Label>
+                    <Input value={v.subtitle} onChange={(e) => updateVariation(i, 'subtitle', e.target.value)} placeholder={productType === 'digital' ? 'Ex: PDF com 80 páginas + bônus' : 'Ex: contém um total de 20mg, dividida em 4 doses de 15mg.'} />
                   </div>
                   <div className="space-y-2">
                     <Label>{v.is_offer ? 'Preço Original (R$)' : 'Preço (R$)'}</Label>
@@ -558,32 +646,33 @@ const ProductForm = () => {
                     </div>
                   )}
                 </div>
+                {productType === 'physical' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label>Qtd. em Estoque</Label>
                     <Input type="number" min={0} value={v.stock_quantity || ''} onChange={(e) => updateVariation(i, 'stock_quantity', Number(e.target.value))} placeholder="0" />
                   </div>
                 </div>
+                )}
                 <div className="flex items-center gap-4 flex-wrap">
+                  {productType === 'physical' && (
                   <div className="flex items-center gap-2">
                     <Switch checked={v.in_stock} onCheckedChange={(val) => updateVariation(i, 'in_stock', val)} />
                     <Label className="text-xs">Estoque</Label>
                   </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <Switch checked={v.is_offer} onCheckedChange={(val) => updateVariation(i, 'is_offer', val)} />
                     <Label className="text-xs">Oferta</Label>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Switch checked={v.is_digital} onCheckedChange={(val) => updateVariation(i, 'is_digital', val)} />
-                    <Label className="text-xs">Produto digital</Label>
-                  </div>
-                  {variations.length > 1 && (
+                  {productType === 'physical' && variations.length > 1 && (
                     <Button type="button" variant="ghost" size="icon" onClick={() => setVariations((p) => p.filter((_, j) => j !== i))} className="text-destructive h-8 w-8">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
                 {/* Wholesale Prices */}
+                {productType === 'physical' && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-semibold">Preços no Atacado</Label>
@@ -653,10 +742,11 @@ const ProductForm = () => {
                     <p className="text-[10px] text-muted-foreground">Nenhuma faixa de atacado. Clique em "+ Faixa" para adicionar.</p>
                   )}
                 </div>
+                )}
 
                 {/* Variation images */}
                 <div className="space-y-2">
-                  <Label className="text-xs">Imagens da Variação</Label>
+                  <Label className="text-xs">{productType === 'digital' ? 'Imagem de Capa' : 'Imagens da Variação'}</Label>
                   <div className="flex flex-wrap gap-2">
                     {v.images.map((img, imgIdx) => (
                       <div key={imgIdx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-border group">
@@ -703,14 +793,74 @@ const ProductForm = () => {
                   </div>
                 </div>
 
-                {v.is_digital && (
+                {(productType === 'digital' || v.is_digital) && (
                   v.id ? (
                     <DigitalFilesManager variationId={v.id} />
                   ) : (
-                    <div className="p-3 rounded-md border border-dashed border-primary/40 bg-primary/5">
-                      <p className="text-[11px] text-muted-foreground">
-                        Salve o produto primeiro para anexar arquivos digitais a esta variação.
-                      </p>
+                    <div className="space-y-2 p-3 rounded-md border border-primary/30 bg-primary/5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold flex items-center gap-1.5">
+                          <Download className="w-3.5 h-3.5" /> Arquivos para Download
+                        </Label>
+                        <label>
+                          <Button type="button" size="sm" variant="outline" className="h-7 text-xs gap-1" asChild>
+                            <span className="cursor-pointer">
+                              <FileUp className="w-3 h-3" /> Selecionar arquivos
+                            </span>
+                          </Button>
+                          <input
+                            type="file"
+                            multiple
+                            className="hidden"
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.jpg,.jpeg,.png,.webp"
+                            onChange={(e) => {
+                              const files = e.target.files;
+                              if (!files) return;
+                              const arr = Array.from(files).filter(f => {
+                                if (f.size > 50 * 1024 * 1024) {
+                                  toast({ title: `${f.name} excede 50MB`, variant: 'destructive' });
+                                  return false;
+                                }
+                                return true;
+                              });
+                              const current = v.pending_files || [];
+                              updateVariation(i, 'pending_files', [...current, ...arr]);
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                      </div>
+                      {(v.pending_files?.length || 0) === 0 ? (
+                        <p className="text-[11px] text-muted-foreground">
+                          Nenhum arquivo selecionado. PDF, DOC, XLS, PPT, TXT, ZIP, JPG, PNG, WEBP (máx. 50MB cada). Os arquivos serão enviados ao salvar o produto.
+                        </p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {(v.pending_files || []).map((f, fi) => (
+                            <div key={fi} className="flex items-center gap-2 bg-background/80 rounded px-2 py-1.5 border border-border/40">
+                              <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-foreground truncate">{f.name}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {f.size < 1024 * 1024 ? `${(f.size / 1024).toFixed(1)} KB` : `${(f.size / (1024 * 1024)).toFixed(1)} MB`}
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6 text-destructive shrink-0"
+                                onClick={() => {
+                                  const next = (v.pending_files || []).filter((_, j) => j !== fi);
+                                  updateVariation(i, 'pending_files', next);
+                                }}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )
                 )}
