@@ -23,6 +23,15 @@ import AddressManager from '@/components/AddressManager';
 import SupportChat from '@/components/SupportChat';
 import CustomerDownloads from '@/components/CustomerDownloads';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+
+async function sha256Hex(input: string): Promise<string> {
+  const buf = new TextEncoder().encode(input.trim().toLowerCase());
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 const paymentStatusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: any; color: string; badgeClass?: string }> = {
   PENDING: { label: 'Aguardando Pagamento', variant: 'outline', icon: Clock, color: 'text-amber-500' },
@@ -72,6 +81,7 @@ const CustomerDashboard = () => {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSaving, setReviewSaving] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string>('');
   const [payNowLoading, setPayNowLoading] = useState<string | null>(null);
   const [pixModal, setPixModal] = useState<{ orderId: string; qrCode: string; payload: string; value: number } | null>(null);
   const isMobile = useIsMobile();
@@ -121,6 +131,11 @@ const CustomerDashboard = () => {
       if (!session) { navigate('/cliente/login'); return; }
       setUser(session.user);
       userEmail = session.user.email || '';
+      if (userEmail) {
+        sha256Hex(userEmail).then((hash) => {
+          setAvatarUrl(`https://www.gravatar.com/avatar/${hash}?d=404&s=160`);
+        });
+      }
       await Promise.all([
         fetchOrders(userEmail, session.user.id),
         fetchProfile(session.user.id),
@@ -366,9 +381,12 @@ const CustomerDashboard = () => {
             <aside className="space-y-3">
               <Card className="border-border/50">
                 <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-                    <User className="w-8 h-8 text-muted-foreground" />
-                  </div>
+                  <Avatar className="w-16 h-16">
+                    {avatarUrl ? <AvatarImage src={avatarUrl} alt={userName} /> : null}
+                    <AvatarFallback className="bg-muted">
+                      <User className="w-8 h-8 text-muted-foreground" />
+                    </AvatarFallback>
+                  </Avatar>
                   <p className="font-semibold text-sm text-foreground truncate max-w-full">{userName}</p>
                   <Button variant="default" size="sm" onClick={handleLogout} className="w-full gap-1">
                     <LogOut className="w-3.5 h-3.5" /> Sair
