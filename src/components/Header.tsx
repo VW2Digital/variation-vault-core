@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ShoppingCart, User, Menu, LogOut, Package, Home, ChevronRight, Search, Headset, ChevronDown, MessageCircle } from 'lucide-react';
-import logoImg from '@/assets/liberty-pharma-logo.png';
+import logoImg from '@/assets/liberty-header-logo.png';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { fetchSetting } from '@/lib/api';
 
