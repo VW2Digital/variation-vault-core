@@ -459,9 +459,47 @@ const ProductCheckout = () => {
               const regularTotal = basePrice * quantity;
               const hasDiscount = effectiveUnit < basePrice;
               const discountPct = basePrice > 0 ? Math.round(((basePrice - effectiveUnit) / basePrice) * 100) : 0;
+              // Tier ativo = o maior tier cuja min_quantity <= quantidade atual
+              const activeTierIdx = hasWholesale
+                ? wholesaleTiers.reduce((acc, t, i) => (quantity >= t.min_quantity ? i : acc), -1)
+                : -1;
 
               return (
                 <>
+                  {/* Seletor de tiers de atacado */}
+                  {hasWholesale && wholesaleTiers.length > 1 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-foreground">Escolha o pacote de atacado:</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {wholesaleTiers.map((tier, tIdx) => {
+                          const isActive = tIdx === activeTierIdx;
+                          const economy = basePrice > 0 ? Math.round(((basePrice - tier.price) / basePrice) * 100) : 0;
+                          return (
+                            <button
+                              key={tier.min_quantity}
+                              type="button"
+                              onClick={() => setQuantity(tier.min_quantity)}
+                              className={`text-left rounded-lg border p-2.5 transition-all ${
+                                isActive
+                                  ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                                  : 'border-border bg-card hover:border-primary/50'
+                              }`}
+                            >
+                              <p className="text-xs font-bold text-foreground">{tier.min_quantity}+ unidades</p>
+                              <p className="text-sm font-extrabold text-primary mt-0.5">
+                                R$ {tier.price.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+                                <span className="text-[10px] text-muted-foreground font-normal">/un.</span>
+                              </p>
+                              {economy > 0 && (
+                                <p className="text-[10px] text-success font-semibold mt-0.5">-{economy}%</p>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-foreground">
                       Quantidade {hasWholesale ? `(Mínimo: ${minWholesaleQty})` : ''}
