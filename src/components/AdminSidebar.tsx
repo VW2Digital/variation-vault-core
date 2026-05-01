@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, LogOut, LayoutDashboard, Video, Settings, ShoppingBag, Users, MessageCircle, Star, AlertTriangle, Mail, LinkIcon, Ticket, FileBarChart, ChevronDown, Activity, Send, Wallet } from 'lucide-react';
+import { Package, LogOut, LayoutDashboard, Video, Settings, ShoppingBag, Users, MessageCircle, Star, AlertTriangle, Mail, LinkIcon, Ticket, FileBarChart, ChevronDown, Activity, Send, Wallet, FlaskConical } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
   Sidebar,
@@ -26,6 +26,7 @@ const menuCategories = [
     items: [
       { title: 'Dashboard', url: '/admin', icon: LayoutDashboard },
       { title: 'Relatórios', url: '/admin/relatorios', icon: FileBarChart },
+      { title: 'A/B Test', url: '/admin/ab-test', icon: FlaskConical },
     ],
   },
   {
