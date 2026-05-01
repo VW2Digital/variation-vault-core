@@ -174,6 +174,19 @@ const ProductForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Validação: produto digital novo precisa ter ao menos 1 arquivo pendente.
+    // Em edição, arquivos já salvos no banco contam (DigitalFilesManager).
+    if (productType === 'digital' && !isEditing) {
+      const totalPending = variations.reduce((acc, v) => acc + (v.pending_files?.length || 0), 0);
+      if (totalPending === 0) {
+        toast({
+          title: 'Adicione pelo menos um arquivo',
+          description: 'Produtos digitais precisam de ao menos um arquivo para download antes de serem criados.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
     setSaving(true);
     try {
       const data = {
