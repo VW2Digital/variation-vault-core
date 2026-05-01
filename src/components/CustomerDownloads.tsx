@@ -12,6 +12,9 @@ interface DownloadableFile {
   mime_type: string;
   product_name: string;
   variation_dosage: string;
+  display_name: string | null;
+  cover_image_url: string | null;
+  sort_order: number;
 }
 
 const PAID = ['PAID', 'CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH'];
@@ -83,8 +86,9 @@ const CustomerDownloads = ({ userId }: { userId: string }) => {
         // 4. Get the digital files for those variations
         const { data: dfiles, error: dErr } = await supabase
           .from('product_variation_files' as any)
-          .select('id, variation_id, file_name, file_size, mime_type')
-          .in('variation_id', varIds);
+          .select('id, variation_id, file_name, file_size, mime_type, display_name, cover_image_url, sort_order')
+          .in('variation_id', varIds)
+          .order('sort_order', { ascending: true });
 
         if (dErr) throw dErr;
 
@@ -102,6 +106,9 @@ const CustomerDownloads = ({ userId }: { userId: string }) => {
           mime_type: f.mime_type,
           product_name: varMap.get(f.variation_id)?.productName ?? '',
           variation_dosage: varMap.get(f.variation_id)?.dosage ?? '',
+          display_name: f.display_name ?? null,
+          cover_image_url: f.cover_image_url ?? null,
+          sort_order: f.sort_order ?? 0,
         }));
 
         if (!cancelled) setFiles(list);
@@ -159,11 +166,21 @@ const CustomerDownloads = ({ userId }: { userId: string }) => {
                 key={f.id}
                 className="flex items-center gap-3 border border-border/50 rounded-lg p-3"
               >
-                <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                  <FileText className="w-5 h-5 text-primary" />
+                <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
+                  {f.cover_image_url ? (
+                    <img
+                      src={f.cover_image_url}
+                      alt={`Capa de ${f.display_name || f.file_name}`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <FileText className="w-5 h-5 text-primary" />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground truncate">{f.file_name}</p>
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {f.display_name || f.file_name}
+                  </p>
                   <p className="text-xs text-muted-foreground truncate">
                     {f.product_name}
                     {f.variation_dosage ? ` · ${f.variation_dosage}` : ''} · {formatBytes(f.file_size)}

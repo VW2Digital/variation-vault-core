@@ -811,7 +811,9 @@ export type Database = {
       }
       product_variation_files: {
         Row: {
+          cover_image_url: string | null
           created_at: string
+          display_name: string | null
           file_name: string
           file_path: string
           file_size: number
@@ -822,7 +824,9 @@ export type Database = {
           variation_id: string
         }
         Insert: {
+          cover_image_url?: string | null
           created_at?: string
+          display_name?: string | null
           file_name: string
           file_path: string
           file_size?: number
@@ -833,7 +837,9 @@ export type Database = {
           variation_id: string
         }
         Update: {
+          cover_image_url?: string | null
           created_at?: string
+          display_name?: string | null
           file_name?: string
           file_path?: string
           file_size?: number
