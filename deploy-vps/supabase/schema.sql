@@ -933,13 +933,40 @@ CREATE POLICY "Admins can insert settings" ON public.site_settings FOR INSERT TO
 CREATE POLICY "Admins can update settings" ON public.site_settings FOR UPDATE TO authenticated USING (public.has_role(auth.uid(),'admin'));
 CREATE POLICY "Admins can delete settings" ON public.site_settings FOR DELETE TO authenticated USING (public.has_role(auth.uid(),'admin'));
 
+-- A/B card events: público insere, admin lê/deleta
+CREATE POLICY "Anyone can insert ab events" ON public.ab_card_events FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admins can view ab events" ON public.ab_card_events FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'admin'));
+CREATE POLICY "Admins can delete ab events" ON public.ab_card_events FOR DELETE TO authenticated USING (public.has_role(auth.uid(),'admin'));
+
+-- Auditoria de gateways: somente admin
+CREATE POLICY "Admins can view gateway audit" ON public.gateway_settings_audit FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'admin'));
+CREATE POLICY "Admins can insert gateway audit" ON public.gateway_settings_audit FOR INSERT TO authenticated WITH CHECK (public.has_role(auth.uid(),'admin') AND auth.uid() = user_id);
+CREATE POLICY "Admins can delete gateway audit" ON public.gateway_settings_audit FOR DELETE TO authenticated USING (public.has_role(auth.uid(),'admin'));
+
+-- Arquivos digitais: dono gerencia; cliente acessa se tem pedido pago
+CREATE POLICY "Owner can view digital files" ON public.product_variation_files FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.product_variations pv JOIN public.products p ON p.id = pv.product_id WHERE pv.id = product_variation_files.variation_id AND p.user_id = auth.uid()));
+CREATE POLICY "Owner can insert digital files" ON public.product_variation_files FOR INSERT TO authenticated WITH CHECK (EXISTS (SELECT 1 FROM public.product_variations pv JOIN public.products p ON p.id = pv.product_id WHERE pv.id = product_variation_files.variation_id AND p.user_id = auth.uid()));
+CREATE POLICY "Owner can update digital files" ON public.product_variation_files FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM public.product_variations pv JOIN public.products p ON p.id = pv.product_id WHERE pv.id = product_variation_files.variation_id AND p.user_id = auth.uid()));
+CREATE POLICY "Owner can delete digital files" ON public.product_variation_files FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM public.product_variations pv JOIN public.products p ON p.id = pv.product_id WHERE pv.id = product_variation_files.variation_id AND p.user_id = auth.uid()));
+CREATE POLICY "Customers can view files of their paid orders" ON public.product_variation_files FOR SELECT TO authenticated USING (
+  EXISTS (
+    SELECT 1 FROM public.product_variations pv
+    JOIN public.orders o ON UPPER(o.status) = ANY (ARRAY['PAID','CONFIRMED','RECEIVED','RECEIVED_IN_CASH'])
+    WHERE pv.id = product_variation_files.variation_id
+      AND o.customer_user_id = auth.uid()
+      AND o.product_name ILIKE ('%' || (SELECT name FROM public.products WHERE id = pv.product_id) || '%')
+  )
+);
+
 -- =============================================================================
 -- STORAGE BUCKETS
 -- =============================================================================
 INSERT INTO storage.buckets (id, name, public) VALUES
   ('product-images', 'product-images', true),
   ('testimonial-videos', 'testimonial-videos', true),
-  ('banner-images', 'banner-images', true)
+  ('banner-images', 'banner-images', true),
+  ('digital-file-covers', 'digital-file-covers', true),
+  ('digital-files', 'digital-files', false)
 ON CONFLICT (id) DO NOTHING;
 
 CREATE POLICY "Public read product-images" ON storage.objects FOR SELECT USING (bucket_id = 'product-images');
@@ -956,6 +983,18 @@ CREATE POLICY "Public read banner-images" ON storage.objects FOR SELECT USING (b
 CREATE POLICY "Auth upload banner-images" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'banner-images');
 CREATE POLICY "Auth update banner-images" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'banner-images');
 CREATE POLICY "Auth delete banner-images" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'banner-images');
+
+-- Capas de e-books / PDFs (públicas para exibir miniatura)
+CREATE POLICY "Public read digital-file-covers" ON storage.objects FOR SELECT USING (bucket_id = 'digital-file-covers');
+CREATE POLICY "Auth upload digital-file-covers" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'digital-file-covers');
+CREATE POLICY "Auth update digital-file-covers" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'digital-file-covers');
+CREATE POLICY "Auth delete digital-file-covers" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'digital-file-covers');
+
+-- Arquivos digitais (privados; download via signed URL gerada por edge function)
+CREATE POLICY "Auth read digital-files" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'digital-files');
+CREATE POLICY "Auth upload digital-files" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'digital-files');
+CREATE POLICY "Auth update digital-files" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'digital-files');
+CREATE POLICY "Auth delete digital-files" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'digital-files');
 
 -- =============================================================================
 -- REALTIME
