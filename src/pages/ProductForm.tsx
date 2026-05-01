@@ -749,7 +749,6 @@ const ProductForm = () => {
                   )}
                 </div>
                 {/* Wholesale Prices */}
-                {productType === 'physical' && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-semibold">Preços no Atacado</Label>
@@ -819,7 +818,6 @@ const ProductForm = () => {
                     <p className="text-[10px] text-muted-foreground">Nenhuma faixa de atacado. Clique em "+ Faixa" para adicionar.</p>
                   )}
                 </div>
-                )}
 
                 {/* Variation images */}
                 <div className="space-y-2">
