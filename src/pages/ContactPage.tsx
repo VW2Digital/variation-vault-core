@@ -54,7 +54,7 @@ const ContactPage = () => {
               </div>
               <h3 className="font-bold text-foreground">E-mail</h3>
               <p className="text-sm text-muted-foreground">Envie sua mensagem e responderemos o mais breve possível.</p>
-              <span className="text-sm font-medium text-primary">contato@libertypharma.com</span>
+              <span className="text-sm font-medium text-primary">contato@libertyelumina.com</span>
             </CardContent>
           </Card>
 
