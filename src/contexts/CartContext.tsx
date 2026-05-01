@@ -38,6 +38,7 @@ interface CartContextType {
   addToCart: (productId: string, variationId: string, quantity?: number) => Promise<void>;
   removeFromCart: (variationId: string) => Promise<void>;
   updateQuantity: (variationId: string, quantity: number) => Promise<void>;
+  updateQuantitiesBulk: (updates: Array<{ variationId: string; quantity: number }>) => Promise<{ adjusted: Array<{ name: string; minQty: number }> }>;
   clearCart: () => Promise<void>;
   totalItems: number;
   totalPrice: number;
