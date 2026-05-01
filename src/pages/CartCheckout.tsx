@@ -4,7 +4,7 @@ import { gtagBeginCheckout } from '@/lib/gtag';
 import { fbInitiateCheckout } from '@/lib/fbPixel';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { useCart, getEffectivePrice } from '@/contexts/CartContext';
+import { useCart } from '@/contexts/CartContext';
 import CheckoutForm from '@/components/CheckoutForm';
 import UpsellSection from '@/components/UpsellSection';
 import { AnimatedSection } from '@/components/AnimatedSection';
@@ -141,12 +141,19 @@ const CartCheckout = () => {
               <h2 className="text-lg font-bold text-foreground mb-4">Resumo do Pedido</h2>
               <div className="space-y-4">
                 {items.map((item) => {
-                  const basePrice = item.is_offer ? item.price : item.original_price;
-                  const effectiveUnit = getEffectivePrice(basePrice, item.quantity, item.wholesale_prices);
+                  // Single source of truth: item.price is the effective unit
+                  // (offer + wholesale tier already applied by CartContext.fetchCart)
+                  const effectiveUnit = item.price;
                   const effectiveTotal = effectiveUnit * item.quantity;
-                  const regularTotal = basePrice * item.quantity;
-                  const hasWholesaleDiscount = effectiveUnit < basePrice;
-                  const discountPct = basePrice > 0 ? Math.round(((basePrice - effectiveUnit) / basePrice) * 100) : 0;
+                  // Reference price = original catalog price (no offer, no wholesale).
+                  // Used to render strike-through and discount %.
+                  const referenceUnit = item.original_price;
+                  const referenceTotal = referenceUnit * item.quantity;
+                  const hasWholesaleDiscount = item.wholesale_prices.length > 0
+                    && item.quantity >= Math.min(...item.wholesale_prices.map(t => t.min_quantity));
+                  const discountPct = referenceUnit > 0
+                    ? Math.round(((referenceUnit - effectiveUnit) / referenceUnit) * 100)
+                    : 0;
 
                   return (
                     <div key={item.variation_id} className="space-y-2">
@@ -185,10 +192,10 @@ const CartCheckout = () => {
                             </div>
                             <div className="flex items-center justify-between">
                               <span className="text-[11px] text-muted-foreground">
-                                Preço regular: <span className="line-through">R$ {regularTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                Preço regular: <span className="line-through">R$ {referenceTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                               </span>
                               <span className="text-[11px] text-success font-semibold">
-                                Economia: R$ {(regularTotal - effectiveTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                Economia: R$ {(referenceTotal - effectiveTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                               </span>
                             </div>
                           </div>
@@ -208,10 +215,11 @@ const CartCheckout = () => {
 
               {/* Total Savings */}
               {(() => {
-                const totalRegular = items.reduce((sum, item) => {
-                  const base = item.is_offer ? item.price : item.original_price;
-                  return sum + base * item.quantity;
-                }, 0);
+                // Compare against the original catalog price (single reference)
+                const totalRegular = items.reduce(
+                  (sum, item) => sum + item.original_price * item.quantity,
+                  0,
+                );
                 const totalSavings = totalRegular - totalPrice;
                 if (totalSavings <= 0) return null;
                 return (
