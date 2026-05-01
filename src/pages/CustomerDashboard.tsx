@@ -81,6 +81,7 @@ const CustomerDashboard = () => {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSaving, setReviewSaving] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string>('');
   const [payNowLoading, setPayNowLoading] = useState<string | null>(null);
   const [pixModal, setPixModal] = useState<{ orderId: string; qrCode: string; payload: string; value: number } | null>(null);
   const isMobile = useIsMobile();
