@@ -99,11 +99,14 @@ const Catalog = () => {
             .select('variation_id, min_quantity, price')
             .in('variation_id', allVarIds)
             .order('min_quantity', { ascending: true });
-          const wpSet: Record<string, { min_quantity: number; price: number }> = {};
+          const wpSet: Record<string, WholesaleTier[]> = {};
           (wpData || []).forEach((w: any) => {
-            if (!(w.variation_id in wpSet) || w.min_quantity < wpSet[w.variation_id].min_quantity) {
-              wpSet[w.variation_id] = { min_quantity: w.min_quantity, price: Number(w.price) };
-            }
+            if (!wpSet[w.variation_id]) wpSet[w.variation_id] = [];
+            wpSet[w.variation_id].push({ min_quantity: w.min_quantity, price: Number(w.price) });
+          });
+          // Garante ordenação ascendente por min_quantity
+          Object.keys(wpSet).forEach((k) => {
+            wpSet[k].sort((a, b) => a.min_quantity - b.min_quantity);
           });
           setWholesaleMap(wpSet);
         }
