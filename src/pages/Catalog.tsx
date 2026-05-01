@@ -352,13 +352,25 @@ const Catalog = () => {
 
               return (
                 <StaggerItem key={variation?.id || `${product.id}-${idx}`}>
-                  <div className={`group rounded-xl border overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex flex-col h-full ${product.is_bestseller ? 'border-success/40 bg-success/[0.06] hover:border-success/60' : 'border-border/50 bg-card hover:border-primary/40'}`}>
+                  <div
+                    data-ab-variant={ab.variant}
+                    ref={(el) => {
+                      if (!el) return;
+                      const key = `${ab.variant}:${variation?.id || product.id}`;
+                      if (impressionsLogged.current.has(key)) return;
+                      impressionsLogged.current.add(key);
+                      trackAbEvent(ab.variant, 'impression', product.id, variation?.id ?? null, ab.enabled);
+                    }}
+                    className={`group rounded-xl border overflow-hidden transition-all duration-300 flex flex-col h-full ${
+                      ab.variant === 'B' ? 'hover:shadow-xl hover:-translate-y-0.5' : 'hover:shadow-lg'
+                    } ${product.is_bestseller ? 'border-success/40 bg-success/[0.06] hover:border-success/60' : 'border-border/50 bg-card hover:border-primary/40'}`}
+                  >
                     <Link
                       to={`/produto/${product.id}${variation ? `?v=${variation.id}` : ''}`}
                       className="block flex-1"
                     >
                       {/* Image */}
-                      <div className="relative aspect-[1080/1450] bg-white flex items-center justify-center p-[20px] overflow-hidden border-b border-border/40">
+                      <div className={`relative aspect-[1080/1450] bg-white flex items-center justify-center p-[20px] overflow-hidden ${ab.variant === 'B' ? 'border-b border-border/40' : ''}`}>
                         <img
                           src={img}
                           alt={displayName}
@@ -369,31 +381,59 @@ const Catalog = () => {
                           onError={(e) => {
                             (e.currentTarget as HTMLImageElement).src = productHeroImg;
                           }}
-                          className="max-w-[78%] max-h-[78%] object-contain group-hover:scale-110 transition-transform duration-500"
+                          className={`object-contain transition-transform duration-500 ${
+                            ab.variant === 'B'
+                              ? 'max-w-[78%] max-h-[78%] group-hover:scale-110'
+                              : 'max-w-[72%] max-h-[72%] group-hover:scale-105'
+                          }`}
                         />
-                        <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
-                          {offer && offerPrice && price && (
-                            <Badge className="bg-destructive text-destructive-foreground text-[11px] sm:text-xs font-extrabold px-2 py-0.5 shadow-md shadow-destructive/30 rounded-md">
-                              -{Math.round(((price - offerPrice) / price) * 100)}% OFF
-                            </Badge>
-                          )}
-                          {product.free_shipping && (
-                            <Badge className="bg-success text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 shadow-sm gap-0.5 rounded-md">
-                              <Truck className="w-2.5 h-2.5" />
-                              FRETE GRÁTIS
-                            </Badge>
-                          )}
-                          {!inStock && (
-                            <Badge variant="secondary" className="text-[10px]">{t('outOfStock')}</Badge>
-                          )}
-                        </div>
-                        <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
-                          {product.is_bestseller && (
-                            <Badge className="bg-warning text-white text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wide px-1.5 py-0.5 shadow-md rounded-md">
-                              Mais Vendido
-                            </Badge>
-                          )}
-                        </div>
+                        {ab.variant === 'B' ? (
+                          <>
+                            <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
+                              {offer && offerPrice && price && (
+                                <Badge className="bg-destructive text-destructive-foreground text-[11px] sm:text-xs font-extrabold px-2 py-0.5 shadow-md shadow-destructive/30 rounded-md">
+                                  -{Math.round(((price - offerPrice) / price) * 100)}% OFF
+                                </Badge>
+                              )}
+                              {product.free_shipping && (
+                                <Badge className="bg-success text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 shadow-sm gap-0.5 rounded-md">
+                                  <Truck className="w-2.5 h-2.5" />
+                                  FRETE GRÁTIS
+                                </Badge>
+                              )}
+                              {!inStock && (
+                                <Badge variant="secondary" className="text-[10px]">{t('outOfStock')}</Badge>
+                              )}
+                            </div>
+                            <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+                              {product.is_bestseller && (
+                                <Badge className="bg-warning text-white text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wide px-1.5 py-0.5 shadow-md rounded-md">
+                                  Mais Vendido
+                                </Badge>
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="absolute top-2 left-2 flex flex-col gap-1">
+                              {offer && offerPrice && price && (
+                                <Badge className="bg-destructive text-destructive-foreground text-[10px] font-bold">
+                                  -{Math.round(((price - offerPrice) / price) * 100)}%
+                                </Badge>
+                              )}
+                              {!inStock && (
+                                <Badge variant="secondary" className="text-[10px]">{t('outOfStock')}</Badge>
+                              )}
+                            </div>
+                            <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+                              {product.is_bestseller && (
+                                <Badge className="bg-success text-white text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5">
+                                  Mais Vendido
+                                </Badge>
+                              )}
+                            </div>
+                          </>
+                        )}
                         {hasWholesale && wholesaleMinQty && (
                           <div className="absolute bottom-2 left-2">
                             <Badge variant="outline" className="bg-background/80 backdrop-blur-sm text-[9px] text-primary border-primary/30 font-bold gap-0.5 px-1.5">
@@ -491,20 +531,43 @@ const Catalog = () => {
                       </div>
                     </Link>
 
+                    {/* Free Shipping Banner — apenas variante A */}
+                    {ab.variant === 'A' && product.free_shipping && (
+                      <div className="mx-3 mb-1.5 rounded-md bg-transparent border border-transparent px-2 py-1 flex items-center gap-1">
+                        <Truck className="w-3 h-3 text-success flex-shrink-0" />
+                        <span className="text-success text-[10px] font-semibold">Frete Grátis</span>
+                      </div>
+                    )}
+
                     {/* Add to Cart Button */}
                     {variation && inStock && (
-                      <div className="px-3 pb-3 pt-1 mt-auto">
+                      <div className={ab.variant === 'B' ? 'px-3 pb-3 pt-1 mt-auto' : 'px-3 pb-3 pt-0.5 mt-auto'}>
                         <Button
                           variant="outline"
-                          className="w-full h-9 sm:h-10 text-[12px] sm:text-[13px] font-semibold border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors"
+                          size={ab.variant === 'B' ? undefined : 'sm'}
+                          className={
+                            ab.variant === 'B'
+                              ? 'w-full h-9 sm:h-10 text-[12px] sm:text-[13px] font-semibold border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors'
+                              : 'w-full text-xs'
+                          }
                           onClick={async (e) => {
                             e.stopPropagation();
+                            trackAbEvent(ab.variant, 'cta_click', product.id, variation.id, ab.enabled);
                             const minQty = wholesaleMap[variation.id] || 1;
                             addToCart(product.id, variation.id, minQty);
                           }}
                         >
-                          <ShoppingCart className="w-4 h-4 mr-1.5" />
-                          Adicionar ao Carrinho
+                          {ab.variant === 'B' ? (
+                            <>
+                              <ShoppingCart className="w-4 h-4 mr-1.5" />
+                              Adicionar ao Carrinho
+                            </>
+                          ) : (
+                            <>
+                              <ShoppingCart className="w-3.5 h-3.5 mr-1" />
+                              <span className="text-[11px]">Adicionar ao Carrinho</span>
+                            </>
+                          )}
                         </Button>
                       </div>
                     )}
