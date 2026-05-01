@@ -482,7 +482,11 @@ const Catalog = () => {
                         {/* Pricing */}
                         {price !== null ? (
                           <div className="pt-1">
-                            {offerPrice ? (
+                            {hasWholesale && retailPrice && wholesaleUnitPrice && wholesaleUnitPrice < retailPrice ? (
+                              <p className="text-muted-foreground text-xs line-through">
+                                R$ {retailPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </p>
+                            ) : offerPrice ? (
                               <p className="text-muted-foreground text-xs line-through">
                                 R$ {price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                               </p>
@@ -495,7 +499,15 @@ const Catalog = () => {
                               <span className="text-foreground text-[10px] sm:text-xs font-bold align-super ml-[1px]">
                                 {formatPriceParts(displayPrice!).decPart}
                               </span>
+                              {hasWholesale && (
+                                <span className="text-muted-foreground text-[10px] sm:text-xs ml-1">/un.</span>
+                              )}
                             </div>
+                            {hasWholesale && wholesaleMinQty && (
+                              <p className="text-primary text-[10px] sm:text-xs font-semibold mt-0.5">
+                                Preço atacado · mín. {wholesaleMinQty} un.
+                              </p>
+                            )}
                             {pixDiscount && (
                               <>
                                 <p className="text-success text-[10px] sm:text-xs font-semibold mt-0.5">
