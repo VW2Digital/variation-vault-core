@@ -39,7 +39,7 @@ const Catalog = () => {
   const { t } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [wholesaleMap, setWholesaleMap] = useState<Record<string, number>>({});
+  const [wholesaleMap, setWholesaleMap] = useState<Record<string, { min_quantity: number; price: number }>>({});
   const [search, setSearch] = useState(searchParams.get('busca') || '');
 
   // Sync search state with URL params
@@ -94,13 +94,13 @@ const Catalog = () => {
         if (allVarIds.length > 0) {
           const { data: wpData } = await supabase
             .from('wholesale_prices')
-            .select('variation_id, min_quantity')
+            .select('variation_id, min_quantity, price')
             .in('variation_id', allVarIds)
             .order('min_quantity', { ascending: true });
-          const wpSet: Record<string, number> = {};
+          const wpSet: Record<string, { min_quantity: number; price: number }> = {};
           (wpData || []).forEach((w: any) => {
-            if (!(w.variation_id in wpSet) || w.min_quantity < wpSet[w.variation_id]) {
-              wpSet[w.variation_id] = w.min_quantity;
+            if (!(w.variation_id in wpSet) || w.min_quantity < wpSet[w.variation_id].min_quantity) {
+              wpSet[w.variation_id] = { min_quantity: w.min_quantity, price: Number(w.price) };
             }
           });
           setWholesaleMap(wpSet);
