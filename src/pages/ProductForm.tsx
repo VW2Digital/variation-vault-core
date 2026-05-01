@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard, Sparkles, X, PackagePlus, FileUp, FileText, Download, Package, FileDown } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard, Sparkles, X, PackagePlus, FileUp, FileText, Download, Package, FileDown, Loader2, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import iconProdutoForm from '@/assets/icon-produto-form-3d.png';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -89,6 +90,18 @@ const ProductForm = () => {
   const [allProducts, setAllProducts] = useState<{ id: string; name: string }[]>([]);
   const [selectedUpsellIds, setSelectedUpsellIds] = useState<string[]>([]);
   const [upsellSearch, setUpsellSearch] = useState('');
+
+  // Progresso de upload de arquivos digitais durante o submit
+  type UploadStatus = 'queued' | 'uploading' | 'done' | 'error';
+  interface UploadItem {
+    key: string;
+    name: string;
+    size: number;
+    status: UploadStatus;
+    error?: string;
+  }
+  const [uploadQueue, setUploadQueue] = useState<UploadItem[]>([]);
+  const [showUploadOverlay, setShowUploadOverlay] = useState(false);
 
   useEffect(() => {
     fetchProducts().then((data) => {
