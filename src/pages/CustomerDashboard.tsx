@@ -233,6 +233,56 @@ const CustomerDashboard = () => {
     }
   };
 
+  const handleAvatarUpload = async (file: File) => {
+    if (!user) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Arquivo inválido', description: 'Envie uma imagem (JPG, PNG ou WEBP).', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'Imagem muito grande', description: 'O tamanho máximo é 5 MB.', variant: 'destructive' });
+      return;
+    }
+    setAvatarUploading(true);
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+      const publicUrl = pub.publicUrl;
+      const { error: updErr } = await supabase
+        .from('profiles')
+        .upsert({ user_id: user.id, avatar_url: publicUrl }, { onConflict: 'user_id' });
+      if (updErr) throw updErr;
+      setCustomAvatarUrl(publicUrl);
+      toast({ title: 'Foto de perfil atualizada!' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao enviar foto', description: err.message, variant: 'destructive' });
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    if (!user) return;
+    setAvatarUploading(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({ user_id: user.id, avatar_url: '' }, { onConflict: 'user_id' });
+      if (error) throw error;
+      setCustomAvatarUrl('');
+      toast({ title: 'Foto removida' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao remover', description: err.message, variant: 'destructive' });
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
   const saveContactPreferences = async (next: { email?: boolean; whatsapp?: boolean }) => {
     if (!user) return;
     const prevEmail = allowEmailMkt;
