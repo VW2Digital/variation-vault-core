@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard, Sparkles, X, PackagePlus, FileUp, FileText, Download, Package, FileDown } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ImagePlus, CreditCard, Sparkles, X, PackagePlus, FileUp, FileText, Download, Package, FileDown, Loader2, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import iconProdutoForm from '@/assets/icon-produto-form-3d.png';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -89,6 +90,18 @@ const ProductForm = () => {
   const [allProducts, setAllProducts] = useState<{ id: string; name: string }[]>([]);
   const [selectedUpsellIds, setSelectedUpsellIds] = useState<string[]>([]);
   const [upsellSearch, setUpsellSearch] = useState('');
+
+  // Progresso de upload de arquivos digitais durante o submit
+  type UploadStatus = 'queued' | 'uploading' | 'done' | 'error';
+  interface UploadItem {
+    key: string;
+    name: string;
+    size: number;
+    status: UploadStatus;
+    error?: string;
+  }
+  const [uploadQueue, setUploadQueue] = useState<UploadItem[]>([]);
+  const [showUploadOverlay, setShowUploadOverlay] = useState(false);
 
   useEffect(() => {
     fetchProducts().then((data) => {
@@ -260,31 +273,50 @@ const ProductForm = () => {
           // Upload de arquivos digitais pendentes (capturados no formulário antes de salvar)
           const { data: { session } } = await supabase.auth.getSession();
           const userId = session?.user?.id;
+
+          // Monta a fila completa para feedback visual
+          type Job = { sv: any; file: File; key: string };
+          const jobs: Job[] = [];
           for (const sv of savedVars) {
-            const matchedDosage = (productType === 'digital') ? (variations[0]?.dosage || 'Digital') : sv.dosage;
             const matchingVar = variations.find(v =>
               v.dosage === sv.dosage ||
               (productType === 'digital' && (v.dosage === '' || v.dosage === 'Digital'))
             );
             const pending = matchingVar?.pending_files || [];
-            if (!pending.length || !userId) continue;
             for (const file of pending) {
+              jobs.push({ sv, file, key: `${sv.id}-${file.name}-${file.size}-${Math.random().toString(36).slice(2, 8)}` });
+            }
+          }
+
+          if (jobs.length && userId) {
+            setUploadQueue(jobs.map(j => ({
+              key: j.key,
+              name: j.file.name,
+              size: j.file.size,
+              status: 'queued',
+            })));
+            setShowUploadOverlay(true);
+
+            for (const job of jobs) {
+              setUploadQueue(prev => prev.map(it => it.key === job.key ? { ...it, status: 'uploading' } : it));
               try {
-                const path = `${userId}/${sv.id}/${crypto.randomUUID()}-${file.name}`;
+                const path = `${userId}/${job.sv.id}/${crypto.randomUUID()}-${job.file.name}`;
                 const { error: upErr } = await supabase.storage
                   .from('digital-files')
-                  .upload(path, file, { contentType: file.type || 'application/octet-stream' });
+                  .upload(path, job.file, { contentType: job.file.type || 'application/octet-stream' });
                 if (upErr) throw upErr;
                 await supabase.from('product_variation_files' as any).insert({
-                  variation_id: sv.id,
+                  variation_id: job.sv.id,
                   file_path: path,
-                  file_name: file.name,
-                  file_size: file.size,
-                  mime_type: file.type || 'application/octet-stream',
+                  file_name: job.file.name,
+                  file_size: job.file.size,
+                  mime_type: job.file.type || 'application/octet-stream',
                   sort_order: 0,
                 } as any);
+                setUploadQueue(prev => prev.map(it => it.key === job.key ? { ...it, status: 'done' } : it));
               } catch (e: any) {
-                toast({ title: `Falha ao subir ${file.name}`, description: e.message, variant: 'destructive' });
+                setUploadQueue(prev => prev.map(it => it.key === job.key ? { ...it, status: 'error', error: e.message } : it));
+                toast({ title: `Falha ao subir ${job.file.name}`, description: e.message, variant: 'destructive' });
               }
             }
           }
@@ -916,6 +948,85 @@ const ProductForm = () => {
           <Button type="button" variant="outline" onClick={() => navigate('/admin/produtos')}>Cancelar</Button>
         </div>
       </form>
+
+      {showUploadOverlay && uploadQueue.length > 0 && (() => {
+        const total = uploadQueue.length;
+        const done = uploadQueue.filter(u => u.status === 'done').length;
+        const errors = uploadQueue.filter(u => u.status === 'error').length;
+        const finished = done + errors;
+        const percent = total === 0 ? 0 : Math.round((finished / total) * 100);
+        const allFinished = finished === total;
+        return (
+          <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-lg bg-card border border-border rounded-xl shadow-xl overflow-hidden">
+              <div className="p-5 border-b border-border">
+                <div className="flex items-center gap-2 mb-1">
+                  {allFinished ? (
+                    <CheckCircle2 className="w-5 h-5 text-primary" />
+                  ) : (
+                    <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                  )}
+                  <h3 className="text-base font-semibold text-foreground">
+                    {allFinished ? 'Envio concluído' : 'Enviando arquivos digitais'}
+                  </h3>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {finished} de {total} concluído{finished !== 1 ? 's' : ''}
+                  {errors > 0 ? ` · ${errors} com erro` : ''}
+                </p>
+                <div className="mt-3">
+                  <Progress value={percent} className="h-2" />
+                  <p className="text-[11px] text-muted-foreground text-right mt-1">{percent}%</p>
+                </div>
+              </div>
+
+              <div className="max-h-72 overflow-y-auto p-3 space-y-2">
+                {uploadQueue.map(item => (
+                  <div
+                    key={item.key}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-background/60 border border-border/50"
+                  >
+                    <div className="shrink-0">
+                      {item.status === 'queued' && <Clock className="w-4 h-4 text-muted-foreground" />}
+                      {item.status === 'uploading' && <Loader2 className="w-4 h-4 text-primary animate-spin" />}
+                      {item.status === 'done' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                      {item.status === 'error' && <AlertCircle className="w-4 h-4 text-destructive" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{item.name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {item.size < 1024 * 1024
+                          ? `${(item.size / 1024).toFixed(1)} KB`
+                          : `${(item.size / (1024 * 1024)).toFixed(1)} MB`}
+                        {' · '}
+                        {item.status === 'queued' && 'Enfileirado'}
+                        {item.status === 'uploading' && 'Enviando...'}
+                        {item.status === 'done' && 'Concluído'}
+                        {item.status === 'error' && (item.error || 'Erro')}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {allFinished && (
+                <div className="p-4 border-t border-border flex justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      setShowUploadOverlay(false);
+                      setUploadQueue([]);
+                    }}
+                  >
+                    Fechar
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
