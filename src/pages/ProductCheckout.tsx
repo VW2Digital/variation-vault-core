@@ -321,12 +321,14 @@ const ProductCheckout = () => {
   ];
 
   const details = [
-    { label: t('activeIngredientLabel'), value: product.active_ingredient },
-    { label: t('dosageLabel'), value: variation?.dosage },
-    { label: t('pharmaForm'), value: product.pharma_form },
-    { label: t('adminRoute'), value: product.administration_route },
-    { label: t('frequency'), value: product.frequency },
+    { label: detailLabels.product_label_active_ingredient?.trim() || t('activeIngredientLabel'), value: product.active_ingredient },
+    { label: detailLabels.product_label_dosage?.trim() || t('dosageLabel'), value: variation?.dosage },
+    { label: detailLabels.product_label_pharma_form?.trim() || t('pharmaForm'), value: product.pharma_form },
+    { label: detailLabels.product_label_admin_route?.trim() || t('adminRoute'), value: product.administration_route },
+    { label: detailLabels.product_label_frequency?.trim() || t('frequency'), value: product.frequency },
   ];
+
+  const isDigital = !!variation?.is_digital;
 
 
   return (
@@ -718,6 +720,7 @@ const ProductCheckout = () => {
       </section>
 
       {/* Bula Accordion */}
+      {!isDigital && (
       <AnimatedSection className="max-w-6xl mx-auto px-4 pb-8">
         <Accordion type="single" collapsible>
           <AccordionItem value="bula" className="border border-border/50 rounded-xl px-5 bg-card">
@@ -733,6 +736,7 @@ const ProductCheckout = () => {
           </AccordionItem>
         </Accordion>
       </AnimatedSection>
+      )}
 
       {/* Video Testimonials */}
       <AnimatedSection className="max-w-6xl mx-auto px-4 pb-8 text-center">
