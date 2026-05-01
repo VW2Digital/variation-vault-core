@@ -382,7 +382,7 @@ const Catalog = () => {
                         <ProductCardImageCarousel
                           images={imageList}
                           alt={displayName}
-                          imageInset="20%"
+                          imageInset="8%"
                           imgClassName="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
                         />
                         {ab.variant === 'B' ? (
