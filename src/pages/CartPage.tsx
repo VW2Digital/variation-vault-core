@@ -66,11 +66,30 @@ const CartPage = () => {
                         {!item.in_stock && (
                           <p className="text-xs text-destructive font-medium mt-1">Fora de estoque</p>
                         )}
-                        {item.wholesale_prices.length > 0 && (
-                          <Badge variant="outline" className="mt-1 text-[10px] border-primary/40 text-primary bg-primary/5 font-medium">
-                            Atacado · mín. {Math.min(...item.wholesale_prices.map(t => t.min_quantity))} unid.
-                          </Badge>
-                        )}
+                        {item.wholesale_prices.length > 0 && (() => {
+                          // Sort tiers ascending and find active tier (highest min_quantity ≤ current qty)
+                          const sorted = [...item.wholesale_prices].sort((a, b) => a.min_quantity - b.min_quantity);
+                          const activeTier = [...sorted].reverse().find(t => item.quantity >= t.min_quantity);
+                          const nextTier = sorted.find(t => t.min_quantity > item.quantity);
+                          return (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {activeTier ? (
+                                <Badge className="text-[10px] bg-success/15 text-success border border-success/30 hover:bg-success/15 font-semibold">
+                                  Atacado {activeTier.min_quantity}+ ativo · R$ {activeTier.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/un.
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[10px] border-primary/40 text-primary bg-primary/5 font-medium">
+                                  Atacado a partir de {sorted[0].min_quantity} un.
+                                </Badge>
+                              )}
+                              {nextTier && (
+                                <Badge variant="outline" className="text-[10px] border-muted-foreground/30 text-muted-foreground font-medium">
+                                  +{nextTier.min_quantity - item.quantity} un. → R$ {nextTier.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/un.
+                                </Badge>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
 
