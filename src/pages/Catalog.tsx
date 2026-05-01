@@ -370,7 +370,7 @@ const Catalog = () => {
                       className="block flex-1"
                     >
                       {/* Image */}
-                      <div className={`relative aspect-[1080/1450] bg-white flex items-center justify-center overflow-hidden ${ab.variant === 'B' ? 'border-b border-border/40' : 'p-[20px]'}`}>
+                      <div className={`relative aspect-[1080/1450] bg-white flex items-center justify-center overflow-hidden ${ab.variant === 'B' ? 'border-b border-border/40' : ''}`}>
                         <img
                           src={img}
                           alt={displayName}
@@ -381,10 +381,10 @@ const Catalog = () => {
                           onError={(e) => {
                             (e.currentTarget as HTMLImageElement).src = productHeroImg;
                           }}
-                          className={`object-contain transition-transform duration-500 ${
+                          className={`transition-transform duration-500 ${
                             ab.variant === 'B'
                               ? 'absolute inset-0 w-full h-full !object-cover group-hover:scale-105'
-                              : 'max-w-[72%] max-h-[72%] group-hover:scale-105'
+                              : 'absolute inset-0 w-full h-full object-cover group-hover:scale-105'
                           }`}
                         />
                         {ab.variant === 'B' ? (
