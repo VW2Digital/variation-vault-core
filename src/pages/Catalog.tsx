@@ -39,7 +39,9 @@ const Catalog = () => {
   const { t } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [wholesaleMap, setWholesaleMap] = useState<Record<string, { min_quantity: number; price: number }>>({});
+  const [wholesaleMap, setWholesaleMap] = useState<Record<string, WholesaleTier[]>>({});
+  // Tier de atacado selecionado por variação (índice no array ordenado por min_quantity asc)
+  const [selectedTierMap, setSelectedTierMap] = useState<Record<string, number>>({});
   const [search, setSearch] = useState(searchParams.get('busca') || '');
 
   // Sync search state with URL params
