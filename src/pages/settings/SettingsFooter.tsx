@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { FileText, Shield, ScrollText } from 'lucide-react';
+import RichTextEditor from '@/components/admin/RichTextEditor';
 import SettingsBackButton from './SettingsBackButton';
 import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 
@@ -116,14 +117,13 @@ const SettingsFooter = () => {
         <CardContent className="space-y-2">
           <Label>Conteúdo da Política de Privacidade</Label>
           <p className="text-xs text-muted-foreground">
-            Aceita HTML simples (ex.: &lt;h2&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;strong&gt;). Linhas em branco viram parágrafos automaticamente.
+            Use a barra de formatação para títulos, listas, negrito, links e mais. O conteúdo é salvo como HTML sanitizado.
           </p>
-          <Textarea
+          <RichTextEditor
             value={privacyPolicy}
-            onChange={(e) => setPrivacyPolicy(e.target.value)}
-            placeholder={'<h2>1. Informações que coletamos</h2>\n<p>Coletamos as seguintes informações...</p>'}
-            rows={14}
-            className="font-mono text-xs"
+            onChange={setPrivacyPolicy}
+            placeholder="Comece a escrever a sua Política de Privacidade…"
+            minHeight={320}
           />
         </CardContent>
       </Card>
@@ -135,14 +135,13 @@ const SettingsFooter = () => {
         <CardContent className="space-y-2">
           <Label>Conteúdo dos Termos de Uso</Label>
           <p className="text-xs text-muted-foreground">
-            Aceita HTML simples (ex.: &lt;h2&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;strong&gt;). Linhas em branco viram parágrafos automaticamente.
+            Use a barra de formatação para títulos, listas, negrito, links e mais. O conteúdo é salvo como HTML sanitizado.
           </p>
-          <Textarea
+          <RichTextEditor
             value={termsOfUse}
-            onChange={(e) => setTermsOfUse(e.target.value)}
-            placeholder={'<h2>1. Aceitação dos termos</h2>\n<p>Ao acessar e utilizar este site...</p>'}
-            rows={14}
-            className="font-mono text-xs"
+            onChange={setTermsOfUse}
+            placeholder="Comece a escrever os seus Termos de Uso…"
+            minHeight={320}
           />
         </CardContent>
       </Card>
