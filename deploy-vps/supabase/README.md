@@ -1,6 +1,6 @@
 # Schema do Liberty Pharma para Supabase Cloud
 
-Pacote SQL único que cria **toda** a estrutura do banco no seu projeto Supabase: 30 tabelas, RLS, triggers, funções, enum `app_role` e 3 buckets de storage.
+Pacote SQL único que cria **toda** a estrutura do banco no seu projeto Supabase: 33 tabelas, RLS, triggers, funções, enum `app_role`, view de cupons e 6 buckets de storage.
 
 ## Como usar (1 clique)
 
@@ -17,12 +17,13 @@ Pronto — schema completo no ar.
 
 | Categoria | Itens |
 |---|---|
-| **Tabelas** | profiles, user_roles, addresses, products, product_variations, product_upsells, wholesale_prices, cart_items, orders, coupons, coupon_products, payment_links, payment_logs, shipping_logs, webhook_logs, webhook_retry_queue, api_idempotency_keys, contact_preferences, email_send_log, bulk_email_campaigns, bulk_email_templates, cart_abandonment_logs, banners, banner_slides, popups, video_testimonials, reviews, support_tickets, support_messages, site_settings |
+| **Tabelas** | profiles, user_roles, addresses, products, product_variations, product_variation_files, product_upsells, wholesale_prices, cart_items, orders, coupons, coupon_products, payment_links, payment_logs, shipping_logs, webhook_logs, webhook_retry_queue, api_idempotency_keys, contact_preferences, email_send_log, bulk_email_campaigns, bulk_email_templates, cart_abandonment_logs, banners, banner_slides, popups, video_testimonials, reviews, support_tickets, support_messages, site_settings, ab_card_events, gateway_settings_audit |
+| **Views** | coupons_with_usage |
 | **Enum** | `app_role` (admin, user) |
 | **Funções** | `has_role`, `increment_coupon_usage`, `update_updated_at_column`, `ensure_single_default_address`, `handle_new_user`, `touch_webhook_retry_queue`, `dispatch_order_email`, `trigger_send_order_emails` |
 | **Triggers** | 13 `updated_at` automáticos + endereço padrão único + auto-criação de perfil + auto-envio de e-mails de pedidos + touch da fila de retry |
 | **RLS** | 113 políticas garantindo isolamento entre usuários e privilégios admin |
-| **Storage** | Buckets `product-images`, `testimonial-videos`, `banner-images` (públicos) com policies |
+| **Storage** | Buckets `product-images`, `testimonial-videos`, `banner-images`, `digital-file-covers`, `avatars` (públicos) e `digital-files` (privado) com policies |
 | **Constraints únicos** | `(user_id, variation_id)` em carrinho, `upper(code)` em cupons, `(user_id, order_id)` em reviews, `key` em settings, `slug` em payment_links |
 | **Extensões** | `pgcrypto`, `uuid-ossp`, `pg_net` (auto). `pg_cron` opcional para jobs agendados. |
 
