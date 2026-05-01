@@ -27,6 +27,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { TRUST_BAR_ICONS, DEFAULT_TRUST_BAR, DEFAULT_TRUST_BAR_BG, DEFAULT_TRUST_BAR_SPEED, type TrustBarItem } from '@/pages/settings/SettingsTrustBar';
 import { ProductCardSkeletonGrid } from '@/components/ProductCardSkeleton';
 import { getAbContext, trackAbEvent } from '@/lib/abTest';
+import ProductCardImageCarousel from '@/components/ProductCardImageCarousel';
 
 const Catalog = () => {
   const { totalItems, addToCart } = useCart();
@@ -332,7 +333,14 @@ const Catalog = () => {
               const offerPrice = variation?.is_offer && variation?.offer_price ? Number(variation.offer_price) : null;
               const inStock = variation ? variation.in_stock : false;
               const offer = variation ? variation.is_offer : false;
-              const img = variation?.images?.[0] || variation?.image_url || product.images?.[0] || productHeroImg;
+              const imageList: string[] = (() => {
+                const fromVariation = Array.isArray(variation?.images) ? variation.images.filter(Boolean) : [];
+                if (fromVariation.length > 0) return fromVariation;
+                if (variation?.image_url) return [variation.image_url];
+                const fromProduct = Array.isArray(product.images) ? product.images.filter(Boolean) : [];
+                if (fromProduct.length > 0) return fromProduct;
+                return [productHeroImg];
+              })();
               const hasWholesale = variation ? (variation.id in wholesaleMap) : false;
               const wholesaleMinQty = variation ? wholesaleMap[variation.id] : undefined;
               const displayName = variation?.dosage && !product.name.toLowerCase().includes(variation.dosage.toLowerCase())
@@ -371,21 +379,10 @@ const Catalog = () => {
                     >
                       {/* Image */}
                       <div className={`relative aspect-[1080/1450] bg-white flex items-center justify-center overflow-hidden ${ab.variant === 'B' ? 'p-3 sm:p-4 border-b border-border/40' : 'p-4 sm:p-5'}`}>
-                        <img
-                          src={img}
+                        <ProductCardImageCarousel
+                          images={imageList}
                           alt={displayName}
-                          loading="lazy"
-                          decoding="async"
-                          width={1080}
-                          height={1450}
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src = productHeroImg;
-                          }}
-                          className={`transition-transform duration-500 ${
-                            ab.variant === 'B'
-                              ? 'w-full h-full object-contain group-hover:scale-105'
-                              : 'w-full h-full object-contain group-hover:scale-105'
-                          }`}
+                          imgClassName="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
                         />
                         {ab.variant === 'B' ? (
                           <>
