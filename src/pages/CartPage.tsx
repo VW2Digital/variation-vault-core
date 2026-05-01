@@ -180,6 +180,30 @@ const CartPage = () => {
                         const minQty = item.wholesale_prices.length > 0
                           ? Math.min(...item.wholesale_prices.map(t => t.min_quantity))
                           : 1;
+                        if (bulkMode) {
+                          const draftQty = drafts[item.variation_id] ?? item.quantity;
+                          return (
+                            <div className="flex items-center gap-2">
+                              <label className="text-xs text-muted-foreground">Qtd:</label>
+                              <Input
+                                type="number"
+                                min={minQty}
+                                value={draftQty}
+                                onChange={(e) => {
+                                  const v = parseInt(e.target.value, 10);
+                                  setDrafts(prev => ({
+                                    ...prev,
+                                    [item.variation_id]: Number.isFinite(v) && v >= 1 ? v : 1,
+                                  }));
+                                }}
+                                className="w-20 h-8 text-sm"
+                              />
+                              {minQty > 1 && (
+                                <span className="text-[11px] text-muted-foreground">mín. {minQty}</span>
+                              )}
+                            </div>
+                          );
+                        }
                         return (
                           <div className="flex items-center gap-0">
                             <button
@@ -203,15 +227,29 @@ const CartPage = () => {
                       })()}
 
                       <div className="flex items-center gap-3">
-                        <p className="font-bold text-foreground text-sm">
-                          R$ {(item.price * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </p>
-                        <button
-                          onClick={() => removeFromCart(item.variation_id)}
-                          className="text-destructive hover:text-destructive/80 p-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {(() => {
+                          // In bulk mode, preview the subtotal using the draft qty + correct tier
+                          const q = bulkMode ? (drafts[item.variation_id] ?? item.quantity) : item.quantity;
+                          const basePrice = item.is_offer ? item.price : item.original_price;
+                          const unit = bulkMode
+                            ? getEffectivePrice(basePrice, q, item.wholesale_prices)
+                            : item.price;
+                          const subtotal = unit * q;
+                          const changed = bulkMode && q !== item.quantity;
+                          return (
+                            <p className={`font-bold text-sm ${changed ? 'text-primary' : 'text-foreground'}`}>
+                              R$ {subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
+                          );
+                        })()}
+                        {!bulkMode && (
+                          <button
+                            onClick={() => removeFromCart(item.variation_id)}
+                            className="text-destructive hover:text-destructive/80 p-1"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -226,21 +264,26 @@ const CartPage = () => {
                   <h3 className="font-bold text-foreground">Resumo do Pedido</h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">{totalItems} {totalItems === 1 ? 'item' : 'itens'}</span>
+                      <span className="text-muted-foreground">{previewItems} {previewItems === 1 ? 'item' : 'itens'}</span>
                       <span className="text-foreground">
-                        R$ {totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {previewTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                   </div>
                   <div className="border-t border-border pt-3 flex justify-between font-bold">
                     <span className="text-foreground">Total</span>
                     <span className="text-primary text-lg">
-                      R$ {totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {previewTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
+                  {bulkMode && hasChanges && (
+                    <p className="text-[11px] text-primary text-center">
+                      Pré-visualização — clique em <strong>Salvar alterações</strong> para confirmar.
+                    </p>
+                  )}
                   <Button
                     className="w-full h-12 text-base font-semibold"
-                    disabled={items.length === 0 || items.some(i => !i.in_stock)}
+                    disabled={items.length === 0 || items.some(i => !i.in_stock) || bulkMode}
                     onClick={() => navigate('/checkout-carrinho')}
                   >
                     Finalizar Compra
