@@ -347,22 +347,28 @@ const Catalog = () => {
 
               return (
                 <StaggerItem key={variation?.id || `${product.id}-${idx}`}>
-                  <div className={`group rounded-xl border overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col h-full ${product.is_bestseller ? 'border-success/30 bg-success/[0.08] hover:border-success/50' : 'border-border/50 bg-card hover:border-primary/30'}`}>
+                  <div className={`group rounded-xl border overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex flex-col h-full ${product.is_bestseller ? 'border-success/40 bg-success/[0.06] hover:border-success/60' : 'border-border/50 bg-card hover:border-primary/40'}`}>
                     <Link
                       to={`/produto/${product.id}${variation ? `?v=${variation.id}` : ''}`}
                       className="block flex-1"
                     >
                       {/* Image */}
-                      <div className="relative aspect-[1080/1450] bg-white flex items-center justify-center p-[20px] overflow-hidden">
+                      <div className="relative aspect-[1080/1450] bg-white flex items-center justify-center p-[20px] overflow-hidden border-b border-border/40">
                         <img
                           src={img}
                           alt={displayName}
-                          className="max-w-[72%] max-h-[72%] object-contain group-hover:scale-105 transition-transform duration-500"
+                          className="max-w-[78%] max-h-[78%] object-contain group-hover:scale-110 transition-transform duration-500"
                         />
-                        <div className="absolute top-2 left-2 flex flex-col gap-1">
+                        <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
                           {offer && offerPrice && price && (
-                            <Badge className="bg-destructive text-destructive-foreground text-[10px] font-bold">
-                              -{Math.round(((price - offerPrice) / price) * 100)}%
+                            <Badge className="bg-destructive text-destructive-foreground text-[11px] sm:text-xs font-extrabold px-2 py-0.5 shadow-md shadow-destructive/30 rounded-md">
+                              -{Math.round(((price - offerPrice) / price) * 100)}% OFF
+                            </Badge>
+                          )}
+                          {product.free_shipping && (
+                            <Badge className="bg-success text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 shadow-sm gap-0.5 rounded-md">
+                              <Truck className="w-2.5 h-2.5" />
+                              FRETE GRÁTIS
                             </Badge>
                           )}
                           {!inStock && (
@@ -371,7 +377,7 @@ const Catalog = () => {
                         </div>
                         <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
                           {product.is_bestseller && (
-                            <Badge className="bg-success text-white text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5">
+                            <Badge className="bg-warning text-white text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wide px-1.5 py-0.5 shadow-md rounded-md">
                               Mais Vendido
                             </Badge>
                           )}
@@ -473,29 +479,20 @@ const Catalog = () => {
                       </div>
                     </Link>
 
-                    {/* Free Shipping Banner */}
-                    {product.free_shipping && (
-                      <div className="mx-3 mb-1.5 rounded-md bg-transparent border border-transparent px-2 py-1 flex items-center gap-1">
-                        <Truck className="w-3 h-3 text-success flex-shrink-0" />
-                        <span className="text-success text-[10px] font-semibold">Frete Grátis</span>
-                      </div>
-                    )}
-
                     {/* Add to Cart Button */}
                     {variation && inStock && (
-                      <div className="px-3 pb-3 pt-0.5 mt-auto">
+                      <div className="px-3 pb-3 pt-1 mt-auto">
                         <Button
                           variant="outline"
-                          size="sm"
-                          className="w-full text-xs"
+                          className="w-full h-9 sm:h-10 text-[12px] sm:text-[13px] font-semibold border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors"
                           onClick={async (e) => {
                             e.stopPropagation();
                             const minQty = wholesaleMap[variation.id] || 1;
                             addToCart(product.id, variation.id, minQty);
                           }}
                         >
-                          <ShoppingCart className="w-3.5 h-3.5 mr-1" />
-                          <span className="text-[11px]">Adicionar ao Carrinho</span>
+                          <ShoppingCart className="w-4 h-4 mr-1.5" />
+                          Adicionar ao Carrinho
                         </Button>
                       </div>
                     )}
