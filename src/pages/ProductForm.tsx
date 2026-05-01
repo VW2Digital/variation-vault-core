@@ -855,6 +855,27 @@ const ProductForm = () => {
                         <p className="text-[11px] text-muted-foreground text-center">Nenhum arquivo selecionado.</p>
                       ) : (
                         <div className="space-y-1.5">
+                          <div className="flex items-center justify-between px-1">
+                            <p className="text-[11px] font-medium text-muted-foreground">
+                              {v.pending_files!.length} arquivo{v.pending_files!.length > 1 ? 's' : ''} ·{' '}
+                              {(() => {
+                                const total = (v.pending_files || []).reduce((acc, f) => acc + f.size, 0);
+                                return total < 1024 * 1024
+                                  ? `${(total / 1024).toFixed(1)} KB`
+                                  : `${(total / (1024 * 1024)).toFixed(1)} MB`;
+                              })()}
+                            </p>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-[11px] text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => updateVariation(i, 'pending_files', [])}
+                            >
+                              <Trash2 className="w-3 h-3 mr-1" />
+                              Limpar todos
+                            </Button>
+                          </div>
                           {(v.pending_files || []).map((f, fi) => (
                             <div key={fi} className="flex items-center gap-2 bg-background/80 rounded px-2 py-1.5 border border-border/40">
                               <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
