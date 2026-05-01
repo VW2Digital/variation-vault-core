@@ -39,7 +39,7 @@ const Catalog = () => {
   const { t } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [wholesaleMap, setWholesaleMap] = useState<Record<string, number>>({});
+  const [wholesaleMap, setWholesaleMap] = useState<Record<string, { min_quantity: number; price: number }>>({});
   const [search, setSearch] = useState(searchParams.get('busca') || '');
 
   // Sync search state with URL params
@@ -94,13 +94,13 @@ const Catalog = () => {
         if (allVarIds.length > 0) {
           const { data: wpData } = await supabase
             .from('wholesale_prices')
-            .select('variation_id, min_quantity')
+            .select('variation_id, min_quantity, price')
             .in('variation_id', allVarIds)
             .order('min_quantity', { ascending: true });
-          const wpSet: Record<string, number> = {};
+          const wpSet: Record<string, { min_quantity: number; price: number }> = {};
           (wpData || []).forEach((w: any) => {
-            if (!(w.variation_id in wpSet) || w.min_quantity < wpSet[w.variation_id]) {
-              wpSet[w.variation_id] = w.min_quantity;
+            if (!(w.variation_id in wpSet) || w.min_quantity < wpSet[w.variation_id].min_quantity) {
+              wpSet[w.variation_id] = { min_quantity: w.min_quantity, price: Number(w.price) };
             }
           });
           setWholesaleMap(wpSet);
@@ -341,8 +341,10 @@ const Catalog = () => {
                 if (fromProduct.length > 0) return fromProduct;
                 return [productHeroImg];
               })();
-              const hasWholesale = variation ? (variation.id in wholesaleMap) : false;
-              const wholesaleMinQty = variation ? wholesaleMap[variation.id] : undefined;
+              const wholesaleTier = variation ? wholesaleMap[variation.id] : undefined;
+              const hasWholesale = !!wholesaleTier;
+              const wholesaleMinQty = wholesaleTier?.min_quantity;
+              const wholesaleUnitPrice = wholesaleTier?.price;
               const cleanName = variation?.is_digital
                 ? product.name.replace(/\s+digital\s*$/i, '').trim()
                 : product.name;
@@ -355,7 +357,10 @@ const Catalog = () => {
               const pixPercentSetting = Number((product as any).pix_discount_percent) || 0;
               const maxInstallmentsSetting = Number((product as any).max_installments) || 6;
               const installmentsInterest = (product as any).installments_interest || 'sem_juros';
-              const displayPrice = offerPrice || price;
+              // Quando há tier de atacado configurado, o preço exibido vira o preço de atacado.
+              // Assim a vitrine reflete que o produto está sendo vendido em modalidade atacado.
+              const retailPrice = offerPrice || price;
+              const displayPrice = hasWholesale && wholesaleUnitPrice ? wholesaleUnitPrice : retailPrice;
               const pixDiscount = displayPrice && pixPercentSetting > 0 ? Math.round(displayPrice * (1 - pixPercentSetting / 100) * 100) / 100 : null;
               const pixPercent = pixPercentSetting;
               const formatPriceParts = (val: number) => {
@@ -477,7 +482,11 @@ const Catalog = () => {
                         {/* Pricing */}
                         {price !== null ? (
                           <div className="pt-1">
-                            {offerPrice ? (
+                            {hasWholesale && retailPrice && wholesaleUnitPrice && wholesaleUnitPrice < retailPrice ? (
+                              <p className="text-muted-foreground text-xs line-through">
+                                R$ {retailPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </p>
+                            ) : offerPrice ? (
                               <p className="text-muted-foreground text-xs line-through">
                                 R$ {price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                               </p>
@@ -490,7 +499,15 @@ const Catalog = () => {
                               <span className="text-foreground text-[10px] sm:text-xs font-bold align-super ml-[1px]">
                                 {formatPriceParts(displayPrice!).decPart}
                               </span>
+                              {hasWholesale && (
+                                <span className="text-muted-foreground text-[10px] sm:text-xs ml-1">/un.</span>
+                              )}
                             </div>
+                            {hasWholesale && wholesaleMinQty && (
+                              <p className="text-primary text-[10px] sm:text-xs font-semibold mt-0.5">
+                                Preço atacado · mín. {wholesaleMinQty} un.
+                              </p>
+                            )}
                             {pixDiscount && (
                               <>
                                 <p className="text-success text-[10px] sm:text-xs font-semibold mt-0.5">
@@ -554,7 +571,7 @@ const Catalog = () => {
                           onClick={async (e) => {
                             e.stopPropagation();
                             trackAbEvent(ab.variant, 'cta_click', product.id, variation.id, ab.enabled);
-                            const minQty = wholesaleMap[variation.id] || 1;
+                            const minQty = wholesaleMap[variation.id]?.min_quantity || 1;
                             addToCart(product.id, variation.id, minQty);
                           }}
                         >
