@@ -741,10 +741,16 @@ CREATE INDEX IF NOT EXISTS idx_bulk_email_campaigns_created_at ON public.bulk_em
 CREATE INDEX IF NOT EXISTS idx_bulk_email_templates_user_id    ON public.bulk_email_templates (user_id);
 CREATE INDEX IF NOT EXISTS idx_webhook_retry_queue_status      ON public.webhook_retry_queue (status, next_attempt_at);
 CREATE INDEX IF NOT EXISTS idx_webhook_retry_queue_gateway     ON public.webhook_retry_queue (gateway);
+CREATE INDEX IF NOT EXISTS idx_ab_card_events_session         ON public.ab_card_events (session_id);
+CREATE INDEX IF NOT EXISTS idx_ab_card_events_created_at      ON public.ab_card_events (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ab_card_events_product         ON public.ab_card_events (product_id);
+CREATE INDEX IF NOT EXISTS idx_gateway_audit_created_at       ON public.gateway_settings_audit (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pv_files_variation_id          ON public.product_variation_files (variation_id);
 
 -- =============================================================================
 -- ROW LEVEL SECURITY
 -- =============================================================================
+ALTER TABLE public.ab_card_events        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.addresses             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.api_idempotency_keys  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.banner_slides         ENABLE ROW LEVEL SECURITY;
@@ -757,11 +763,13 @@ ALTER TABLE public.contact_preferences   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coupon_products       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coupons               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.email_send_log        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.gateway_settings_audit ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders                ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payment_links         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payment_logs          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.popups                ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.product_upsells       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.product_variation_files ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.product_variations    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles              ENABLE ROW LEVEL SECURITY;
