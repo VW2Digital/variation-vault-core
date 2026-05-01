@@ -94,6 +94,12 @@ const Checkout = () => {
   const unitPrice = getEffectivePrice(basePrice, quantity, wholesaleTiers);
   const totalPrice = unitPrice * quantity;
 
+  // Wholesale minimum guard: block checkout when quantity is below the lowest configured tier
+  const wholesaleMinRequired = wholesaleTiers.length > 0
+    ? Math.min(...wholesaleTiers.map(t => t.min_quantity))
+    : 0;
+  const belowWholesaleMin = wholesaleMinRequired > 0 && quantity < wholesaleMinRequired;
+
   const variationImages = variation?.images?.length > 0
     ? variation.images
     : variation?.image_url
