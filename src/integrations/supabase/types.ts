@@ -1461,6 +1461,15 @@ export type Database = {
         Args: { _coupon_code: string }
         Returns: boolean
       }
+      validate_wholesale_minimum: {
+        Args: { _quantity: number; _variation_id: string }
+        Returns: {
+          dosage: string
+          product_name: string
+          required_min: number
+          valid: boolean
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "user"
