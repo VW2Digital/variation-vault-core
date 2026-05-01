@@ -511,6 +511,11 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
 
     if (error) {
       console.error('Order creation error:', error);
+      // Friendly message for wholesale minimum trigger violation
+      const msg = (error as any)?.message || '';
+      if (msg.includes('Quantidade abaixo do mínimo de atacado')) {
+        throw new Error(msg);
+      }
       throw new Error('Erro ao criar pedido');
     }
     return (data as any).id;
