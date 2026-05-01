@@ -13,6 +13,7 @@ import {
   Copy, ExternalLink, ShoppingCart, User, Search, Filter,
   TrendingUp, CreditCard, MapPin, ChevronDown, RotateCw, Save, Phone, HelpCircle,
   Star, MessageSquare, Mail, BellRing, LayoutDashboard, Download,
+  Camera, Trash2,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
@@ -82,6 +83,8 @@ const CustomerDashboard = () => {
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSaving, setReviewSaving] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string>('');
+  const [customAvatarUrl, setCustomAvatarUrl] = useState<string>('');
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [payNowLoading, setPayNowLoading] = useState<string | null>(null);
   const [pixModal, setPixModal] = useState<{ orderId: string; qrCode: string; payload: string; value: number } | null>(null);
   const isMobile = useIsMobile();
@@ -187,12 +190,13 @@ const CustomerDashboard = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name, phone')
+        .select('full_name, phone, avatar_url')
         .eq('user_id', userId)
         .maybeSingle();
       if (data) {
         setProfileName(data.full_name || '');
         setProfilePhone(data.phone || '');
+        setCustomAvatarUrl((data as any).avatar_url || '');
       }
       const { data: prefs } = await supabase
         .from('contact_preferences')
@@ -227,6 +231,56 @@ const CustomerDashboard = () => {
       toast({ title: 'Erro ao salvar perfil', description: err.message, variant: 'destructive' });
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!user) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Arquivo inválido', description: 'Envie uma imagem (JPG, PNG ou WEBP).', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'Imagem muito grande', description: 'O tamanho máximo é 5 MB.', variant: 'destructive' });
+      return;
+    }
+    setAvatarUploading(true);
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+      const publicUrl = pub.publicUrl;
+      const { error: updErr } = await supabase
+        .from('profiles')
+        .upsert({ user_id: user.id, avatar_url: publicUrl }, { onConflict: 'user_id' });
+      if (updErr) throw updErr;
+      setCustomAvatarUrl(publicUrl);
+      toast({ title: 'Foto de perfil atualizada!' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao enviar foto', description: err.message, variant: 'destructive' });
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    if (!user) return;
+    setAvatarUploading(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({ user_id: user.id, avatar_url: '' }, { onConflict: 'user_id' });
+      if (error) throw error;
+      setCustomAvatarUrl('');
+      toast({ title: 'Foto removida' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao remover', description: err.message, variant: 'destructive' });
+    } finally {
+      setAvatarUploading(false);
     }
   };
 
@@ -381,13 +435,48 @@ const CustomerDashboard = () => {
             <aside className="space-y-3">
               <Card className="border-border/50">
                 <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                  <Avatar className="w-16 h-16">
-                    {avatarUrl ? <AvatarImage src={avatarUrl} alt={userName} /> : null}
-                    <AvatarFallback className="bg-muted">
-                      <User className="w-8 h-8 text-muted-foreground" />
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative group">
+                    <Avatar className="w-16 h-16">
+                      {customAvatarUrl ? (
+                        <AvatarImage src={customAvatarUrl} alt={userName} />
+                      ) : avatarUrl ? (
+                        <AvatarImage src={avatarUrl} alt={userName} />
+                      ) : null}
+                      <AvatarFallback className="bg-muted">
+                        <User className="w-8 h-8 text-muted-foreground" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <label
+                      htmlFor="avatar-upload-input"
+                      className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center cursor-pointer shadow-md hover:opacity-90 transition-opacity"
+                      title="Alterar foto"
+                    >
+                      {avatarUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                    </label>
+                    <input
+                      id="avatar-upload-input"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={avatarUploading}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleAvatarUpload(f);
+                        e.target.value = '';
+                      }}
+                    />
+                  </div>
                   <p className="font-semibold text-sm text-foreground truncate max-w-full">{userName}</p>
+                  {customAvatarUrl && (
+                    <button
+                      type="button"
+                      onClick={handleAvatarRemove}
+                      disabled={avatarUploading}
+                      className="text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3" /> Remover foto
+                    </button>
+                  )}
                   <Button variant="default" size="sm" onClick={handleLogout} className="w-full gap-1">
                     <LogOut className="w-3.5 h-3.5" /> Sair
                   </Button>
