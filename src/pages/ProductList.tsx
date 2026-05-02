@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, Package, MoreVertical, Copy, Loader2, GripVertical, LayoutGrid, List, Star, Award } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, MoreVertical, Copy, Loader2, GripVertical, LayoutGrid, List, Star, Award, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -418,6 +418,13 @@ const ProductList = () => {
                 <List className="w-3.5 h-3.5" />
               </button>
             </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate('/admin/produtos/importar')}
+            >
+              <Upload className="mr-1.5 h-4 w-4" /> Importar CSV
+            </Button>
             <Button
               size="sm"
               onClick={() => navigate('/admin/produtos/novo')}
