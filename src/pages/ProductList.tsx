@@ -639,6 +639,9 @@ const ProductList = () => {
                     onDuplicate={handleDuplicate}
                     onToggleActive={handleToggleActive}
                     duplicating={duplicating}
+                    selectionMode={selectionMode}
+                    selected={selectedIds.has(product.id)}
+                    onToggleSelected={toggleSelected}
                   />
                 ))}
               </div>
@@ -654,6 +657,9 @@ const ProductList = () => {
                     onToggleActive={handleToggleActive}
                     duplicating={duplicating}
                     highlight={idx === 0}
+                    selectionMode={selectionMode}
+                    selected={selectedIds.has(product.id)}
+                    onToggleSelected={toggleSelected}
                   />
                 ))}
               </div>
