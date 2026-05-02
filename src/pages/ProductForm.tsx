@@ -516,18 +516,21 @@ const ProductForm = () => {
           </CardContent>
         </Card>
 
-        {productType === 'physical' && (
         <Card className="border-border/50">
           <CardHeader><CardTitle className="text-lg">Frete Grátis</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <Label>Ativar frete grátis</Label>
-                <p className="text-xs text-muted-foreground">Ofereça frete grátis para este produto</p>
+                <p className="text-xs text-muted-foreground">
+                  {productType === 'digital'
+                    ? 'Exibe selo de “frete grátis” (entrega digital sem custo) na vitrine'
+                    : 'Ofereça frete grátis para este produto'}
+                </p>
               </div>
               <Switch checked={freeShipping} onCheckedChange={setFreeShipping} />
             </div>
-            {freeShipping && (
+            {freeShipping && productType === 'physical' && (
               <div className="space-y-2">
                 <Label>Valor mínimo para frete grátis (R$)</Label>
                 <Input
@@ -545,7 +548,6 @@ const ProductForm = () => {
             )}
           </CardContent>
         </Card>
-        )}
 
         <Card className="border-border/50">
           <CardHeader>
