@@ -34,7 +34,6 @@ const menuCategories = [
     items: [
       { title: 'Produtos', url: '/admin/produtos', icon: Package },
       { title: 'Atacado', url: '/admin/atacado', icon: Layers },
-      { title: 'Depoimentos', url: '/admin/depoimentos', icon: Video },
     ],
   },
   {
