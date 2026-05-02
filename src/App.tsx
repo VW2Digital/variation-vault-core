@@ -14,7 +14,6 @@ import ProductForm from "./pages/ProductForm";
 import ProductImportCSV from "./pages/ProductImportCSV";
 import ProductCheckout from "./pages/ProductCheckout";
 import Catalog from "./pages/Catalog";
-import TestimonialList from "./pages/TestimonialList";
 import BannerList from "./pages/BannerList";
 import SettingsIndex from "./pages/settings/SettingsIndex";
 import SettingsDesign from "./pages/settings/SettingsDesign";
@@ -114,7 +113,6 @@ const App = () => (
             <Route path="produtos/importar" element={<ProductImportCSV />} />
             <Route path="produtos/:id" element={<ProductForm />} />
             <Route path="atacado" element={<WholesalePricingPage />} />
-            <Route path="depoimentos" element={<TestimonialList />} />
             <Route path="banners" element={<BannerList />} />
             <Route path="popups" element={<PopupList />} />
             <Route path="pedidos" element={<OrdersPage />} />
