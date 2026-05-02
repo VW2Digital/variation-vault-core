@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useEffect, useState } from 'react';
 import { fetchSetting } from '@/lib/api';
-import logoImg from '@/assets/liberty-pharma-logo.png';
+import logoImg from '@/assets/liberty-header-logo.png';
 import paymentMethodsImg from '@/assets/payment-methods.png';
 import seloSiteProtegido from '@/assets/selo-site-protegido.png';
 import seloSafeBrowsing from '@/assets/selo-safe-browsing.png';
