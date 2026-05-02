@@ -5,7 +5,7 @@ import { AdminSidebar } from '@/components/AdminSidebar';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
-import { Loader2, ShieldX, Search, Plus, Bell, MessageCircle } from 'lucide-react';
+import { Loader2, ShieldX, Search, Plus, Bell, MessageCircle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import iconImg from '@/assets/liberty-pharma-icon.png';
@@ -206,6 +206,16 @@ const AdminLayout = () => {
                 title="Suporte"
               >
                 <MessageCircle className="h-4 w-4" />
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full h-9 w-9 hidden sm:inline-flex"
+                onClick={() => window.open('/', '_blank', 'noopener,noreferrer')}
+                title="Abrir catálogo em nova aba"
+              >
+                <ExternalLink className="h-4 w-4" />
               </Button>
 
               {/* Avatar / saudação */}
