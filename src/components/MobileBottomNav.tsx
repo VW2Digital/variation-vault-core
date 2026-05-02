@@ -1,11 +1,10 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, ShoppingCart, User, Copy } from 'lucide-react';
+import { Home, ShoppingCart, User } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useCart } from '@/contexts/CartContext';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Inicio' },
-  { path: '/', icon: Copy, label: 'Catálogo', external: true },
   { path: '/carrinho', icon: ShoppingCart, label: 'Carrinho' },
   { path: '/minha-conta', icon: User, label: 'Conta' },
 ];
@@ -31,18 +30,12 @@ const MobileBottomNav = () => {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border shadow-lg md:hidden">
       <div className="flex items-center justify-around h-16">
-        {navItems.map(({ path, icon: Icon, label, external }) => (
+        {navItems.map(({ path, icon: Icon, label }) => (
           <button
-            key={`${path}-${label}`}
-            onClick={() => {
-              if (external) {
-                window.open(path, '_blank', 'noopener,noreferrer');
-              } else {
-                navigate(path);
-              }
-            }}
+            key={path}
+            onClick={() => navigate(path)}
             className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors relative ${
-              !external && isActive(path)
+              isActive(path)
                 ? 'text-primary'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
