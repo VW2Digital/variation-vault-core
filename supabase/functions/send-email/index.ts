@@ -36,19 +36,49 @@ interface SendEmailRequest {
   text?: string;
 }
 
-const baseStyles = `font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background:#ffffff; color:#1a1a2e;`;
+const BRAND_GOLD = "#b8860b";
+const BRAND_DARK = "#1a1a2e";
 
-const wrap = (storeName: string, content: string, footer?: string) => `
-  <div style="${baseStyles}">
-    <h2 style="margin:0 0 12px;">${storeName}</h2>
-    ${content}
-    <hr style="border:none;border-top:1px solid #e5e5e5;margin:24px 0;" />
-    <p style="color:#999;font-size:12px;margin:0;">${footer ?? "Este é um email automático, não responda diretamente."}</p>
-  </div>
-`;
+const wrap = (storeName: string, content: string, footer?: string) => `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>${storeName}</title></head>
+<body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Arial,sans-serif;color:#1a1a2e;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f7;padding:32px 12px;">
+  <tr><td align="center">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+      <tr><td style="background:${BRAND_DARK};padding:24px 32px;text-align:center;">
+        <h1 style="margin:0;color:${BRAND_GOLD};font-size:22px;font-weight:700;letter-spacing:0.5px;">${storeName}</h1>
+      </td></tr>
+      <tr><td style="padding:32px;color:#1a1a2e;font-size:15px;line-height:1.6;">${content}</td></tr>
+      <tr><td style="padding:20px 32px;background:#fafafa;border-top:1px solid #eee;text-align:center;">
+        <p style="margin:0;color:#888;font-size:12px;line-height:1.5;">${footer ?? `Este é um email automático de ${storeName}, não responda diretamente.`}</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
 
 const brl = (n: number) =>
-  Number.isFinite(n) ? `R$ ${Number(n).toFixed(2).replace(".", ",")}` : "—";
+  Number.isFinite(Number(n))
+    ? Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+    : "—";
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  pix: "PIX",
+  credit_card: "Cartão de Crédito",
+  card: "Cartão de Crédito",
+  boleto: "Boleto",
+  mp_redirect: "Mercado Pago",
+  mercadopago: "Mercado Pago",
+  asaas: "Cartão / PIX (Asaas)",
+  pagbank: "PagBank",
+  pagarme: "Pagar.me",
+};
+const friendlyPayment = (m?: string) => {
+  if (!m) return "—";
+  return PAYMENT_METHOD_LABELS[String(m).toLowerCase()] ?? String(m);
+};
+const shortOrderId = (id?: string) =>
+  id ? String(id).slice(0, 8).toUpperCase() : "—";
 
 function escapeHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -81,12 +111,24 @@ function renderTemplate(
     case "order_created": {
       const subject = `Pedido recebido — ${data.product_name ?? "seu pedido"}`;
       const html = wrap(storeName, `
-        <p>Olá <strong>${customer}</strong>,</p>
-        <p>Recebemos seu pedido <strong>#${data.order_id ?? "—"}</strong> e ele já está na fila.</p>
-        <p><strong>Produto:</strong> ${data.product_name ?? "—"}<br/>
-           <strong>Valor:</strong> ${brl(data.total_value)}<br/>
-           <strong>Pagamento:</strong> ${data.payment_method ?? "—"}</p>
-        ${storeUrl ? `<p><a href="${storeUrl}/minha-conta" target="_blank" rel="noopener" style="background:#1a1a2e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;display:inline-block;">Ver meu pedido</a></p>` : ""}
+        <h2 style="margin:0 0 16px;font-size:20px;color:${BRAND_DARK};">Olá, ${escapeHtml(customer)}!</h2>
+        <p style="margin:0 0 16px;">Recebemos seu pedido <strong>#${shortOrderId(data.order_id)}</strong> com sucesso e já estamos processando.</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;background:#fafafa;border:1px solid #eee;border-radius:8px;">
+          <tr><td style="padding:16px 20px;border-bottom:1px solid #eee;">
+            <div style="font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Produto</div>
+            <div style="font-size:15px;color:${BRAND_DARK};font-weight:600;">${escapeHtml(String(data.product_name ?? "—"))}</div>
+          </td></tr>
+          <tr><td style="padding:16px 20px;border-bottom:1px solid #eee;">
+            <div style="font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Forma de pagamento</div>
+            <div style="font-size:15px;color:${BRAND_DARK};">${escapeHtml(friendlyPayment(data.payment_method))}</div>
+          </td></tr>
+          <tr><td style="padding:16px 20px;background:#fff8e7;">
+            <div style="font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Valor total</div>
+            <div style="font-size:20px;color:${BRAND_DARK};font-weight:700;">${brl(Number(data.total_value))}</div>
+          </td></tr>
+        </table>
+        ${storeUrl ? `<p style="text-align:center;margin:28px 0 8px;"><a href="${storeUrl}/minha-conta" target="_blank" rel="noopener" style="background:${BRAND_GOLD};color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;display:inline-block;font-weight:600;">Acompanhar meu pedido</a></p>` : ""}
+        <p style="margin:24px 0 0;font-size:13px;color:#666;text-align:center;">Qualquer dúvida, entre em contato com nosso suporte.</p>
       `);
       return { subject, html };
     }
