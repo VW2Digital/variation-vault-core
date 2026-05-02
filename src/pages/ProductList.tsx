@@ -140,7 +140,7 @@ const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, onToggle
  * Card no estilo "Top Produto": gradiente dourado, imagem em destaque,
  * badge translúcida com preço. Drag-and-drop preservado.
  */
-const SortableProductCard = ({ product, navigate, onDelete, onDuplicate, onToggleActive, duplicating, highlight }: SortableProductRowProps & { highlight?: boolean }) => {
+const SortableProductCard = ({ product, navigate, onDelete, onDuplicate, onToggleActive, duplicating, highlight, selectionMode, selected, onToggleSelected }: SortableProductRowProps & { highlight?: boolean }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id });
 
   const style = {
@@ -163,10 +163,22 @@ const SortableProductCard = ({ product, navigate, onDelete, onDuplicate, onToggl
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative rounded-2xl border border-border/50 bg-card shadow-sm hover:shadow-md hover:border-primary/40 transition-all overflow-hidden flex flex-col ${
+      className={`group relative rounded-2xl border bg-card shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col ${
+        selected ? 'border-primary ring-2 ring-primary/30' : 'border-border/50 hover:border-primary/40'
+      } ${
         isDragging ? 'shadow-xl border-primary/50' : ''
       } ${!isActive ? 'opacity-60' : ''}`}
     >
+      {selectionMode && (
+        <div className="absolute top-2 left-2 z-30">
+          <Checkbox
+            checked={!!selected}
+            onCheckedChange={() => onToggleSelected?.(product.id)}
+            aria-label="Selecionar produto"
+            className="bg-card border-2 shadow-md"
+          />
+        </div>
+      )}
       {/* Header: drag + título + menu */}
       <div className="flex items-center gap-1 px-3 pt-3">
         <button
@@ -179,7 +191,7 @@ const SortableProductCard = ({ product, navigate, onDelete, onDuplicate, onToggl
         </button>
         <h3
           className="flex-1 min-w-0 text-sm font-bold text-foreground truncate cursor-pointer flex items-center gap-1.5"
-          onClick={() => navigate(`/admin/produtos/${product.id}`)}
+          onClick={() => selectionMode ? onToggleSelected?.(product.id) : navigate(`/admin/produtos/${product.id}`)}
           title={product.name}
         >
           {highlight && <Award className="w-3.5 h-3.5 text-primary shrink-0" />}
@@ -212,7 +224,7 @@ const SortableProductCard = ({ product, navigate, onDelete, onDuplicate, onToggl
       {/* Imagem do produto */}
       <div
         className="mx-3 mt-2 cursor-pointer relative"
-        onClick={() => navigate(`/admin/produtos/${product.id}`)}
+        onClick={() => selectionMode ? onToggleSelected?.(product.id) : navigate(`/admin/produtos/${product.id}`)}
       >
         <div className="aspect-[4/3] rounded-xl overflow-hidden bg-muted/30 flex items-center justify-center">
           {img ? (
