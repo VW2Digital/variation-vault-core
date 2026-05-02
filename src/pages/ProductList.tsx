@@ -554,10 +554,23 @@ const ProductList = () => {
             <Button
               size="sm"
               variant="outline"
+              onClick={() => setSelectionMode((v) => !v)}
+              disabled={products.length === 0}
+              className={selectionMode ? 'bg-primary/10 border-primary text-primary' : ''}
+            >
+              <CheckSquare className="mr-1.5 h-4 w-4" />
+              {selectionMode ? 'Cancelar seleção' : 'Selecionar'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               onClick={handleExportCSV}
               disabled={products.length === 0}
             >
-              <Download className="mr-1.5 h-4 w-4" /> Exportar CSV
+              <Download className="mr-1.5 h-4 w-4" />
+              {selectionMode && selectedIds.size > 0
+                ? `Exportar ${selectedIds.size}`
+                : 'Exportar CSV'}
             </Button>
             <Button
               size="sm"
@@ -576,6 +589,31 @@ const ProductList = () => {
           </div>
         }
       />
+
+      {selectionMode && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-primary/40 bg-primary/5">
+          <div className="flex items-center gap-3 text-sm">
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-primary"
+            >
+              {selectedIds.size === products.length && products.length > 0 ? (
+                <CheckSquare className="w-4 h-4 text-primary" />
+              ) : (
+                <Square className="w-4 h-4" />
+              )}
+              {selectedIds.size === products.length && products.length > 0 ? 'Desmarcar todos' : 'Selecionar todos'}
+            </button>
+            <span className="text-muted-foreground">
+              {selectedIds.size} de {products.length} selecionado(s)
+            </span>
+          </div>
+          <Button variant="ghost" size="sm" onClick={exitSelectionMode}>
+            <X className="mr-1 h-4 w-4" /> Sair
+          </Button>
+        </div>
+      )}
 
       {products.length === 0 ? (
         <Card className="border-dashed border-2 border-border">
