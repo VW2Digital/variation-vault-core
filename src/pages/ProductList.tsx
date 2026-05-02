@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, Package, MoreVertical, Copy, Loader2, GripVertical, LayoutGrid, List, Star, Award, Upload, Download } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, MoreVertical, Copy, Loader2, GripVertical, LayoutGrid, List, Star, Award, Upload, Download, CheckSquare, Square, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -26,6 +26,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 interface SortableProductRowProps {
@@ -35,9 +36,12 @@ interface SortableProductRowProps {
   onDuplicate: (product: any) => void;
   onToggleActive: (product: any, active: boolean) => void;
   duplicating: string | null;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelected?: (id: string) => void;
 }
 
-const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, onToggleActive, duplicating }: SortableProductRowProps) => {
+const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, onToggleActive, duplicating, selectionMode, selected, onToggleSelected }: SortableProductRowProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id });
 
   const style = {
@@ -55,8 +59,16 @@ const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, onToggle
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 px-2 py-2.5 bg-card hover:bg-muted/30 transition-colors ${isDragging ? 'shadow-lg rounded-lg border border-primary/30' : ''} ${!isActive ? 'opacity-60' : ''}`}
+      className={`flex items-center gap-2 px-2 py-2.5 bg-card hover:bg-muted/30 transition-colors ${isDragging ? 'shadow-lg rounded-lg border border-primary/30' : ''} ${!isActive ? 'opacity-60' : ''} ${selected ? 'bg-primary/5' : ''}`}
     >
+      {selectionMode && (
+        <Checkbox
+          checked={!!selected}
+          onCheckedChange={() => onToggleSelected?.(product.id)}
+          aria-label="Selecionar produto"
+          className="ml-1"
+        />
+      )}
       <button
         className="shrink-0 cursor-grab active:cursor-grabbing touch-none p-1 text-muted-foreground hover:text-foreground"
         {...attributes}
@@ -67,7 +79,7 @@ const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, onToggle
 
       <div
         className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
-        onClick={() => navigate(`/admin/produtos/${product.id}`)}
+        onClick={() => selectionMode ? onToggleSelected?.(product.id) : navigate(`/admin/produtos/${product.id}`)}
       >
         <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center shrink-0 overflow-hidden">
           {img ? (
@@ -128,7 +140,7 @@ const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, onToggle
  * Card no estilo "Top Produto": gradiente dourado, imagem em destaque,
  * badge translúcida com preço. Drag-and-drop preservado.
  */
-const SortableProductCard = ({ product, navigate, onDelete, onDuplicate, onToggleActive, duplicating, highlight }: SortableProductRowProps & { highlight?: boolean }) => {
+const SortableProductCard = ({ product, navigate, onDelete, onDuplicate, onToggleActive, duplicating, highlight, selectionMode, selected, onToggleSelected }: SortableProductRowProps & { highlight?: boolean }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id });
 
   const style = {
@@ -151,10 +163,22 @@ const SortableProductCard = ({ product, navigate, onDelete, onDuplicate, onToggl
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative rounded-2xl border border-border/50 bg-card shadow-sm hover:shadow-md hover:border-primary/40 transition-all overflow-hidden flex flex-col ${
+      className={`group relative rounded-2xl border bg-card shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col ${
+        selected ? 'border-primary ring-2 ring-primary/30' : 'border-border/50 hover:border-primary/40'
+      } ${
         isDragging ? 'shadow-xl border-primary/50' : ''
       } ${!isActive ? 'opacity-60' : ''}`}
     >
+      {selectionMode && (
+        <div className="absolute top-2 left-2 z-30">
+          <Checkbox
+            checked={!!selected}
+            onCheckedChange={() => onToggleSelected?.(product.id)}
+            aria-label="Selecionar produto"
+            className="bg-card border-2 shadow-md"
+          />
+        </div>
+      )}
       {/* Header: drag + título + menu */}
       <div className="flex items-center gap-1 px-3 pt-3">
         <button
@@ -167,7 +191,7 @@ const SortableProductCard = ({ product, navigate, onDelete, onDuplicate, onToggl
         </button>
         <h3
           className="flex-1 min-w-0 text-sm font-bold text-foreground truncate cursor-pointer flex items-center gap-1.5"
-          onClick={() => navigate(`/admin/produtos/${product.id}`)}
+          onClick={() => selectionMode ? onToggleSelected?.(product.id) : navigate(`/admin/produtos/${product.id}`)}
           title={product.name}
         >
           {highlight && <Award className="w-3.5 h-3.5 text-primary shrink-0" />}
@@ -200,7 +224,7 @@ const SortableProductCard = ({ product, navigate, onDelete, onDuplicate, onToggl
       {/* Imagem do produto */}
       <div
         className="mx-3 mt-2 cursor-pointer relative"
-        onClick={() => navigate(`/admin/produtos/${product.id}`)}
+        onClick={() => selectionMode ? onToggleSelected?.(product.id) : navigate(`/admin/produtos/${product.id}`)}
       >
         <div className="aspect-[4/3] rounded-xl overflow-hidden bg-muted/30 flex items-center justify-center">
           {img ? (
@@ -264,6 +288,8 @@ const ProductList = () => {
   const [loading, setLoading] = useState(true);
   const [duplicating, setDuplicating] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [view, setView] = useState<'grid' | 'list'>(() => {
     if (typeof window === 'undefined') return 'grid';
     return (localStorage.getItem('admin:products:view') as 'grid' | 'list') || 'grid';
@@ -386,6 +412,27 @@ const ProductList = () => {
     }
   };
 
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === products.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(products.map((p) => p.id)));
+    }
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
   const escapeCSV = (val: any): string => {
     const s = val === null || val === undefined ? '' : String(val);
     if (/[",\n;]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
@@ -393,6 +440,15 @@ const ProductList = () => {
   };
 
   const handleExportCSV = () => {
+    const list = selectionMode && selectedIds.size > 0
+      ? products.filter((p) => selectedIds.has(p.id))
+      : products;
+
+    if (list.length === 0) {
+      toast({ title: 'Nenhum produto selecionado', variant: 'destructive' });
+      return;
+    }
+
     const headers = [
       'name', 'subtitle', 'description', 'category', 'fantasy_name',
       'active_ingredient', 'pharma_form', 'administration_route', 'frequency',
@@ -404,7 +460,7 @@ const ProductList = () => {
     ];
 
     const rows: string[][] = [];
-    products.forEach((p) => {
+    list.forEach((p) => {
       const variations = p.product_variations || [];
       if (variations.length === 0) {
         rows.push([
@@ -460,7 +516,7 @@ const ProductList = () => {
     a.download = `produtos-${date}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast({ title: 'CSV exportado', description: `${products.length} produto(s), ${rows.length} linha(s).` });
+    toast({ title: 'CSV exportado', description: `${list.length} produto(s), ${rows.length} linha(s).` });
   };
 
   if (loading) return <p className="text-muted-foreground">Carregando...</p>;
@@ -498,10 +554,23 @@ const ProductList = () => {
             <Button
               size="sm"
               variant="outline"
+              onClick={() => setSelectionMode((v) => !v)}
+              disabled={products.length === 0}
+              className={selectionMode ? 'bg-primary/10 border-primary text-primary' : ''}
+            >
+              <CheckSquare className="mr-1.5 h-4 w-4" />
+              {selectionMode ? 'Cancelar seleção' : 'Selecionar'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               onClick={handleExportCSV}
               disabled={products.length === 0}
             >
-              <Download className="mr-1.5 h-4 w-4" /> Exportar CSV
+              <Download className="mr-1.5 h-4 w-4" />
+              {selectionMode && selectedIds.size > 0
+                ? `Exportar ${selectedIds.size}`
+                : 'Exportar CSV'}
             </Button>
             <Button
               size="sm"
@@ -520,6 +589,31 @@ const ProductList = () => {
           </div>
         }
       />
+
+      {selectionMode && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-primary/40 bg-primary/5">
+          <div className="flex items-center gap-3 text-sm">
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-primary"
+            >
+              {selectedIds.size === products.length && products.length > 0 ? (
+                <CheckSquare className="w-4 h-4 text-primary" />
+              ) : (
+                <Square className="w-4 h-4" />
+              )}
+              {selectedIds.size === products.length && products.length > 0 ? 'Desmarcar todos' : 'Selecionar todos'}
+            </button>
+            <span className="text-muted-foreground">
+              {selectedIds.size} de {products.length} selecionado(s)
+            </span>
+          </div>
+          <Button variant="ghost" size="sm" onClick={exitSelectionMode}>
+            <X className="mr-1 h-4 w-4" /> Sair
+          </Button>
+        </div>
+      )}
 
       {products.length === 0 ? (
         <Card className="border-dashed border-2 border-border">
@@ -545,6 +639,9 @@ const ProductList = () => {
                     onDuplicate={handleDuplicate}
                     onToggleActive={handleToggleActive}
                     duplicating={duplicating}
+                    selectionMode={selectionMode}
+                    selected={selectedIds.has(product.id)}
+                    onToggleSelected={toggleSelected}
                   />
                 ))}
               </div>
@@ -560,6 +657,9 @@ const ProductList = () => {
                     onToggleActive={handleToggleActive}
                     duplicating={duplicating}
                     highlight={idx === 0}
+                    selectionMode={selectionMode}
+                    selected={selectedIds.has(product.id)}
+                    onToggleSelected={toggleSelected}
                   />
                 ))}
               </div>
