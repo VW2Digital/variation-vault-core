@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, Package, MoreVertical, Copy, Loader2, GripVertical, LayoutGrid, List, Star, Award, Upload, Download } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, MoreVertical, Copy, Loader2, GripVertical, LayoutGrid, List, Star, Award, Upload, Download, CheckSquare, Square, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -26,6 +26,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 interface SortableProductRowProps {
@@ -35,9 +36,12 @@ interface SortableProductRowProps {
   onDuplicate: (product: any) => void;
   onToggleActive: (product: any, active: boolean) => void;
   duplicating: string | null;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelected?: (id: string) => void;
 }
 
-const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, onToggleActive, duplicating }: SortableProductRowProps) => {
+const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, onToggleActive, duplicating, selectionMode, selected, onToggleSelected }: SortableProductRowProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id });
 
   const style = {
@@ -55,8 +59,16 @@ const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, onToggle
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 px-2 py-2.5 bg-card hover:bg-muted/30 transition-colors ${isDragging ? 'shadow-lg rounded-lg border border-primary/30' : ''} ${!isActive ? 'opacity-60' : ''}`}
+      className={`flex items-center gap-2 px-2 py-2.5 bg-card hover:bg-muted/30 transition-colors ${isDragging ? 'shadow-lg rounded-lg border border-primary/30' : ''} ${!isActive ? 'opacity-60' : ''} ${selected ? 'bg-primary/5' : ''}`}
     >
+      {selectionMode && (
+        <Checkbox
+          checked={!!selected}
+          onCheckedChange={() => onToggleSelected?.(product.id)}
+          aria-label="Selecionar produto"
+          className="ml-1"
+        />
+      )}
       <button
         className="shrink-0 cursor-grab active:cursor-grabbing touch-none p-1 text-muted-foreground hover:text-foreground"
         {...attributes}
@@ -67,7 +79,7 @@ const SortableProductRow = ({ product, navigate, onDelete, onDuplicate, onToggle
 
       <div
         className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
-        onClick={() => navigate(`/admin/produtos/${product.id}`)}
+        onClick={() => selectionMode ? onToggleSelected?.(product.id) : navigate(`/admin/produtos/${product.id}`)}
       >
         <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center shrink-0 overflow-hidden">
           {img ? (
