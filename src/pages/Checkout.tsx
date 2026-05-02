@@ -94,12 +94,6 @@ const Checkout = () => {
   const unitPrice = getEffectivePrice(basePrice, quantity, wholesaleTiers);
   const totalPrice = unitPrice * quantity;
 
-  // Wholesale minimum guard: block checkout when quantity is below the lowest configured tier
-  const wholesaleMinRequired = wholesaleTiers.length > 0
-    ? Math.min(...wholesaleTiers.map(t => t.min_quantity))
-    : 0;
-  const belowWholesaleMin = wholesaleMinRequired > 0 && quantity < wholesaleMinRequired;
-
   const variationImages = variation?.images?.length > 0
     ? variation.images
     : variation?.image_url
@@ -174,23 +168,6 @@ const Checkout = () => {
           </div>
 
           {/* Checkout Form */}
-          {belowWholesaleMin ? (
-            <div className="border border-destructive/30 bg-destructive/5 rounded-xl p-5 text-center space-y-3">
-              <p className="text-sm font-semibold text-destructive">
-                Quantidade abaixo do mínimo de atacado
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Este produto exige pelo menos <strong>{wholesaleMinRequired} unidades</strong> para finalizar a compra.
-                Você selecionou apenas {quantity}.
-              </p>
-              <button
-                onClick={() => navigate(`/produto/${product.id}${variation?.id ? `?v=${variation.id}` : ''}`)}
-                className="text-sm text-primary underline hover:no-underline"
-              >
-                Voltar ao produto e ajustar a quantidade
-              </button>
-            </div>
-          ) : (
           <CheckoutForm
             productName={product.name}
             productId={product.id}
@@ -204,7 +181,6 @@ const Checkout = () => {
             maxInstallmentsProp={Number(product.max_installments) || 6}
             installmentsInterestProp={product.installments_interest || 'sem_juros'}
           />
-          )}
         </AnimatedSection>
       </section>
       <Footer />
