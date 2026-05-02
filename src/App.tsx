@@ -113,7 +113,6 @@ const App = () => (
             <Route path="produtos/importar" element={<ProductImportCSV />} />
             <Route path="produtos/:id" element={<ProductForm />} />
             <Route path="atacado" element={<WholesalePricingPage />} />
-            <Route path="depoimentos" element={<TestimonialList />} />
             <Route path="banners" element={<BannerList />} />
             <Route path="popups" element={<PopupList />} />
             <Route path="pedidos" element={<OrdersPage />} />
