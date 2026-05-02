@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, Package, MoreVertical, Copy, Loader2, GripVertical, LayoutGrid, List, Star, Award, Upload } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, MoreVertical, Copy, Loader2, GripVertical, LayoutGrid, List, Star, Award, Upload, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -386,6 +386,83 @@ const ProductList = () => {
     }
   };
 
+  const escapeCSV = (val: any): string => {
+    const s = val === null || val === undefined ? '' : String(val);
+    if (/[",\n;]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  };
+
+  const handleExportCSV = () => {
+    const headers = [
+      'name', 'subtitle', 'description', 'category', 'fantasy_name',
+      'active_ingredient', 'pharma_form', 'administration_route', 'frequency',
+      'free_shipping', 'free_shipping_min_value', 'is_bestseller',
+      'pix_discount_percent', 'max_installments', 'installments_interest', 'images',
+      'variation_dosage', 'variation_subtitle', 'variation_price', 'variation_offer_price',
+      'variation_in_stock', 'variation_is_offer', 'variation_stock_quantity',
+      'variation_is_digital', 'variation_image_url', 'variation_images',
+    ];
+
+    const rows: string[][] = [];
+    products.forEach((p) => {
+      const variations = p.product_variations || [];
+      if (variations.length === 0) {
+        rows.push([
+          p.name || '', p.subtitle || '', p.description || '', p.category || '', p.fantasy_name || '',
+          p.active_ingredient || '', p.pharma_form || '', p.administration_route || '', p.frequency || '',
+          String(p.free_shipping ?? false), String(p.free_shipping_min_value ?? 0), String(p.is_bestseller ?? false),
+          String(p.pix_discount_percent ?? 0), String(p.max_installments ?? 6), p.installments_interest || 'sem_juros',
+          (p.images || []).join('|'),
+          '', '', '', '', '', '', '', '', '', '',
+        ]);
+        return;
+      }
+      variations.forEach((v: any, idx: number) => {
+        // Apenas a primeira linha repete os campos do produto, demais ficam vazias (mais legível).
+        const isFirst = idx === 0;
+        rows.push([
+          p.name || '',
+          isFirst ? (p.subtitle || '') : '',
+          isFirst ? (p.description || '') : '',
+          isFirst ? (p.category || '') : '',
+          isFirst ? (p.fantasy_name || '') : '',
+          isFirst ? (p.active_ingredient || '') : '',
+          isFirst ? (p.pharma_form || '') : '',
+          isFirst ? (p.administration_route || '') : '',
+          isFirst ? (p.frequency || '') : '',
+          isFirst ? String(p.free_shipping ?? false) : '',
+          isFirst ? String(p.free_shipping_min_value ?? 0) : '',
+          isFirst ? String(p.is_bestseller ?? false) : '',
+          isFirst ? String(p.pix_discount_percent ?? 0) : '',
+          isFirst ? String(p.max_installments ?? 6) : '',
+          isFirst ? (p.installments_interest || 'sem_juros') : '',
+          isFirst ? (p.images || []).join('|') : '',
+          v.dosage || '',
+          v.subtitle || '',
+          String(v.price ?? 0),
+          String(v.offer_price ?? 0),
+          String(v.in_stock ?? true),
+          String(v.is_offer ?? false),
+          String(v.stock_quantity ?? 0),
+          String(v.is_digital ?? false),
+          v.image_url || '',
+          (v.images || []).join('|'),
+        ]);
+      });
+    });
+
+    const csv = [headers, ...rows].map(r => r.map(escapeCSV).join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `produtos-${date}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'CSV exportado', description: `${products.length} produto(s), ${rows.length} linha(s).` });
+  };
+
   if (loading) return <p className="text-muted-foreground">Carregando...</p>;
 
   return (
@@ -418,6 +495,14 @@ const ProductList = () => {
                 <List className="w-3.5 h-3.5" />
               </button>
             </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExportCSV}
+              disabled={products.length === 0}
+            >
+              <Download className="mr-1.5 h-4 w-4" /> Exportar CSV
+            </Button>
             <Button
               size="sm"
               variant="outline"
