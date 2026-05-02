@@ -14,7 +14,6 @@ import ProductForm from "./pages/ProductForm";
 import ProductImportCSV from "./pages/ProductImportCSV";
 import ProductCheckout from "./pages/ProductCheckout";
 import Catalog from "./pages/Catalog";
-import TestimonialList from "./pages/TestimonialList";
 import BannerList from "./pages/BannerList";
 import SettingsIndex from "./pages/settings/SettingsIndex";
 import SettingsDesign from "./pages/settings/SettingsDesign";
