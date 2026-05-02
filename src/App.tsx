@@ -11,6 +11,7 @@ import AdminLayout from "./pages/AdminLayout";
 import Dashboard from "./pages/Dashboard";
 import ProductList from "./pages/ProductList";
 import ProductForm from "./pages/ProductForm";
+import ProductImportCSV from "./pages/ProductImportCSV";
 import ProductCheckout from "./pages/ProductCheckout";
 import Catalog from "./pages/Catalog";
 import TestimonialList from "./pages/TestimonialList";
@@ -110,6 +111,7 @@ const App = () => (
             <Route index element={<Dashboard />} />
             <Route path="produtos" element={<ProductList />} />
             <Route path="produtos/novo" element={<ProductForm />} />
+            <Route path="produtos/importar" element={<ProductImportCSV />} />
             <Route path="produtos/:id" element={<ProductForm />} />
             <Route path="atacado" element={<WholesalePricingPage />} />
             <Route path="depoimentos" element={<TestimonialList />} />
