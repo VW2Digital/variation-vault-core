@@ -288,6 +288,8 @@ const ProductList = () => {
   const [loading, setLoading] = useState(true);
   const [duplicating, setDuplicating] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [view, setView] = useState<'grid' | 'list'>(() => {
     if (typeof window === 'undefined') return 'grid';
     return (localStorage.getItem('admin:products:view') as 'grid' | 'list') || 'grid';
@@ -408,6 +410,27 @@ const ProductList = () => {
     } finally {
       setDuplicating(null);
     }
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === products.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(products.map((p) => p.id)));
+    }
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
   };
 
   const escapeCSV = (val: any): string => {
