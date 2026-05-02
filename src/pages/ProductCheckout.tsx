@@ -776,30 +776,6 @@ const ProductCheckout = () => {
       </AnimatedSection>
       )}
 
-      {/* Video Testimonials */}
-      <AnimatedSection className="max-w-6xl mx-auto px-4 pb-8 text-center">
-        <h2 className="text-2xl font-bold text-foreground mb-2">{t('customerTestimonials')}</h2>
-        <p className="text-muted-foreground mb-8">
-          {t('testimonialSubtitle')}
-        </p>
-        <StaggerContainer className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 max-w-4xl mx-auto">
-          {dynamicTestimonials.map((t) =>
-          <StaggerItem key={t.id}>
-              <VideoTestimonialCard thumbnail={t.thumbnail_url} name={t.name} videoUrl={t.video_url} />
-            </StaggerItem>
-          )}
-          {dynamicTestimonials.length === 0 && [
-          { img: testimonial1, name: 'Maria S.' },
-          { img: testimonial2, name: 'Carlos A.' },
-          { img: testimonial3, name: 'Juliana R.' }].
-          map((t, idx) =>
-          <StaggerItem key={idx}>
-              <VideoTestimonialCard thumbnail={t.img} name={t.name} />
-            </StaggerItem>
-          )}
-        </StaggerContainer>
-      </AnimatedSection>
-
       {/* Customer Reviews */}
       {productReviews.length > 0 && (
         <AnimatedSection className="max-w-6xl mx-auto px-4 pb-16">
