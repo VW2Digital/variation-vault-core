@@ -440,6 +440,15 @@ const ProductList = () => {
   };
 
   const handleExportCSV = () => {
+    const list = selectionMode && selectedIds.size > 0
+      ? products.filter((p) => selectedIds.has(p.id))
+      : products;
+
+    if (list.length === 0) {
+      toast({ title: 'Nenhum produto selecionado', variant: 'destructive' });
+      return;
+    }
+
     const headers = [
       'name', 'subtitle', 'description', 'category', 'fantasy_name',
       'active_ingredient', 'pharma_form', 'administration_route', 'frequency',
@@ -451,7 +460,7 @@ const ProductList = () => {
     ];
 
     const rows: string[][] = [];
-    products.forEach((p) => {
+    list.forEach((p) => {
       const variations = p.product_variations || [];
       if (variations.length === 0) {
         rows.push([
@@ -507,7 +516,7 @@ const ProductList = () => {
     a.download = `produtos-${date}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast({ title: 'CSV exportado', description: `${products.length} produto(s), ${rows.length} linha(s).` });
+    toast({ title: 'CSV exportado', description: `${list.length} produto(s), ${rows.length} linha(s).` });
   };
 
   if (loading) return <p className="text-muted-foreground">Carregando...</p>;
