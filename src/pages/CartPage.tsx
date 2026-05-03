@@ -28,6 +28,8 @@ const CartPage = () => {
   const [loadingCoupons, setLoadingCoupons] = useState(false);
   const [couponsError, setCouponsError] = useState<string | null>(null);
   const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
+  const [couponsReloadKey, setCouponsReloadKey] = useState(0);
+  const reloadCoupons = () => setCouponsReloadKey(k => k + 1);
 
   useEffect(() => {
     if (!bulkMode) return;
@@ -94,7 +96,7 @@ const CartPage = () => {
     };
     load();
     return () => { cancelled = true; };
-  }, [items]);
+  }, [items, couponsReloadKey]);
 
   // Restore applied coupon from sessionStorage when coupons load
   useEffect(() => {
@@ -389,16 +391,7 @@ const CartPage = () => {
                           <p className="text-[11px] text-destructive leading-tight">{couponsError}</p>
                           <button
                             type="button"
-                            onClick={() => {
-                              // Trigger reload by re-setting items dependency via no-op state
-                              setAppliedCoupon(prev => prev);
-                              // Force effect re-run by toggling a tiny state — simplest: reload coupons with a key bump
-                              setCouponsError(null);
-                              setLoadingCoupons(true);
-                              // Re-run effect by mutating a dummy ref through items reference is not possible here;
-                              // easiest: dispatch a manual reload via a small helper
-                              reloadCoupons();
-                            }}
+                            onClick={reloadCoupons}
                             className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-destructive hover:underline"
                           >
                             <RefreshCw className="w-3 h-3" /> Tentar novamente
