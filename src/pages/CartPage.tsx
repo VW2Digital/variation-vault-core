@@ -109,16 +109,6 @@ const CartPage = () => {
     sessionStorage.removeItem(APPLIED_COUPON_KEY);
   };
 
-  const couponDiscount = useMemo(() => {
-    if (!appliedCoupon) return 0;
-    const subtotal = previewTotal;
-    if (appliedCoupon.discount_type === 'percentage') {
-      return Math.round(subtotal * (Number(appliedCoupon.discount_value) / 100) * 100) / 100;
-    }
-    return Math.min(Number(appliedCoupon.discount_value), subtotal);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appliedCoupon, totalPrice, drafts, bulkMode, items]);
-
   // Live preview of subtotal/total using draft quantities + correct tier
   const previewTotal = useMemo(() => {
     if (!bulkMode) return totalPrice;
@@ -129,6 +119,16 @@ const CartPage = () => {
       return sum + unit * q;
     }, 0);
   }, [bulkMode, drafts, items, totalPrice]);
+
+  const couponDiscount = useMemo(() => {
+    if (!appliedCoupon) return 0;
+    if (appliedCoupon.discount_type === 'percentage') {
+      return Math.round(previewTotal * (Number(appliedCoupon.discount_value) / 100) * 100) / 100;
+    }
+    return Math.min(Number(appliedCoupon.discount_value), previewTotal);
+  }, [appliedCoupon, previewTotal]);
+
+  const finalTotal = Math.max(0, previewTotal - couponDiscount);
 
   const previewItems = useMemo(() => {
     if (!bulkMode) return totalItems;
