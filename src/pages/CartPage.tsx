@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Minus, Plus, Trash2, ShoppingCart, ArrowLeft, Loader2, Pencil, Save, X, Ticket, Check } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingCart, ArrowLeft, Loader2, Pencil, Save, X, Ticket, Check, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -26,7 +26,10 @@ const CartPage = () => {
   // Coupons
   const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
   const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [couponsError, setCouponsError] = useState<string | null>(null);
   const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
+  const [couponsReloadKey, setCouponsReloadKey] = useState(0);
+  const reloadCoupons = () => setCouponsReloadKey(k => k + 1);
 
   useEffect(() => {
     if (!bulkMode) return;
@@ -43,17 +46,20 @@ const CartPage = () => {
   useEffect(() => {
     if (items.length === 0) {
       setAvailableCoupons([]);
+      setCouponsError(null);
       return;
     }
     const presentIds = new Set(items.map(i => i.product_id));
     let cancelled = false;
     const load = async () => {
       setLoadingCoupons(true);
+      setCouponsError(null);
       try {
-        const { data: coupons } = await supabase
+        const { data: coupons, error: couponsErr } = await supabase
           .from('coupons' as any)
           .select('*')
           .eq('active', true);
+        if (couponsErr) throw couponsErr;
         const list = ((coupons as any[]) || []).filter(
           c => Number(c.current_uses || 0) < Number(c.max_uses || 0),
         );
@@ -62,10 +68,11 @@ const CartPage = () => {
           return;
         }
         const ids = list.map(c => c.id);
-        const { data: links } = await supabase
+        const { data: links, error: linksErr } = await supabase
           .from('coupon_products' as any)
           .select('coupon_id, product_id')
           .in('coupon_id', ids);
+        if (linksErr) throw linksErr;
         const linksByCoupon = new Map<string, string[]>();
         ((links as any[]) || []).forEach((l: any) => {
           const arr = linksByCoupon.get(l.coupon_id) || [];
@@ -78,15 +85,18 @@ const CartPage = () => {
           return restricted.some(rid => presentIds.has(rid));
         });
         if (!cancelled) setAvailableCoupons(filtered);
-      } catch {
-        if (!cancelled) setAvailableCoupons([]);
+      } catch (err: any) {
+        if (!cancelled) {
+          setAvailableCoupons([]);
+          setCouponsError(err?.message || 'Não foi possível carregar os cupons. Tente novamente.');
+        }
       } finally {
         if (!cancelled) setLoadingCoupons(false);
       }
     };
     load();
     return () => { cancelled = true; };
-  }, [items]);
+  }, [items, couponsReloadKey]);
 
   // Restore applied coupon from sessionStorage when coupons load
   useEffect(() => {
@@ -366,9 +376,30 @@ const CartPage = () => {
                       <Ticket className="w-3.5 h-3.5" /> Cupons disponíveis
                     </p>
                     {loadingCoupons ? (
-                      <p className="text-xs text-muted-foreground">Carregando...</p>
+                      <div className="flex flex-wrap gap-1.5" aria-label="Carregando cupons">
+                        {[0, 1, 2].map(i => (
+                          <div
+                            key={i}
+                            className="h-7 w-24 rounded-lg bg-muted animate-pulse"
+                          />
+                        ))}
+                      </div>
+                    ) : couponsError ? (
+                      <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-2">
+                        <AlertCircle className="w-3.5 h-3.5 text-destructive mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] text-destructive leading-tight">{couponsError}</p>
+                          <button
+                            type="button"
+                            onClick={reloadCoupons}
+                            className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-destructive hover:underline"
+                          >
+                            <RefreshCw className="w-3 h-3" /> Tentar novamente
+                          </button>
+                        </div>
+                      </div>
                     ) : availableCoupons.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">Nenhum cupom disponível.</p>
+                      <p className="text-xs text-muted-foreground">Nenhum cupom disponível no momento.</p>
                     ) : (
                       <div className="flex flex-wrap gap-1.5">
                         {availableCoupons.map(c => {
