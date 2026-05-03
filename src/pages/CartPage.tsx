@@ -352,11 +352,55 @@ const CartPage = () => {
                         R$ {previewTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
+                    {appliedCoupon && couponDiscount > 0 && (
+                      <div className="flex justify-between text-success">
+                        <span>Cupom {appliedCoupon.code}</span>
+                        <span>- R$ {couponDiscount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Available coupons */}
+                  <div className="border-t border-border pt-3 space-y-2">
+                    <p className="text-xs font-semibold flex items-center gap-1 text-foreground">
+                      <Ticket className="w-3.5 h-3.5" /> Cupons disponíveis
+                    </p>
+                    {loadingCoupons ? (
+                      <p className="text-xs text-muted-foreground">Carregando...</p>
+                    ) : availableCoupons.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Nenhum cupom disponível.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {availableCoupons.map(c => {
+                          const isApplied = appliedCoupon?.id === c.id;
+                          const label = c.discount_type === 'percentage'
+                            ? `${c.discount_value}% OFF`
+                            : `R$ ${Number(c.discount_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} OFF`;
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => isApplied ? handleRemoveCoupon() : handleApplyCoupon(c)}
+                              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] border transition-colors ${
+                                isApplied
+                                  ? 'bg-success/10 border-success text-success'
+                                  : 'border-dashed border-primary/40 hover:border-primary hover:bg-primary/5'
+                              }`}
+                            >
+                              {isApplied ? <Check className="w-3 h-3" /> : <Ticket className="w-3 h-3 text-primary" />}
+                              <span className="font-semibold">{c.code}</span>
+                              <span className="text-muted-foreground">{label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="border-t border-border pt-3 flex justify-between font-bold">
                     <span className="text-foreground">Total</span>
                     <span className="text-primary text-lg">
-                      R$ {previewTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {finalTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                   {bulkMode && hasChanges && (
