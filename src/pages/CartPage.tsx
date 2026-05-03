@@ -5,11 +5,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Minus, Plus, Trash2, ShoppingCart, ArrowLeft, Loader2, Pencil, Save, X } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingCart, ArrowLeft, Loader2, Pencil, Save, X, Ticket, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import productHeroImg from '@/assets/product-hero.png';
+import { supabase } from '@/integrations/supabase/client';
+
+const APPLIED_COUPON_KEY = 'applied_coupon_code';
 
 const CartPage = () => {
   const navigate = useNavigate();
@@ -19,6 +22,11 @@ const CartPage = () => {
   const [bulkMode, setBulkMode] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
+
+  // Coupons
+  const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
 
   useEffect(() => {
     if (!bulkMode) return;
@@ -30,6 +38,86 @@ const CartPage = () => {
       return next;
     });
   }, [bulkMode, items]);
+
+  // Load coupons valid for the current cart (universal OR restricted to a present product)
+  useEffect(() => {
+    if (items.length === 0) {
+      setAvailableCoupons([]);
+      return;
+    }
+    const presentIds = new Set(items.map(i => i.product_id));
+    let cancelled = false;
+    const load = async () => {
+      setLoadingCoupons(true);
+      try {
+        const { data: coupons } = await supabase
+          .from('coupons' as any)
+          .select('*')
+          .eq('active', true);
+        const list = ((coupons as any[]) || []).filter(
+          c => Number(c.current_uses || 0) < Number(c.max_uses || 0),
+        );
+        if (list.length === 0) {
+          if (!cancelled) setAvailableCoupons([]);
+          return;
+        }
+        const ids = list.map(c => c.id);
+        const { data: links } = await supabase
+          .from('coupon_products' as any)
+          .select('coupon_id, product_id')
+          .in('coupon_id', ids);
+        const linksByCoupon = new Map<string, string[]>();
+        ((links as any[]) || []).forEach((l: any) => {
+          const arr = linksByCoupon.get(l.coupon_id) || [];
+          arr.push(l.product_id);
+          linksByCoupon.set(l.coupon_id, arr);
+        });
+        const filtered = list.filter(c => {
+          const restricted = linksByCoupon.get(c.id);
+          if (!restricted || restricted.length === 0) return true;
+          return restricted.some(rid => presentIds.has(rid));
+        });
+        if (!cancelled) setAvailableCoupons(filtered);
+      } catch {
+        if (!cancelled) setAvailableCoupons([]);
+      } finally {
+        if (!cancelled) setLoadingCoupons(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [items]);
+
+  // Restore applied coupon from sessionStorage when coupons load
+  useEffect(() => {
+    if (availableCoupons.length === 0) return;
+    const saved = sessionStorage.getItem(APPLIED_COUPON_KEY);
+    if (saved && !appliedCoupon) {
+      const match = availableCoupons.find(c => c.code === saved);
+      if (match) setAppliedCoupon(match);
+    }
+  }, [availableCoupons, appliedCoupon]);
+
+  const handleApplyCoupon = (coupon: any) => {
+    setAppliedCoupon(coupon);
+    sessionStorage.setItem(APPLIED_COUPON_KEY, coupon.code);
+    toast.success(`Cupom "${coupon.code}" aplicado!`);
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    sessionStorage.removeItem(APPLIED_COUPON_KEY);
+  };
+
+  const couponDiscount = useMemo(() => {
+    if (!appliedCoupon) return 0;
+    const subtotal = previewTotal;
+    if (appliedCoupon.discount_type === 'percentage') {
+      return Math.round(subtotal * (Number(appliedCoupon.discount_value) / 100) * 100) / 100;
+    }
+    return Math.min(Number(appliedCoupon.discount_value), subtotal);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedCoupon, totalPrice, drafts, bulkMode, items]);
 
   // Live preview of subtotal/total using draft quantities + correct tier
   const previewTotal = useMemo(() => {
