@@ -170,11 +170,12 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
   const [fallbackProcessing, setFallbackProcessing] = useState<CheckoutGateway | null>(null);
 
   // Coupon
-  const [couponCode, setCouponCode] = useState('');
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponLabel, setCouponLabel] = useState('');
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [appliedCouponCode, setAppliedCouponCode] = useState('');
+  const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
 
   // Customer fields
   const [name, setName] = useState('');
@@ -214,74 +215,77 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
   const pixDiscountValue = pixDiscountPercent > 0 ? totalValue * (pixDiscountPercent / 100) : 0;
   const pixTotalValue = totalValue - pixDiscountValue;
 
-  const handleApplyCoupon = async () => {
-    if (!couponCode.trim()) return;
+  const handleApplyCoupon = (coupon: any) => {
     setValidatingCoupon(true);
     try {
-      const { data, error } = await supabase
-        .from('coupons' as any)
-        .select('*')
-        .eq('active', true)
-        .ilike('code', couponCode.trim())
-        .maybeSingle();
-
-      if (error || !data) {
-        toast({ title: 'Cupom inválido ou inexistente.', variant: 'destructive' });
-        setCouponDiscount(0);
-        setAppliedCouponCode('');
-        setCouponLabel('');
-        return;
-      }
-
-      const coupon = data as any;
-      if (coupon.current_uses >= coupon.max_uses) {
-        toast({ title: 'Este cupom já atingiu o limite de usos.', variant: 'destructive' });
-        setCouponDiscount(0);
-        setAppliedCouponCode('');
-        setCouponLabel('');
-        return;
-      }
-
-      // Check product restriction via coupon_products table
-      if (productId) {
-        const { data: couponProducts } = await supabase
-          .from('coupon_products' as any)
-          .select('product_id')
-          .eq('coupon_id', coupon.id);
-        const linkedIds = ((couponProducts as any[]) || []).map((cp: any) => cp.product_id);
-        if (linkedIds.length > 0 && !linkedIds.includes(productId)) {
-          toast({ title: 'Este cupom não é válido para este produto.', variant: 'destructive' });
-          setCouponDiscount(0);
-          setAppliedCouponCode('');
-          setCouponLabel('');
-          return;
-        }
-      }
-
       let discount = 0;
+      let label = '';
       if (coupon.discount_type === 'percentage') {
         discount = subtotalBeforeCoupon * (Number(coupon.discount_value) / 100);
-        setCouponLabel(`${coupon.discount_value}%`);
+        label = `${coupon.discount_value}%`;
       } else {
         discount = Math.min(Number(coupon.discount_value), subtotalBeforeCoupon);
-        setCouponLabel(`R$ ${Number(coupon.discount_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
+        label = `R$ ${Number(coupon.discount_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
       }
+      setCouponLabel(label);
       setCouponDiscount(Number(discount.toFixed(2)));
       setAppliedCouponCode(coupon.code);
       toast({ title: `Cupom "${coupon.code}" aplicado!` });
-    } catch {
-      toast({ title: 'Erro ao validar cupom.', variant: 'destructive' });
     } finally {
       setValidatingCoupon(false);
     }
   };
 
   const handleRemoveCoupon = () => {
-    setCouponCode('');
     setCouponDiscount(0);
     setAppliedCouponCode('');
     setCouponLabel('');
   };
+
+  // Load available coupons (active + uses left + valid for this product)
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoadingCoupons(true);
+      try {
+        const { data: coupons } = await supabase
+          .from('coupons' as any)
+          .select('*')
+          .eq('active', true);
+        const list = ((coupons as any[]) || []).filter(
+          (c) => Number(c.current_uses || 0) < Number(c.max_uses || 0),
+        );
+        if (list.length === 0) {
+          if (!cancelled) setAvailableCoupons([]);
+          return;
+        }
+        const ids = list.map((c) => c.id);
+        const { data: links } = await supabase
+          .from('coupon_products' as any)
+          .select('coupon_id, product_id')
+          .in('coupon_id', ids);
+        const linksByCoupon = new Map<string, string[]>();
+        ((links as any[]) || []).forEach((l: any) => {
+          const arr = linksByCoupon.get(l.coupon_id) || [];
+          arr.push(l.product_id);
+          linksByCoupon.set(l.coupon_id, arr);
+        });
+        const filtered = list.filter((c) => {
+          const restricted = linksByCoupon.get(c.id);
+          if (!restricted || restricted.length === 0) return true;
+          if (!productId) return false;
+          return restricted.includes(productId);
+        });
+        if (!cancelled) setAvailableCoupons(filtered);
+      } catch {
+        if (!cancelled) setAvailableCoupons([]);
+      } finally {
+        if (!cancelled) setLoadingCoupons(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [productId]);
 
   // Load payment settings from props (per-product)
   useEffect(() => {
