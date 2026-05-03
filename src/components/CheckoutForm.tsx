@@ -259,23 +259,27 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
           if (!cancelled) setAvailableCoupons([]);
           return;
         }
-        const ids = list.map((c) => c.id);
-        const { data: links } = await supabase
-          .from('coupon_products' as any)
-          .select('coupon_id, product_id')
-          .in('coupon_id', ids);
-        const linksByCoupon = new Map<string, string[]>();
-        ((links as any[]) || []).forEach((l: any) => {
-          const arr = linksByCoupon.get(l.coupon_id) || [];
-          arr.push(l.product_id);
-          linksByCoupon.set(l.coupon_id, arr);
-        });
-        const filtered = list.filter((c) => {
-          const restricted = linksByCoupon.get(c.id);
-          if (!restricted || restricted.length === 0) return true;
-          if (!productId) return false;
-          return restricted.includes(productId);
-        });
+        // If we have a specific productId, hide coupons restricted to other products.
+        // For carts (no productId), show all active coupons — validation happens server-side at apply.
+        let filtered = list;
+        if (productId) {
+          const ids = list.map((c) => c.id);
+          const { data: links } = await supabase
+            .from('coupon_products' as any)
+            .select('coupon_id, product_id')
+            .in('coupon_id', ids);
+          const linksByCoupon = new Map<string, string[]>();
+          ((links as any[]) || []).forEach((l: any) => {
+            const arr = linksByCoupon.get(l.coupon_id) || [];
+            arr.push(l.product_id);
+            linksByCoupon.set(l.coupon_id, arr);
+          });
+          filtered = list.filter((c) => {
+            const restricted = linksByCoupon.get(c.id);
+            if (!restricted || restricted.length === 0) return true;
+            return restricted.includes(productId);
+          });
+        }
         if (!cancelled) setAvailableCoupons(filtered);
       } catch {
         if (!cancelled) setAvailableCoupons([]);
