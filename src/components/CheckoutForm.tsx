@@ -1801,18 +1801,29 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
                   Remover
                 </Button>
               </div>
+            ) : loadingCoupons ? (
+              <p className="text-xs text-muted-foreground">Carregando cupons...</p>
+            ) : availableCoupons.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Nenhum cupom disponível no momento.</p>
             ) : (
-              <div className="flex gap-2">
-                <Input
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  placeholder="Digite o código"
-                  className="flex-1"
-                  onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
-                />
-                <Button type="button" variant="outline" size="sm" onClick={handleApplyCoupon} disabled={validatingCoupon || !couponCode.trim()}>
-                  {validatingCoupon ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Aplicar'}
-                </Button>
+              <div className="flex flex-wrap gap-2">
+                {availableCoupons.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => handleApplyCoupon(c)}
+                    disabled={validatingCoupon}
+                    className="flex items-center gap-2 border border-dashed border-primary/40 hover:border-primary hover:bg-primary/5 rounded-lg px-3 py-1.5 text-xs transition-colors"
+                  >
+                    <Ticket className="w-3 h-3 text-primary" />
+                    <span className="font-semibold">{c.code}</span>
+                    <span className="text-muted-foreground">
+                      {c.discount_type === 'percentage'
+                        ? `${c.discount_value}% OFF`
+                        : `R$ ${Number(c.discount_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} OFF`}
+                    </span>
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -2030,18 +2041,29 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
                 Remover
               </Button>
             </div>
+          ) : loadingCoupons ? (
+            <p className="text-xs text-muted-foreground">Carregando cupons...</p>
+          ) : availableCoupons.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Nenhum cupom disponível no momento.</p>
           ) : (
-            <div className="flex gap-2">
-              <Input
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                placeholder="Digite o código"
-                className="flex-1"
-                onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
-              />
-              <Button type="button" variant="outline" size="sm" onClick={handleApplyCoupon} disabled={validatingCoupon || !couponCode.trim()}>
-                {validatingCoupon ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Aplicar'}
-              </Button>
+            <div className="flex flex-wrap gap-2">
+              {availableCoupons.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => handleApplyCoupon(c)}
+                  disabled={validatingCoupon}
+                  className="flex items-center gap-2 border border-dashed border-primary/40 hover:border-primary hover:bg-primary/5 rounded-lg px-3 py-1.5 text-xs transition-colors"
+                >
+                  <Ticket className="w-3 h-3 text-primary" />
+                  <span className="font-semibold">{c.code}</span>
+                  <span className="text-muted-foreground">
+                    {c.discount_type === 'percentage'
+                      ? `${c.discount_value}% OFF`
+                      : `R$ ${Number(c.discount_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} OFF`}
+                  </span>
+                </button>
+              ))}
             </div>
           )}
         </div>
