@@ -21,6 +21,7 @@ import { useMercadoPago } from '@/hooks/useMercadoPago';
 interface CheckoutFormProps {
   productName: string;
   productId?: string;
+  cartProductIds?: string[];
   paymentDescription?: string;
   dosage: string;
   quantity: number;
@@ -138,7 +139,7 @@ const StepIndicator = ({ currentStep }: { currentStep: CheckoutStep }) => {
   );
 };
 
-const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quantity, unitPrice, freeShipping, freeShippingMinValue, pixDiscountPercentProp, maxInstallmentsProp, installmentsInterestProp, onSuccess }: CheckoutFormProps) => {
+const CheckoutForm = ({ productName, productId, cartProductIds, paymentDescription, dosage, quantity, unitPrice, freeShipping, freeShippingMinValue, pixDiscountPercentProp, maxInstallmentsProp, installmentsInterestProp, onSuccess }: CheckoutFormProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { clearCart } = useCart();
@@ -259,27 +260,30 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
           if (!cancelled) setAvailableCoupons([]);
           return;
         }
-        // If we have a specific productId, hide coupons restricted to other products.
-        // For carts (no productId), show all active coupons — validation happens server-side at apply.
-        let filtered = list;
-        if (productId) {
-          const ids = list.map((c) => c.id);
-          const { data: links } = await supabase
-            .from('coupon_products' as any)
-            .select('coupon_id, product_id')
-            .in('coupon_id', ids);
-          const linksByCoupon = new Map<string, string[]>();
-          ((links as any[]) || []).forEach((l: any) => {
-            const arr = linksByCoupon.get(l.coupon_id) || [];
-            arr.push(l.product_id);
-            linksByCoupon.set(l.coupon_id, arr);
-          });
-          filtered = list.filter((c) => {
-            const restricted = linksByCoupon.get(c.id);
-            if (!restricted || restricted.length === 0) return true;
-            return restricted.includes(productId);
-          });
-        }
+        // Build the list of product IDs present in this checkout (single or cart).
+        const presentIds = new Set<string>();
+        if (productId) presentIds.add(productId);
+        (cartProductIds || []).forEach((id) => id && presentIds.add(id));
+
+        const ids = list.map((c) => c.id);
+        const { data: links } = await supabase
+          .from('coupon_products' as any)
+          .select('coupon_id, product_id')
+          .in('coupon_id', ids);
+        const linksByCoupon = new Map<string, string[]>();
+        ((links as any[]) || []).forEach((l: any) => {
+          const arr = linksByCoupon.get(l.coupon_id) || [];
+          arr.push(l.product_id);
+          linksByCoupon.set(l.coupon_id, arr);
+        });
+        const filtered = list.filter((c) => {
+          const restricted = linksByCoupon.get(c.id);
+          // Universal coupon (no product restriction) — always available.
+          if (!restricted || restricted.length === 0) return true;
+          // Restricted coupon — must match at least one product present in checkout.
+          if (presentIds.size === 0) return false;
+          return restricted.some((rid) => presentIds.has(rid));
+        });
         if (!cancelled) setAvailableCoupons(filtered);
       } catch {
         if (!cancelled) setAvailableCoupons([]);
@@ -289,7 +293,7 @@ const CheckoutForm = ({ productName, productId, paymentDescription, dosage, quan
     };
     load();
     return () => { cancelled = true; };
-  }, [productId]);
+  }, [productId, JSON.stringify(cartProductIds || [])]);
 
   // Load payment settings from props (per-product)
   useEffect(() => {
