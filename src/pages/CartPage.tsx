@@ -109,14 +109,50 @@ const CartPage = () => {
   }, [availableCoupons, appliedCoupon]);
 
   const handleApplyCoupon = (coupon: any) => {
+    // Validate before applying — surface clear reasons on failure
+    const now = new Date();
+    if (coupon.active === false) {
+      toast.error(`Cupom "${coupon.code}" inativo`, { description: 'Este cupom não está mais disponível.' });
+      return;
+    }
+    if (coupon.expires_at && new Date(coupon.expires_at) < now) {
+      toast.error(`Cupom "${coupon.code}" expirado`, {
+        description: `Validade encerrada em ${new Date(coupon.expires_at).toLocaleDateString('pt-BR')}.`,
+      });
+      return;
+    }
+    if (coupon.starts_at && new Date(coupon.starts_at) > now) {
+      toast.error(`Cupom "${coupon.code}" ainda não disponível`, {
+        description: `Válido a partir de ${new Date(coupon.starts_at).toLocaleDateString('pt-BR')}.`,
+      });
+      return;
+    }
+    if (coupon.max_uses != null && Number(coupon.current_uses || 0) >= Number(coupon.max_uses)) {
+      toast.error(`Cupom "${coupon.code}" esgotado`, { description: 'O limite de usos deste cupom foi atingido.' });
+      return;
+    }
+    const minOrder = Number(coupon.min_order_value || 0);
+    if (minOrder > 0 && previewTotal < minOrder) {
+      const faltam = (minOrder - previewTotal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      toast.error(`Cupom "${coupon.code}" não atinge o mínimo`, {
+        description: `Pedido mínimo de ${minOrder.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}. Faltam ${faltam}.`,
+      });
+      return;
+    }
+
     setAppliedCoupon(coupon);
     sessionStorage.setItem(APPLIED_COUPON_KEY, coupon.code);
-    toast.success(`Cupom "${coupon.code}" aplicado!`);
+    const valor =
+      coupon.discount_type === 'percentage'
+        ? `${Number(coupon.discount_value)}% de desconto`
+        : `${Number(coupon.discount_value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} de desconto`;
+    toast.success(`Cupom "${coupon.code}" aplicado`, { description: valor });
   };
 
   const handleRemoveCoupon = () => {
     setAppliedCoupon(null);
     sessionStorage.removeItem(APPLIED_COUPON_KEY);
+    toast('Cupom removido', { description: 'O desconto foi retirado do pedido.' });
   };
 
   // Live preview of subtotal/total using draft quantities + correct tier
