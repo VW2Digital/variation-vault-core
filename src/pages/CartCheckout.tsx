@@ -246,6 +246,7 @@ const CartCheckout = () => {
           {isAuthenticated && (
             <CheckoutForm
             productName={productName}
+            cartProductIds={items.map(i => i.product_id)}
             paymentDescription={hasFantasyNames ? paymentDesc : undefined}
             dosage={combinedDosage}
             quantity={totalQuantity}
