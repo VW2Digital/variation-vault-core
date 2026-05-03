@@ -26,6 +26,7 @@ const CartPage = () => {
   // Coupons
   const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
   const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [couponsError, setCouponsError] = useState<string | null>(null);
   const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
 
   useEffect(() => {
@@ -43,17 +44,20 @@ const CartPage = () => {
   useEffect(() => {
     if (items.length === 0) {
       setAvailableCoupons([]);
+      setCouponsError(null);
       return;
     }
     const presentIds = new Set(items.map(i => i.product_id));
     let cancelled = false;
     const load = async () => {
       setLoadingCoupons(true);
+      setCouponsError(null);
       try {
-        const { data: coupons } = await supabase
+        const { data: coupons, error: couponsErr } = await supabase
           .from('coupons' as any)
           .select('*')
           .eq('active', true);
+        if (couponsErr) throw couponsErr;
         const list = ((coupons as any[]) || []).filter(
           c => Number(c.current_uses || 0) < Number(c.max_uses || 0),
         );
@@ -62,10 +66,11 @@ const CartPage = () => {
           return;
         }
         const ids = list.map(c => c.id);
-        const { data: links } = await supabase
+        const { data: links, error: linksErr } = await supabase
           .from('coupon_products' as any)
           .select('coupon_id, product_id')
           .in('coupon_id', ids);
+        if (linksErr) throw linksErr;
         const linksByCoupon = new Map<string, string[]>();
         ((links as any[]) || []).forEach((l: any) => {
           const arr = linksByCoupon.get(l.coupon_id) || [];
@@ -78,8 +83,11 @@ const CartPage = () => {
           return restricted.some(rid => presentIds.has(rid));
         });
         if (!cancelled) setAvailableCoupons(filtered);
-      } catch {
-        if (!cancelled) setAvailableCoupons([]);
+      } catch (err: any) {
+        if (!cancelled) {
+          setAvailableCoupons([]);
+          setCouponsError(err?.message || 'Não foi possível carregar os cupons. Tente novamente.');
+        }
       } finally {
         if (!cancelled) setLoadingCoupons(false);
       }
