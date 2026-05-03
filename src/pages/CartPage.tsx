@@ -5,11 +5,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Minus, Plus, Trash2, ShoppingCart, ArrowLeft, Loader2, Pencil, Save, X } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingCart, ArrowLeft, Loader2, Pencil, Save, X, Ticket, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import productHeroImg from '@/assets/product-hero.png';
+import { supabase } from '@/integrations/supabase/client';
+
+const APPLIED_COUPON_KEY = 'applied_coupon_code';
 
 const CartPage = () => {
   const navigate = useNavigate();
@@ -19,6 +22,11 @@ const CartPage = () => {
   const [bulkMode, setBulkMode] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
+
+  // Coupons
+  const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
 
   useEffect(() => {
     if (!bulkMode) return;
@@ -31,6 +39,76 @@ const CartPage = () => {
     });
   }, [bulkMode, items]);
 
+  // Load coupons valid for the current cart (universal OR restricted to a present product)
+  useEffect(() => {
+    if (items.length === 0) {
+      setAvailableCoupons([]);
+      return;
+    }
+    const presentIds = new Set(items.map(i => i.product_id));
+    let cancelled = false;
+    const load = async () => {
+      setLoadingCoupons(true);
+      try {
+        const { data: coupons } = await supabase
+          .from('coupons' as any)
+          .select('*')
+          .eq('active', true);
+        const list = ((coupons as any[]) || []).filter(
+          c => Number(c.current_uses || 0) < Number(c.max_uses || 0),
+        );
+        if (list.length === 0) {
+          if (!cancelled) setAvailableCoupons([]);
+          return;
+        }
+        const ids = list.map(c => c.id);
+        const { data: links } = await supabase
+          .from('coupon_products' as any)
+          .select('coupon_id, product_id')
+          .in('coupon_id', ids);
+        const linksByCoupon = new Map<string, string[]>();
+        ((links as any[]) || []).forEach((l: any) => {
+          const arr = linksByCoupon.get(l.coupon_id) || [];
+          arr.push(l.product_id);
+          linksByCoupon.set(l.coupon_id, arr);
+        });
+        const filtered = list.filter(c => {
+          const restricted = linksByCoupon.get(c.id);
+          if (!restricted || restricted.length === 0) return true;
+          return restricted.some(rid => presentIds.has(rid));
+        });
+        if (!cancelled) setAvailableCoupons(filtered);
+      } catch {
+        if (!cancelled) setAvailableCoupons([]);
+      } finally {
+        if (!cancelled) setLoadingCoupons(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [items]);
+
+  // Restore applied coupon from sessionStorage when coupons load
+  useEffect(() => {
+    if (availableCoupons.length === 0) return;
+    const saved = sessionStorage.getItem(APPLIED_COUPON_KEY);
+    if (saved && !appliedCoupon) {
+      const match = availableCoupons.find(c => c.code === saved);
+      if (match) setAppliedCoupon(match);
+    }
+  }, [availableCoupons, appliedCoupon]);
+
+  const handleApplyCoupon = (coupon: any) => {
+    setAppliedCoupon(coupon);
+    sessionStorage.setItem(APPLIED_COUPON_KEY, coupon.code);
+    toast.success(`Cupom "${coupon.code}" aplicado!`);
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    sessionStorage.removeItem(APPLIED_COUPON_KEY);
+  };
+
   // Live preview of subtotal/total using draft quantities + correct tier
   const previewTotal = useMemo(() => {
     if (!bulkMode) return totalPrice;
@@ -41,6 +119,16 @@ const CartPage = () => {
       return sum + unit * q;
     }, 0);
   }, [bulkMode, drafts, items, totalPrice]);
+
+  const couponDiscount = useMemo(() => {
+    if (!appliedCoupon) return 0;
+    if (appliedCoupon.discount_type === 'percentage') {
+      return Math.round(previewTotal * (Number(appliedCoupon.discount_value) / 100) * 100) / 100;
+    }
+    return Math.min(Number(appliedCoupon.discount_value), previewTotal);
+  }, [appliedCoupon, previewTotal]);
+
+  const finalTotal = Math.max(0, previewTotal - couponDiscount);
 
   const previewItems = useMemo(() => {
     if (!bulkMode) return totalItems;
@@ -264,11 +352,55 @@ const CartPage = () => {
                         R$ {previewTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
+                    {appliedCoupon && couponDiscount > 0 && (
+                      <div className="flex justify-between text-success">
+                        <span>Cupom {appliedCoupon.code}</span>
+                        <span>- R$ {couponDiscount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Available coupons */}
+                  <div className="border-t border-border pt-3 space-y-2">
+                    <p className="text-xs font-semibold flex items-center gap-1 text-foreground">
+                      <Ticket className="w-3.5 h-3.5" /> Cupons disponíveis
+                    </p>
+                    {loadingCoupons ? (
+                      <p className="text-xs text-muted-foreground">Carregando...</p>
+                    ) : availableCoupons.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Nenhum cupom disponível.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {availableCoupons.map(c => {
+                          const isApplied = appliedCoupon?.id === c.id;
+                          const label = c.discount_type === 'percentage'
+                            ? `${c.discount_value}% OFF`
+                            : `R$ ${Number(c.discount_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} OFF`;
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => isApplied ? handleRemoveCoupon() : handleApplyCoupon(c)}
+                              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] border transition-colors ${
+                                isApplied
+                                  ? 'bg-success/10 border-success text-success'
+                                  : 'border-dashed border-primary/40 hover:border-primary hover:bg-primary/5'
+                              }`}
+                            >
+                              {isApplied ? <Check className="w-3 h-3" /> : <Ticket className="w-3 h-3 text-primary" />}
+                              <span className="font-semibold">{c.code}</span>
+                              <span className="text-muted-foreground">{label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="border-t border-border pt-3 flex justify-between font-bold">
                     <span className="text-foreground">Total</span>
                     <span className="text-primary text-lg">
-                      R$ {previewTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {finalTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                   {bulkMode && hasChanges && (
