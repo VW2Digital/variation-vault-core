@@ -8,6 +8,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function encodeMimeSubject(subject: string): string {
+  // eslint-disable-next-line no-control-regex
+  if (!/[^\x20-\x7e]/.test(subject)) return subject;
+  const bytes = new TextEncoder().encode(subject);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return `=?UTF-8?B?${btoa(bin)}?=`;
+}
+
 const TABLES = [
   "addresses", "banner_slides", "banners", "cart_abandonment_logs", "cart_items",
   "coupon_products", "coupons", "orders", "payment_links", "payment_logs",
@@ -196,7 +205,7 @@ Deno.serve(async (req) => {
       await client.send({
         from: fromHeader,
         to: [recipient],
-        subject: `Backup Semanal - ${dateStr} (${sizeMB} MB)`,
+        subject: encodeMimeSubject(`Backup Semanal - ${dateStr} (${sizeMB} MB)`),
         content: "auto",
         html,
         attachments: [{
