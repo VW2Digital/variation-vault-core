@@ -145,6 +145,8 @@ const ProductCheckout = () => {
   const [manualCep, setManualCep] = useState('');
   const [cepSource, setCepSource] = useState<'auto' | 'manual'>('auto');
   const [detailLabels, setDetailLabels] = useState<Record<string, string>>({});
+  const installmentReqIdRef = useRef(0);
+  const shippingReqIdRef = useRef(0);
 
   useEffect(() => {
     if (!id) return;
@@ -229,10 +231,14 @@ const ProductCheckout = () => {
     const simTotal = effectiveUnit * quantity;
     if (simTotal <= 0) return;
 
+    const reqId = ++installmentReqIdRef.current;
+    // Clear stale data immediately so the skeleton shows for THIS variation/qty
+    setSimulatedInstallments([]);
     setLoadingSimulation(true);
     supabase.functions.invoke('asaas-checkout', {
       body: { action: 'simulate_installments', value: simTotal, installmentCount: maxInstallments },
     }).then(({ data }) => {
+      if (reqId !== installmentReqIdRef.current) return; // stale
       if (data?.creditCard?.installments && Array.isArray(data.creditCard.installments) && data.creditCard.installments.length > 0) {
         const opts: InstallmentResult[] = data.creditCard.installments.map((inst: any) => ({
           parcelas: inst.installmentCount,
@@ -246,15 +252,20 @@ const ProductCheckout = () => {
         setSimulatedInstallments(gerarOpcoesParcelamento(simTotal, maxInstallments));
       }
     }).catch(() => {
+      if (reqId !== installmentReqIdRef.current) return;
       // Fallback: cálculo local quando a API falha
       setSimulatedInstallments(gerarOpcoesParcelamento(simTotal, maxInstallments));
-    }).finally(() => setLoadingSimulation(false));
+    }).finally(() => {
+      if (reqId !== installmentReqIdRef.current) return;
+      setLoadingSimulation(false);
+    });
   }, [product, selectedVariation, quantity, wholesaleTiers, maxInstallments]);
 
   const fetchShippingByPostalCode = async (postalCode: string) => {
     if (!product || !postalCode || postalCode.replace(/\D/g, '').length !== 8) return;
     const cleanCep = postalCode.replace(/\D/g, '');
     setUserPostalCode(cleanCep);
+    const reqId = ++shippingReqIdRef.current;
     setLoadingShipping(true);
     setShippingOptions([]);
     const vars = product?.product_variations || [];
@@ -266,8 +277,11 @@ const ProductCheckout = () => {
       const { data, error } = await supabase.functions.invoke('melhor-envio-shipment', {
         body: { action: 'quote', postal_code: cleanCep, insurance_value: tot, quantity },
       });
+      if (reqId !== shippingReqIdRef.current) return; // stale (variação/quantidade trocou)
       if (!error && data?.services?.length > 0) setShippingOptions(data.services);
-    } catch { /* silent */ } finally { setLoadingShipping(false); }
+    } catch { /* silent */ } finally {
+      if (reqId === shippingReqIdRef.current) setLoadingShipping(false);
+    }
   };
 
   // Auto-fetch shipping for logged-in users with saved address
