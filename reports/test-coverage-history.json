@@ -1,0 +1,37 @@
+[
+  {
+    "timestamp": "2026-05-06T00:53:55.683Z",
+    "total": {
+      "source_files": 109,
+      "test_files": 1,
+      "coverage_pct": 1
+    },
+    "modules": {
+      "payments": {
+        "source_files": 11,
+        "test_files": 1,
+        "coverage_pct": 9
+      },
+      "webhooks": {
+        "source_files": 7,
+        "test_files": 0,
+        "coverage_pct": 0
+      },
+      "rls": {
+        "source_files": 77,
+        "test_files": 0,
+        "coverage_pct": 0
+      },
+      "coupons": {
+        "source_files": 1,
+        "test_files": 0,
+        "coverage_pct": 0
+      },
+      "shipping": {
+        "source_files": 13,
+        "test_files": 0,
+        "coverage_pct": 0
+      }
+    }
+  }
+]
