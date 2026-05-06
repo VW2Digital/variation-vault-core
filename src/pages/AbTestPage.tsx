@@ -5,7 +5,7 @@ import { AdminKpiCard } from '@/components/admin/AdminKpiCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FlaskConical, Eye, MousePointerClick, TrendingUp, RefreshCw, Trash2, ShoppingCart, Truck, Star } from 'lucide-react';
+import { FlaskConical, Eye, MousePointerClick, TrendingUp, RefreshCw, Trash2, ShoppingCart, Truck, Star, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Select,
@@ -394,6 +394,7 @@ function PreviewCard({ variant, product, cfg }: { variant: 'A' | 'B'; product: P
   }, [variant, product.id, product.name, variation?.id, variation?.dosage, price, finalPrice, discount, cfg.ctaText]);
 
   const handleCtaClick = () => {
+    const destination = `/produto/${product.id}${variation?.id ? `?v=${variation.id}` : ''}`;
     // eslint-disable-next-line no-console
     console.info('[ab-preview] cta_click', {
       source: 'admin-ab-preview',
@@ -403,8 +404,16 @@ function PreviewCard({ variant, product, cfg }: { variant: 'A' | 'B'; product: P
       variation_id: variation?.id ?? null,
       variation_dosage: variation?.dosage ?? null,
       cta_text: cfg.ctaText,
+      destination,
     });
+    try {
+      window.open(destination, '_blank', 'noopener,noreferrer');
+    } catch {
+      window.location.href = destination;
+    }
   };
+
+  const destinationLabel = `/produto/${product.id}${variation?.id ? `?v=${variation.id}` : ''}`;
 
   return (
     <div className="space-y-2">
@@ -531,6 +540,7 @@ function PreviewCard({ variant, product, cfg }: { variant: 'A' | 'B'; product: P
               }
               type="button"
               onClick={handleCtaClick}
+              title={`Abrir página real do produto: ${destinationLabel}`}
             >
               {isB ? (
                 <>
@@ -544,6 +554,10 @@ function PreviewCard({ variant, product, cfg }: { variant: 'A' | 'B'; product: P
                 </>
               )}
             </Button>
+            <p className="mt-1 text-[10px] text-muted-foreground flex items-center gap-1 justify-center">
+              <ExternalLink className="w-2.5 h-2.5" />
+              <span className="truncate">{destinationLabel}</span>
+            </p>
           </div>
         </div>
       </div>
