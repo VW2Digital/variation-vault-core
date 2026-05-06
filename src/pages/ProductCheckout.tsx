@@ -666,10 +666,18 @@ const ProductCheckout = () => {
                         <ChevronRight className={`w-3 h-3 transition-transform ${showInstallments ? 'rotate-90' : ''}`} />
                       </button>
                       {showInstallments && (
-                        <div className="bg-muted rounded-lg p-3 mt-1 space-y-1 animate-in slide-in-from-top-2 duration-200">
+                        <div
+                          key={`inst-${variation?.id || 'v'}-${quantity}`}
+                          className="bg-muted rounded-lg p-3 mt-1 space-y-1 animate-in slide-in-from-top-2 duration-200"
+                        >
                           {loadingSimulation ? (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
-                              <Loader2 className="w-3 h-3 animate-spin" /> Carregando parcelas...
+                            <div className="space-y-1.5 py-0.5" aria-busy="true">
+                              {Array.from({ length: Math.min(maxInstallments, 4) }).map((_, i) => (
+                                <div key={i} className="flex justify-between items-center">
+                                  <div className="h-3 bg-muted-foreground/20 rounded animate-pulse" style={{ width: `${40 + i * 8}%` }} />
+                                  <div className="h-3 w-16 bg-muted-foreground/20 rounded animate-pulse" />
+                                </div>
+                              ))}
                             </div>
                           ) : simulatedInstallments.length > 0 ? simulatedInstallments.map((opt) => (
                             <div key={opt.parcelas} className="flex justify-between text-xs text-foreground">
@@ -729,9 +737,17 @@ const ProductCheckout = () => {
                 </p>
               )}
               {loadingShipping && !shippingOptions.length ? (
-                <div className="flex items-center gap-2 py-1">
-                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">Calculando frete...</span>
+                <div
+                  key={`ship-${variation?.id || 'v'}-${quantity}-${userPostalCode}`}
+                  className="space-y-1.5"
+                  aria-busy="true"
+                >
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex justify-between items-center">
+                      <div className="h-3 bg-muted-foreground/20 rounded animate-pulse" style={{ width: `${55 + i * 6}%` }} />
+                      <div className="h-3 w-14 bg-muted-foreground/20 rounded animate-pulse" />
+                    </div>
+                  ))}
                 </div>
               ) : shippingOptions.length > 0 ? (
                 <div className="space-y-1.5">
