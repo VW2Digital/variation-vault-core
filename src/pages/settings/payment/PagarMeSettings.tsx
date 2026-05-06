@@ -1,15 +1,14 @@
 import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 import { useState, useEffect } from 'react';
 import { fetchSetting, upsertSetting, getCurrentUser } from '@/lib/api';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import PagarMeWebhooksPanel from '@/components/admin/PagarMeWebhooksPanel';
 import WebhookUrlCard from '@/components/admin/WebhookUrlCard';
 import GatewayToggles from '@/components/admin/settings/GatewayToggles';
 import EnvironmentSelect from '@/components/admin/settings/payment/EnvironmentSelect';
 import PasswordField from '@/components/admin/settings/payment/PasswordField';
+import TextField from '@/components/admin/settings/payment/TextField';
+import SwitchRow from '@/components/admin/settings/payment/SwitchRow';
 import SaveTestButtons from '@/components/admin/settings/payment/SaveTestButtons';
 import { useGatewayConnectionTest } from '@/components/admin/settings/payment/useGatewayConnectionTest';
 
@@ -96,19 +95,20 @@ const PagarMeSettings = ({ isActive, onActivate }: Props) => {
         placeholder={env === 'sandbox' ? 'sk_test_...' : 'sk_...'}
         hint="Usada no servidor para criar pedidos."
       />
-      <div className="space-y-2">
-        <Label>Public Key (pk_)</Label>
-        <Input value={publicKey} onChange={(e) => setPublicKey(e.target.value)} placeholder={env === 'sandbox' ? 'pk_test_...' : 'pk_...'} />
-        <p className="text-xs text-muted-foreground">Usada para tokenização do cartão no navegador.</p>
-      </div>
+      <TextField
+        label="Public Key (pk_)"
+        value={publicKey}
+        onChange={setPublicKey}
+        placeholder={env === 'sandbox' ? 'pk_test_...' : 'pk_...'}
+        hint="Usada para tokenização do cartão no navegador."
+      />
       <PasswordField label="Webhook Secret (HMAC-SHA1)" value={webhookSecret} onChange={setWebhookSecret} placeholder="Segredo do painel Pagar.me" />
-      <div className="flex items-center justify-between rounded-md border border-border/50 p-3">
-        <div>
-          <Label className="text-sm">Antifraude</Label>
-          <p className="text-xs text-muted-foreground">Análise antifraude nos pedidos com cartão.</p>
-        </div>
-        <Switch checked={antifraud} onCheckedChange={setAntifraud} />
-      </div>
+      <SwitchRow
+        label="Antifraude"
+        description="Análise antifraude nos pedidos com cartão."
+        checked={antifraud}
+        onCheckedChange={setAntifraud}
+      />
       <WebhookUrlCard
         gatewayName="Pagar.me"
         functionSlug="pagarme-webhook"
