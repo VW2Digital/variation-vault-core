@@ -240,6 +240,23 @@ const CheckoutForm = ({ productName, productId, cartProductIds, paymentDescripti
   const [installmentOptions, setInstallmentOptions] = useState<InstallmentResult[]>([]);
   const [loadingInstallments, setLoadingInstallments] = useState(false);
 
+  // Track current auth user id to invalidate any cached visual state when the
+  // user logs in/out or switches accounts.
+  const [currentUserId, setCurrentUserId] = useState<string>('anon');
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (active) setCurrentUserId(session?.user?.id ?? 'anon');
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
+      setCurrentUserId(session?.user?.id ?? 'anon');
+    });
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
   const shippingCost = qualifiesForFreeShipping ? 0 : (selectedShipping?.price || 0);
   const subtotalBeforeCoupon = baseProductTotal + shippingCost;
   const totalValue = subtotalBeforeCoupon - couponDiscount;
@@ -248,7 +265,7 @@ const CheckoutForm = ({ productName, productId, cartProductIds, paymentDescripti
 
   // Skeleton flash quando variação/quantidade/frete/cupom mudam para evitar flicker com dados antigos
   const [totalsRecalculating, setTotalsRecalculating] = useState(false);
-  const totalsKey = `${dosage}-${safeQuantity}-${safeUnitPrice}-${selectedShipping?.id ?? 'none'}-${couponDiscount}-${pixDiscountPercent}`;
+  const totalsKey = `${currentUserId}-${dosage}-${safeQuantity}-${safeUnitPrice}-${selectedShipping?.id ?? 'none'}-${couponDiscount}-${pixDiscountPercent}`;
   const totalsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firstTotalsRender = useRef(true);
   useEffect(() => {

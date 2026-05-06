@@ -147,6 +147,20 @@ const ProductCheckout = () => {
   const [detailLabels, setDetailLabels] = useState<Record<string, string>>({});
   const installmentReqIdRef = useRef(0);
   const shippingReqIdRef = useRef(0);
+  const [currentUserId, setCurrentUserId] = useState<string>('anon');
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (active) setCurrentUserId(session?.user?.id ?? 'anon');
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
+      setCurrentUserId(session?.user?.id ?? 'anon');
+    });
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -667,7 +681,7 @@ const ProductCheckout = () => {
                       </button>
                       {showInstallments && (
                         <div
-                          key={`inst-${variation?.id || 'v'}-${quantity}`}
+                          key={`inst-${currentUserId}-${variation?.id || 'v'}-${quantity}`}
                           className="bg-muted rounded-lg p-3 mt-1 space-y-1 animate-in slide-in-from-top-2 duration-200"
                         >
                           {loadingSimulation ? (
@@ -738,7 +752,7 @@ const ProductCheckout = () => {
               )}
               {loadingShipping && !shippingOptions.length ? (
                 <div
-                  key={`ship-${variation?.id || 'v'}-${quantity}-${userPostalCode}`}
+                  key={`ship-${currentUserId}-${variation?.id || 'v'}-${quantity}-${userPostalCode}`}
                   className="space-y-1.5"
                   aria-busy="true"
                 >
