@@ -13,6 +13,8 @@ import { useCart } from '@/contexts/CartContext';
 import Header from '@/components/Header';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
+import JsonLd from '@/components/seo/JsonLd';
+import usePublicBaseUrl from '@/hooks/usePublicBaseUrl';
 import productHeroImg from '@/assets/product-hero.png';
 import testimonial1 from '@/assets/testimonial-1.jpg';
 import testimonial2 from '@/assets/testimonial-2.jpg';
@@ -119,6 +121,7 @@ const ProductCheckout = () => {
   const { toast } = useToast();
   const { addToCart, totalItems } = useCart();
   const [searchParams] = useSearchParams();
+  const { publicUrl } = usePublicBaseUrl();
   const [product, setProduct] = useState<any>(null);
   const [dynamicTestimonials, setDynamicTestimonials] = useState<any[]>([]);
   const [banners, setBanners] = useState<any[]>([]);
@@ -327,9 +330,71 @@ const ProductCheckout = () => {
 
   const isDigital = !!variation?.is_digital;
 
+  // ---------- JSON-LD (schema.org/Product) para SEO/rich snippets ----------
+  const baseUrl = publicUrl || (typeof window !== 'undefined' ? window.location.origin : '');
+  const canonicalUrl = `${baseUrl}/produto/${product.id}`;
+  const absoluteImages = images
+    .filter((img: string) => typeof img === 'string' && img.length > 0)
+    .map((img: string) => (img.startsWith('http') ? img : `${baseUrl}${img.startsWith('/') ? '' : '/'}${img}`));
+  const offerPriceNum = variation?.is_offer && variation?.offer_price
+    ? Number(variation.offer_price)
+    : Number(variation?.price || 0);
+  const ratingCount = productReviews.length;
+  const ratingValue = ratingCount > 0
+    ? Number((productReviews.reduce((a, r) => a + (r.rating || 0), 0) / ratingCount).toFixed(2))
+    : 0;
+  const productJsonLd: Record<string, any> = {
+    '@context': 'https://schema.org/',
+    '@type': 'Product',
+    name: variation?.dosage ? `${product.name} ${variation.dosage}` : product.name,
+    description: (product.description || '').replace(/<[^>]+>/g, '').slice(0, 5000),
+    image: absoluteImages.length > 0 ? absoluteImages : undefined,
+    sku: variation?.id || product.id,
+    brand: product.brand
+      ? { '@type': 'Brand', name: product.brand }
+      : undefined,
+    category: product.category || undefined,
+    offers: {
+      '@type': 'Offer',
+      url: canonicalUrl,
+      priceCurrency: 'BRL',
+      price: offerPriceNum > 0 ? offerPriceNum.toFixed(2) : undefined,
+      availability: variation && (variation.stock === undefined || variation.stock === null || Number(variation.stock) > 0)
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/OutOfStock',
+      itemCondition: 'https://schema.org/NewCondition',
+    },
+  };
+  if (ratingCount > 0) {
+    productJsonLd.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue,
+      reviewCount: ratingCount,
+      bestRating: 5,
+      worstRating: 1,
+    };
+    productJsonLd.review = productReviews.slice(0, 10).map((r: any) => ({
+      '@type': 'Review',
+      reviewRating: { '@type': 'Rating', ratingValue: r.rating, bestRating: 5, worstRating: 1 },
+      author: { '@type': 'Person', name: r.author_name || r.user_name || 'Cliente' },
+      datePublished: r.created_at,
+      reviewBody: (r.comment || '').slice(0, 1000),
+    }));
+  }
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org/',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Início', item: baseUrl || '/' },
+      { '@type': 'ListItem', position: 2, name: 'Catálogo', item: `${baseUrl}/catalogo` },
+      { '@type': 'ListItem', position: 3, name: product.name, item: canonicalUrl },
+    ],
+  };
 
   return (
     <div className="min-h-screen bg-background">
+      <JsonLd id={`product-${product.id}`} data={productJsonLd} />
+      <JsonLd id={`breadcrumb-${product.id}`} data={breadcrumbJsonLd} />
       {/* Top Banner */}
       {banners.length > 0 &&
       <div className="bg-black text-white overflow-hidden">
