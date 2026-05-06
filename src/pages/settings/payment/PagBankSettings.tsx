@@ -5,28 +5,27 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, CheckCircle2, Loader2, KeyRound } from 'lucide-react';
+import { Loader2, KeyRound } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import WebhookUrlCard from '@/components/admin/WebhookUrlCard';
 import GatewayToggles from '@/components/admin/settings/GatewayToggles';
+import EnvironmentSelect from '@/components/admin/settings/payment/EnvironmentSelect';
+import PasswordField from '@/components/admin/settings/payment/PasswordField';
+import SaveTestButtons from '@/components/admin/settings/payment/SaveTestButtons';
+import { useGatewayConnectionTest } from '@/components/admin/settings/payment/useGatewayConnectionTest';
 
-interface Props {
-  isActive: boolean;
-  onActivate: () => void;
-}
+interface Props { isActive: boolean; onActivate: () => void }
 
 const PagBankSettings = ({ isActive, onActivate }: Props) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [token, setToken] = useState('');
   const [publicKey, setPublicKey] = useState('');
   const [env, setEnv] = useState('sandbox');
-  const [showToken, setShowToken] = useState(false);
   const [redirectUrl, setRedirectUrl] = useState('');
+  const { testing, test } = useGatewayConnectionTest('pagbank');
 
   const loadCreds = async (e: string) => {
     const [t, p, publicUrl] = await Promise.all([
@@ -95,44 +94,13 @@ const PagBankSettings = ({ isActive, onActivate }: Props) => {
     } finally { setGenerating(false); }
   };
 
-  const handleTest = async () => {
-    setTesting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('payment-checkout', {
-        body: { action: 'test_connection', environment: env, api_key: token, gateway: 'pagbank' },
-      });
-      if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.error);
-      toast({ title: 'Conexão OK!', description: `Ambiente: ${env === 'production' ? 'Produção' : 'Sandbox'}` });
-    } catch (err: any) {
-      toast({ title: 'Falha', description: err.message, variant: 'destructive' });
-    } finally { setTesting(false); }
-  };
-
   if (loading) return <SettingsSkeleton />;
 
   return (
     <div className="space-y-4">
       <GatewayToggles gateway="pagbank" fallbackSupported={false} />
-      <div className="space-y-2">
-        <Label>Ambiente</Label>
-        <Select value={env} onValueChange={handleEnvChange}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="sandbox">Sandbox (Testes)</SelectItem>
-            <SelectItem value="production">Produção</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-2">
-        <Label>Token (Bearer)</Label>
-        <div className="relative">
-          <Input type={showToken ? 'text' : 'password'} value={token} onChange={(e) => setToken(e.target.value)} placeholder="Token do painel PagBank" className="pr-10" />
-          <button type="button" onClick={() => setShowToken(!showToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-            {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
-        </div>
-      </div>
+      <EnvironmentSelect value={env} onChange={handleEnvChange} />
+      <PasswordField label="Token (Bearer)" value={token} onChange={setToken} placeholder="Token do painel PagBank" />
       <div className="space-y-2">
         <Label>Public Key (Criptografia de Cartão)</Label>
         <div className="flex gap-2">
@@ -157,15 +125,14 @@ const PagBankSettings = ({ isActive, onActivate }: Props) => {
           toast({ title: 'URL copiada!' });
         }} />
       </div>
-      <div className="flex gap-2 pt-2">
-        <Button onClick={handleSave} disabled={saving} className="flex-1">
-          {saving ? 'Salvando...' : (isActive ? 'Salvar' : 'Salvar e Ativar')}
-        </Button>
-        <Button variant="outline" disabled={testing || !token} onClick={handleTest}>
-          {testing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-          Testar
-        </Button>
-      </div>
+      <SaveTestButtons
+        isActive={isActive}
+        saving={saving}
+        testing={testing}
+        testDisabled={!token}
+        onSave={handleSave}
+        onTest={() => test(token, env)}
+      />
     </div>
   );
 };
