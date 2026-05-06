@@ -8,6 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { FlaskConical, Eye, MousePointerClick, TrendingUp, RefreshCw, Trash2, ShoppingCart, Truck, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -23,6 +30,25 @@ type Row = {
   variant: 'A' | 'B';
   event_type: 'impression' | 'cta_click';
   session_id: string;
+};
+
+type PreviewProduct = {
+  id: string;
+  name: string;
+  subtitle: string | null;
+  images: string[] | null;
+  free_shipping: boolean;
+  is_bestseller: boolean;
+  pix_discount_percent: number | null;
+  variations: {
+    id: string;
+    dosage: string;
+    price: number;
+    offer_price: number | null;
+    is_offer: boolean;
+    image_url: string | null;
+    images: string[] | null;
+  }[];
 };
 
 type Stats = {
@@ -58,6 +84,8 @@ function aggregate(rows: Row[], variant: 'A' | 'B'): Stats {
 export default function AbTestPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<PreviewProduct[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
 
   const load = async () => {
     setLoading(true);
@@ -76,7 +104,34 @@ export default function AbTestPage() {
 
   useEffect(() => {
     load();
+    loadProducts();
   }, []);
+
+  const loadProducts = async () => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('id, name, subtitle, images, free_shipping, is_bestseller, pix_discount_percent, product_variations(id, dosage, price, offer_price, is_offer, image_url, images)')
+      .eq('active', true)
+      .order('sort_order', { ascending: true })
+      .limit(100);
+    if (error) {
+      toast.error('Falha ao carregar produtos: ' + error.message);
+      return;
+    }
+    const list = ((data || []) as any[])
+      .map((p) => ({
+        ...p,
+        variations: (p.product_variations || []).filter((v: any) => v),
+      }))
+      .filter((p) => p.variations.length > 0) as PreviewProduct[];
+    setProducts(list);
+    if (list.length > 0) setSelectedProductId(list[0].id);
+  };
+
+  const previewProduct = useMemo(
+    () => products.find((p) => p.id === selectedProductId) || null,
+    [products, selectedProductId],
+  );
 
   const statsA = useMemo(() => aggregate(rows, 'A'), [rows]);
   const statsB = useMemo(() => aggregate(rows, 'B'), [rows]);
@@ -179,16 +234,38 @@ export default function AbTestPage() {
       {/* Prévia visual das variantes */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Prévia visual das variantes</CardTitle>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <CardTitle className="text-base">Prévia visual das variantes</CardTitle>
+            {products.length > 0 && (
+              <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                <SelectTrigger className="w-full sm:w-[260px]">
+                  <SelectValue placeholder="Selecione um produto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <PreviewCard variant="A" />
-            <PreviewCard variant="B" />
-          </div>
-          <p className="text-xs text-muted-foreground mt-4">
-            Estas prévias reproduzem o card de produto exibido no catálogo para cada variante. Os dados são apenas ilustrativos.
-          </p>
+          {previewProduct ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <PreviewCard variant="A" product={previewProduct} />
+                <PreviewCard variant="B" product={previewProduct} />
+              </div>
+              <p className="text-xs text-muted-foreground mt-4">
+                Prévias reproduzem o card de catálogo usando dados reais do produto selecionado.
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Nenhum produto com variação disponível para preview.</p>
+          )}
         </CardContent>
       </Card>
 
@@ -210,13 +287,28 @@ export default function AbTestPage() {
   );
 }
 
-function PreviewCard({ variant }: { variant: 'A' | 'B' }) {
+function PreviewCard({ variant, product }: { variant: 'A' | 'B'; product: PreviewProduct }) {
   const isB = variant === 'B';
-  const productName = 'Produto Exemplo';
-  const subtitle = 'Variação demonstrativa para visualização do layout';
-  const price = 299.9;
-  const offer = 199.9;
-  const discount = Math.round(((price - offer) / price) * 100);
+  // Pega primeira variação (preferindo uma em oferta)
+  const variation =
+    product.variations.find((v) => v.is_offer && v.offer_price && v.offer_price > 0) ||
+    product.variations[0];
+  const price = Number(variation.price) || 0;
+  const hasOffer = variation.is_offer && variation.offer_price && variation.offer_price > 0;
+  const finalPrice = hasOffer ? Number(variation.offer_price) : price;
+  const discount = hasOffer && price > 0 ? Math.round(((price - finalPrice) / price) * 100) : 0;
+  const image =
+    (variation.images && variation.images[0]) ||
+    variation.image_url ||
+    (product.images && product.images[0]) ||
+    '';
+  const productName = product.name;
+  const subtitle = variation.dosage
+    ? `${variation.dosage}${product.subtitle ? ' · ' + product.subtitle : ''}`
+    : product.subtitle || '';
+  const pixPercent = Number(product.pix_discount_percent) || 0;
+  const integerPart = Math.floor(finalPrice).toLocaleString('pt-BR');
+  const decimalPart = finalPrice.toFixed(2).split('.')[1];
 
   return (
     <div className="space-y-2">
@@ -236,38 +328,57 @@ function PreviewCard({ variant }: { variant: 'A' | 'B' }) {
           }`}
         >
           <div className={`relative aspect-[1080/1450] bg-white overflow-hidden ${isB ? 'border-b border-border/40' : ''}`}>
-            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/30 text-xs">
-              [imagem do produto]
-            </div>
+            {image ? (
+              <img
+                src={image}
+                alt={productName}
+                className="absolute inset-0 w-full h-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/30 text-xs">
+                [sem imagem]
+              </div>
+            )}
             {isB ? (
               <>
                 <div className="absolute top-2 left-2 z-20 flex flex-col gap-1 items-start">
-                  <Badge className="bg-destructive text-destructive-foreground text-[11px] font-extrabold px-2 py-0.5 shadow-md shadow-destructive/30 rounded-md">
-                    -{discount}% OFF
-                  </Badge>
-                  <Badge className="bg-success text-white text-[9px] font-bold px-1.5 py-0.5 shadow-sm gap-0.5 rounded-md">
-                    <Truck className="w-2.5 h-2.5" />
-                    FRETE GRÁTIS
-                  </Badge>
+                  {discount > 0 && (
+                    <Badge className="bg-destructive text-destructive-foreground text-[11px] font-extrabold px-2 py-0.5 shadow-md shadow-destructive/30 rounded-md">
+                      -{discount}% OFF
+                    </Badge>
+                  )}
+                  {product.free_shipping && (
+                    <Badge className="bg-success text-white text-[9px] font-bold px-1.5 py-0.5 shadow-sm gap-0.5 rounded-md">
+                      <Truck className="w-2.5 h-2.5" />
+                      FRETE GRÁTIS
+                    </Badge>
+                  )}
                 </div>
-                <div className="absolute top-2 right-2 z-20">
-                  <Badge className="bg-warning text-white text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-0.5 shadow-md rounded-md">
-                    Mais Vendido
-                  </Badge>
-                </div>
+                {product.is_bestseller && (
+                  <div className="absolute top-2 right-2 z-20">
+                    <Badge className="bg-warning text-white text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-0.5 shadow-md rounded-md">
+                      Mais Vendido
+                    </Badge>
+                  </div>
+                )}
               </>
             ) : (
               <>
-                <div className="absolute top-2 left-2 z-20 flex flex-col gap-1">
-                  <Badge className="bg-destructive text-destructive-foreground text-[10px] font-bold">
-                    -{discount}%
-                  </Badge>
-                </div>
-                <div className="absolute top-2 right-2 z-20">
-                  <Badge className="bg-success text-white text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5">
-                    Mais Vendido
-                  </Badge>
-                </div>
+                {discount > 0 && (
+                  <div className="absolute top-2 left-2 z-20 flex flex-col gap-1">
+                    <Badge className="bg-destructive text-destructive-foreground text-[10px] font-bold">
+                      -{discount}%
+                    </Badge>
+                  </div>
+                )}
+                {product.is_bestseller && (
+                  <div className="absolute top-2 right-2 z-20">
+                    <Badge className="bg-success text-white text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5">
+                      Mais Vendido
+                    </Badge>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -284,19 +395,23 @@ function PreviewCard({ variant }: { variant: 'A' | 'B' }) {
               <span className="text-[10px] text-muted-foreground">(128)</span>
             </div>
             <div className="pt-1">
-              <p className="text-muted-foreground text-xs line-through">
-                R$ {price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </p>
+              {hasOffer && (
+                <p className="text-muted-foreground text-xs line-through">
+                  R$ {price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              )}
               <div className="flex items-baseline">
                 <span className="text-foreground text-sm font-medium">R$</span>
-                <span className="text-foreground text-2xl font-extrabold ml-1 leading-none">199</span>
-                <span className="text-foreground text-xs font-bold align-super ml-[1px]">,90</span>
+                <span className="text-foreground text-2xl font-extrabold ml-1 leading-none">{integerPart}</span>
+                <span className="text-foreground text-xs font-bold align-super ml-[1px]">,{decimalPart}</span>
               </div>
-              <p className="text-success text-xs font-semibold mt-0.5">5% OFF no Pix</p>
+              {pixPercent > 0 && (
+                <p className="text-success text-xs font-semibold mt-0.5">{pixPercent}% OFF no Pix</p>
+              )}
             </div>
           </div>
 
-          {!isB && (
+          {!isB && product.free_shipping && (
             <div className="mx-3 mb-1.5 px-2 py-1 flex items-center gap-1">
               <Truck className="w-3 h-3 text-success flex-shrink-0" />
               <span className="text-success text-[10px] font-semibold">Frete Grátis</span>
