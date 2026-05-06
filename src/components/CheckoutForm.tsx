@@ -1818,25 +1818,31 @@ const CheckoutForm = ({ productName, productId, cartProductIds, paymentDescripti
                   </div>
                 ))}
               </div>
-              <div className="border-t border-border/50 pt-3 space-y-1">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Produtos</span>
-                  <span>R$ {baseProductTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                </div>
-                {selectedShipping && (
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Frete ({selectedShipping.company})</span>
-                    {qualifiesForFreeShipping ? (
-                      <span className="text-primary font-medium">Grátis</span>
-                    ) : (
-                      <span>R$ {selectedShipping.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              <div className="border-t border-border/50 pt-3" key={`totals-ship-${totalsKey}`}>
+                {totalsRecalculating ? (
+                  <TotalsSkeleton />
+                ) : (
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Produtos</span>
+                      <span>R$ {baseProductTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    {selectedShipping && (
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Frete ({selectedShipping.company})</span>
+                        {qualifiesForFreeShipping ? (
+                          <span className="text-primary font-medium">Grátis</span>
+                        ) : (
+                          <span>R$ {selectedShipping.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                        )}
+                      </div>
                     )}
+                    <div className="flex justify-between text-sm font-bold text-foreground pt-1">
+                      <span>Total</span>
+                      <span>R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
                   </div>
                 )}
-                <div className="flex justify-between text-sm font-bold text-foreground pt-1">
-                  <span>Total</span>
-                  <span>R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                </div>
               </div>
               <Button onClick={handleShippingNext} disabled={!selectedShipping} className="w-full">
                 Continuar para Pagamento
