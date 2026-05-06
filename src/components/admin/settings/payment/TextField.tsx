@@ -12,10 +12,11 @@ interface Props {
   trailing?: ReactNode;
   readOnly?: boolean;
   className?: string;
+  onClick?: (e: React.MouseEvent<HTMLInputElement>) => void;
 }
 
 /** Label + Input padronizado para configurações de gateways (campos não-sensíveis). */
-const TextField = ({ label, value, onChange, placeholder, hint, trailing, readOnly, className }: Props) => (
+const TextField = ({ label, value, onChange, placeholder, hint, trailing, readOnly, className, onClick }: Props) => (
   <div className="space-y-2">
     <Label>{label}</Label>
     {trailing ? (
@@ -25,6 +26,7 @@ const TextField = ({ label, value, onChange, placeholder, hint, trailing, readOn
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           readOnly={readOnly}
+          onClick={onClick}
           className={`flex-1 ${className ?? ''}`}
         />
         {trailing}
@@ -35,6 +37,7 @@ const TextField = ({ label, value, onChange, placeholder, hint, trailing, readOn
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         readOnly={readOnly}
+        onClick={onClick}
         className={className}
       />
     )}
