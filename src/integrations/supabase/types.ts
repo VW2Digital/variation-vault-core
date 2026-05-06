@@ -1135,6 +1135,42 @@ export type Database = {
         }
         Relationships: []
       }
+      recommendation_performance_metrics: {
+        Row: {
+          created_at: string
+          had_error: boolean
+          id: string
+          items_count: number
+          load_time_ms: number
+          session_id: string | null
+          skeleton_time_ms: number
+          source_product_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          had_error?: boolean
+          id?: string
+          items_count?: number
+          load_time_ms: number
+          session_id?: string | null
+          skeleton_time_ms: number
+          source_product_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          had_error?: boolean
+          id?: string
+          items_count?: number
+          load_time_ms?: number
+          session_id?: string | null
+          skeleton_time_ms?: number
+          source_product_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       reviews: {
         Row: {
           comment: string | null
