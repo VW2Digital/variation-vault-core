@@ -5,7 +5,7 @@ import { AdminKpiCard } from '@/components/admin/AdminKpiCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FlaskConical, Eye, MousePointerClick, TrendingUp, RefreshCw, Trash2 } from 'lucide-react';
+import { FlaskConical, Eye, MousePointerClick, TrendingUp, RefreshCw, Trash2, ShoppingCart, Truck, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -176,6 +176,22 @@ export default function AbTestPage() {
         <VariantPanel label="B — Conversão agressiva" tone="primary" stats={statsB} />
       </div>
 
+      {/* Prévia visual das variantes */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Prévia visual das variantes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <PreviewCard variant="A" />
+            <PreviewCard variant="B" />
+          </div>
+          <p className="text-xs text-muted-foreground mt-4">
+            Estas prévias reproduzem o card de produto exibido no catálogo para cada variante. Os dados são apenas ilustrativos.
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Como testar manualmente</CardTitle>
@@ -190,6 +206,129 @@ export default function AbTestPage() {
           <p className="pt-2">Cada visitante recebe uma variante 50/50 determinística pelo seu sessionId, salva em localStorage para manter consistência entre visitas.</p>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function PreviewCard({ variant }: { variant: 'A' | 'B' }) {
+  const isB = variant === 'B';
+  const productName = 'Produto Exemplo';
+  const subtitle = 'Variação demonstrativa para visualização do layout';
+  const price = 299.9;
+  const offer = 199.9;
+  const discount = Math.round(((price - offer) / price) * 100);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-muted-foreground">
+          Variante {variant} — {isB ? 'Conversão agressiva' : 'Discreta (controle)'}
+        </p>
+        <Badge variant={isB ? 'default' : 'secondary'} className="text-[10px]">
+          {isB ? 'Novo' : 'Atual'}
+        </Badge>
+      </div>
+
+      <div className="max-w-[260px] mx-auto">
+        <div
+          className={`group rounded-xl border overflow-hidden transition-all duration-300 flex flex-col bg-card ${
+            isB ? 'hover:shadow-xl border-border/50' : 'hover:shadow-lg border-border/50'
+          }`}
+        >
+          <div className={`relative aspect-[1080/1450] bg-white overflow-hidden ${isB ? 'border-b border-border/40' : ''}`}>
+            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/30 text-xs">
+              [imagem do produto]
+            </div>
+            {isB ? (
+              <>
+                <div className="absolute top-2 left-2 z-20 flex flex-col gap-1 items-start">
+                  <Badge className="bg-destructive text-destructive-foreground text-[11px] font-extrabold px-2 py-0.5 shadow-md shadow-destructive/30 rounded-md">
+                    -{discount}% OFF
+                  </Badge>
+                  <Badge className="bg-success text-white text-[9px] font-bold px-1.5 py-0.5 shadow-sm gap-0.5 rounded-md">
+                    <Truck className="w-2.5 h-2.5" />
+                    FRETE GRÁTIS
+                  </Badge>
+                </div>
+                <div className="absolute top-2 right-2 z-20">
+                  <Badge className="bg-warning text-white text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-0.5 shadow-md rounded-md">
+                    Mais Vendido
+                  </Badge>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="absolute top-2 left-2 z-20 flex flex-col gap-1">
+                  <Badge className="bg-destructive text-destructive-foreground text-[10px] font-bold">
+                    -{discount}%
+                  </Badge>
+                </div>
+                <div className="absolute top-2 right-2 z-20">
+                  <Badge className="bg-success text-white text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5">
+                    Mais Vendido
+                  </Badge>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="p-3 pt-1.5 space-y-1 flex-1 flex flex-col">
+            <h3 className="font-bold text-foreground text-sm leading-tight line-clamp-2">{productName}</h3>
+            <p className="text-xs text-muted-foreground line-clamp-2">{subtitle}</p>
+            <div className="flex items-center gap-1">
+              <div className="flex gap-0.5">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star key={s} className={`w-3 h-3 ${s <= 4 ? 'fill-primary text-primary' : 'text-muted-foreground/30'}`} />
+                ))}
+              </div>
+              <span className="text-[10px] text-muted-foreground">(128)</span>
+            </div>
+            <div className="pt-1">
+              <p className="text-muted-foreground text-xs line-through">
+                R$ {price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+              <div className="flex items-baseline">
+                <span className="text-foreground text-sm font-medium">R$</span>
+                <span className="text-foreground text-2xl font-extrabold ml-1 leading-none">199</span>
+                <span className="text-foreground text-xs font-bold align-super ml-[1px]">,90</span>
+              </div>
+              <p className="text-success text-xs font-semibold mt-0.5">5% OFF no Pix</p>
+            </div>
+          </div>
+
+          {!isB && (
+            <div className="mx-3 mb-1.5 px-2 py-1 flex items-center gap-1">
+              <Truck className="w-3 h-3 text-success flex-shrink-0" />
+              <span className="text-success text-[10px] font-semibold">Frete Grátis</span>
+            </div>
+          )}
+
+          <div className={isB ? 'px-3 pb-3 pt-1 mt-auto' : 'px-3 pb-3 pt-0.5 mt-auto'}>
+            <Button
+              variant="outline"
+              size={isB ? undefined : 'sm'}
+              className={
+                isB
+                  ? 'w-full h-10 text-[13px] font-semibold border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground hover:border-primary'
+                  : 'w-full text-xs'
+              }
+              type="button"
+            >
+              {isB ? (
+                <>
+                  <ShoppingCart className="w-4 h-4 mr-1.5" />
+                  Adicionar ao Carrinho
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="w-3.5 h-3.5 mr-1" />
+                  <span className="text-[11px]">Adicionar ao Carrinho</span>
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
