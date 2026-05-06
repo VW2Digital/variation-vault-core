@@ -56,12 +56,20 @@ const ProductRecommendations = ({ productId }: Props) => {
       try {
         const { data: assoc } = await supabase
           .from('product_upsells' as any)
-          .select('upsell_product_id, sort_order')
+          .select('upsell_product_id, upsell_variation_id, sort_order')
           .eq('product_id', productId)
           .order('sort_order', { ascending: true });
 
-        const ids = [...new Set(((assoc as any[]) || []).map(a => a.upsell_product_id))]
-          .filter(id => id && id !== productId);
+        const assocList = ((assoc as any[]) || []).filter(
+          a => a.upsell_product_id && a.upsell_product_id !== productId
+        );
+        const preferredVariation = new Map<string, string>();
+        assocList.forEach(a => {
+          if (a.upsell_variation_id) {
+            preferredVariation.set(a.upsell_product_id, a.upsell_variation_id);
+          }
+        });
+        const ids = [...new Set(assocList.map(a => a.upsell_product_id))];
 
         if (ids.length === 0) {
           setItems([]);
@@ -74,12 +82,8 @@ const ProductRecommendations = ({ productId }: Props) => {
           .in('id', ids);
 
         const enriched: RecProduct[] = ((products as any[]) || [])
-          .map(p => ({
-            id: p.id,
-            name: p.name,
-            subtitle: p.subtitle,
-            images: p.images,
-            variations: (p.product_variations || [])
+          .map(p => {
+            const allVars = (p.product_variations || [])
               .filter((v: any) => v.in_stock)
               .map((v: any) => ({
                 id: v.id,
@@ -90,8 +94,22 @@ const ProductRecommendations = ({ productId }: Props) => {
                 in_stock: v.in_stock,
                 image_url: v.image_url,
                 images: v.images,
-              })),
-          }))
+              }));
+            const preferredId = preferredVariation.get(p.id);
+            const ordered = preferredId
+              ? [
+                  ...allVars.filter((v: RecVariation) => v.id === preferredId),
+                  ...allVars.filter((v: RecVariation) => v.id !== preferredId),
+                ]
+              : allVars;
+            return {
+              id: p.id,
+              name: p.name,
+              subtitle: p.subtitle,
+              images: p.images,
+              variations: ordered,
+            };
+          })
           .filter(p => p.variations.length > 0)
           .sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
 
