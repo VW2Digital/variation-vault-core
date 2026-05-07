@@ -563,6 +563,7 @@ export type Database = {
           id: string
           payment_link_id: string
           slug: string
+          starts_at: string | null
           subheadline: string
           title: string
           updated_at: string
@@ -580,6 +581,7 @@ export type Database = {
           id?: string
           payment_link_id: string
           slug: string
+          starts_at?: string | null
           subheadline?: string
           title?: string
           updated_at?: string
@@ -597,6 +599,7 @@ export type Database = {
           id?: string
           payment_link_id?: string
           slug?: string
+          starts_at?: string | null
           subheadline?: string
           title?: string
           updated_at?: string
