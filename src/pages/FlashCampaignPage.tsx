@@ -38,11 +38,12 @@ export default function FlashCampaignPage() {
       const { data: l } = await supabase.from('payment_links')
         .select('id,slug,amount,title').eq('id', camp.payment_link_id).maybeSingle();
       if (l) setLink(l as PaymentLink);
-      setLoading(false);
-      // registrar view
-      supabase.from('flash_campaign_events' as any).insert({
+      // registrar view (await para garantir gravação antes de qualquer navegação)
+      const { error: viewErr } = await supabase.from('flash_campaign_events' as any).insert({
         campaign_id: camp.id, event_type: 'view', session_id: getSessionId(),
       });
+      if (viewErr) console.error('[flash] view insert error:', viewErr);
+      setLoading(false);
     })();
   }, [slug]);
 
