@@ -22,6 +22,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
 import ContactPage from "./pages/ContactPage";
 import PaymentLinkCheckout from "./pages/PaymentLinkCheckout";
+import FlashCampaignPage from "./pages/FlashCampaignPage";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -73,6 +74,7 @@ const EmailEventsPage = lazy(() => import("./pages/EmailEventsPage"));
 const BulkEmailPage = lazy(() => import("./pages/BulkEmailPage"));
 const UpsellManagerPage = lazy(() => import("./pages/UpsellManagerPage"));
 const RecommendationMetricsPage = lazy(() => import("./pages/RecommendationMetricsPage"));
+const FlashCampaignsPage = lazy(() => import("./pages/FlashCampaignsPage"));
 
 import PromoPopup from "./components/PromoPopup";
 import { SessionGuard } from "./components/SessionGuard";
@@ -122,6 +124,7 @@ const App = () => (
           <Route path="/termos-de-uso" element={<TermsOfUse />} />
           <Route path="/contato" element={<ContactPage />} />
           <Route path="/pagar/:slug" element={<PaymentLinkCheckout />} />
+          <Route path="/relampago/:slug" element={<FlashCampaignPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Dashboard />} />
@@ -148,6 +151,7 @@ const App = () => (
             <Route path="cupons" element={<CouponsPage />} />
             <Route path="relatorios" element={<ReportsPage />} />
             <Route path="ab-test" element={<AbTestPage />} />
+            <Route path="campanhas-relampago" element={<FlashCampaignsPage />} />
             <Route path="templates-email" element={<EmailTemplatesPage />} />
             <Route path="logs-email" element={<EmailLogsPage />} />
             <Route path="eventos-email" element={<EmailEventsPage />} />
