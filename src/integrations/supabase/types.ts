@@ -508,6 +508,110 @@ export type Database = {
         }
         Relationships: []
       }
+      flash_campaign_events: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          event_type: string
+          id: string
+          order_id: string | null
+          session_id: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          order_id?: string | null
+          session_id?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          order_id?: string | null
+          session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flash_campaign_events_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "flash_campaign_stats"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "flash_campaign_events_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "flash_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flash_campaigns: {
+        Row: {
+          accent_color: string | null
+          active: boolean
+          background_image: string | null
+          bg_color: string | null
+          created_at: string
+          cta_text: string
+          expires_at: string
+          headline: string
+          id: string
+          payment_link_id: string
+          slug: string
+          subheadline: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accent_color?: string | null
+          active?: boolean
+          background_image?: string | null
+          bg_color?: string | null
+          created_at?: string
+          cta_text?: string
+          expires_at: string
+          headline?: string
+          id?: string
+          payment_link_id: string
+          slug: string
+          subheadline?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accent_color?: string | null
+          active?: boolean
+          background_image?: string | null
+          bg_color?: string | null
+          created_at?: string
+          cta_text?: string
+          expires_at?: string
+          headline?: string
+          id?: string
+          payment_link_id?: string
+          slug?: string
+          subheadline?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flash_campaigns_payment_link_id_fkey"
+            columns: ["payment_link_id"]
+            isOneToOne: false
+            referencedRelation: "payment_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gateway_fallback_logs: {
         Row: {
           amount: number | null
@@ -1566,6 +1670,16 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      flash_campaign_stats: {
+        Row: {
+          campaign_id: string | null
+          clicks: number | null
+          conversion_rate: number | null
+          conversions: number | null
+          views: number | null
+        }
+        Relationships: []
       }
     }
     Functions: {

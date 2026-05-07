@@ -1,0 +1,1 @@
+ALTER VIEW public.flash_campaign_stats SET (security_invoker = on);
