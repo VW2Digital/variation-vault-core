@@ -7,6 +7,7 @@ import { Zap, Clock, Flame, ShieldCheck } from 'lucide-react';
 interface Campaign {
   id: string; slug: string; title: string; headline: string; subheadline: string;
   cta_text: string; payment_link_id: string; expires_at: string;
+  starts_at: string | null;
   background_image: string | null; bg_color: string | null; accent_color: string | null; active: boolean;
 }
 interface PaymentLink { id: string; slug: string; amount: number; title: string; }
@@ -61,6 +62,17 @@ export default function FlashCampaignPage() {
     return { days, hours, minutes, seconds };
   }, [campaign, now]);
 
+  const notStartedYet = useMemo(() => {
+    if (!campaign?.starts_at) return null;
+    const diff = new Date(campaign.starts_at).getTime() - now;
+    if (diff <= 0) return null;
+    const days = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    const minutes = Math.floor((diff % 3600000) / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+    return { days, hours, minutes, seconds };
+  }, [campaign, now]);
+
   const onCta = async () => {
     if (!campaign || !link) return;
     await supabase.from('flash_campaign_events' as any).insert({
@@ -90,6 +102,7 @@ export default function FlashCampaignPage() {
   const accent = campaign.accent_color || '#ef4444';
   const bg = campaign.bg_color || '#0a0000';
   const expired = !remaining;
+  const scheduled = !!notStartedYet;
 
   return (
     <div
@@ -120,7 +133,32 @@ export default function FlashCampaignPage() {
         </p>
 
         {/* Cronômetro */}
-        {expired ? (
+        {scheduled ? (
+          <div className="mb-8">
+            <div className="flex items-center justify-center gap-2 mb-3 text-sm font-bold uppercase tracking-widest" style={{ color: accent }}>
+              <Clock className="w-4 h-4 animate-pulse" /> Começa em
+            </div>
+            <div className="flex justify-center gap-2 md:gap-4">
+              {[
+                { v: notStartedYet!.days, l: 'dias' },
+                { v: notStartedYet!.hours, l: 'horas' },
+                { v: notStartedYet!.minutes, l: 'min' },
+                { v: notStartedYet!.seconds, l: 'seg' },
+              ].map((u, i) => (
+                <div key={i} className="rounded-xl px-4 py-3 md:px-6 md:py-4 min-w-[70px] md:min-w-[90px] backdrop-blur-sm border"
+                     style={{ background: `${accent}1f`, borderColor: `${accent}66` }}>
+                  <div className="text-3xl md:text-5xl font-black font-mono leading-none" style={{ color: accent }}>
+                    {String(u.v).padStart(2, '0')}
+                  </div>
+                  <div className="text-[10px] md:text-xs uppercase mt-1 text-white/60">{u.l}</div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-white/50 mt-3">
+              Início: {new Date(campaign.starts_at!).toLocaleString('pt-BR')}
+            </p>
+          </div>
+        ) : expired ? (
           <div className="mb-8 p-6 rounded-2xl border border-white/20 bg-white/5">
             <p className="text-2xl font-bold text-white/70">Esta oferta expirou.</p>
           </div>
@@ -163,7 +201,7 @@ export default function FlashCampaignPage() {
 
         <Button
           size="lg"
-          disabled={expired || !link}
+          disabled={expired || scheduled || !link}
           onClick={onCta}
           className="text-base md:text-xl font-black uppercase px-8 md:px-14 py-6 md:py-8 rounded-xl shadow-2xl hover:scale-105 transition-transform animate-pulse"
           style={{ background: accent, color: '#000', boxShadow: `0 10px 40px ${accent}80` }}
