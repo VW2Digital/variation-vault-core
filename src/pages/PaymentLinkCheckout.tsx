@@ -270,6 +270,21 @@ export default function PaymentLinkCheckout() {
       if (orderError) throw orderError;
       const orderId = orderData.id;
 
+      // Vincular pedido a campanha relâmpago (se houver)
+      try {
+        const raw = sessionStorage.getItem('flash_campaign_pending');
+        if (raw) {
+          const { campaign_id, ts } = JSON.parse(raw);
+          // válido por 1h
+          if (campaign_id && Date.now() - ts < 3600_000) {
+            await supabase.from('flash_campaign_events' as any).insert({
+              campaign_id, event_type: 'order', order_id: orderId,
+            });
+          }
+          sessionStorage.removeItem('flash_campaign_pending');
+        }
+      } catch { /* non-blocking */ }
+
       // 2. Create or find customer in the active gateway
       const { data: customerData, error: customerError } = await supabase.functions.invoke('payment-checkout', {
         body: {
