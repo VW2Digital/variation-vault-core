@@ -75,6 +75,7 @@ const BulkEmailPage = lazy(() => import("./pages/BulkEmailPage"));
 const UpsellManagerPage = lazy(() => import("./pages/UpsellManagerPage"));
 const RecommendationMetricsPage = lazy(() => import("./pages/RecommendationMetricsPage"));
 const FlashCampaignsPage = lazy(() => import("./pages/FlashCampaignsPage"));
+const FlashCampaignFormPage = lazy(() => import("./pages/FlashCampaignFormPage"));
 
 import PromoPopup from "./components/PromoPopup";
 import { SessionGuard } from "./components/SessionGuard";
@@ -152,6 +153,8 @@ const App = () => (
             <Route path="relatorios" element={<ReportsPage />} />
             <Route path="ab-test" element={<AbTestPage />} />
             <Route path="campanhas-relampago" element={<FlashCampaignsPage />} />
+            <Route path="campanhas-relampago/nova" element={<FlashCampaignFormPage />} />
+            <Route path="campanhas-relampago/:id" element={<FlashCampaignFormPage />} />
             <Route path="templates-email" element={<EmailTemplatesPage />} />
             <Route path="logs-email" element={<EmailLogsPage />} />
             <Route path="eventos-email" element={<EmailEventsPage />} />
