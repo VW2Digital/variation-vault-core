@@ -95,7 +95,16 @@ export default function FlashCampaignFormPage() {
         setTitle(camp.title); setSlug(camp.slug); setHeadline(camp.headline);
         setSubheadline(camp.subheadline); setCtaText(camp.cta_text);
         setPaymentLinkId(camp.payment_link_id);
-        setSource('existing');
+        setSource((camp.source as Source) || 'existing');
+        if (camp.product_id) setProductId(camp.product_id);
+        if (camp.variation_id) setVariationId(camp.variation_id);
+        if (camp.quantity != null) setQuantity(String(camp.quantity));
+        if (camp.discount_mode) setDiscountMode(camp.discount_mode as DiscountMode);
+        if (camp.discount_value != null) setDiscountValue(String(camp.discount_value));
+        if (camp.promo_price != null) setPromoPrice(String(camp.promo_price));
+        if (camp.max_installments != null) setMaxInstallments(String(camp.max_installments));
+        if (camp.pix_discount != null) setPixDiscount(String(camp.pix_discount));
+        if (camp.auto_link_id) setAutoLinkId(camp.auto_link_id);
         setExpiresAt(camp.expires_at?.slice(0, 16) || '');
         setStartsAt(camp.starts_at?.slice(0, 16) || '');
         setBgImage(camp.background_image || '');
@@ -172,6 +181,16 @@ export default function FlashCampaignFormPage() {
       expires_at: new Date(expiresAt).toISOString(), background_image: bgImage.trim() || null,
       starts_at: startsAt ? new Date(startsAt).toISOString() : null,
       bg_color: bgColor, accent_color: accentColor, active,
+      source,
+      product_id: source === 'product' ? productId || null : null,
+      variation_id: source === 'product' ? variationId || null : null,
+      quantity: Number(quantity) || 1,
+      discount_mode: discountMode,
+      discount_value: Number(discountValue) || 0,
+      promo_price: discountMode === 'fixed' ? (Number(promoPrice) || null) : null,
+      max_installments: Number(maxInstallments) || 1,
+      pix_discount: Number(pixDiscount) || 0,
+      auto_link_id: source === 'product' ? (resolvedLinkId || null) : null,
     };
     let error;
     if (isEdit) {

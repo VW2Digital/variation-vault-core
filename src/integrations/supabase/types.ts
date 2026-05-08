@@ -554,63 +554,114 @@ export type Database = {
         Row: {
           accent_color: string | null
           active: boolean
+          auto_link_id: string | null
           background_image: string | null
           bg_color: string | null
           created_at: string
           cta_text: string
+          discount_mode: string
+          discount_value: number
           expires_at: string
           headline: string
           id: string
+          max_installments: number
           payment_link_id: string
+          pix_discount: number
+          product_id: string | null
+          promo_price: number | null
+          quantity: number
           slug: string
+          source: string
           starts_at: string | null
           subheadline: string
           title: string
           updated_at: string
           user_id: string
+          variation_id: string | null
         }
         Insert: {
           accent_color?: string | null
           active?: boolean
+          auto_link_id?: string | null
           background_image?: string | null
           bg_color?: string | null
           created_at?: string
           cta_text?: string
+          discount_mode?: string
+          discount_value?: number
           expires_at: string
           headline?: string
           id?: string
+          max_installments?: number
           payment_link_id: string
+          pix_discount?: number
+          product_id?: string | null
+          promo_price?: number | null
+          quantity?: number
           slug: string
+          source?: string
           starts_at?: string | null
           subheadline?: string
           title?: string
           updated_at?: string
           user_id: string
+          variation_id?: string | null
         }
         Update: {
           accent_color?: string | null
           active?: boolean
+          auto_link_id?: string | null
           background_image?: string | null
           bg_color?: string | null
           created_at?: string
           cta_text?: string
+          discount_mode?: string
+          discount_value?: number
           expires_at?: string
           headline?: string
           id?: string
+          max_installments?: number
           payment_link_id?: string
+          pix_discount?: number
+          product_id?: string | null
+          promo_price?: number | null
+          quantity?: number
           slug?: string
+          source?: string
           starts_at?: string | null
           subheadline?: string
           title?: string
           updated_at?: string
           user_id?: string
+          variation_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "flash_campaigns_auto_link_id_fkey"
+            columns: ["auto_link_id"]
+            isOneToOne: false
+            referencedRelation: "payment_links"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "flash_campaigns_payment_link_id_fkey"
             columns: ["payment_link_id"]
             isOneToOne: false
             referencedRelation: "payment_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flash_campaigns_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flash_campaigns_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "product_variations"
             referencedColumns: ["id"]
           },
         ]
