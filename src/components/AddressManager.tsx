@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { MapPin, Plus, Trash2, Star, Loader2, X, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { cleanCep, formatCep as formatCepUtil, isValidCep, cepErrorMessage } from '@/lib/cep';
 
 export interface Address {
   id: string;
@@ -82,15 +83,11 @@ const AddressManager = () => {
     setShowForm(false);
   };
 
-  const formatCep = (v: string) => {
-    const digits = v.replace(/\D/g, '').slice(0, 8);
-    if (digits.length <= 5) return digits;
-    return `${digits.slice(0, 5)}-${digits.slice(5)}`;
-  };
+  const formatCep = formatCepUtil;
 
   const fetchAddressByCep = async (cep: string) => {
-    const digits = cep.replace(/\D/g, '');
-    if (digits.length !== 8) return;
+    const digits = cleanCep(cep);
+    if (!isValidCep(digits)) return;
     setFetchingCep(true);
     try {
       const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
@@ -106,8 +103,9 @@ const AddressManager = () => {
   };
 
   const handleSave = async () => {
-    if (!postalCode.replace(/\D/g, '') || postalCode.replace(/\D/g, '').length < 8) {
-      toast({ title: 'CEP inválido', variant: 'destructive' }); return;
+    const cepError = cepErrorMessage(postalCode);
+    if (cepError) {
+      toast({ title: cepError, variant: 'destructive' }); return;
     }
     if (!street.trim() || !number.trim() || !district.trim() || !city.trim() || !state.trim()) {
       toast({ title: 'Preencha todos os campos obrigatórios', variant: 'destructive' }); return;
@@ -121,7 +119,7 @@ const AddressManager = () => {
       const payload = {
         user_id: session.user.id,
         label: label.trim() || 'Casa',
-        postal_code: postalCode.replace(/\D/g, ''),
+        postal_code: cleanCep(postalCode),
         street: street.trim(),
         number: number.trim(),
         complement: complement.trim(),
