@@ -241,7 +241,7 @@ apt-get update -y -qq
 apt-get install -y -qq \
     curl wget git ca-certificates gnupg lsb-release \
     nginx ufw certbot python3-certbot-nginx \
-    jq unzip build-essential
+    jq unzip build-essential dnsutils
 
 ok "Pacotes base instalados"
 
