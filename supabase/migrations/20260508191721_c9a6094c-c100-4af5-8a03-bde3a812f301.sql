@@ -1,0 +1,1 @@
+UPDATE products SET active = true WHERE id = '2ca07099-e77d-4c05-bb24-24fada8c9b67';
