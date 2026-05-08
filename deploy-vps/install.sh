@@ -199,8 +199,8 @@ ok "Projeto '${SB_NAME}' (region=${SB_REGION}) acessível"
 info "Recuperando API keys (anon + service_role)"
 API_KEYS_JSON=$(__sb_call "/projects/${SUPABASE_PROJECT_REF}/api-keys") || exit 1
 
-SUPABASE_ANON_KEY=$(echo "$API_KEYS_JSON" | jq -r '.[] | select(.name=="anon") | .api_key' | head -n1)
-SUPABASE_SERVICE_ROLE_KEY=$(echo "$API_KEYS_JSON" | jq -r '.[] | select(.name=="service_role") | .api_key' | head -n1)
+SUPABASE_ANON_KEY=$(echo "$API_KEYS_JSON" | jq -r 'map(select(.name=="anon")) | .[0].api_key // empty')
+SUPABASE_SERVICE_ROLE_KEY=$(echo "$API_KEYS_JSON" | jq -r 'map(select(.name=="service_role")) | .[0].api_key // empty')
 
 if [[ -z "$SUPABASE_ANON_KEY" || "$SUPABASE_ANON_KEY" == "null" ]]; then
     err "Não foi possível obter a anon key via Management API."
@@ -317,7 +317,7 @@ ok "package.json validado ($(node -p "require('./package.json').name" 2>/dev/nul
 # projeto (ex.: ambiente de desenvolvimento do Lovable).
 SUPABASE_URL="https://${SUPABASE_PROJECT_REF}.supabase.co"
 if [[ -f .env ]]; then
-    __old_ref=$(grep -E '^VITE_SUPABASE_PROJECT_ID' .env | head -1 | sed -E 's/.*=//; s/"//g' || true)
+    __old_ref=$(awk -F= '/^VITE_SUPABASE_PROJECT_ID/ { gsub(/"/, "", $2); print $2; exit }' .env || true)
     if [[ -n "$__old_ref" && "$__old_ref" != "$SUPABASE_PROJECT_REF" ]]; then
         warn ".env do repositório aponta para projeto '$__old_ref' — será SOBRESCRITO com '$SUPABASE_PROJECT_REF'"
     fi
@@ -652,7 +652,7 @@ if ! systemctl is-active --quiet nginx; then
     systemctl status nginx --no-pager -l || true
     exit 1
 fi
-ok "Nginx ativo (PID $(pgrep -f 'nginx: master' | head -1))"
+ok "Nginx ativo (PID $(pgrep -f 'nginx: master' | awk 'NR==1'))"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 15. SSL via Let's Encrypt (best-effort)
