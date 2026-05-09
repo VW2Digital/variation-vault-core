@@ -126,8 +126,11 @@ serve(async (req) => {
         const email = u?.user?.email;
         if (!email) throw new Error("Usuário sem email cadastrado");
         const origin = req.headers.get("origin") || "";
-        const finalRedirect = redirectTo || (origin ? `${origin}/redefinir-senha` : undefined);
-        const { error } = await adminClient.auth.resetPasswordForEmail(email, finalRedirect ? { redirectTo: finalRedirect } : undefined);
+        const redirectBase = origin || (redirectTo ? new URL(redirectTo).origin : "");
+        // Delegate to custom Hostinger SMTP flow (link points to /redefinir-senha?reset_token=...)
+        const { error } = await adminClient.functions.invoke("send-password-reset", {
+          body: { email, redirectBase },
+        });
         if (error) throw error;
         return new Response(JSON.stringify({ success: true, email }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },

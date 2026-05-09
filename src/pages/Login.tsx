@@ -42,10 +42,11 @@ const Login = () => {
     e.preventDefault();
     setForgotLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: `${window.location.origin}/redefinir-senha`,
+      const { data, error } = await supabase.functions.invoke('send-password-reset', {
+        body: { email: forgotEmail, redirectBase: window.location.origin },
       });
       if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
       toast({
         title: 'Email enviado',
         description: 'Verifique sua caixa de entrada para redefinir sua senha.',
