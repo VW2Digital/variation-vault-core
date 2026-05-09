@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveAccountForOrder } from "../_shared/gateway-credentials.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -117,12 +118,19 @@ serve(async (req) => {
     const newPriority = statusPriority[newStatus] ?? 1;
 
     if (newPriority > currentPriority || previousStatus === newStatus) {
+      // Identify which PagBank account owns this order so future operations
+      // (and analytics) can use the right credentials. PagBank webhooks
+      // currently aren't signed, so we trust reference_id and only bind the
+      // account on first sight.
+      const acc = await resolveAccountForOrder(supabase, 'pagbank', referenceId);
+      const updPayload: any = {
+        status: newStatus,
+        asaas_payment_id: pagbankOrderId,
+      };
+      if (acc.accountId) updPayload.gateway_account_id = acc.accountId;
       const { error } = await supabase
         .from('orders')
-        .update({
-          status: newStatus,
-          asaas_payment_id: pagbankOrderId,
-        })
+        .update(updPayload)
         .eq('id', referenceId);
 
       if (error) {
