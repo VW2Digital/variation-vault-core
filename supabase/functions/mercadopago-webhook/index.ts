@@ -398,12 +398,14 @@ serve(async (req) => {
         const newPriority = statusPriority[newStatus] ?? 1;
 
         if (newPriority > currentPriority || previousStatus === newStatus) {
+          const updatePayload: any = {
+            status: newStatus,
+            asaas_payment_id: paymentId,
+          };
+          if (resolvedAcc?.accountId) updatePayload.gateway_account_id = resolvedAcc.accountId;
           const { error } = await supabase
             .from('orders')
-            .update({
-              status: newStatus,
-              asaas_payment_id: paymentId,
-            })
+            .update(updatePayload)
             .eq('id', externalRef);
 
           if (error) {
