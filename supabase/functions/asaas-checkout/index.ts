@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveGatewayCredentials } from "../_shared/gateway-credentials.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,20 +10,9 @@ const corsHeaders = {
 async function getAsaasConfig(supabaseUrl: string, supabaseKey: string) {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  const { data: apiKeyRow } = await supabase
-    .from('site_settings')
-    .select('value')
-    .eq('key', 'asaas_api_key')
-    .maybeSingle();
-
-  const { data: envRow } = await supabase
-    .from('site_settings')
-    .select('value')
-    .eq('key', 'asaas_environment')
-    .maybeSingle();
-
-  const apiKey = apiKeyRow?.value;
-  const environment = envRow?.value || 'sandbox';
+  const resolved = await resolveGatewayCredentials(supabase, 'asaas');
+  const apiKey = resolved.credentials.api_key;
+  const environment = resolved.environment;
 
   if (!apiKey) throw new Error('Asaas API Key não configurada');
 
@@ -30,7 +20,7 @@ async function getAsaasConfig(supabaseUrl: string, supabaseKey: string) {
     ? 'https://api.asaas.com/v3'
     : 'https://sandbox.asaas.com/api/v3';
 
-  return { apiKey, baseUrl, environment };
+  return { apiKey, baseUrl, environment, accountId: resolved.accountId };
 }
 
 function getRemoteIp(req: Request) {

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveGatewayCredentials, type GatewayKey } from "../_shared/gateway-credentials.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1135,7 +1136,7 @@ class PagarMeGateway implements PaymentGateway {
 // PAYMENT FACTORY
 // ────────────────────────────────────────────────────────
 
-async function createGateway(supabaseUrl: string, supabaseKey: string, gatewayOverride?: string): Promise<{ gateway: PaymentGateway; gatewayName: string }> {
+async function createGateway(supabaseUrl: string, supabaseKey: string, gatewayOverride?: string): Promise<{ gateway: PaymentGateway; gatewayName: string; accountId: string | null }> {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   let gatewayName: string;
@@ -1179,93 +1180,44 @@ async function createGateway(supabaseUrl: string, supabaseKey: string, gatewayOv
   }
 
   if (gatewayName === 'pagarme') {
-    const { data: pgmeEnvRow } = await supabase
-      .from('site_settings').select('value').eq('key', 'pagarme_environment').maybeSingle();
-    const pgmeEnv = pgmeEnvRow?.value || 'sandbox';
-    const { data: pgmeKeyRow } = await supabase
-      .from('site_settings').select('value').eq('key', `pagarme_secret_key_${pgmeEnv}`).maybeSingle();
-    let secretKey = pgmeKeyRow?.value;
-    if (!secretKey) {
-      const { data: fallback } = await supabase
-        .from('site_settings').select('value').eq('key', 'pagarme_secret_key').maybeSingle();
-      secretKey = fallback?.value;
-    }
+    const resolved = await resolveGatewayCredentials(supabase, 'pagarme');
+    const secretKey = resolved.credentials.secret_key;
     if (!secretKey) throw new Error('Secret Key do Pagar.me não configurada');
 
     const { data: afRow } = await supabase
       .from('site_settings').select('value').eq('key', 'pagarme_antifraud_enabled').maybeSingle();
     const antifraud = (afRow?.value ?? 'true') !== 'false';
 
-    console.log(`[PaymentFactory] Using Pagar.me gateway (env: ${pgmeEnv}, antifraud: ${antifraud})`);
-    return { gateway: new PagarMeGateway(secretKey, antifraud), gatewayName };
+    console.log(`[PaymentFactory] Using Pagar.me gateway (env: ${resolved.environment}, antifraud: ${antifraud}, account: ${resolved.accountId ?? 'legacy'})`);
+    return { gateway: new PagarMeGateway(secretKey, antifraud), gatewayName, accountId: resolved.accountId };
   }
 
   if (gatewayName === 'pagbank') {
-    const { data: pbTokenRow } = await supabase
-      .from('site_settings')
-      .select('value')
-      .eq('key', 'pagbank_token')
-      .maybeSingle();
-    const { data: pbEnvRow } = await supabase
-      .from('site_settings')
-      .select('value')
-      .eq('key', 'pagbank_environment')
-      .maybeSingle();
-
-    if (!pbTokenRow?.value) throw new Error('Token do PagBank não configurado');
-    console.log(`[PaymentFactory] Using PagBank gateway (env: ${pbEnvRow?.value || 'sandbox'})`);
-    return { gateway: new PagBankGateway(pbTokenRow.value, pbEnvRow?.value || 'sandbox'), gatewayName };
+    const resolved = await resolveGatewayCredentials(supabase, 'pagbank');
+    const token = resolved.credentials.token;
+    if (!token) throw new Error('Token do PagBank não configurado');
+    console.log(`[PaymentFactory] Using PagBank gateway (env: ${resolved.environment}, account: ${resolved.accountId ?? 'legacy'})`);
+    return { gateway: new PagBankGateway(token, resolved.environment), gatewayName, accountId: resolved.accountId };
   }
 
   if (gatewayName === 'mercadopago') {
-    // Read environment
-    const { data: mpEnvRow } = await supabase
-      .from('site_settings')
-      .select('value')
-      .eq('key', 'mercadopago_environment')
-      .maybeSingle();
-    const mpEnv = mpEnvRow?.value || 'sandbox';
-
-    // Read env-specific access token (with fallback to generic key)
-    const { data: tokenEnvRow } = await supabase
-      .from('site_settings')
-      .select('value')
-      .eq('key', `mercadopago_access_token_${mpEnv}`)
-      .maybeSingle();
-    
-    let accessToken = tokenEnvRow?.value;
-    if (!accessToken) {
-      const { data: tokenRow } = await supabase
-        .from('site_settings')
-        .select('value')
-        .eq('key', 'mercadopago_access_token')
-        .maybeSingle();
-      accessToken = tokenRow?.value;
-    }
-
+    const resolved = await resolveGatewayCredentials(supabase, 'mercadopago');
+    const accessToken = resolved.credentials.access_token;
     if (!accessToken) throw new Error('Access Token do Mercado Pago não configurado');
 
     // Build webhook notification URL from Supabase URL
     const notificationUrl = `${supabaseUrl}/functions/v1/mercadopago-webhook`;
 
-    console.log(`[PaymentFactory] Using MercadoPago gateway (env: ${mpEnv})`);
-    return { gateway: new MercadoPagoGateway(accessToken, notificationUrl), gatewayName };
+    console.log(`[PaymentFactory] Using MercadoPago gateway (env: ${resolved.environment}, account: ${resolved.accountId ?? 'legacy'})`);
+    return { gateway: new MercadoPagoGateway(accessToken, notificationUrl), gatewayName, accountId: resolved.accountId };
   }
 
   // Default: Asaas
-  const { data: apiKeyRow } = await supabase
-    .from('site_settings')
-    .select('value')
-    .eq('key', 'asaas_api_key')
-    .maybeSingle();
-  const { data: envRow } = await supabase
-    .from('site_settings')
-    .select('value')
-    .eq('key', 'asaas_environment')
-    .maybeSingle();
-
-  if (!apiKeyRow?.value) throw new Error('Asaas API Key não configurada');
-  return { gateway: new AsaasGateway(apiKeyRow.value, envRow?.value || 'sandbox'), gatewayName };
+  const resolved = await resolveGatewayCredentials(supabase, 'asaas');
+  const apiKey = resolved.credentials.api_key;
+  if (!apiKey) throw new Error('Asaas API Key não configurada');
+  console.log(`[PaymentFactory] Using Asaas gateway (env: ${resolved.environment}, account: ${resolved.accountId ?? 'legacy'})`);
+  return { gateway: new AsaasGateway(apiKey, resolved.environment), gatewayName, accountId: resolved.accountId };
 }
 
 // ────────────────────────────────────────────────────────
@@ -1314,7 +1266,7 @@ serve(async (req) => {
       }));
     }
 
-    const { gateway, gatewayName } = await createGateway(supabaseUrl, supabaseKey, payload.gatewayOverride);
+    const { gateway, gatewayName, accountId } = await createGateway(supabaseUrl, supabaseKey, payload.gatewayOverride);
     console.log(`[payment-checkout] Gateway resolved: ${gatewayName}${payload.gatewayOverride ? ' (via override)' : ''}`);
 
     // Set device session ID for anti-fraud (Mercado Pago only)
@@ -1354,6 +1306,7 @@ serve(async (req) => {
             asaas_payment_id: result.id,
             status: result.status || 'PENDING',
             payment_gateway: gatewayName,
+            gateway_account_id: accountId,
           }).eq('id', orderId);
         }
         break;
@@ -1377,6 +1330,7 @@ serve(async (req) => {
             asaas_payment_id: result.id,
             status: result.status || 'PENDING',
             payment_gateway: gatewayName,
+            gateway_account_id: accountId,
           };
           if (gatewayName === 'mercadopago') {
             updateData.total_value = toCurrencyNumber(value);
