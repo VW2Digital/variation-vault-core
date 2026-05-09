@@ -89,6 +89,7 @@ const MercadoPagoSettings = ({ isActive, onActivate }: Props) => {
   return (
     <div className="space-y-4">
       <GatewayToggles gateway="mercadopago" />
+      <GatewayAccountList gateway="mercadopago" />
       <EnvironmentSelect value={env} onChange={handleEnvChange} />
       <div className="space-y-2">
         <Label>Modo de Checkout</Label>
