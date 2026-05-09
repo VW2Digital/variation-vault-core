@@ -662,14 +662,7 @@ hdr "Tentando emitir certificados SSL"
 issue_ssl() {
     local domains=()
     for d in "$@"; do
-        # Só tenta se o domínio resolve em DNS público.
-        # Usa getent (sempre disponível) com fallback para `host` se existir.
-        if getent hosts "$d" >/dev/null 2>&1 \
-           || (command -v host >/dev/null 2>&1 && host "$d" >/dev/null 2>&1); then
-            domains+=(-d "$d")
-        else
-            warn "DNS de $d não resolve — pulando SSL para este domínio"
-        fi
+        domains+=(-d "$d")
     done
     [[ ${#domains[@]} -eq 0 ]] && return 0
 
@@ -680,8 +673,6 @@ issue_ssl() {
         ok "SSL emitido para: $*"
     else
         warn "Falha ao emitir SSL para $* — site continua acessível via HTTP"
-        warn "  Causas comuns: (1) DNS ainda não propagou para este servidor;"
-        warn "  (2) porta 80 bloqueada; (3) limite de emissões do Let's Encrypt."
         warn "  Para tentar manualmente depois: certbot --nginx -d $*"
     fi
 }
