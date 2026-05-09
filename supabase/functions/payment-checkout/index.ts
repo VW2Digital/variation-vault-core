@@ -1266,7 +1266,7 @@ serve(async (req) => {
       }));
     }
 
-    const { gateway, gatewayName } = await createGateway(supabaseUrl, supabaseKey, payload.gatewayOverride);
+    const { gateway, gatewayName, accountId } = await createGateway(supabaseUrl, supabaseKey, payload.gatewayOverride);
     console.log(`[payment-checkout] Gateway resolved: ${gatewayName}${payload.gatewayOverride ? ' (via override)' : ''}`);
 
     // Set device session ID for anti-fraud (Mercado Pago only)
@@ -1306,6 +1306,7 @@ serve(async (req) => {
             asaas_payment_id: result.id,
             status: result.status || 'PENDING',
             payment_gateway: gatewayName,
+            gateway_account_id: accountId,
           }).eq('id', orderId);
         }
         break;
@@ -1329,6 +1330,7 @@ serve(async (req) => {
             asaas_payment_id: result.id,
             status: result.status || 'PENDING',
             payment_gateway: gatewayName,
+            gateway_account_id: accountId,
           };
           if (gatewayName === 'mercadopago') {
             updateData.total_value = toCurrencyNumber(value);
