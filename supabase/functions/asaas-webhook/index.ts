@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  resolveAccountForOrder,
+  findAccountBySignature,
+} from "../_shared/gateway-credentials.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,7 +36,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // ─── TOKEN VALIDATION ───
+    // ─── EXTRACT INCOMING TOKEN ───
     // Check multiple sources: header (asaas-access-token), query param, or URL token
     const url = new URL(req.url);
     const incomingToken =
@@ -41,15 +45,33 @@ serve(async (req) => {
       url.searchParams.get('token') ||
       '';
 
-    const { data: tokenSetting } = await supabase
-      .from('site_settings')
-      .select('value')
-      .eq('key', 'asaas_webhook_token')
-      .maybeSingle();
+    const body = await req.json();
+    __logCtx.request_payload = body;
+    const { event, payment } = body;
+    __logCtx.event_type = event || null;
+    __logCtx.external_id = payment?.id || null;
+    if (payment?.externalReference) __logCtx.order_id = payment.externalReference;
 
-    const expectedToken = tokenSetting?.value || '';
+    // ─── IDENTIFY ACCOUNT + VALIDATE TOKEN ───
+    // 1) Try to bind to the account saved on the order. 2) If the bound
+    //    account's token doesn't match, try every active Asaas account.
+    //    3) Fall back to legacy site_settings (handled inside helpers).
+    const orderRefForToken: string | null = payment?.externalReference || null;
+    let resolvedAcc = await resolveAccountForOrder(supabase, 'asaas', orderRefForToken);
+    let expectedToken = (resolvedAcc.credentials.webhook_token as string) || '';
 
-    // Only validate if a token is configured; if empty, accept all (for initial setup)
+    if (!expectedToken || (incomingToken && incomingToken !== expectedToken)) {
+      // Try to find any active account whose token matches the incoming one
+      const match = await findAccountBySignature(supabase, 'asaas', async (creds) => {
+        const t = (creds.webhook_token as string) || '';
+        return !!t && !!incomingToken && t === incomingToken;
+      });
+      if (match) {
+        resolvedAcc = match;
+        expectedToken = (match.credentials.webhook_token as string) || '';
+      }
+    }
+
     if (expectedToken && incomingToken !== expectedToken) {
       console.error(`[Webhook] Invalid token. Got: "${incomingToken?.slice(0, 8)}..." Expected: "${expectedToken?.slice(0, 8)}..."`);
       __logCtx.signature_valid = false;
@@ -63,12 +85,16 @@ serve(async (req) => {
       __logCtx.signature_valid = true;
     }
 
-    const body = await req.json();
-    __logCtx.request_payload = body;
-    const { event, payment } = body;
-    __logCtx.event_type = event || null;
-    __logCtx.external_id = payment?.id || null;
-    if (payment?.externalReference) __logCtx.order_id = payment.externalReference;
+    // Persist account binding on the order if missing (for future webhooks)
+    if (orderRefForToken && resolvedAcc.accountId) {
+      try {
+        await supabase
+          .from('orders')
+          .update({ gateway_account_id: resolvedAcc.accountId })
+          .eq('id', orderRefForToken)
+          .is('gateway_account_id', null);
+      } catch {}
+    }
 
     console.log(`[Webhook] Event: ${event}, Payment ID: ${payment?.id}, Status: ${payment?.status}`);
 
