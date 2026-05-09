@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchSetting } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
-import { CreditCard, CheckCircle2, History } from 'lucide-react';
+import { CreditCard, CheckCircle2, History, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SettingsBackButton from './SettingsBackButton';
 import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 import FallbackOrderConfig from '@/components/admin/settings/FallbackOrderConfig';
+import ChooseGatewayDialog from '@/components/admin/settings/payment/ChooseGatewayDialog';
 import asaasLogo from '@/assets/gateway-asaas.png';
 import mercadoPagoLogo from '@/assets/gateway-mercadopago.png';
 import pagarMeLogo from '@/assets/gateway-pagarme.png';
@@ -24,6 +25,7 @@ const GATEWAYS: { key: GatewayKey; name: string; description: string; brandClass
 const SettingsPayment = () => {
   const [activeGateway, setActiveGateway] = useState<GatewayKey>('asaas');
   const [loading, setLoading] = useState(true);
+  const [chooseOpen, setChooseOpen] = useState(false);
 
   useEffect(() => {
     fetchSetting('payment_gateway').then((g) => {
@@ -38,11 +40,16 @@ const SettingsPayment = () => {
       <SettingsBackButton title="Gateways de Pagamento" description="Selecione um gateway para configurar. Apenas um pode estar ativo por vez." />
 
       <div className="flex justify-end">
-        <Button asChild variant="outline" size="sm" className="gap-2">
-          <Link to="/admin/configuracoes/pagamento/auditoria">
-            <History className="w-4 h-4" /> Histórico de alterações
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setChooseOpen(true)}>
+            <Plus className="w-4 h-4" /> Adicionar conta
+          </Button>
+          <Button asChild variant="outline" size="sm" className="gap-2">
+            <Link to="/admin/configuracoes/pagamento/auditoria">
+              <History className="w-4 h-4" /> Histórico de alterações
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div id="gateway-toggles" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 scroll-mt-24">
@@ -82,9 +89,20 @@ const SettingsPayment = () => {
             </Link>
           );
         })}
+        <button
+          type="button"
+          onClick={() => setChooseOpen(true)}
+          aria-label="Adicionar nova conta de gateway"
+          className="group aspect-square rounded-xl bg-card border border-dashed border-border/60 hover:border-primary hover:bg-accent/30 transition-all duration-200 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-primary"
+        >
+          <Plus className="w-10 h-10" strokeWidth={1.5} />
+          <span className="text-xs font-medium">Adicionar conta</span>
+        </button>
       </div>
 
       <FallbackOrderConfig />
+
+      <ChooseGatewayDialog open={chooseOpen} onOpenChange={setChooseOpen} />
     </div>
   );
 };
