@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
@@ -26,99 +26,74 @@ const evaluatePassword = (pwd: string): PasswordChecks => ({
 const strengthScore = (c: PasswordChecks) =>
   Number(c.length) + Number(c.upper) + Number(c.lower) + Number(c.digit);
 
+const formatCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+
 const ResetPassword = () => {
+  const initialEmail = new URL(window.location.href).searchParams.get('email') ?? '';
+  const [email, setEmail] = useState(initialEmail);
+  const [code, setCode] = useState('');
+  const [codeVerified, setCodeVerified] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [isRecovery, setIsRecovery] = useState(false);
-  const [resetToken, setResetToken] = useState<string | null>(null);
-  const [tokenEmail, setTokenEmail] = useState<string | null>(null);
-  const [verifying, setVerifying] = useState(false);
-  const [tokenError, setTokenError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  useEffect(() => {
-    // Listen for PASSWORD_RECOVERY event
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsRecovery(true);
-      }
-    });
-
-    // Hash-based token (links antigos do Supabase: #access_token=...&type=recovery)
-    const hash = window.location.hash;
-    if (hash.includes('type=recovery')) {
-      setIsRecovery(true);
-    }
-
-    const url = new URL(window.location.href);
-
-    // Token customizado (nova edge function via SMTP Hostinger)
-    const customToken = url.searchParams.get('reset_token');
-    if (customToken) {
-      setVerifying(true);
-      supabase.functions
-        .invoke('verify-password-reset', { body: { token: customToken, action: 'verify' } })
-        .then(({ data, error }) => {
-          if (error || (data as any)?.error) {
-            const msg = (data as any)?.error || 'Link inválido ou expirado. Solicite um novo link de redefinição.';
-            setTokenError(msg);
-            toast({
-              title: 'Link inválido ou expirado',
-              description: msg,
-              variant: 'destructive',
-            });
-            return;
-          }
-          setResetToken(customToken);
-          setTokenEmail((data as any)?.email ?? null);
-          setIsRecovery(true);
-        })
-        .finally(() => setVerifying(false));
-    }
-
-    // Query-based token (links antigos do Supabase: ?code=... PKCE flow)
-    const code = url.searchParams.get('code');
-    if (code && !customToken) {
-      setVerifying(true);
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-        if (!error) {
-          setIsRecovery(true);
-          // Limpa o code da URL para evitar reutilização
-          window.history.replaceState({}, '', window.location.pathname);
-        } else {
-          setTokenError('Link inválido ou expirado. Solicite um novo link de redefinição.');
-          toast({
-            title: 'Link inválido ou expirado',
-            description: 'Solicite um novo link de redefinição.',
-            variant: 'destructive',
-          });
-        }
-      }).finally(() => setVerifying(false));
-    }
-
-    // Verifica se já existe sessão ativa de recovery (caso o usuário recarregue)
-    if (!customToken) {
-      supabase.auth.getSession().then(({ data }) => {
-        if (data.session) setIsRecovery(true);
-      });
-    }
-
-    return () => subscription.unsubscribe();
-  }, []);
-
   const checks = evaluatePassword(password);
   const score = strengthScore(checks);
   const allValid = score === 4;
   const passwordsMatch = password.length > 0 && password === confirmPassword;
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setFormError('Informe o email usado para solicitar a recuperação.');
+      return;
+    }
+
+    if (code.length !== 8) {
+      setFormError('Cole o código de 8 caracteres recebido por email.');
+      return;
+    }
+
+    setVerifyingCode(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-password-reset', {
+        body: { email: normalizedEmail, code, action: 'verify' },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+
+      setEmail(normalizedEmail);
+      setCodeVerified(true);
+      toast({
+        title: 'Código validado!',
+        description: 'Agora você já pode criar uma nova senha.',
+      });
+    } catch (err: any) {
+      const msg = err?.message || 'Código inválido ou expirado. Solicite um novo código.';
+      setFormError(msg);
+      toast({ title: 'Código inválido', description: msg, variant: 'destructive' });
+    } finally {
+      setVerifyingCode(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+
+    if (!codeVerified) {
+      setFormError('Valide o código enviado por email antes de alterar a senha.');
+      return;
+    }
     if (!allValid) {
       setFormError('A senha não atende aos requisitos mínimos de segurança.');
       return;
@@ -127,20 +102,15 @@ const ResetPassword = () => {
       setFormError('As senhas não coincidem.');
       return;
     }
+
     setLoading(true);
     try {
-      if (resetToken) {
-        // Fluxo customizado via edge function
-        const { data, error } = await supabase.functions.invoke('verify-password-reset', {
-          body: { token: resetToken, action: 'reset', password },
-        });
-        if (error) throw error;
-        if ((data as any)?.error) throw new Error((data as any).error);
-      } else {
-        // Fluxo Supabase Auth padrão (sessão recovery)
-        const { error } = await supabase.auth.updateUser({ password });
-        if (error) throw error;
-      }
+      const { data, error } = await supabase.functions.invoke('verify-password-reset', {
+        body: { email: normalizedEmail, code, action: 'reset', password },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+
       setSuccess(true);
       toast({
         title: 'Senha redefinida com sucesso!',
@@ -183,33 +153,25 @@ const ResetPassword = () => {
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-lg border-border/50">
           <CardHeader className="text-center space-y-4 pb-2">
-            <div className={`mx-auto w-14 h-14 rounded-full flex items-center justify-center ${
-              tokenError && !isRecovery ? 'bg-destructive/10' : 'bg-primary/10'
-            }`}>
+            <div className="mx-auto w-14 h-14 rounded-full flex items-center justify-center bg-primary/10">
               {success ? (
                 <CheckCircle2 className="w-7 h-7 text-primary" />
-              ) : tokenError && !isRecovery ? (
-                <AlertTriangle className="w-7 h-7 text-destructive" />
+              ) : codeVerified ? (
+                <CheckCircle2 className="w-7 h-7 text-primary" />
               ) : (
                 <KeyRound className="w-7 h-7 text-primary" />
               )}
             </div>
             <div>
               <h1 className="text-2xl font-bold text-foreground">
-                {success
-                  ? 'Senha Redefinida!'
-                  : tokenError && !isRecovery
-                  ? 'Link Inválido'
-                  : 'Redefinir Senha'}
+                {success ? 'Senha Redefinida!' : codeVerified ? 'Criar Nova Senha' : 'Validar Código'}
               </h1>
               <p className="text-muted-foreground text-sm mt-1">
                 {success
                   ? 'Sua senha foi alterada com sucesso. Redirecionando...'
-                  : tokenError && !isRecovery
-                  ? tokenError
-                  : tokenEmail
-                  ? `Crie uma nova senha para ${tokenEmail}`
-                  : 'Digite sua nova senha abaixo'}
+                  : codeVerified
+                  ? `Código validado para ${email}`
+                  : 'Cole o código recebido por email para liberar a troca de senha.'}
               </p>
             </div>
           </CardHeader>
@@ -220,25 +182,50 @@ const ResetPassword = () => {
                   <Button variant="outline">Ir para o Login</Button>
                 </Link>
               </div>
-            ) : verifying ? (
-              <div className="flex flex-col items-center py-6 gap-2 text-muted-foreground">
-                <Loader2 className="w-6 h-6 animate-spin" />
-                <p className="text-sm">Validando link de redefinição...</p>
-              </div>
-            ) : !isRecovery ? (
-              <div className="text-center py-4 space-y-3">
-                <p className="text-muted-foreground text-sm">
-                  {tokenError ? 'O link pode ter expirado ou já ter sido utilizado.' : 'Link de recuperação inválido ou expirado.'}
-                </p>
-                <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                  <Link to="/recuperar-senha">
-                    <Button>Solicitar novo link</Button>
-                  </Link>
-                  <Link to="/cliente/login">
-                    <Button variant="outline">Voltar ao Login</Button>
-                  </Link>
+            ) : !codeVerified ? (
+              <form onSubmit={handleVerifyCode} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                  />
                 </div>
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="recovery-code">Código de recuperação</Label>
+                  <Input
+                    id="recovery-code"
+                    inputMode="text"
+                    placeholder="ABCD2345"
+                    value={code}
+                    onChange={(e) => setCode(formatCode(e.target.value))}
+                    required
+                    maxLength={8}
+                    autoComplete="one-time-code"
+                    className="text-center text-lg tracking-[0.35em] font-semibold uppercase"
+                  />
+                </div>
+                {formError && (
+                  <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                    <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span>{formError}</span>
+                  </div>
+                )}
+                <Button type="submit" className="w-full" disabled={verifyingCode}>
+                  {verifyingCode ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Validar código
+                </Button>
+                <Link to="/recuperar-senha" className="block">
+                  <Button type="button" variant="ghost" className="w-full">
+                    Solicitar novo código
+                  </Button>
+                </Link>
+              </form>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
