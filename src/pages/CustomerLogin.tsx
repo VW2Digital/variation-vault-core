@@ -112,7 +112,7 @@ const CustomerLogin = () => {
       if ((data as any)?.error) throw new Error((data as any).error);
       toast({
         title: 'Email enviado!',
-        description: 'Verifique sua caixa de entrada para redefinir a senha.',
+        description: 'Verifique sua caixa de entrada e copie o código de recuperação.',
       });
       setIsForgotPassword(false);
     } catch (err: any) {
@@ -151,7 +151,7 @@ const CustomerLogin = () => {
               </h1>
               <p className="text-muted-foreground text-sm mt-1">
                 {isForgotPassword
-                  ? 'Informe seu email para receber o link de redefinição'
+                  ? 'Informe seu email para receber o código de redefinição'
                   : isSignUp
                     ? 'Crie sua conta para acompanhar seus pedidos'
                     : 'Faça login para acompanhar seus pedidos'
@@ -175,7 +175,7 @@ const CustomerLogin = () => {
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Enviar Link de Redefinição
+                  Enviar código de redefinição
                 </Button>
                 <button
                   type="button"
