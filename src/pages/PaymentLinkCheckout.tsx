@@ -242,6 +242,8 @@ export default function PaymentLinkCheckout() {
         : (await fetchSetting('asaas_environment') || 'sandbox');
 
       // 1. Create order
+      const { getResellerCode } = await import("@/lib/reseller");
+      const _resellerCode = getResellerCode();
       const { data: orderData, error: orderError } = await supabase.from('orders').insert({
         customer_name: name.trim(),
         customer_email: email.trim(),
@@ -265,6 +267,7 @@ export default function PaymentLinkCheckout() {
         customer_postal_code: postalCode.replace(/\D/g, ''),
         coupon_code: appliedCouponCode || null,
         coupon_discount: couponDiscount || 0,
+        ...(_resellerCode ? { reseller_code: _resellerCode } : {}),
       }).select('id').single();
 
       if (orderError) throw orderError;
