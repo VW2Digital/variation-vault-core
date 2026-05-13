@@ -559,8 +559,8 @@ export default function FlashCampaignFormPage() {
                   </div>
                   <div>
                     <Label>Ícone</Label>
-                    <Select value={b.icon || ''} onValueChange={(v) => {
-                      const next = [...thankYouButtons]; next[i] = { ...b, icon: v }; setThankYouButtons(next);
+                    <Select value={b.icon || 'none'} onValueChange={(v) => {
+                      const next = [...thankYouButtons]; next[i] = { ...b, icon: v === 'none' ? '' : v }; setThankYouButtons(next);
                     }}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
