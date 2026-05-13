@@ -282,6 +282,16 @@ export default function FlashCampaignFormPage() {
 
       <AdminSection title="Informações básicas">
         <div className="grid gap-4">
+          <div>
+            <Label>Tipo de campanha *</Label>
+            <Select value={mode} onValueChange={(v) => setMode(v as CampaignMode)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sale">Venda (com checkout)</SelectItem>
+                <SelectItem value="lead">Somente captura de lead (sem pagamento)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label>Título interno *</Label>
@@ -292,6 +302,8 @@ export default function FlashCampaignFormPage() {
               <Input value={slug} onChange={e => setSlug(e.target.value)} placeholder="auto" />
             </div>
           </div>
+          {mode === 'sale' && (
+            <>
           <div>
             <Label>Origem do checkout *</Label>
             <Select value={source} onValueChange={(v) => setSource(v as Source)}>
@@ -395,6 +407,8 @@ export default function FlashCampaignFormPage() {
                 </div>
               )}
             </div>
+          )}
+            </>
           )}
 
           <div className="grid gap-4 md:grid-cols-2">
