@@ -1,0 +1,1 @@
+ALTER TABLE public.flash_campaigns ALTER COLUMN payment_link_id DROP NOT NULL;

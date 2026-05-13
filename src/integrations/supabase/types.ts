@@ -624,7 +624,7 @@ export type Database = {
           lead_form_title: string | null
           max_installments: number
           mode: string
-          payment_link_id: string
+          payment_link_id: string | null
           pix_discount: number
           product_id: string | null
           promo_price: number | null
@@ -662,7 +662,7 @@ export type Database = {
           lead_form_title?: string | null
           max_installments?: number
           mode?: string
-          payment_link_id: string
+          payment_link_id?: string | null
           pix_discount?: number
           product_id?: string | null
           promo_price?: number | null
@@ -700,7 +700,7 @@ export type Database = {
           lead_form_title?: string | null
           max_installments?: number
           mode?: string
-          payment_link_id?: string
+          payment_link_id?: string | null
           pix_discount?: number
           product_id?: string | null
           promo_price?: number | null
