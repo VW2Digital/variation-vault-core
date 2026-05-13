@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Code, Plus, Trash2, Globe } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import SettingsBackButton from './SettingsBackButton';
 import SettingsSkeleton from '@/components/admin/settings/SettingsSkeleton';
 import DeployUpdateCard from '@/components/admin/DeployUpdateCard';
@@ -23,6 +24,28 @@ interface ScriptEntry {
 }
 
 const generateId = () => crypto.randomUUID();
+
+// Páginas públicas selecionáveis (não-admin). Use * curinga para rotas dinâmicas.
+const PAGE_OPTIONS: { path: string; label: string }[] = [
+  { path: '/', label: 'Home / Catálogo' },
+  { path: '/catalogo', label: 'Catálogo' },
+  { path: '/produto/*', label: 'Página de produto' },
+  { path: '/checkout/*', label: 'Checkout (produto)' },
+  { path: '/carrinho', label: 'Carrinho' },
+  { path: '/checkout-carrinho', label: 'Checkout (carrinho)' },
+  { path: '/pagar/*', label: 'Link de pagamento' },
+  { path: '/relampago/*', label: 'Campanha relâmpago' },
+  { path: '/relampago/*/obrigado', label: 'Obrigado (relâmpago)' },
+  { path: '/cliente/login', label: 'Login do cliente' },
+  { path: '/minha-conta', label: 'Minha conta' },
+  { path: '/recuperar-senha', label: 'Recuperar senha' },
+  { path: '/redefinir-senha', label: 'Redefinir senha' },
+  { path: '/contato', label: 'Contato' },
+  { path: '/politica-de-privacidade', label: 'Política de privacidade' },
+  { path: '/termos-de-uso', label: 'Termos de uso' },
+  { path: '/login', label: 'Login admin' },
+  { path: '/admin/*', label: 'Área administrativa' },
+];
 
 const parseScripts = (raw: string): ScriptEntry[] => {
   try {
@@ -104,15 +127,55 @@ const ScriptList = ({
               </Select>
             </div>
             {(script.scope === 'include' || script.scope === 'exclude') && (
-              <div className="space-y-1 md:col-span-2">
-                <Label className="text-xs">Caminhos (um por linha, suporta * curinga)</Label>
-                <textarea
-                  className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono"
-                  value={(script.paths || []).join('\n')}
-                  onChange={(e) => updateScript(script.id, 'paths', e.target.value.split('\n').map((p) => p.trim()).filter(Boolean))}
-                  placeholder={'/\n/checkout/*\n/produto/*'}
-                />
-                <p className="text-[10px] text-muted-foreground">Ex.: <code>/</code> só home, <code>/checkout/*</code> qualquer checkout, <code>/admin/*</code> área admin.</p>
+              <div className="space-y-2 md:col-span-2">
+                <Label className="text-xs">
+                  {script.scope === 'include' ? 'Selecione as páginas onde aplicar' : 'Selecione as páginas a EXCLUIR'}
+                </Label>
+                <div className="border border-input rounded-md p-3 max-h-48 overflow-y-auto bg-background">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {PAGE_OPTIONS.map((opt) => {
+                      const checked = (script.paths || []).includes(opt.path);
+                      return (
+                        <label
+                          key={opt.path}
+                          className="flex items-start gap-2 text-xs cursor-pointer hover:bg-muted/50 rounded px-2 py-1"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(v) => {
+                              const current = script.paths || [];
+                              const next = v
+                                ? [...current, opt.path]
+                                : current.filter((p) => p !== opt.path);
+                              updateScript(script.id, 'paths', next);
+                            }}
+                            className="mt-0.5"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{opt.label}</div>
+                            <div className="text-muted-foreground font-mono text-[10px] truncate">{opt.path}</div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    Caminhos personalizados (avançado)
+                  </summary>
+                  <textarea
+                    className="mt-2 flex min-h-[50px] w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono"
+                    value={(script.paths || []).filter((p) => !PAGE_OPTIONS.some((o) => o.path === p)).join('\n')}
+                    onChange={(e) => {
+                      const custom = e.target.value.split('\n').map((p) => p.trim()).filter(Boolean);
+                      const fromOptions = (script.paths || []).filter((p) => PAGE_OPTIONS.some((o) => o.path === p));
+                      updateScript(script.id, 'paths', [...fromOptions, ...custom]);
+                    }}
+                    placeholder={'/minha-rota-customizada\n/relatorio/*'}
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">Suporta <code>*</code> como curinga.</p>
+                </details>
               </div>
             )}
           </div>
