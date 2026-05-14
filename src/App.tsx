@@ -25,6 +25,7 @@ import PaymentLinkCheckout from "./pages/PaymentLinkCheckout";
 import FlashCampaignPage from "./pages/FlashCampaignPage";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import RetatrutideRedirect from "./pages/RetatrutideRedirect";
 
 // Admin (lazy - só carrega quando acessado)
 const AdminLayout = lazy(() => import("./pages/AdminLayout"));
