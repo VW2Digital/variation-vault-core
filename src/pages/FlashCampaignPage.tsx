@@ -7,6 +7,14 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Zap, Clock, Flame, ShieldCheck, Send } from 'lucide-react';
 
+const formatPhone = (v: string) => {
+  const digits = v.replace(/\D/g, '').slice(0, 11);
+  if (digits.length === 0) return '';
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+};
+
 interface Campaign {
   id: string; slug: string; title: string; headline: string; subheadline: string;
   cta_text: string; payment_link_id: string; expires_at: string;
@@ -284,7 +292,8 @@ export default function FlashCampaignPage() {
             </div>
             <div>
               <Label className="text-white/80">WhatsApp</Label>
-              <Input value={leadPhone} onChange={e => setLeadPhone(e.target.value)}
+              <Input value={leadPhone} onChange={e => setLeadPhone(formatPhone(e.target.value))}
+                     inputMode="tel" maxLength={15}
                      className="bg-white/10 border-white/20 text-white placeholder:text-white/40" placeholder="(11) 99999-9999" required />
             </div>
             <Button type="submit" size="lg" disabled={submittingLead}
