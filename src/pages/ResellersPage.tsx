@@ -78,6 +78,7 @@ export default function ResellersPage() {
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState<Reseller | null>(null);
   const [detailOrders, setDetailOrders] = useState<any[]>([]);
+  const [detailEvents, setDetailEvents] = useState<any[]>([]);
   const [baseUrl, setBaseUrl] = useState("");
 
   useEffect(() => {
