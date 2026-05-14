@@ -604,7 +604,7 @@ const CheckoutForm = ({ productName, productId, cartProductIds, paymentDescripti
         orderId: _orderId,
         productName,
         amount: finalTotal ?? totalValue,
-        metadata: { payment_method: paymentMethodType },
+        metadata: { customer_name: name.trim(), email: email.trim(), payment_method: paymentMethodType },
       });
     }
     return _orderId;
