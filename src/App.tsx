@@ -25,6 +25,7 @@ import PaymentLinkCheckout from "./pages/PaymentLinkCheckout";
 import FlashCampaignPage from "./pages/FlashCampaignPage";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import RetatrutideRedirect from "./pages/RetatrutideRedirect";
 
 // Admin (lazy - só carrega quando acessado)
 const AdminLayout = lazy(() => import("./pages/AdminLayout"));
@@ -118,24 +119,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Catalog />} />
           <Route path="/catalogo" element={<Catalog />} />
-          <Route
-            path="/retatrutide"
-            element={(() => {
-              if (typeof window !== "undefined") {
-                window.location.replace("https://bula.pharmaliberty.com/retratutide/");
-              }
-              return null;
-            })()}
-          />
-          <Route
-            path="/retratutide"
-            element={(() => {
-              if (typeof window !== "undefined") {
-                window.location.replace("https://bula.pharmaliberty.com/retratutide/");
-              }
-              return null;
-            })()}
-          />
+          <Route path="/retatrutide" element={<RetatrutideRedirect />} />
           <Route path="/produto/:id" element={<ProductCheckout />} />
           <Route path="/checkout/:id" element={<Checkout />} />
           <Route path="/carrinho" element={<CartPage />} />
