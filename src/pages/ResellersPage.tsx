@@ -450,7 +450,36 @@ export default function ResellersPage() {
           <DialogHeader>
             <DialogTitle>{detail?.name} — últimos pedidos</DialogTitle>
           </DialogHeader>
-          <div className="overflow-x-auto">
+          <div className="space-y-6 overflow-x-auto">
+            <div>
+              <h3 className="text-sm font-semibold mb-2">Eventos do funil (últimos 50)</h3>
+              {detailEvents.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum evento registrado ainda.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Evento</TableHead>
+                      <TableHead>Produto</TableHead>
+                      <TableHead>Valor</TableHead>
+                      <TableHead>Sessão</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {detailEvents.map((e: any, idx: number) => (
+                      <TableRow key={idx}>
+                        <TableCell className="text-xs">{new Date(e.created_at).toLocaleString("pt-BR")}</TableCell>
+                        <TableCell><Badge variant="secondary">{e.event_type}</Badge></TableCell>
+                        <TableCell className="text-xs">{e.product_name || "—"}</TableCell>
+                        <TableCell className="text-xs">{e.amount ? `R$ ${Number(e.amount).toFixed(2)}` : "—"}</TableCell>
+                        <TableCell className="text-xs font-mono">{e.session_id ? String(e.session_id).slice(0, 8) : "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
             {detailOrders.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhum pedido vinculado ainda.</p>
             ) : (
