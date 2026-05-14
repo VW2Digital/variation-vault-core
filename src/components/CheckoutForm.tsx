@@ -547,7 +547,7 @@ const CheckoutForm = ({ productName, productId, cartProductIds, paymentDescripti
 
   const createOrder = async (paymentMethodType: string, asaasCustomerIdValue = customerId, finalTotal?: number): Promise<string> => {
     const { data: { session } } = await supabase.auth.getSession();
-    const { getResellerCode } = await import("@/lib/reseller");
+    const { getResellerCode, trackResellerEvent } = await import("@/lib/reseller");
     const _resellerCode = getResellerCode();
     const orderData: any = {
       customer_name: name.trim(),
@@ -598,7 +598,16 @@ const CheckoutForm = ({ productName, productId, cartProductIds, paymentDescripti
       }
       throw new Error('Erro ao criar pedido');
     }
-    return (data as any).id;
+    const _orderId = (data as any).id as string;
+    if (_resellerCode) {
+      void trackResellerEvent("order_created", {
+        orderId: _orderId,
+        productName,
+        amount: finalTotal ?? totalValue,
+        metadata: { payment_method: paymentMethodType },
+      });
+    }
+    return _orderId;
   };
 
   const formatCpf = (v: string) => {
