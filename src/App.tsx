@@ -118,6 +118,24 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Catalog />} />
           <Route path="/catalogo" element={<Catalog />} />
+          <Route
+            path="/retatrutide"
+            element={(() => {
+              if (typeof window !== "undefined") {
+                window.location.replace("https://bula.pharmaliberty.com/retratutide/");
+              }
+              return null;
+            })()}
+          />
+          <Route
+            path="/retratutide"
+            element={(() => {
+              if (typeof window !== "undefined") {
+                window.location.replace("https://bula.pharmaliberty.com/retratutide/");
+              }
+              return null;
+            })()}
+          />
           <Route path="/produto/:id" element={<ProductCheckout />} />
           <Route path="/checkout/:id" element={<Checkout />} />
           <Route path="/carrinho" element={<CartPage />} />
