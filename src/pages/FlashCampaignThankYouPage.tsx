@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, MessageCircle, Download, Link2, ExternalLink, Mail, Phone, Gift, Star, Heart, Send } from 'lucide-react';
+import { CheckCircle2, Download, Link2, ExternalLink, Mail, Phone, Gift, Star, Heart, Send, MessageSquare } from 'lucide-react';
+import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebook, FaYoutube, FaTiktok } from 'react-icons/fa';
 
 interface ThankYouButton {
   label: string;
@@ -24,8 +25,13 @@ interface Campaign {
 }
 
 const ICONS: Record<string, any> = {
-  whatsapp: MessageCircle,
-  message: MessageCircle,
+  whatsapp: FaWhatsapp,
+  telegram: FaTelegram,
+  instagram: FaInstagram,
+  facebook: FaFacebook,
+  youtube: FaYoutube,
+  tiktok: FaTiktok,
+  message: MessageSquare,
   download: Download,
   link: Link2,
   external: ExternalLink,
