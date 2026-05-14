@@ -1210,6 +1210,14 @@ const CheckoutForm = ({ productName, productId, cartProductIds, paymentDescripti
           request_payload: { productName, dosage, quantity, totalValue, installments },
         });
       } catch { /* non-blocking */ }
+      try {
+        const { trackResellerEvent } = await import("@/lib/reseller");
+        void trackResellerEvent("payment_failed", {
+          productName,
+          amount: totalValue,
+          metadata: { payment_method: paymentMethod, installments, error: rawMessage },
+        });
+      } catch { /* non-blocking */ }
 
       // Notify admin via WhatsApp + email (non-blocking)
       try {
