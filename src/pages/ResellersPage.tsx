@@ -461,6 +461,7 @@ export default function ResellersPage() {
                     <TableRow>
                       <TableHead>Data</TableHead>
                       <TableHead>Evento</TableHead>
+                      <TableHead>Cliente</TableHead>
                       <TableHead>Produto</TableHead>
                       <TableHead>Valor</TableHead>
                       <TableHead>Sessão</TableHead>
@@ -471,6 +472,9 @@ export default function ResellersPage() {
                       <TableRow key={idx}>
                         <TableCell className="text-xs">{new Date(e.created_at).toLocaleString("pt-BR")}</TableCell>
                         <TableCell><Badge variant="secondary">{e.event_type}</Badge></TableCell>
+                        <TableCell className="text-xs">
+                          {e.metadata?.customer_name || e.metadata?.email || "—"}
+                        </TableCell>
                         <TableCell className="text-xs">{e.product_name || "—"}</TableCell>
                         <TableCell className="text-xs">{e.amount ? `R$ ${Number(e.amount).toFixed(2)}` : "—"}</TableCell>
                         <TableCell className="text-xs font-mono">{e.session_id ? String(e.session_id).slice(0, 8) : "—"}</TableCell>

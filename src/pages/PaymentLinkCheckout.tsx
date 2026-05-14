@@ -300,7 +300,7 @@ export default function PaymentLinkCheckout() {
           orderId,
           productName: link.title,
           amount: finalValue,
-          metadata: { payment_method: paymentMethod, payment_link_slug: slug },
+          metadata: { customer_name: name.trim(), email: email.trim(), payment_method: paymentMethod, payment_link_slug: slug },
         });
       }
 
@@ -444,7 +444,7 @@ export default function PaymentLinkCheckout() {
         void trackResellerEvent("payment_failed", {
           productName: link?.title,
           amount: link?.amount,
-          metadata: { payment_method: paymentMethod, payment_link_slug: slug, error: rawMsg },
+          metadata: { customer_name: name.trim(), email: email.trim(), payment_method: paymentMethod, payment_link_slug: slug, error: rawMsg },
         });
       } catch { /* non-blocking */ }
     } finally {
