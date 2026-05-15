@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, ArrowLeft, Download, Search } from 'lucide-react';
+import { Users, ArrowLeft, Download, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Lead {
   id: string; name: string; email: string; phone: string | null;
@@ -20,6 +20,8 @@ export default function FlashCampaignLeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 30;
 
   useEffect(() => {
     if (!id) return;
@@ -39,6 +41,13 @@ export default function FlashCampaignLeadsPage() {
     const s = q.toLowerCase();
     return l.name.toLowerCase().includes(s) || l.email.toLowerCase().includes(s) || (l.phone || '').includes(s);
   });
+
+  useEffect(() => { setPage(1); }, [q]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const paginated = filtered.slice(pageStart, pageStart + PAGE_SIZE);
 
   const exportCsv = () => {
     const header = 'Nome,Email,WhatsApp,Data\n';
@@ -90,7 +99,7 @@ export default function FlashCampaignLeadsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map(l => (
+                {paginated.map(l => (
                   <TableRow key={l.id}>
                     <TableCell className="font-medium">{l.name}</TableCell>
                     <TableCell>{l.email}</TableCell>
@@ -101,6 +110,22 @@ export default function FlashCampaignLeadsPage() {
                 ))}
               </TableBody>
             </Table>
+          )}
+          {!loading && filtered.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between pt-2 border-t">
+              <div className="text-xs text-muted-foreground">
+                Mostrando {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)} de {filtered.length}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <span className="text-xs">Página {currentPage} de {totalPages}</span>
+                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
