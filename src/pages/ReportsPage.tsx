@@ -276,7 +276,7 @@ const ReportsPage = () => {
       <Card className="border-border/40 shadow-sm">
         <CardContent className="p-4 sm:p-6">
           <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="flex flex-col gap-1.5">
                 <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data início</label>
                 <Popover>
@@ -344,32 +344,30 @@ const ReportsPage = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Período rápido</label>
+                <Select value="" onValueChange={(v) => setQuickPeriod(Number(v))}>
+                  <SelectTrigger className="h-9 text-sm w-full">
+                    <SelectValue placeholder="Selecionar período" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">7 dias</SelectItem>
+                    <SelectItem value="30">30 dias</SelectItem>
+                    <SelectItem value="90">90 dias</SelectItem>
+                    <SelectItem value="365">1 ano</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/40">
-              {[
-                { label: '7 dias', days: 7 },
-                { label: '30 dias', days: 30 },
-                { label: '90 dias', days: 90 },
-                { label: '1 ano', days: 365 },
-              ].map((p) => (
-                <Button
-                  key={p.days}
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs h-8"
-                  onClick={() => setQuickPeriod(p.days)}
-                >
-                  {p.label}
-                </Button>
-              ))}
-              {(startDate !== fmt(subDays(today, 30)) || endDate !== fmt(today) || grouping !== 'day') && (
+            {(startDate !== fmt(subDays(today, 30)) || endDate !== fmt(today) || grouping !== 'day') && (
+              <div className="flex justify-end">
                 <Button variant="ghost" size="sm" className="text-xs h-8 gap-1 text-muted-foreground" onClick={clearFilters}>
                   <X className="w-3 h-3" />
                   Limpar
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
