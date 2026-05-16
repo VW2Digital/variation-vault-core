@@ -205,9 +205,6 @@ const Catalog = () => {
       {/* Banner Carousel */}
       <BannerCarousel />
 
-      {/* Combos em destaque */}
-      <CombosSection />
-
       {/* Trust Bar - Marquee */}
       <div className="border-b border-border/30 overflow-hidden" style={{ background: trustBarBg }}>
         <div className="py-3">
@@ -238,6 +235,10 @@ const Catalog = () => {
           </div>
         </div>
       </div>
+
+      {/* Combos em destaque */}
+      <CombosSection />
+
       {/* Hero */}
       <AnimatedSection variant="fadeUp" className="bg-gradient-to-b from-primary/5 to-transparent py-12 text-center">
         <div className="max-w-3xl mx-auto px-4">
