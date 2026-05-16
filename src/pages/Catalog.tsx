@@ -333,7 +333,7 @@ const Catalog = () => {
           <div className="mt-8 mb-4 flex items-center gap-3">
             <Package className="w-5 h-5 text-primary shrink-0" />
             <div>
-              <h2 className="text-lg sm:text-xl font-bold text-foreground leading-tight">Produtos individuais</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-foreground leading-tight">​Catálogo </h2>
               <p className="text-xs text-muted-foreground">Compre unidades avulsas das nossas variações</p>
             </div>
             <div className="flex-1 h-px bg-border ml-2" />
