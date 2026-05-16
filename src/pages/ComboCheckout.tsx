@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ShieldCheck, CreditCard, QrCode, CheckCircle2, Clock, Boxes } from 'lucide-react';
+import { Loader2, ShieldCheck, CreditCard, QrCode, CheckCircle2, Clock, Boxes, TrendingDown } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -410,6 +410,8 @@ export default function ComboCheckout() {
 
   const selectedOpt = installmentOptions.find((o) => o.parcelas === installments);
   const pixPrice = combo.price - combo.price * ((combo.pix_discount_percent || 0) / 100);
+  const savingsValue = Math.max(0, combo.compare_price - combo.price);
+  const savingsPercent = combo.compare_price > 0 ? Math.round((savingsValue / combo.compare_price) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -443,6 +445,40 @@ export default function ComboCheckout() {
             {combo.description && <p className="text-sm text-muted-foreground whitespace-pre-line text-left pt-2">{combo.description}</p>}
           </CardContent>
         </Card>
+
+        {!pixData && savingsValue > 0 && (
+          <Card className="border-green-500/30 bg-green-500/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingDown className="w-5 h-5 text-green-600" />
+                Resumo da oferta
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2.5">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Comprando avulso</span>
+                <span className="font-medium line-through text-muted-foreground">{fmtBRL(combo.compare_price)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Preço do combo</span>
+                <span className="font-bold text-primary text-lg">{fmtBRL(combo.price)}</span>
+              </div>
+              {combo.pix_discount_percent > 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Pagando no PIX</span>
+                  <span className="font-semibold text-primary">{fmtBRL(pixPrice)}</span>
+                </div>
+              )}
+              <div className="border-t border-green-500/20 pt-2.5 flex items-center justify-between">
+                <span className="text-sm font-medium">Você economiza</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold bg-green-600 text-white px-2 py-0.5 rounded-full">−{savingsPercent}%</span>
+                  <span className="font-bold text-green-600">{fmtBRL(savingsValue)}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {pixData ? (
           <Card>
