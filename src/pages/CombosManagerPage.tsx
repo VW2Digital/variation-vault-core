@@ -161,6 +161,17 @@ function ProductPicker({
             <CommandGroup>
               {filtered.map((p) => {
                 const inStockCount = p.variations.filter((v) => v.in_stock).length;
+                const prices = p.variations.map((v) =>
+                  v.is_offer && v.offer_price > 0 ? v.offer_price : v.price,
+                ).filter((n) => n > 0);
+                const minPrice = prices.length ? Math.min(...prices) : 0;
+                const maxPrice = prices.length ? Math.max(...prices) : 0;
+                const priceLabel = prices.length
+                  ? minPrice === maxPrice
+                    ? fmtBRL(minPrice)
+                    : `${fmtBRL(minPrice)} – ${fmtBRL(maxPrice)}`
+                  : '—';
+                const allOut = p.variations.length > 0 && inStockCount === 0;
                 return (
                   <CommandItem
                     key={p.id}
@@ -171,11 +182,26 @@ function ProductPicker({
                     }}
                   >
                     <Check className={`mr-2 h-4 w-4 ${value === p.id ? 'opacity-100' : 'opacity-0'}`} />
+                    <span
+                      aria-hidden
+                      className={`mr-2 h-2 w-2 shrink-0 rounded-full ${
+                        allOut ? 'bg-destructive' : inStockCount > 0 ? 'bg-emerald-500' : 'bg-muted-foreground/40'
+                      }`}
+                      title={allOut ? 'Sem estoque' : `${inStockCount} em estoque`}
+                    />
                     <div className="flex flex-col flex-1 min-w-0">
-                      <span className="truncate text-sm">{p.name}</span>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate text-sm">{p.name}</span>
+                        <span className="text-xs font-medium text-foreground shrink-0">{priceLabel}</span>
+                      </div>
                       <span className="text-xs text-muted-foreground">
                         {p.variations.length} {p.variations.length === 1 ? 'variação' : 'variações'}
-                        {inStockCount > 0 ? ` · ${inStockCount} em estoque` : ''}
+                        {' · '}
+                        {allOut ? (
+                          <span className="text-destructive">sem estoque</span>
+                        ) : (
+                          <span className="text-emerald-600">{inStockCount} em estoque</span>
+                        )}
                       </span>
                     </div>
                     {!p.active && <Badge variant="secondary" className="ml-2 text-[10px]">inativo</Badge>}
@@ -248,8 +274,25 @@ function VariationPicker({
                   onSelect={() => { onChange(v.id); setOpen(false); }}
                 >
                   <Check className={`mr-2 h-4 w-4 ${value === v.id ? 'opacity-100' : 'opacity-0'}`} />
-                  <span className="text-sm flex-1">{v.dosage}</span>
-                  {!v.in_stock && <Badge variant="secondary" className="text-[10px]">sem estoque</Badge>}
+                  <span
+                    aria-hidden
+                    className={`mr-2 h-2 w-2 shrink-0 rounded-full ${
+                      v.in_stock ? 'bg-emerald-500' : 'bg-destructive'
+                    }`}
+                    title={v.in_stock ? 'Em estoque' : 'Sem estoque'}
+                  />
+                  <span className="text-sm flex-1 truncate">{v.dosage}</span>
+                  <div className="ml-2 flex items-center gap-2 shrink-0">
+                    {v.is_offer && v.offer_price > 0 ? (
+                      <>
+                        <span className="text-[11px] text-muted-foreground line-through">{fmtBRL(v.price)}</span>
+                        <span className="text-xs font-medium text-primary">{fmtBRL(v.offer_price)}</span>
+                      </>
+                    ) : (
+                      <span className="text-xs font-medium text-foreground">{fmtBRL(v.price)}</span>
+                    )}
+                    {!v.in_stock && <Badge variant="secondary" className="text-[10px]">sem estoque</Badge>}
+                  </div>
                 </CommandItem>
               ))}
             </CommandGroup>
