@@ -586,7 +586,10 @@ function ComboForm({ comboId }: { comboId: string }) {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Itens do combo</CardTitle>
+          <div>
+            <CardTitle>Itens do combo</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Adicione pelo menos 2 produtos para formar o combo</p>
+          </div>
           <Button size="sm" onClick={addItem}><Plus className="w-4 h-4 mr-1" /> Adicionar item</Button>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -595,6 +598,7 @@ function ComboForm({ comboId }: { comboId: string }) {
           ) : (
             items.map((it, idx) => {
               const prod = products.find((p) => p.id === it.product_id);
+              const unit = getItemUnitPrice(it);
               return (
                 <div key={it.id} className="grid grid-cols-12 gap-2 items-end border rounded-lg p-3">
                   <div className="hidden md:flex col-span-1 items-center text-muted-foreground"><GripVertical className="w-4 h-4" /></div>
@@ -630,12 +634,56 @@ function ComboForm({ comboId }: { comboId: string }) {
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
+                  {prod && unit > 0 && (
+                    <div className="col-span-12 text-xs text-muted-foreground pl-1">
+                      {it.quantity}× {fmtBRL(unit)} = <span className="font-medium text-foreground">{fmtBRL(unit * it.quantity)}</span>
+                    </div>
+                  )}
                 </div>
               );
             })
           )}
+
+          {validItemsForSummary.length === 1 && (
+            <div className="flex items-start gap-2 text-xs text-amber-600 bg-amber-500/10 border border-amber-500/30 rounded-md p-2.5">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>Adicione mais um produto para que o combo fique ativo no catálogo.</span>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {validItemsForSummary.length >= 2 && (
+        <Card className="border-primary/30 bg-primary/[0.03]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TrendingDown className="w-5 h-5 text-primary" />
+              Resumo da oferta
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Soma dos produtos avulsos</span>
+              <span className="font-medium text-foreground line-through">{fmtBRL(originalTotal)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Preço do combo</span>
+              <span className="font-bold text-primary text-lg">{fmtBRL(combo.price)}</span>
+            </div>
+            <div className="border-t pt-3 flex items-center justify-between">
+              <span className="text-sm font-medium">Cliente economiza</span>
+              {savingsValue > 0 ? (
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-green-600 hover:bg-green-600 text-white">−{savingsPercent}%</Badge>
+                  <span className="font-bold text-green-600">{fmtBRL(savingsValue)}</span>
+                </div>
+              ) : (
+                <span className="text-xs text-muted-foreground">Defina um preço de combo menor que a soma para gerar economia</span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
