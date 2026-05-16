@@ -38,9 +38,12 @@ import {
   Copy as CopyIcon,
   Pencil,
   GripVertical,
+  TrendingDown,
+  Wand2,
+  AlertCircle,
 } from 'lucide-react';
 
-interface Variation { id: string; dosage: string; in_stock: boolean; }
+interface Variation { id: string; dosage: string; in_stock: boolean; price: number; offer_price: number; is_offer: boolean; }
 interface Product { id: string; name: string; active: boolean; variations: Variation[]; }
 interface ComboItemRow {
   id: string;
