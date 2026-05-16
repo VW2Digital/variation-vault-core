@@ -244,9 +244,6 @@ const Catalog = () => {
       </AnimatedSection>
 
       <div className="max-w-7xl mx-auto px-[5px] py-8">
-        {/* Combos em destaque */}
-        <CombosSection />
-
         {/* Filters Bar */}
         <AnimatedSection variant="fadeIn" className="mb-8">
           <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
@@ -327,6 +324,9 @@ const Catalog = () => {
             )}
           </div>
         </AnimatedSection>
+
+        {/* Combos em destaque */}
+        <CombosSection />
 
         {/* Product Grid */}
         {loading ? (
