@@ -299,14 +299,19 @@ function ComboForm({ comboId }: { comboId: string }) {
     (async () => {
       setLoading(true);
       const [{ data: prods }, comboRes] = await Promise.all([
-        supabase.from('products').select('id, name, active, product_variations(id, dosage, in_stock)').order('name'),
+        supabase.from('products').select('id, name, active, product_variations(id, dosage, in_stock, price, offer_price, is_offer)').order('name'),
         isNew ? Promise.resolve({ data: null }) : supabase.from('combos' as any).select('*, combo_items(*)').eq('id', comboId).maybeSingle(),
       ]);
       const productList: Product[] = (prods as any[] || []).map((p) => ({
         id: p.id,
         name: p.name,
         active: p.active,
-        variations: (p.product_variations || []).map((v: any) => ({ id: v.id, dosage: v.dosage, in_stock: v.in_stock })),
+        variations: (p.product_variations || []).map((v: any) => ({
+          id: v.id, dosage: v.dosage, in_stock: v.in_stock,
+          price: Number(v.price) || 0,
+          offer_price: Number(v.offer_price) || 0,
+          is_offer: !!v.is_offer,
+        })),
       }));
       setProducts(productList);
       if (!isNew && (comboRes as any).data) {
