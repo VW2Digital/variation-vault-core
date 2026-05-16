@@ -94,6 +94,26 @@ const fmtBRL = (n: number) =>
 
 const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 
+function usePersistedState<T>(key: string, initial: T): [T, (v: T) => void] {
+  const [state, setState] = useState<T>(() => {
+    if (typeof window === 'undefined') return initial;
+    try {
+      const raw = window.localStorage.getItem(key);
+      return raw != null ? (JSON.parse(raw) as T) : initial;
+    } catch {
+      return initial;
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(state));
+    } catch {
+      /* ignore */
+    }
+  }, [key, state]);
+  return [state, setState];
+}
+
 type ProductFilterStatus = 'all' | 'active' | 'inactive';
 
 function ProductPicker({
@@ -106,8 +126,15 @@ function ProductPicker({
   onChange: (productId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [status, setStatus] = useState<ProductFilterStatus>('active');
-  const [onlyWithStock, setOnlyWithStock] = useState(false);
+  const [status, setStatus] = usePersistedState<ProductFilterStatus>(
+    'combos:picker:product:status',
+    'active',
+  );
+  const [onlyWithStock, setOnlyWithStock] = usePersistedState<boolean>(
+    'combos:picker:product:onlyWithStock',
+    false,
+  );
+  const [search, setSearch] = usePersistedState<string>('combos:picker:product:search', '');
   const selected = products.find((p) => p.id === value);
 
   const filtered = products.filter((p) => {
@@ -137,7 +164,11 @@ function ProductPicker({
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command>
-          <CommandInput placeholder="Buscar produto por nome..." />
+          <CommandInput
+            placeholder="Buscar produto por nome..."
+            value={search}
+            onValueChange={setSearch}
+          />
           <div className="flex items-center gap-1 px-2 py-1.5 border-b">
             {(['active', 'all', 'inactive'] as ProductFilterStatus[]).map((s) => (
               <Button
@@ -228,7 +259,11 @@ function VariationPicker({
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [onlyInStock, setOnlyInStock] = useState(false);
+  const [onlyInStock, setOnlyInStock] = usePersistedState<boolean>(
+    'combos:picker:variation:onlyInStock',
+    false,
+  );
+  const [search, setSearch] = usePersistedState<string>('combos:picker:variation:search', '');
   const selected = value ? variations.find((v) => v.id === value) : null;
   const filtered = onlyInStock ? variations.filter((v) => v.in_stock) : variations;
 
@@ -252,7 +287,11 @@ function VariationPicker({
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command>
-          <CommandInput placeholder="Buscar variação..." />
+          <CommandInput
+            placeholder="Buscar variação..."
+            value={search}
+            onValueChange={setSearch}
+          />
           <div className="flex items-center gap-1.5 px-2 py-1.5 border-b text-xs text-muted-foreground">
             <Switch checked={onlyInStock} onCheckedChange={setOnlyInStock} className="scale-75" />
             Apenas em estoque
