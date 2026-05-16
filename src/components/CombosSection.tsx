@@ -12,10 +12,11 @@ interface ComboCard {
   image_url: string;
   price: number;
   compare_price: number;
-  combo_items: { quantity: number; product_id: string; sort_order: number }[];
+  combo_items: { quantity: number; product_id: string; variation_id: string | null; sort_order: number }[];
 }
 
 interface ProductLite { id: string; name: string; images: string[] | null; }
+interface VariationLite { id: string; product_id: string; image_url: string | null; images: string[] | null; }
 
 interface ProductInfo { name: string; image: string }
 
@@ -25,19 +26,22 @@ const fmtBRL = (n: number) =>
 export default function CombosSection() {
   const [combos, setCombos] = useState<ComboCard[]>([]);
   const [products, setProducts] = useState<Record<string, ProductInfo>>({});
+  const [variations, setVariations] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       const { data, error } = await supabase
         .from('combos' as any)
-        .select('id, name, subtitle, slug, image_url, price, compare_price, combo_items(quantity, product_id, sort_order)')
+        .select('id, name, subtitle, slug, image_url, price, compare_price, combo_items(quantity, product_id, variation_id, sort_order)')
         .eq('active', true)
         .order('sort_order', { ascending: true });
       if (!error && data) {
         const rows = data as any as ComboCard[];
         setCombos(rows);
-        const pids = Array.from(new Set(rows.flatMap((c) => (c.combo_items || []).map((i) => i.product_id))));
+        const allItems = rows.flatMap((c) => c.combo_items || []);
+        const pids = Array.from(new Set(allItems.map((i) => i.product_id)));
+        const vids = Array.from(new Set(allItems.map((i) => i.variation_id).filter(Boolean) as string[]));
         if (pids.length > 0) {
           const { data: prods } = await supabase
             .from('products')
@@ -45,9 +49,22 @@ export default function CombosSection() {
             .in('id', pids);
           const map: Record<string, ProductInfo> = {};
           (prods as ProductLite[] | null)?.forEach((p) => {
-            map[p.id] = { name: p.name, image: (p.images && p.images[0]) || '' };
+            const img = (p.images || []).find((u) => u && !/placeholder/i.test(u)) || '';
+            map[p.id] = { name: p.name, image: img };
           });
           setProducts(map);
+        }
+        if (vids.length > 0) {
+          const { data: vars } = await supabase
+            .from('product_variations')
+            .select('id, product_id, image_url, images')
+            .in('id', vids);
+          const vmap: Record<string, string> = {};
+          (vars as VariationLite[] | null)?.forEach((v) => {
+            const fromArr = (v.images || []).find(Boolean) || '';
+            vmap[v.id] = fromArr || v.image_url || '';
+          });
+          setVariations(vmap);
         }
       }
       setLoading(false);
@@ -102,6 +119,8 @@ export default function CombosSection() {
                   <div className={`grid ${tileGridClass} gap-2 mb-3`}>
                     {previewItems.map((it, idx) => {
                       const info = products[it.product_id];
+                      const variationImage = it.variation_id ? variations[it.variation_id] : '';
+                      const imageSrc = variationImage || info?.image || '';
                       const isLastWithMore = extraCount > 0 && idx === previewItems.length - 1;
                       return (
                         <div
@@ -109,10 +128,10 @@ export default function CombosSection() {
                           className="relative aspect-square rounded-lg bg-muted overflow-hidden border border-border/60"
                           title={info?.name}
                         >
-                          {info?.image ? (
+                          {imageSrc ? (
                             <img
-                              src={info.image}
-                              alt={info.name}
+                              src={imageSrc}
+                              alt={info?.name || ''}
                               loading="lazy"
                               className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
                             />
