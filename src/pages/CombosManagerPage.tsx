@@ -15,6 +15,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +50,9 @@ import {
   TrendingDown,
   Wand2,
   AlertCircle,
+  ChevronsUpDown,
+  Check,
+  Search,
 } from 'lucide-react';
 
 interface Variation { id: string; dosage: string; in_stock: boolean; price: number; offer_price: number; is_offer: boolean; }
@@ -81,6 +93,172 @@ const fmtBRL = (n: number) =>
   Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+
+type ProductFilterStatus = 'all' | 'active' | 'inactive';
+
+function ProductPicker({
+  products,
+  value,
+  onChange,
+}: {
+  products: Product[];
+  value: string;
+  onChange: (productId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState<ProductFilterStatus>('active');
+  const [onlyWithStock, setOnlyWithStock] = useState(false);
+  const selected = products.find((p) => p.id === value);
+
+  const filtered = products.filter((p) => {
+    if (status === 'active' && !p.active) return false;
+    if (status === 'inactive' && p.active) return false;
+    if (onlyWithStock && !p.variations.some((v) => v.in_stock)) return false;
+    return true;
+  });
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal"
+        >
+          <span className="truncate">
+            {selected
+              ? `${selected.name}${!selected.active ? ' (inativo)' : ''}`
+              : 'Selecione um produto...'}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Buscar produto por nome..." />
+          <div className="flex items-center gap-1 px-2 py-1.5 border-b">
+            {(['active', 'all', 'inactive'] as ProductFilterStatus[]).map((s) => (
+              <Button
+                key={s}
+                type="button"
+                size="sm"
+                variant={status === s ? 'default' : 'ghost'}
+                className="h-7 px-2 text-xs"
+                onClick={() => setStatus(s)}
+              >
+                {s === 'active' ? 'Ativos' : s === 'inactive' ? 'Inativos' : 'Todos'}
+              </Button>
+            ))}
+            <div className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Switch checked={onlyWithStock} onCheckedChange={setOnlyWithStock} className="scale-75" />
+              Em estoque
+            </div>
+          </div>
+          <CommandList>
+            <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
+            <CommandGroup>
+              {filtered.map((p) => {
+                const inStockCount = p.variations.filter((v) => v.in_stock).length;
+                return (
+                  <CommandItem
+                    key={p.id}
+                    value={`${p.name} ${p.id}`}
+                    onSelect={() => {
+                      onChange(p.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check className={`mr-2 h-4 w-4 ${value === p.id ? 'opacity-100' : 'opacity-0'}`} />
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <span className="truncate text-sm">{p.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {p.variations.length} {p.variations.length === 1 ? 'variação' : 'variações'}
+                        {inStockCount > 0 ? ` · ${inStockCount} em estoque` : ''}
+                      </span>
+                    </div>
+                    {!p.active && <Badge variant="secondary" className="ml-2 text-[10px]">inativo</Badge>}
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function VariationPicker({
+  variations,
+  value,
+  onChange,
+  disabled,
+}: {
+  variations: Variation[];
+  value: string | null;
+  onChange: (variationId: string | null) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [onlyInStock, setOnlyInStock] = useState(false);
+  const selected = value ? variations.find((v) => v.id === value) : null;
+  const filtered = onlyInStock ? variations.filter((v) => v.in_stock) : variations;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          disabled={disabled}
+          className="w-full justify-between font-normal"
+        >
+          <span className="truncate">
+            {selected
+              ? `${selected.dosage}${!selected.in_stock ? ' (sem estoque)' : ''}`
+              : 'Qualquer'}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Buscar variação..." />
+          <div className="flex items-center gap-1.5 px-2 py-1.5 border-b text-xs text-muted-foreground">
+            <Switch checked={onlyInStock} onCheckedChange={setOnlyInStock} className="scale-75" />
+            Apenas em estoque
+          </div>
+          <CommandList>
+            <CommandEmpty>Nenhuma variação.</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value="qualquer"
+                onSelect={() => { onChange(null); setOpen(false); }}
+              >
+                <Check className={`mr-2 h-4 w-4 ${!value ? 'opacity-100' : 'opacity-0'}`} />
+                <span className="text-sm">Qualquer variação</span>
+              </CommandItem>
+              {filtered.map((v) => (
+                <CommandItem
+                  key={v.id}
+                  value={v.dosage}
+                  onSelect={() => { onChange(v.id); setOpen(false); }}
+                >
+                  <Check className={`mr-2 h-4 w-4 ${value === v.id ? 'opacity-100' : 'opacity-0'}`} />
+                  <span className="text-sm flex-1">{v.dosage}</span>
+                  {!v.in_stock && <Badge variant="secondary" className="text-[10px]">sem estoque</Badge>}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export default function CombosManagerPage() {
   const { id } = useParams<{ id: string }>();
@@ -612,26 +790,20 @@ function ComboForm({ comboId }: { comboId: string }) {
                   <div className="hidden md:flex col-span-1 items-center text-muted-foreground"><GripVertical className="w-4 h-4" /></div>
                   <div className="col-span-12 md:col-span-5 space-y-1">
                     <Label className="text-xs">Produto</Label>
-                    <Select value={it.product_id} onValueChange={(v) => updateItem(idx, { product_id: v, variation_id: null })}>
-                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      <SelectContent>
-                        {products.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>{p.name}{!p.active ? ' (inativo)' : ''}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <ProductPicker
+                      products={products}
+                      value={it.product_id}
+                      onChange={(pid) => updateItem(idx, { product_id: pid, variation_id: null })}
+                    />
                   </div>
                   <div className="col-span-7 md:col-span-3 space-y-1">
                     <Label className="text-xs">Variação</Label>
-                    <Select value={it.variation_id || 'none'} onValueChange={(v) => updateItem(idx, { variation_id: v === 'none' ? null : v })} disabled={!prod}>
-                      <SelectTrigger><SelectValue placeholder="Qualquer" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Qualquer</SelectItem>
-                        {prod?.variations.map((v) => (
-                          <SelectItem key={v.id} value={v.id}>{v.dosage}{!v.in_stock ? ' (sem estoque)' : ''}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <VariationPicker
+                      variations={prod?.variations || []}
+                      value={it.variation_id}
+                      onChange={(vid) => updateItem(idx, { variation_id: vid })}
+                      disabled={!prod}
+                    />
                   </div>
                   <div className="col-span-3 md:col-span-2 space-y-1">
                     <Label className="text-xs">Qtd</Label>
