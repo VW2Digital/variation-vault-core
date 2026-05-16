@@ -33,6 +33,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import { AdminKpiCard } from '@/components/admin/AdminKpiCard';
 import iconPedidos from '@/assets/icon-pedidos-3d.png';
 
 const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; badgeClass?: string }> = {
@@ -719,6 +720,30 @@ const OrdersPage = () => {
           </>
         }
       />
+
+      {(() => {
+        const fmt = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const paidStatuses = new Set(['PAID', 'CONFIRMED', 'RECEIVED']);
+        const totalValue = filteredOrders.reduce((s, o: any) => s + Number(o.total_value || 0), 0);
+        const paidOrders = filteredOrders.filter((o: any) => paidStatuses.has(o.status));
+        const paidValue = paidOrders.reduce((s, o: any) => s + Number(o.total_value || 0), 0);
+        const pendingOrders = filteredOrders.filter((o: any) => o.status === 'PENDING');
+        const pendingValue = pendingOrders.reduce((s, o: any) => s + Number(o.total_value || 0), 0);
+        const refundedOrders = filteredOrders.filter((o: any) => ['REFUNDED', 'OVERDUE'].includes(o.status));
+        const deliveredCount = filteredOrders.filter((o: any) => o.delivery_status === 'DELIVERED').length;
+        const inTransitCount = filteredOrders.filter((o: any) => ['SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(o.delivery_status)).length;
+        const avgTicket = paidOrders.length > 0 ? paidValue / paidOrders.length : 0;
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <AdminKpiCard label="Total (filtrado)" value={filteredOrders.length} icon={Receipt} tone="primary" hint={fmt(totalValue)} />
+            <AdminKpiCard label="Pagos" value={paidOrders.length} icon={CreditCard} tone="success" hint={fmt(paidValue)} />
+            <AdminKpiCard label="Pendentes" value={pendingOrders.length} icon={AlertCircle} tone="warning" hint={fmt(pendingValue)} />
+            <AdminKpiCard label="Estornados/Vencidos" value={refundedOrders.length} icon={X} tone="destructive" />
+            <AdminKpiCard label="Em trânsito" value={inTransitCount} icon={Truck} tone="default" hint={`${deliveredCount} entregue(s)`} />
+            <AdminKpiCard label="Ticket médio" value={fmt(avgTicket)} icon={Star} tone="default" hint="entre pagos" />
+          </div>
+        );
+      })()}
 
       <div className="flex flex-col gap-3">
         <div className="relative">
