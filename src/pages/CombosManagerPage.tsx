@@ -589,6 +589,17 @@ function ComboForm({ comboId }: { comboId: string }) {
       toast({ title: 'Adicione pelo menos 2 itens válidos ao combo', description: 'Cada item precisa ter um produto selecionado e quantidade maior que zero.', variant: 'destructive' });
       return;
     }
+    const mismatched = validItems.find((it) => {
+      if (!it.variation_id) return false;
+      const prod = products.find((p) => p.id === it.product_id);
+      if (!prod) return true;
+      return !prod.variations.some((v) => v.id === it.variation_id);
+    });
+    if (mismatched) {
+      const prodName = products.find((p) => p.id === mismatched.product_id)?.name || 'produto';
+      toast({ title: 'Variação inválida', description: `A variação selecionada não pertence ao produto "${prodName}". Selecione uma variação válida ou "Qualquer variação".`, variant: 'destructive' });
+      return;
+    }
     setSaving(true);
     try {
       const { data: userRes } = await supabase.auth.getUser();
