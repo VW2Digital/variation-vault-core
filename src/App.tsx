@@ -81,6 +81,8 @@ const FlashCampaignThankYouPage = lazy(() => import("./pages/FlashCampaignThankY
 const FlashCampaignLeadsPage = lazy(() => import("./pages/FlashCampaignLeadsPage"));
 const ResellersPage = lazy(() => import("./pages/ResellersPage"));
 const ResellerDetailPage = lazy(() => import("./pages/ResellerDetailPage"));
+const CombosManagerPage = lazy(() => import("./pages/CombosManagerPage"));
+const ComboCheckout = lazy(() => import("./pages/ComboCheckout"));
 
 import PromoPopup from "./components/PromoPopup";
 import { SessionGuard } from "./components/SessionGuard";
@@ -133,6 +135,7 @@ const App = () => (
           <Route path="/termos-de-uso" element={<TermsOfUse />} />
           <Route path="/contato" element={<ContactPage />} />
           <Route path="/pagar/:slug" element={<PaymentLinkCheckout />} />
+          <Route path="/combo/:slug" element={<ComboCheckout />} />
           <Route path="/relampago/:slug" element={<FlashCampaignPage />} />
           <Route path="/relampago/:slug/obrigado" element={<FlashCampaignThankYouPage />} />
           <Route path="/login" element={<Login />} />
@@ -144,6 +147,8 @@ const App = () => (
             <Route path="produtos/:id" element={<ProductForm />} />
             <Route path="atacado" element={<WholesalePricingPage />} />
             <Route path="upsells" element={<UpsellManagerPage />} />
+            <Route path="combos" element={<CombosManagerPage />} />
+            <Route path="combos/:id" element={<CombosManagerPage />} />
             <Route path="metricas-recomendacoes" element={<RecommendationMetricsPage />} />
             <Route path="banners" element={<BannerList />} />
             <Route path="popups" element={<PopupList />} />

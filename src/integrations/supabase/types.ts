@@ -349,6 +349,98 @@ export type Database = {
           },
         ]
       }
+      combo_items: {
+        Row: {
+          combo_id: string
+          created_at: string
+          id: string
+          product_id: string
+          quantity: number
+          sort_order: number
+          variation_id: string | null
+        }
+        Insert: {
+          combo_id: string
+          created_at?: string
+          id?: string
+          product_id: string
+          quantity?: number
+          sort_order?: number
+          variation_id?: string | null
+        }
+        Update: {
+          combo_id?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          sort_order?: number
+          variation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "combo_items_combo_id_fkey"
+            columns: ["combo_id"]
+            isOneToOne: false
+            referencedRelation: "combos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      combos: {
+        Row: {
+          active: boolean
+          compare_price: number | null
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          max_installments: number | null
+          name: string
+          pix_discount_percent: number | null
+          price: number
+          slug: string
+          sort_order: number
+          subtitle: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          compare_price?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          max_installments?: number | null
+          name: string
+          pix_discount_percent?: number | null
+          price?: number
+          slug: string
+          sort_order?: number
+          subtitle?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          compare_price?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          max_installments?: number | null
+          name?: string
+          pix_discount_percent?: number | null
+          price?: number
+          slug?: string
+          sort_order?: number
+          subtitle?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       contact_preferences: {
         Row: {
           allow_email_marketing: boolean

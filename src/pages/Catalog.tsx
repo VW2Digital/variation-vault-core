@@ -23,6 +23,7 @@ import productHeroImg from '@/assets/product-hero.png';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import BannerCarousel from '@/components/BannerCarousel';
+import CombosSection from '@/components/CombosSection';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { TRUST_BAR_ICONS, DEFAULT_TRUST_BAR, DEFAULT_TRUST_BAR_BG, DEFAULT_TRUST_BAR_SPEED, type TrustBarItem } from '@/pages/settings/SettingsTrustBar';
 import { ProductCardSkeletonGrid } from '@/components/ProductCardSkeleton';
@@ -203,6 +204,9 @@ const Catalog = () => {
 
       {/* Banner Carousel */}
       <BannerCarousel />
+
+      {/* Combos em destaque */}
+      <CombosSection />
 
       {/* Trust Bar - Marquee */}
       <div className="border-b border-border/30 overflow-hidden" style={{ background: trustBarBg }}>

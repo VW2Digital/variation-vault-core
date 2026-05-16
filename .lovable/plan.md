@@ -1,64 +1,99 @@
+# Combos de Produtos (preço fixo)
 
-# Múltiplas contas por gateway com round-robin
-
-## Objetivo
-Permitir cadastrar várias contas do mesmo gateway (Asaas, Mercado Pago, PagBank, Pagar.me) e distribuir transações entre elas em round-robin, mantendo todas as configurações atuais funcionando.
+Sistema onde o admin monta um pacote com 2+ produtos/variações, define um preço promocional único, e o combo aparece como item de vitrine no catálogo. Ao comprar, vira um pedido único.
 
 ## 1. Banco de dados
 
-Nova tabela `gateway_accounts`:
-- `id`, `gateway` (asaas|mercadopago|pagbank|pagarme), `label` (nome amigável: "Conta principal", "Conta 2"), `environment` (sandbox|production), `credentials` (jsonb), `active` (bool), `sort_order`, `last_used_at`, timestamps.
-- Índice único parcial: `(gateway)` onde `is_primary = true` para garantir uma conta principal por gateway.
-- RLS: apenas admins (SELECT/INSERT/UPDATE/DELETE).
+Migration nova (2 tabelas):
 
-Função RPC `pick_next_gateway_account(_gateway text)`:
-- Seleciona entre contas ativas do gateway a com `last_used_at` mais antigo (round-robin justo).
-- Atualiza `last_used_at = now()` na conta escolhida e devolve o registro.
-- `SECURITY DEFINER` para uso em edge functions.
+**`combos`**
+- `id`, `user_id` (admin dono), `name`, `subtitle`, `description`
+- `image_url`, `price` (preço final do combo), `compare_price` (riscado, opcional)
+- `active` (bool), `sort_order` (int)
+- `max_installments`, `pix_discount_percent` (mesmas regras dos produtos)
+- `slug` (único, para URL `/combo/:slug`)
+- `created_at`, `updated_at`
 
-Migração de dados (via insert tool após migração schema):
-- Para cada gateway existente, criar a primeira `gateway_account` com label "Conta principal", lendo credenciais atuais de `site_settings` (chaves `asaas_api_key`, `asaas_environment`, `mercadopago_access_token`, etc.) e empacotando em `credentials` jsonb.
+**`combo_items`**
+- `id`, `combo_id` (fk)
+- `product_id`, `variation_id` (nullable), `quantity` (default 1)
+- `sort_order`
 
-## 2. Edge functions
+RLS:
+- `SELECT` público quando `active = true`
+- Admin (`has_role(auth.uid(),'admin')`) gerencia tudo
+- Mesma política para `combo_items` (via combo dono)
 
-Cada função de checkout (`asaas-checkout`, `payment-checkout` para MP/PagBank/Pagar.me) passa a:
-1. Chamar `pick_next_gateway_account('<gateway>')` no início.
-2. Usar credenciais do JSON retornado em vez de `Deno.env.get` ou `site_settings`.
-3. Salvar o `gateway_account_id` no pedido para o webhook saber qual conta usar.
+## 2. Página admin `/admin/combos`
 
-Webhooks (`asaas-webhook`, `mercadopago-webhook`, etc.) leem `orders.gateway_account_id`, buscam credenciais dessa conta para validar assinatura/consultar pagamento. Tabela `orders` ganha coluna `gateway_account_id` (uuid, nullable para histórico).
+Lista todos os combos com:
+- Imagem, nome, preço, status (ativo/inativo), nº de itens
+- Botões Editar / Duplicar / Excluir (com confirmação "EXCLUIR")
+- Botão "Novo combo"
 
-## 3. UI admin
+Formulário (modal ou rota `/admin/combos/:id`):
+- Campos básicos (nome, subtítulo, descrição, slug, imagem upload no bucket `product-images`)
+- Preço do combo + preço comparativo (riscado)
+- Parcelas máximas, desconto PIX
+- Lista de itens: seletor de produto + variação + quantidade (similar ao UpsellManager existente, com dnd-kit para reordenar)
+- Toggle ativo, ordem de exibição
+- Salvar usa upsert + replace de `combo_items`
 
-Em `/admin/configuracoes/pagamento/:gateway` (ex: `AsaasSettings.tsx`):
-- Acima do formulário, lista de contas cadastradas (cards) com: label, ambiente, status ativo/inativo, badge "Principal", botões editar/excluir/ativar.
-- Botão **"+ Adicionar conta"** abre dialog (`AddGatewayAccountDialog`) com:
-  - Campo label.
-  - Seletor de ambiente.
-  - Campos específicos do gateway (mesmos campos do form atual: api_key, webhook_secret, etc.).
-  - Validação obrigatória.
+## 3. Sidebar e rotas
 
-A página de visão geral `/admin/configuracoes/pagamento` ganha contador de contas ativas por gateway no card.
+- `AdminSidebar.tsx`: adicionar item "Combos" (ícone `Package2` ou `Boxes`) abaixo de Upsells
+- `App.tsx`: rota `combos` → `CombosManagerPage` (lazy)
 
-Novo dialog separado **"Escolher banco"** acessível pelo botão "+" do grid 4-up (visualizado na imagem enviada): mostra os 4 gateways como cards, ao clicar abre o `AddGatewayAccountDialog` já filtrado para aquele gateway.
+## 4. Vitrine no catálogo
 
-## 4. Componentes novos
-- `src/components/admin/settings/payment/GatewayAccountList.tsx` — lista de contas + ações
-- `src/components/admin/settings/payment/AddGatewayAccountDialog.tsx` — dialog com form dinâmico por gateway
-- `src/components/admin/settings/payment/ChooseGatewayDialog.tsx` — dialog com 4 cards para escolher banco
-- `src/lib/gatewayAccounts.ts` — helpers CRUD
+Nova seção "Combos em destaque" na home (`src/pages/Index.tsx` ou `Catalog.tsx`), exibida acima ou abaixo do grid de produtos, somente quando houver combos ativos.
 
-## 5. Compatibilidade
+Card de combo:
+- Imagem, nome, badge "COMBO"
+- Lista compacta dos itens incluídos (ex: "2x Produto A + 1x Produto B")
+- Preço riscado + preço do combo + % de desconto
+- Botão "Comprar combo" → leva para `/combo/:slug`
 
-- Configurações atuais em `site_settings` continuam intactas (não removemos nada).
-- Migração cria a "Conta principal" lendo dessas chaves; após isso o checkout passa a usar `gateway_accounts` como fonte de verdade.
-- Toggle de gateway ativo (`payment_gateway` em `site_settings`) continua determinando qual gateway é usado; o round-robin escolhe entre contas **dentro** desse gateway.
+## 5. Página de checkout do combo `/combo/:slug`
 
-## Fora de escopo (pode vir depois)
-- Round-robin entre gateways diferentes (já existe via fallback).
-- Métricas por conta (volume, taxa de erro).
-- Limites por conta (ex: parar de usar quando atingir X reais).
+Reaproveita o layout do checkout existente (`ProductCheckout`):
+- Mostra todos os itens do combo
+- Preço fixo do combo (não soma variações)
+- Pagamento normal (Asaas/MP/PagBank conforme gateway ativo)
+- Ao criar pedido em `orders`:
+  - `product_name` = nome do combo
+  - `unit_price` = preço do combo
+  - `quantity` = 1
+  - metadados do combo (id, itens) salvos em campo apropriado (usar `dosage` já não cabe; vamos concatenar a descrição dos itens no `product_name` entre parênteses, mantendo backend atual sem mudanças invasivas)
 
----
+Observação: para não alterar schema de `orders`, o pedido do combo é tratado como produto único de preço fixo. Histórico do cliente mostra "Combo X" normalmente.
 
-Aprova para eu começar pela migração + RPC e depois a UI?
+## 6. Detalhes técnicos
+
+- Slug auto-gerado a partir do nome (kebab-case) com fallback ao salvar
+- Validação: combo precisa ter ≥ 2 itens para ser ativado
+- Imagem upload via storage `product-images` (bucket já público existente)
+- `api.ts`: adicionar `fetchCombos()`, `fetchComboBySlug()`, `saveCombo()`, `deleteCombo()`
+- Memória nova: `mem://features/combos-produtos`
+
+## Arquivos a criar/editar
+
+```text
+NEW  supabase/migrations/<ts>_combos.sql
+NEW  src/pages/CombosManagerPage.tsx
+NEW  src/pages/ComboCheckout.tsx
+NEW  src/components/CombosSection.tsx
+EDIT src/App.tsx                       (rotas /admin/combos e /combo/:slug)
+EDIT src/components/AdminSidebar.tsx   (link Combos)
+EDIT src/pages/Index.tsx ou Catalog    (seção Combos)
+EDIT src/lib/api.ts                    (helpers de combo)
+NEW  .lovable/memory/features/combos-produtos.md
+```
+
+## Fora do escopo (não vou fazer agora)
+
+- Estoque por combo (vamos descontar do estoque das variações só se você pedir depois)
+- Cupom aplicado dentro de combo
+- Combos no checkout do carrinho normal (só na URL própria `/combo/:slug`)
+
+Posso prosseguir?
