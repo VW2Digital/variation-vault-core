@@ -268,7 +268,6 @@ function VariationPicker({
                 <span className="text-sm">Qualquer variação</span>
               </CommandItem>
               {filtered.map((v) => (
-                {(() => null)()}
                 <CommandItem
                   key={v.id}
                   value={v.dosage}
