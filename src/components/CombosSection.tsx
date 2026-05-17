@@ -77,9 +77,6 @@ export default function CombosSection() {
     <section className="py-10 bg-gradient-to-b from-primary/5 via-primary/[0.02] to-transparent">
       <div className="max-w-7xl mx-auto px-[5px]">
         <div className="flex items-center gap-3 mb-6 px-2">
-          <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Boxes className="w-6 h-6 text-primary" />
-          </div>
           <div>
             <h2 className="text-2xl md:text-3xl font-bold text-foreground">Combos em destaque</h2>
             <p className="text-sm text-muted-foreground">Pacotes com preço promocional fechado</p>
