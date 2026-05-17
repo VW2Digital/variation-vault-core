@@ -54,10 +54,11 @@ import {
   ChevronsUpDown,
   Check,
   Search,
+  Image as ImageIcon,
 } from 'lucide-react';
 
-interface Variation { id: string; dosage: string; in_stock: boolean; price: number; offer_price: number; is_offer: boolean; }
-interface Product { id: string; name: string; active: boolean; variations: Variation[]; }
+interface Variation { id: string; dosage: string; in_stock: boolean; price: number; offer_price: number; is_offer: boolean; image_url?: string; images?: string[]; }
+interface Product { id: string; name: string; active: boolean; images?: string[]; variations: Variation[]; }
 interface ComboItemRow {
   id: string;
   product_id: string;
@@ -726,18 +727,21 @@ function ComboForm({ comboId }: { comboId: string }) {
     (async () => {
       setLoading(true);
       const [{ data: prods }, comboRes] = await Promise.all([
-        supabase.from('products').select('id, name, active, product_variations(id, dosage, in_stock, price, offer_price, is_offer)').order('name'),
+        supabase.from('products').select('id, name, active, images, product_variations(id, dosage, in_stock, price, offer_price, is_offer, image_url, images)').order('name'),
         isNew ? Promise.resolve({ data: null }) : supabase.from('combos' as any).select('*, combo_items(*)').eq('id', comboId).maybeSingle(),
       ]);
       const productList: Product[] = (prods as any[] || []).map((p) => ({
         id: p.id,
         name: p.name,
         active: p.active,
+        images: p.images || [],
         variations: (p.product_variations || []).map((v: any) => ({
           id: v.id, dosage: v.dosage, in_stock: v.in_stock,
           price: Number(v.price) || 0,
           offer_price: Number(v.offer_price) || 0,
           is_offer: !!v.is_offer,
+          image_url: v.image_url || '',
+          images: v.images || [],
         })),
       }));
       setProducts(productList);
@@ -1043,16 +1047,33 @@ function ComboForm({ comboId }: { comboId: string }) {
             items.map((it, idx) => {
               const prod = products.find((p) => p.id === it.product_id);
               const unit = getItemUnitPrice(it);
+              const variation = prod?.variations.find((v) => v.id === it.variation_id);
+              const thumb =
+                variation?.image_url ||
+                variation?.images?.[0] ||
+                prod?.images?.[0] ||
+                '';
               return (
                 <div key={it.id} className="grid grid-cols-12 gap-2 items-end border rounded-lg p-3">
                   <div className="hidden md:flex col-span-1 items-center text-muted-foreground"><GripVertical className="w-4 h-4" /></div>
                   <div className="col-span-12 md:col-span-5 space-y-1">
                     <Label className="text-xs">Produto</Label>
-                    <ProductPicker
-                      products={products}
-                      value={it.product_id}
-                      onChange={(pid) => updateItem(idx, { product_id: pid, variation_id: null })}
-                    />
+                    <div className="flex items-center gap-2">
+                      <div className="w-12 h-12 rounded-md border bg-muted overflow-hidden flex-shrink-0 flex items-center justify-center">
+                        {thumb ? (
+                          <img src={thumb} alt={prod?.name || 'Produto'} className="w-full h-full object-cover" />
+                        ) : (
+                          <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <ProductPicker
+                          products={products}
+                          value={it.product_id}
+                          onChange={(pid) => updateItem(idx, { product_id: pid, variation_id: null })}
+                        />
+                      </div>
+                    </div>
                   </div>
                   <div className="col-span-7 md:col-span-3 space-y-1">
                     <Label className="text-xs">Variação</Label>
