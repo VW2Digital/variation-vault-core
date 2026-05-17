@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LayoutDashboard, Megaphone, MousePointerClick } from 'lucide-react';
+import { LayoutDashboard, Megaphone, MousePointerClick, Zap } from 'lucide-react';
 import SettingsBackButton from './SettingsBackButton';
 
 const SettingsHomePage = () => {
@@ -37,6 +37,21 @@ const SettingsHomePage = () => {
             <div>
               <p className="font-medium text-foreground">Popups</p>
               <p className="text-sm text-muted-foreground">Gerenciar popups promocionais</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="border-border/50 cursor-pointer hover:bg-accent/50 transition-colors"
+          onClick={() => navigate('/admin/configuracoes/widget-ofertas')}
+        >
+          <CardContent className="flex items-center gap-4 py-6">
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-muted">
+              <Zap className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="font-medium text-foreground">Widget Ofertas Relâmpago</p>
+              <p className="text-sm text-muted-foreground">Card flutuante com timer no catálogo</p>
             </div>
           </CardContent>
         </Card>

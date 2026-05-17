@@ -83,8 +83,10 @@ const ResellersPage = lazy(() => import("./pages/ResellersPage"));
 const ResellerDetailPage = lazy(() => import("./pages/ResellerDetailPage"));
 const CombosManagerPage = lazy(() => import("./pages/CombosManagerPage"));
 const ComboCheckout = lazy(() => import("./pages/ComboCheckout"));
+const SettingsFlashOffersWidget = lazy(() => import("./pages/settings/SettingsFlashOffersWidget"));
 
 import PromoPopup from "./components/PromoPopup";
+import FlashOffersWidget from "./components/FlashOffersWidget";
 import { SessionGuard } from "./components/SessionGuard";
 import ChatWidgetEmbed from "./components/ChatWidgetEmbed";
 import MercadoPagoSecurity from "./components/MercadoPagoSecurity";
@@ -115,6 +117,7 @@ const App = () => (
         <ErrorBoundary silent name="LanguageDetectionBanner"><LanguageDetectionBanner /></ErrorBoundary>
         <ErrorBoundary silent name="HeadScriptInjector"><HeadScriptInjector /></ErrorBoundary>
         <ErrorBoundary silent name="PromoPopup"><PromoPopup /></ErrorBoundary>
+        <ErrorBoundary silent name="FlashOffersWidget"><FlashOffersWidget /></ErrorBoundary>
         <ErrorBoundary silent name="ChatWidgetEmbed"><ChatWidgetEmbed /></ErrorBoundary>
         <ErrorBoundary silent name="MercadoPagoSecurity"><MercadoPagoSecurity /></ErrorBoundary>
         <ErrorBoundary name="Routes">
@@ -183,6 +186,7 @@ const App = () => (
             <Route path="configuracoes/fontes" element={<SettingsFonts />} />
             <Route path="configuracoes/css" element={<SettingsCSS />} />
             <Route path="configuracoes/pagina-inicial" element={<SettingsHomePage />} />
+            <Route path="configuracoes/widget-ofertas" element={<SettingsFlashOffersWidget />} />
             <Route path="configuracoes/pagamento" element={<SettingsPayment />} />
             <Route path="configuracoes/pagamento/auditoria" element={<GatewayAuditLog />} />
             <Route path="configuracoes/pagamento/:gateway" element={<GatewaySettingsPage />} />
