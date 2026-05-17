@@ -56,8 +56,8 @@ import {
   Search,
 } from 'lucide-react';
 
-interface Variation { id: string; dosage: string; in_stock: boolean; price: number; offer_price: number; is_offer: boolean; }
-interface Product { id: string; name: string; active: boolean; variations: Variation[]; }
+interface Variation { id: string; dosage: string; in_stock: boolean; price: number; offer_price: number; is_offer: boolean; image_url?: string; images?: string[]; }
+interface Product { id: string; name: string; active: boolean; images?: string[]; variations: Variation[]; }
 interface ComboItemRow {
   id: string;
   product_id: string;
