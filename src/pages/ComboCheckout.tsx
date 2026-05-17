@@ -31,6 +31,8 @@ interface ComboData {
   max_installments: number;
   pix_discount_percent: number;
   items: ComboItem[];
+  free_shipping: boolean;
+  free_shipping_min_value: number;
 }
 
 const fmtBRL = (n: number) =>
@@ -68,13 +70,18 @@ export default function ComboCheckout() {
       const pids = Array.from(new Set(items.map((i) => i.product_id)));
       const vids = Array.from(new Set(items.map((i) => i.variation_id).filter(Boolean) as string[]));
       const [{ data: prods }, { data: vars }] = await Promise.all([
-        pids.length ? supabase.from('products').select('id, name, images').in('id', pids) : Promise.resolve({ data: [] as any[] }),
+        pids.length ? supabase.from('products').select('id, name, images, free_shipping, free_shipping_min_value').in('id', pids) : Promise.resolve({ data: [] as any[] }),
         vids.length ? supabase.from('product_variations').select('id, dosage, image_url, images').in('id', vids) : Promise.resolve({ data: [] as any[] }),
       ]);
-      const pmap = new Map<string, { name: string; image: string }>();
+      const pmap = new Map<string, { name: string; image: string; free_shipping: boolean; free_shipping_min_value: number }>();
       (prods as any[] || []).forEach((p) => {
         const img = (Array.isArray(p.images) ? p.images : []).find((u: string) => u && !/placeholder/i.test(u)) || '';
-        pmap.set(p.id, { name: p.name, image: img });
+        pmap.set(p.id, {
+          name: p.name,
+          image: img,
+          free_shipping: !!p.free_shipping,
+          free_shipping_min_value: Number(p.free_shipping_min_value) || 0,
+        });
       });
       const vmap = new Map<string, { dosage: string; image: string }>();
       (vars as any[] || []).forEach((v) => {
@@ -88,6 +95,14 @@ export default function ComboCheckout() {
         i.variation_dosage = v?.dosage;
         i.image = v?.image || p?.image || '';
       });
+      // Herdar frete grátis: combo é grátis se TODOS os produtos do combo tiverem free_shipping=true
+      const productsInCombo = pids.map((id) => pmap.get(id)).filter(Boolean) as Array<{ free_shipping: boolean; free_shipping_min_value: number }>;
+      const allFree = productsInCombo.length > 0 && productsInCombo.every((p) => p.free_shipping);
+      // Min value herdado: 0 (ilimitado) se algum for ilimitado; senão o menor (constraint mais apertada)
+      const mins = productsInCombo.map((p) => p.free_shipping_min_value);
+      const hasUnlimited = mins.some((m) => !m || m <= 0);
+      const inheritedMin = hasUnlimited ? 0 : Math.min(...mins);
+
       setCombo({
         id: c.id,
         name: c.name,
@@ -99,6 +114,8 @@ export default function ComboCheckout() {
         max_installments: c.max_installments || 6,
         pix_discount_percent: Number(c.pix_discount_percent) || 0,
         items,
+        free_shipping: allFree,
+        free_shipping_min_value: inheritedMin,
       });
       setLoading(false);
     })();
@@ -225,6 +242,8 @@ export default function ComboCheckout() {
             dosage=""
             quantity={1}
             unitPrice={combo.price}
+            freeShipping={combo.free_shipping}
+            freeShippingMinValue={combo.free_shipping_min_value}
             pixDiscountPercentProp={combo.pix_discount_percent}
             maxInstallmentsProp={combo.max_installments}
             installmentsInterestProp="sem_juros"
